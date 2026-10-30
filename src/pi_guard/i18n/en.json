@@ -3,9 +3,7 @@
   "unit.minutes": "{n} minutes",
   "unit.hours": "{n} hours",
   "unit.days": "{n} days",
-
   "button.menu": "Back to menu",
-
   "menu.question": "What would you like to do?",
   "menu.photo": "View photo",
   "menu.video": "View video",
@@ -13,7 +11,6 @@
   "menu.notifications": "Notifications",
   "menu.help": "Help",
   "menu.more": "More functions",
-
   "more.title": "More functions",
   "more.events": "Recent events",
   "more.cameras": "Cameras",
@@ -21,7 +18,6 @@
   "more.users": "Users",
   "more.invite": "Invite someone",
   "more.settings": "Settings",
-
   "status.no_cameras": "No camera is set up yet.",
   "status.camera_ok": "Your camera is working.",
   "status.cameras_ok": "All {n} cameras are working.",
@@ -38,7 +34,6 @@
   "status.uptime": "Running for {duration}",
   "status.presence": "Presence: {state}",
   "status.components_failing": "Not working right now: {names}",
-
   "mode.home": "At home",
   "mode.away": "Away",
   "mode.button_home": "I am at home",
@@ -50,7 +45,6 @@
   "mode.until": "This applies until {time}.",
   "mode.manual_hint": "Automatic presence detection is paused until you choose \"Automatic\".",
   "mode.auto_unavailable": "Automatic presence detection is not set up. Please choose \"At home\" or \"Away\".",
-
   "presence.home": "someone is probably at home",
   "presence.away": "probably nobody at home",
   "presence.unknown": "unknown",
@@ -59,7 +53,6 @@
   "presence.device": "• {name}: last seen {seen}",
   "presence.never": "not yet",
   "presence.disclaimer": "Presence is guessed from devices in your Wi-Fi. A phone that is switched off or asleep can look absent.",
-
   "camera.choose": "Which camera?",
   "camera.state.starting": "starting",
   "camera.state.running": "working",
@@ -74,17 +67,14 @@
   "camera.detail.device": "Device: {device} ({input} → {encoder})",
   "camera.detail.error": "Last error: {error}",
   "cameras.title": "Cameras:",
-
   "photo.caption": "{name}, {time}",
   "photo.again": "New photo",
   "photo.unavailable": "No picture is available from \"{name}\" right now. Please try again in a minute.",
-
   "video.preparing": "One moment, I am preparing the last {seconds} seconds…",
   "video.caption": "{name}, last {seconds} seconds",
   "video.longer": "Longer video",
   "video.failed": "The video from \"{name}\" could not be prepared. Please try again in a minute.",
   "video.disabled": "Videos are not available because recording is switched off.",
-
   "events.none": "Nothing has happened recently.",
   "events.title": "Recent events:",
   "event.motion_detected": "Movement",
@@ -99,12 +89,10 @@
   "event.presence_changed": "Presence changed",
   "event.mode_changed": "Mode changed",
   "event.system_started": "System started",
-
   "notifications.on": "Notifications are switched on. You will receive a message when something important happens.",
   "notifications.off": "Notifications are switched off. You will not receive any alerts.",
   "notifications.turn_on": "Switch notifications on",
   "notifications.turn_off": "Switch notifications off",
-
   "settings.text": "Language: {language}\nView: {layout}",
   "language.en": "English",
   "language.de": "German",
@@ -112,7 +100,6 @@
   "layout.advanced": "advanced",
   "layout.simple_button": "Simple view",
   "layout.advanced_button": "Advanced view",
-
   "help.simple": "Just press one of the buttons.\n\n\"View photo\" shows you a current picture.\n\"View video\" shows you the last few seconds.\n\"Camera status\" tells you whether everything is working.\n\nYou can always go back with \"Back to menu\".",
   "help.title": "Commands:",
   "help.plain_text": "Commands also work without the slash, e.g. \"photo\" or \"video 30\".",
@@ -132,7 +119,6 @@
   "help.presence": "Which trusted devices are at home",
   "help.invite": "Create an invitation for a new user",
   "help.users": "List and remove users",
-
   "invite.created": "Invitation for a new {role} created. It can be used once until {until}.",
   "invite.telegram_link": "Send this link to the person:\n{link}",
   "invite.code": "Or they send this code to the bot: {code}",
@@ -146,10 +132,8 @@
   "users.remove": "Remove {name}",
   "users.removed": "The user has been removed.",
   "users.remove_failed": "This user cannot be removed here.",
-
   "auth.unknown": "You are not authorised to use this camera. Ask the administrator for an invitation. Your ID: {id}",
   "auth.admin_only": "Only an administrator can do this.",
-
   "error.unknown_command": "I did not understand that. Please use the buttons.",
   "error.internal": "Something went wrong. Please try again later.",
   "error.range": "Please choose a number between {minimum} and {maximum}.",
@@ -157,5 +141,17 @@
   "error.camera_ambiguous": "Several cameras match. Please choose one of: {options}",
   "error.bad_argument": "I did not understand \"{value}\".",
   "error.missing_argument": "Something is missing in this command.",
-  "error.no_cameras": "No camera is set up yet."
+  "error.no_cameras": "No camera is set up yet.",
+  "notify.motion_detected": "Movement seen: {camera}, {time}.",
+  "notify.motion_ended": "No more movement: {camera}.",
+  "notify.person_detected": "A person was seen: {camera}, {time}.",
+  "notify.unknown_person": "A person who is not enrolled was seen: {camera}, {time}. This does not have to mean anything bad.",
+  "notify.known_person": "{name} was recognised: {camera}, {time}.",
+  "notify.camera_disconnected": "The camera \"{camera}\" has not been reachable since {time}. This camera is not recording.",
+  "notify.camera_reconnected": "The camera \"{camera}\" is working again.",
+  "notify.recording_failed": "There is a problem recording \"{camera}\". pi-guard is restarting it.",
+  "notify.storage_low": "Storage is almost full ({used_percent}% used). Old recordings are being deleted earlier than configured.",
+  "notify.presence_changed": "Presence: {presence}.",
+  "notify.mode_changed": "The mode is now \"{mode}\".",
+  "notify.system_started": "pi-guard has started (version {version})."
 }

@@ -25,6 +25,8 @@ from pi_guard.i18n import LANGUAGES, t
 from pi_guard.messaging.base import Provider
 from pi_guard.messaging.commands import build_registry
 from pi_guard.messaging.hub import Messenger
+from pi_guard.notifications.engine import Notifier
+from pi_guard.presence.monitor import PresenceMonitor, build_sources
 from pi_guard.recording.retention import Retention
 from pi_guard.recording.segments import recent_clip
 from pi_guard.security.files import atomic_write, secure_dir
@@ -80,13 +82,19 @@ class App:
             camera.id: self._pipeline(camera) for camera in cameras
         }
         self.motion: dict[str, Any] = {}
-        self.presence: Any = None
+        self.presence: PresenceMonitor | None = None
         self.audio: Any = None
         self.faces: Any = None
         self.retention = Retention(config, self.db, self.bus)
         self.registry = build_registry()
         self.providers: dict[str, Provider] = providers if providers is not None else {}
         self.messenger = Messenger(self)
+        self.notifier = Notifier(self)
+        if s.presence_enabled:
+            presence = config.file.presence
+            self.presence = PresenceMonitor(
+                presence, build_sources(s, presence), self.modes, self.bus
+            )
         self.components: dict[str, ComponentState] = {}
         self._started = time.monotonic()
         self._clip_slots = asyncio.Semaphore(MAX_PARALLEL_CLIPS)
@@ -154,7 +162,10 @@ class App:
             "events": lambda: self.bus.consume("event-log", self._record_events, 500),
             "heartbeat": self._heartbeat,
             "retention": self.retention.run,
+            "notifier": self.notifier.run,
         }
+        if self.presence is not None:
+            parts["presence"] = self.presence.run
         for camera_id, pipeline in self.cameras.items():
             parts[f"camera:{camera_id}"] = pipeline.run
         for name, provider in self.providers.items():

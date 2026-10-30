@@ -3,9 +3,7 @@
   "unit.minutes": "{n} Minuten",
   "unit.hours": "{n} Stunden",
   "unit.days": "{n} Tage",
-
   "button.menu": "Zurück zum Menü",
-
   "menu.question": "Was möchten Sie machen?",
   "menu.photo": "Foto ansehen",
   "menu.video": "Video ansehen",
@@ -13,7 +11,6 @@
   "menu.notifications": "Benachrichtigungen",
   "menu.help": "Hilfe",
   "menu.more": "Weitere Funktionen",
-
   "more.title": "Weitere Funktionen",
   "more.events": "Letzte Ereignisse",
   "more.cameras": "Kameras",
@@ -21,7 +18,6 @@
   "more.users": "Benutzer",
   "more.invite": "Jemanden einladen",
   "more.settings": "Einstellungen",
-
   "status.no_cameras": "Es ist noch keine Kamera eingerichtet.",
   "status.camera_ok": "Ihre Kamera funktioniert.",
   "status.cameras_ok": "Alle {n} Kameras funktionieren.",
@@ -38,7 +34,6 @@
   "status.uptime": "Läuft seit {duration}",
   "status.presence": "Anwesenheit: {state}",
   "status.components_failing": "Gerade gestört: {names}",
-
   "mode.home": "Zuhause",
   "mode.away": "Abwesend",
   "mode.button_home": "Ich bin zuhause",
@@ -50,7 +45,6 @@
   "mode.until": "Das gilt bis {time}.",
   "mode.manual_hint": "Die automatische Anwesenheitserkennung ist pausiert, bis Sie „Automatisch“ wählen.",
   "mode.auto_unavailable": "Die automatische Anwesenheitserkennung ist nicht eingerichtet. Bitte wählen Sie „Zuhause“ oder „Abwesend“.",
-
   "presence.home": "wahrscheinlich ist jemand zuhause",
   "presence.away": "wahrscheinlich ist niemand zuhause",
   "presence.unknown": "unbekannt",
@@ -59,7 +53,6 @@
   "presence.device": "• {name}: zuletzt gesehen {seen}",
   "presence.never": "noch nicht",
   "presence.disclaimer": "Die Anwesenheit wird anhand von Geräten im WLAN geschätzt. Ein ausgeschaltetes oder schlafendes Handy kann als abwesend erscheinen.",
-
   "camera.choose": "Welche Kamera?",
   "camera.state.starting": "startet",
   "camera.state.running": "funktioniert",
@@ -74,17 +67,14 @@
   "camera.detail.device": "Gerät: {device} ({input} → {encoder})",
   "camera.detail.error": "Letzter Fehler: {error}",
   "cameras.title": "Kameras:",
-
   "photo.caption": "{name}, {time} Uhr",
   "photo.again": "Neues Foto",
   "photo.unavailable": "Von „{name}“ ist gerade kein Bild verfügbar. Bitte versuchen Sie es in einer Minute noch einmal.",
-
   "video.preparing": "Einen Moment, ich bereite die letzten {seconds} Sekunden vor …",
   "video.caption": "{name}, die letzten {seconds} Sekunden",
   "video.longer": "Längeres Video",
   "video.failed": "Das Video von „{name}“ konnte nicht erstellt werden. Bitte versuchen Sie es in einer Minute noch einmal.",
   "video.disabled": "Videos sind nicht verfügbar, weil die Aufzeichnung ausgeschaltet ist.",
-
   "events.none": "In letzter Zeit ist nichts passiert.",
   "events.title": "Letzte Ereignisse:",
   "event.motion_detected": "Bewegung",
@@ -99,12 +89,10 @@
   "event.presence_changed": "Anwesenheit geändert",
   "event.mode_changed": "Modus geändert",
   "event.system_started": "System gestartet",
-
   "notifications.on": "Benachrichtigungen sind eingeschaltet. Sie bekommen eine Nachricht, wenn etwas Wichtiges passiert.",
   "notifications.off": "Benachrichtigungen sind ausgeschaltet. Sie bekommen keine Meldungen.",
   "notifications.turn_on": "Benachrichtigungen einschalten",
   "notifications.turn_off": "Benachrichtigungen ausschalten",
-
   "settings.text": "Sprache: {language}\nAnsicht: {layout}",
   "language.en": "Englisch",
   "language.de": "Deutsch",
@@ -112,7 +100,6 @@
   "layout.advanced": "erweitert",
   "layout.simple_button": "Einfache Ansicht",
   "layout.advanced_button": "Erweiterte Ansicht",
-
   "help.simple": "Drücken Sie einfach auf einen der Knöpfe.\n\n„Foto ansehen“ zeigt Ihnen ein aktuelles Bild.\n„Video ansehen“ zeigt Ihnen die letzten Sekunden.\n„Kamerastatus“ sagt Ihnen, ob alles funktioniert.\n\nMit „Zurück zum Menü“ kommen Sie immer zurück.",
   "help.title": "Befehle:",
   "help.plain_text": "Befehle funktionieren auch ohne Schrägstrich, z. B. „foto“ oder „video 30“.",
@@ -132,7 +119,6 @@
   "help.presence": "Welche vertrauten Geräte sind zuhause",
   "help.invite": "Einladung für einen neuen Benutzer erstellen",
   "help.users": "Benutzer anzeigen und entfernen",
-
   "invite.created": "Einladung für einen neuen {role} erstellt. Sie kann einmal bis {until} verwendet werden.",
   "invite.telegram_link": "Schicken Sie diesen Link an die Person:\n{link}",
   "invite.code": "Oder die Person schickt dem Bot diesen Code: {code}",
@@ -146,10 +132,8 @@
   "users.remove": "{name} entfernen",
   "users.removed": "Der Benutzer wurde entfernt.",
   "users.remove_failed": "Dieser Benutzer kann hier nicht entfernt werden.",
-
   "auth.unknown": "Sie sind nicht berechtigt, diese Kamera zu benutzen. Bitten Sie den Administrator um eine Einladung. Ihre ID: {id}",
   "auth.admin_only": "Das kann nur ein Administrator.",
-
   "error.unknown_command": "Das habe ich nicht verstanden. Bitte benutzen Sie die Knöpfe.",
   "error.internal": "Etwas ist schiefgegangen. Bitte versuchen Sie es später noch einmal.",
   "error.range": "Bitte wählen Sie eine Zahl zwischen {minimum} und {maximum}.",
@@ -157,5 +141,17 @@
   "error.camera_ambiguous": "Mehrere Kameras passen. Bitte wählen Sie eine davon: {options}",
   "error.bad_argument": "„{value}“ habe ich nicht verstanden.",
   "error.missing_argument": "In diesem Befehl fehlt etwas.",
-  "error.no_cameras": "Es ist noch keine Kamera eingerichtet."
+  "error.no_cameras": "Es ist noch keine Kamera eingerichtet.",
+  "notify.motion_detected": "Bewegung erkannt: {camera}, {time} Uhr.",
+  "notify.motion_ended": "Keine Bewegung mehr: {camera}.",
+  "notify.person_detected": "Eine Person wurde gesehen: {camera}, {time} Uhr.",
+  "notify.unknown_person": "Eine nicht eingetragene Person wurde gesehen: {camera}, {time} Uhr. Das muss nichts Schlimmes bedeuten.",
+  "notify.known_person": "{name} wurde erkannt: {camera}, {time} Uhr.",
+  "notify.camera_disconnected": "Die Kamera „{camera}“ ist seit {time} Uhr nicht erreichbar. Diese Kamera nimmt gerade nicht auf.",
+  "notify.camera_reconnected": "Die Kamera „{camera}“ funktioniert wieder.",
+  "notify.recording_failed": "Bei der Aufzeichnung von „{camera}“ gibt es ein Problem. pi-guard startet sie neu.",
+  "notify.storage_low": "Der Speicher ist fast voll ({used_percent} % belegt). Alte Aufnahmen werden früher gelöscht als eingestellt.",
+  "notify.presence_changed": "Anwesenheit: {presence}.",
+  "notify.mode_changed": "Der Modus ist jetzt „{mode}“.",
+  "notify.system_started": "pi-guard wurde gestartet (Version {version})."
 }
