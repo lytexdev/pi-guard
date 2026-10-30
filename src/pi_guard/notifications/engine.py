@@ -149,7 +149,10 @@ class Notifier:
             values["mode"] = t(f"mode.{str(event.data['mode']).lower()}", lang)
         if event.type is EventType.PRESENCE_CHANGED:
             values["presence"] = t(f"presence.{str(event.data['presence']).lower()}", lang)
-        text = t(f"notify.{event.type.value}", lang, **values)
+        key = f"notify.{event.type.value}"
+        if event.data.get("recognition") == "uncertain":
+            key = "notify.person_uncertain"
+        text = t(key, lang, **values)
         buttons: list[tuple[Button, ...]] = []
         if camera:
             buttons.append(

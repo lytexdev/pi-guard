@@ -140,8 +140,8 @@ class Command:
 @dataclass(frozen=True)
 class ParsedCommand:
     command: Command
-    tokens: tuple[str, ...]
-    raw_args: str
+    tokens: tuple[str, ...]  # case-folded, for matching
+    raw_tokens: tuple[str, ...]  # original case, for free text such as names
 
 
 def normalize(text: str) -> str:
@@ -176,10 +176,12 @@ class Registry:
 
     def parse(self, text: str, bot_username: str | None = None) -> ParsedCommand | None:
         """Return the command for a message, or None if it is not a command at all."""
-        text = normalize(text)
+        original = unicodedata.normalize("NFKC", text).strip()
+        text = original.casefold()
         if not text:
             return None
         head, _, rest = text.partition(" ")
+        raw_rest = original.partition(" ")[2]
         if head.startswith("/"):
             head, _, target = head[1:].partition("@")
             if target and bot_username and target != normalize(bot_username):
@@ -187,18 +189,24 @@ class Registry:
         command = self._aliases.get(head)
         if command is None:
             return None
-        return ParsedCommand(command, tuple(rest.split()), rest.strip())
+        return ParsedCommand(command, tuple(rest.split()), tuple(raw_rest.split()))
 
 
-def bind_args(args: Sequence[Arg], tokens: Sequence[str], ctx: CommandContext) -> dict[str, Any]:
+def bind_args(
+    args: Sequence[Arg],
+    tokens: Sequence[str],
+    ctx: CommandContext,
+    raw_tokens: Sequence[str] | None = None,
+) -> dict[str, Any]:
     """Assign tokens to arguments in order; optional arguments may be skipped."""
+    raw = raw_tokens if raw_tokens is not None else tokens
     values: dict[str, Any] = {}
     index = 0
     for arg in args:
         if index >= len(tokens):
             break
         if isinstance(arg, TextArg):
-            values[arg.name] = " ".join(tokens[index:])
+            values[arg.name] = " ".join(raw[index:])
             index = len(tokens)
             break
         value = arg.parse(tokens[index], ctx)

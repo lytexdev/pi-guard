@@ -21,6 +21,10 @@ from pi_guard.core.lifecycle import ComponentState, supervise
 from pi_guard.core.modes import ModeController
 from pi_guard.core.permissions import Role, UserStore
 from pi_guard.core.timeutil import utcnow
+from pi_guard.detection.analysis import MotionAnalysis
+from pi_guard.detection.faces import BiometricStore, FaceRecognizer
+from pi_guard.detection.motion import MotionDetector
+from pi_guard.detection.persons import PersonDetector
 from pi_guard.i18n import LANGUAGES, t
 from pi_guard.messaging.base import Provider
 from pi_guard.messaging.commands import build_registry
@@ -81,10 +85,12 @@ class App:
         self.cameras: dict[str, CameraPipeline] = {
             camera.id: self._pipeline(camera) for camera in cameras
         }
-        self.motion: dict[str, Any] = {}
+        self.motion: dict[str, MotionDetector] = {}
+        self.analysis: MotionAnalysis | None = None
         self.presence: PresenceMonitor | None = None
         self.audio: Any = None
-        self.faces: Any = None
+        if s.motion_enabled:
+            self._setup_detection()
         self.retention = Retention(config, self.db, self.bus)
         self.registry = build_registry()
         self.providers: dict[str, Provider] = providers if providers is not None else {}
@@ -111,6 +117,35 @@ class App:
             analysis_fps=camera.motion.analysis_fps if detect else 1.0,
             microphone=camera.microphone if s.audio_recording_enabled else None,
         )
+
+    def _setup_detection(self) -> None:
+        s = self.settings
+        try:
+            import cv2  # noqa: F401
+        except ImportError:
+            log.error("OpenCV is not installed; motion detection is disabled")
+            return
+        models_dir = s.data_dir / "models"
+        persons = PersonDetector(models_dir) if s.person_detection_enabled else None
+        faces = None
+        if s.face_recognition_enabled and persons is not None:
+            try:
+                store = BiometricStore(s.data_dir / "biometrics.db")
+                faces = FaceRecognizer(self.config.file.faces, models_dir, store, persons)
+            except FileNotFoundError as exc:
+                log.error("face recognition disabled: %s", exc)
+        self.analysis = MotionAnalysis(self, persons, faces)
+        for camera_id, pipeline in self.cameras.items():
+            if pipeline.camera.motion_detection:
+                detector = MotionDetector(
+                    pipeline.camera, s.motion_sensitivity, self.analysis.on_change, s.tz
+                )
+                self.motion[camera_id] = detector
+                pipeline.add_frame_handler(detector.process)
+
+    @property
+    def faces(self) -> FaceRecognizer | None:
+        return self.analysis.faces if self.analysis else None
 
     @staticmethod
     def clock() -> datetime:

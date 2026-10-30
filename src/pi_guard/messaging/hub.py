@@ -150,7 +150,7 @@ class Messenger:
         ctx = self._context(msg, user)
         command = parsed.command
         try:
-            args = bind_args(command.args, parsed.tokens, ctx)
+            args = bind_args(command.args, parsed.tokens, ctx, parsed.raw_tokens)
             reply = await command.handler(ctx, args)
         except ArgError as exc:
             reply = Reply(
