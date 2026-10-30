@@ -28,3 +28,16 @@ venv/
 *.pid
 *.seed
 *.tmp
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+recordings/
+config/config.yaml
+*.onnx
+*.mp4
+*.mkv
+*.jpg
+!docs/**/*.jpg

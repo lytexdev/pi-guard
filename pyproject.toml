@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pi-guard"
+version = "0.1.0"
+description = "Privacy-conscious home monitoring for the Raspberry Pi, operated through Telegram and Signal."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "Immanuel Mruk" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Home Automation",
+    "Topic :: Multimedia :: Video :: Capture",
+]
+dependencies = [
+    "pydantic>=2.6",
+    "pydantic-settings>=2.7",
+    "python-telegram-bot>=21.0,<23",
+    "typer>=0.12",
+    "pyyaml>=6.0",
+    "numpy>=1.26",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# OpenCV is optional so 32-bit boards can use the distribution's python3-opencv.
+vision = ["opencv-python-headless>=4.9"]
+mqtt = ["aiomqtt>=2.0"]
+all = ["pi-guard[vision,mqtt]"]
+dev = ["pi-guard[all]", "pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5", "mypy>=1.10", "types-PyYAML"]
+
+[project.scripts]
+pi-guard = "pi_guard.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pi_guard = ["i18n/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "hardware: needs a real camera or audio device (deselect with -m 'not hardware')",
+    "ffmpeg: needs the ffmpeg binary but no hardware",
+]
+addopts = "-m 'not hardware'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "ASYNC", "S", "PTH"]
+ignore = [
+    "S101",   # assert is fine in tests
+    "S603",   # subprocess calls use argument lists, never a shell
+    "S607",   # binaries are resolved from PATH on purpose
+    "RUF001", # German text contains umlauts
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "PTH"]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+mypy_path = "src"
+packages = ["pi_guard"]
+
+[[tool.mypy.overrides]]
+module = ["cv2", "cv2.*", "aiomqtt", "telegram.*"]
+ignore_missing_imports = true
