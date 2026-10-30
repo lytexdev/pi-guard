@@ -110,7 +110,7 @@ async def test_event_bus_handler_errors_are_isolated() -> None:
             raise RuntimeError("boom")
         seen.append(event.camera)
 
-    task = asyncio.create_task(bus.consume("test", handler))
+    task = asyncio.create_task(bus.consume(bus.subscribe("test"), "test", handler))
     await asyncio.sleep(0)
     bus.publish(Event(EventType.MOTION_DETECTED, camera="bad"))
     bus.publish(Event(EventType.MOTION_DETECTED, camera="good"))

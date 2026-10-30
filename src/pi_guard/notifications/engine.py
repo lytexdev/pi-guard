@@ -57,10 +57,11 @@ class Notifier:
         self._last_sent: dict[tuple[EventType, str | None], float] = {}
         self._recent: deque[float] = deque()
         self._queue: asyncio.Queue[Delivery] = asyncio.Queue(QUEUE_SIZE)
+        self._events = app.bus.subscribe("notifier")
 
     async def run(self) -> None:
         await asyncio.gather(
-            self._app.bus.consume("notifier", self.handle),
+            self._app.bus.consume(self._events, "notifier", self.handle),
             self._deliver_forever(),
         )
 

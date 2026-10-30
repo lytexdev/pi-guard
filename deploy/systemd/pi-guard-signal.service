@@ -1,0 +1,26 @@
+# Optional: runs signal-cli as a JSON-RPC daemon for pi-guard.
+# It runs as the pi-guard user so it can read the photos and videos it sends.
+# Register or link the account first, as that user (see docs/signal.md).
+
+[Unit]
+Description=signal-cli daemon for pi-guard
+After=network-online.target
+Wants=network-online.target
+Before=pi-guard.service
+
+[Service]
+Type=simple
+User=pi-guard
+Group=pi-guard
+EnvironmentFile=/etc/pi-guard/signal.env
+ExecStart=/usr/local/bin/signal-cli --config /var/lib/pi-guard/signal-cli -a ${SIGNAL_ACCOUNT} daemon --tcp 127.0.0.1:7583 --receive-mode on-connection
+Restart=always
+RestartSec=10
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/pi-guard/signal-cli
+
+[Install]
+WantedBy=multi-user.target

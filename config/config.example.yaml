@@ -1,0 +1,81 @@
+# pi-guard configuration (cameras, zones, trusted devices, alert rules).
+# Generate one for your hardware with: pi-guard config init -o /etc/pi-guard/config.yaml
+# Full reference: docs/configuration.md
+
+cameras:
+  - id: living_room
+    name: Living Room
+    device: /dev/v4l/by-id/usb-046d_C270_HD_WEBCAM_200901010001-video-index0
+    enabled: true
+    resolution: 1280x720
+    fps: 15
+    # auto: camera H.264 if offered, otherwise MJPEG + hardware/software encoder
+    input_format: auto
+    codec: auto
+    bitrate: 2M
+    recording: true
+    retention_days: null       # null: PI_GUARD_RECORDING_RETENTION_DAYS
+    motion_detection: true
+    motion:
+      sensitivity: 50          # 0-100; null: PI_GUARD_MOTION_SENSITIVITY
+      min_area_percent: 0.4
+      min_duration_seconds: 1.0
+      analysis_fps: 4
+      schedule: []             # e.g. ["22:00-06:30"]; empty = always
+      zones:
+        - name: street
+          kind: exclude
+          points: [[0.0, 0.0], [1.0, 0.0], [1.0, 0.25], [0.0, 0.25]]
+    microphone: null           # e.g. plughw:CARD=WEBCAM,DEV=0 (records audio into the video)
+    speaker: null
+
+  - id: entrance
+    name: Entrance
+    device: /dev/v4l/by-id/usb-Second_Camera-video-index0
+    enabled: false
+    resolution: 1280x720
+    fps: 10
+    recording: false           # buffer only: /video works, nothing kept longer than the buffer
+
+presence:
+  check_interval_seconds: 30
+  away_grace_period_seconds: 600
+  home_confirmation_seconds: 30
+  unknown_mode: AWAY           # AWAY, HOME or last
+  sources: [neighbours]        # neighbours and/or fritzbox
+  # interface: wlan0
+  # fritzbox: {host: fritz.box, port: 49000, username: pi-guard}
+  devices:
+    - id: owners_phone
+      name: Owner Phone
+      mac_address: "AA:BB:CC:DD:EE:FF"
+      ip_address: null
+      enabled: true
+
+notifications:
+  quiet_hours: "23:00-06:00"   # only high/critical alerts during this time
+  max_per_hour: 30
+  clip_seconds: 10
+  rules:
+    motion_detected:
+      modes: [AWAY]
+      cooldown_seconds: 120
+      attach: snapshot         # none, snapshot or clip
+    camera_disconnected:
+      recipients: admins
+      cooldown_seconds: 1800
+
+audio:
+  speaker: null                # e.g. plughw:CARD=Device,DEV=0
+  microphone: null
+  max_clip_seconds: 60
+  max_upload_seconds: 60
+  max_upload_bytes: 5000000
+  quiet_hours: "22:00-07:00"
+  alert_sound: null            # e.g. warning; played on motion while AWAY
+
+faces:
+  match_threshold: 0.40
+  uncertain_margin: 0.06
+  min_interval_seconds: 5
+  max_samples_per_person: 10

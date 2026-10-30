@@ -72,6 +72,7 @@ class App:
         self.media_dir = secure_dir(s.data_dir / "media")
         self.db = Database(s.data_dir / "pi-guard.db")
         self.bus = EventBus()
+        self._event_log = self.bus.subscribe("event-log", 500)
         self.users = UserStore(
             self.db,
             {
@@ -227,7 +228,7 @@ class App:
     def _components(self) -> dict[str, Callable[[], Awaitable[None]]]:
         """Name -> coroutine factory for every long-running part."""
         parts: dict[str, Callable[[], Awaitable[None]]] = {
-            "events": lambda: self.bus.consume("event-log", self._record_events, 500),
+            "events": partial(self.bus.consume, self._event_log, "event-log", self._record_events),
             "heartbeat": self._heartbeat,
             "retention": self.retention.run,
             "notifier": self.notifier.run,
@@ -241,7 +242,10 @@ class App:
             and self.audio.playback_enabled
             and self.config.file.audio.alert_sound
         ):
-            parts["alert-sound"] = lambda: self.bus.consume("alert-sound", self._alert_sound, 10)
+            queue = self.bus.subscribe("alert-sound", 10)
+            parts["alert-sound"] = partial(
+                self.bus.consume, queue, "alert-sound", self._alert_sound
+            )
         for camera_id, pipeline in self.cameras.items():
             parts[f"camera:{camera_id}"] = pipeline.run
         for name, provider in self.providers.items():

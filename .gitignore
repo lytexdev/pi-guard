@@ -41,3 +41,4 @@ config/config.yaml
 *.mkv
 *.jpg
 !docs/**/*.jpg
+/data/

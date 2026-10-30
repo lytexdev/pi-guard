@@ -183,3 +183,15 @@ def test_every_event_type_has_a_rule_and_text() -> None:
         assert event_type in DEFAULTS
         assert f"notify.{event_type.value}" in catalog("en")
         assert f"event.{event_type.value}" in catalog("de")
+
+
+async def test_startup_event_reaches_consumers(tmp_path: Path) -> None:
+    app = make_app(tmp_path, cameras=[])
+    task = asyncio.create_task(app.run())
+    for _ in range(50):
+        await asyncio.sleep(0.02)
+        if app.providers["telegram"].sent:
+            break
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+    assert "pi-guard has started" in app.providers["telegram"].texts()[0]

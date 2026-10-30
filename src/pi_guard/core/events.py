@@ -64,9 +64,13 @@ class EventBus:
                 log.warning("subscriber %s is behind; dropped %s event", name, dropped.type)
             queue.put_nowait(event)
 
-    async def consume(self, name: str, handler: Handler, maxsize: int = 100) -> None:
-        """Feed events to `handler` forever; a failing handler only loses that one event."""
-        queue = self.subscribe(name, maxsize)
+    @staticmethod
+    async def consume(queue: asyncio.Queue[Event], name: str, handler: Handler) -> None:
+        """Feed events to `handler` forever; a failing handler only loses that one event.
+
+        Subscribe when the consumer is constructed, not when it starts running, so
+        events published during startup are not missed.
+        """
         while True:
             event = await queue.get()
             try:

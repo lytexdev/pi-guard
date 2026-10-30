@@ -1,0 +1,50 @@
+[Unit]
+Description=pi-guard home monitoring
+Documentation=https://github.com/lytexdev/pi-guard
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi-guard
+Group=pi-guard
+SupplementaryGroups=video audio
+Environment=PI_GUARD_ENV_FILE=/etc/pi-guard/pi-guard.env
+ExecStart=/opt/pi-guard/venv/bin/pi-guard run
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+# /run/pi-guard (tmpfs) holds snapshots and the heartbeat; /var/lib/pi-guard the data.
+RuntimeDirectory=pi-guard
+RuntimeDirectoryMode=0750
+StateDirectory=pi-guard
+StateDirectoryMode=0700
+UMask=0077
+
+# A runaway process must not take the recorder's memory on a 2 GB board.
+MemoryMax=1200M
+
+# Hardening. Cameras and sound cards are reached through /dev, so PrivateDevices stays off.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/pi-guard
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target

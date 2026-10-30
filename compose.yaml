@@ -1,0 +1,38 @@
+# Optional Docker Compose deployment; see docs/docker.md.
+# Set CAMERA_DEVICE to the stable path of your camera (ls /dev/v4l/by-id/).
+services:
+  pi-guard:
+    build: .
+    image: pi-guard:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # The container's own paths; these override values from .env.
+      PI_GUARD_DATA_DIR: /data
+      PI_GUARD_RECORDINGS_DIR: /recordings
+      PI_GUARD_CONFIG_FILE: /config/config.yaml
+      PI_GUARD_RUNTIME_DIR: /run/pi-guard
+    volumes:
+      - ./config:/config:ro
+      - ./data:/data
+      - ./recordings:/recordings
+    devices:
+      - ${CAMERA_DEVICE:-/dev/video0}:${CAMERA_DEVICE:-/dev/video0}
+      # Uncomment for audio:
+      # - /dev/snd:/dev/snd
+    # Numeric group IDs of "video" and "audio" on the host (getent group video audio).
+    group_add:
+      - "${VIDEO_GID:-44}"
+      - "${AUDIO_GID:-29}"
+    tmpfs:
+      - /run/pi-guard:uid=10001,gid=10001,mode=0750
+      - /tmp
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1200m
+    # Presence detection reads the neighbour table of the network namespace it runs in.
+    # On the default bridge network it only sees the container's own neighbours; use the
+    # FRITZ!Box source, or opt into host networking deliberately:
+    # network_mode: host
