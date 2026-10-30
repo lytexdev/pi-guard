@@ -58,11 +58,11 @@ async def listen(ctx: CommandContext, args: dict[str, Any]) -> Reply:
             )
         if audio.settings.microphone is None:
             return Reply(ctx.t("audio.no_microphone"), buttons=(menu_row(ctx),))
-        if audio.playback_enabled and not audio.quiet_now():
-            chime = audio.sounds.path("chime")
-            if chime:
-                with contextlib.suppress(AudioError):
-                    await audio.play(chime)
+        chime = audio.sounds.path("chime")
+        if audio.playback_enabled and chime:
+            # Announcing the microphone matters more than quiet hours.
+            with contextlib.suppress(AudioError):
+                await audio.play(chime, ignore_quiet_hours=True)
         await ctx.progress(ctx.t("audio.recording_now", seconds=seconds))
         out = ctx.app.media_dir / "audio" / f"listen_{utcnow():%Y%m%dT%H%M%S}.m4a"
         path = await audio.record(audio.settings.microphone, seconds, out)

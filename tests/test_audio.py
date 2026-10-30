@@ -232,3 +232,35 @@ async def test_record_from_real_microphone(tmp_path: Path, db: Any) -> None:
     path = await audio.record(device, 2, tmp_path / "mic.m4a")
     info = await service_module.probe(path)
     assert info.codec == "aac" and info.duration > 1.5
+
+
+async def test_listen_announces_with_chime_even_in_quiet_hours(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file = FileConfig(
+        cameras=[camera()],
+        audio=AudioSettings(
+            speaker="plughw:CARD=X,DEV=0",
+            microphone="plughw:CARD=Mic,DEV=0",
+            quiet_hours="00:00-23:59",
+        ),
+    )
+    app = make_app(tmp_path, file=file, audio_playback_enabled=True, audio_recording_enabled=True)
+    calls: list[str] = []
+
+    async def fake_play(path: Path, *, ignore_quiet_hours: bool = False) -> None:
+        calls.append(f"play {path.stem} quiet_ok={ignore_quiet_hours}")
+
+    async def fake_record(device: str, seconds: int, output: Path) -> Path:
+        calls.append(f"record {device} {seconds}")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(b"x")
+        return output
+
+    monkeypatch.setattr(app.audio, "play", fake_play)
+    monkeypatch.setattr(app.audio, "record", fake_record)
+    await app.messenger.handle(msg("/listen 10", ADMIN))
+    assert calls == ["play chime quiet_ok=True", "record plughw:CARD=Mic,DEV=0 10"]
+    assert app.providers["telegram"].last().audio is not None
+    assert app.db.execute("SELECT action FROM audit WHERE action = 'audio.listen'").fetchone()
+    app.db.close()
