@@ -202,6 +202,10 @@ Event types and their defaults:
 | `mode_changed` | yes | both | all except who changed it | – | – |
 | `system_started` | yes | both | admins | – | – |
 
+With person detection enabled, a person walking in produces both a motion and a
+person alert (each with its own cooldown). To get only the more specific one,
+set `motion_detected: {enabled: false}`.
+
 Users can switch their own notifications off with the **Notifications** button.
 
 ### audio
