@@ -67,10 +67,11 @@ ignore = [
     "RUF001", # German text contains umlauts
     "RUF002",
     "RUF003",
+    "ASYNC240", # stat()/unlink() of single local files does not stall the loop measurably
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S", "PTH"]
+"tests/*" = ["S", "PTH", "ASYNC109"]
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
