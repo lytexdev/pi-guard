@@ -1,0 +1,55 @@
+# Performance
+
+## Design decisions
+
+- **One FFmpeg process per camera.** It reads the device once and produces the
+  recording, the motion-detection frames and the snapshot image. Nothing else
+  opens the camera, so photos and clips never interrupt recording.
+- **Encoding stays in FFmpeg.** Camera H.264 is copied; otherwise the Pi's
+  hardware encoder is used. Python never touches full-resolution video.
+- **Motion detection on tiny frames**: 320 px wide, grayscale, 4 FPS.
+- **Person detection and recognition only after motion**, on one snapshot,
+  in a worker thread, at most once per `faces.min_interval_seconds` per camera.
+- **Clips are cut, not encoded**: `/video` copies keyframe-aligned parts of the
+  existing segments.
+- **Bounded queues everywhere**: event subscribers, notifications and MQTT
+  drop the oldest entries when they fall behind, so memory cannot grow without
+  limit while Telegram or the broker is unreachable.
+
+## Measurements
+
+Measured on an x86_64 desktop (16 cores) with a Logitech C270 at 1280×720,
+10 FPS, MJPEG input, **libx264** software encoding. A Raspberry Pi 4 has not
+been measured yet; numbers there will differ (hardware encoder: much lower
+encoder CPU and memory; slower CPU: higher Python and decode cost).
+
+| | Value |
+|---|---|
+| Motion detection, 320×180 frame | 0.075 ms per frame (0.03 % of a core at 4 FPS) |
+| Motion detection, 640×360 frame | 0.23 ms per frame |
+| pi-guard Python process | ~90 MB RSS, idle CPU after start-up |
+| FFmpeg capture process (libx264) | 155–245 MB RSS, 30–50 % of one core |
+| HOG person detector, 640 px image | ~20 ms |
+| YuNet face detection, 640 px image | ~15 ms |
+
+Reproduce the motion benchmark with `python scripts/bench_motion.py [width]`.
+
+### Rust?
+
+Motion detection was the obvious candidate for a native implementation. At
+0.075 ms per frame it uses a negligible share of a core; even if a Pi 4 is
+ten times slower, it stays below 1 % CPU. The expensive work (decoding,
+encoding, scaling) already happens in FFmpeg's C code. A Rust extension would
+add a cross-compilation step for ARM without a measurable benefit, so there is
+none.
+
+## Limits on a Raspberry Pi 4 (2 GB)
+
+Expected, to be confirmed on hardware:
+
+- **1–2 cameras at 720p15** with MJPEG input and the hardware encoder
+- **1 camera at 1080p15**; more cameras at 1080p need H.264 from the camera
+- libx264 fallback: one camera at 720p10 at most
+- Face recognition adds ~40 MB for the model and a few hundred milliseconds
+  per check
+- The systemd unit limits pi-guard (including FFmpeg) to 1.2 GB
