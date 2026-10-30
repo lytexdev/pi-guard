@@ -148,25 +148,15 @@ def build_command(
 ) -> list[str]:
     width, height = camera.size
     det_w, det_h = detection_size(camera)
+    # fmt: off
     args = [
-        "ffmpeg",
-        "-hide_banner",
-        "-nostdin",
-        "-nostats",
-        "-loglevel",
-        "warning",
-        "-f",
-        "v4l2",
-        "-thread_queue_size",
-        "64",
-        "-input_format",
-        choice.input_format,
-        "-video_size",
-        f"{width}x{height}",
-        "-framerate",
-        str(camera.fps),
-        "-i",
-        camera.device,
+        "ffmpeg", "-hide_banner", "-nostdin", "-nostats", "-loglevel", "warning",
+        # Thread pools scale with the core count; a capture pipeline does not need that many.
+        "-filter_complex_threads", "2",
+        "-threads", "2", "-f", "v4l2", "-thread_queue_size", "64",
+        "-input_format", choice.input_format,
+        "-video_size", f"{width}x{height}", "-framerate", str(camera.fps),
+        "-i", camera.device,
     ]
     if microphone and segment_dir:
         args += ["-f", "alsa", "-thread_queue_size", "1024", "-ac", "1", "-i", microphone]
@@ -184,46 +174,20 @@ def build_command(
 
     if segment_dir is not None:
         if encode:
-            args += [
-                "-map",
-                "[rec]",
-                "-c:v",
-                choice.encoder,
-                "-b:v",
-                camera.bitrate,
-                "-g",
-                str(camera.fps * 2),
-            ]
+            args += ["-map", "[rec]", "-c:v", choice.encoder, "-b:v", camera.bitrate,
+                     "-g", str(camera.fps * 2)]
             if choice.encoder == SOFTWARE_ENCODER:
-                args += [
-                    "-preset",
-                    "veryfast",
-                    "-tune",
-                    "zerolatency",
-                    "-maxrate",
-                    camera.bitrate,
-                    "-bufsize",
-                    camera.bitrate,
-                ]
+                args += ["-preset", "veryfast", "-tune", "zerolatency", "-threads", "2",
+                         "-maxrate", camera.bitrate, "-bufsize", camera.bitrate]
         else:
             args += ["-map", "0:v", "-c:v", "copy"]
         if microphone:
             args += ["-map", "1:a", "-c:a", "aac", "-b:a", "64k"]
         args += [
-            "-f",
-            "segment",
-            "-segment_time",
-            str(segment_seconds),
-            "-segment_atclocktime",
-            "1",
-            "-segment_format",
-            "mp4",
-            "-segment_format_options",
-            "movflags=+frag_keyframe+empty_moov+default_base_moof",
-            "-reset_timestamps",
-            "1",
-            "-strftime",
-            "1",
+            "-f", "segment", "-segment_time", str(segment_seconds), "-segment_atclocktime", "1",
+            "-segment_format", "mp4",
+            "-segment_format_options", "movflags=+frag_keyframe+empty_moov+default_base_moof",
+            "-reset_timestamps", "1", "-strftime", "1",
             str(segment_dir / SEGMENT_PATTERN),
         ]
 
@@ -232,4 +196,5 @@ def build_command(
     if atomic_snapshots:
         args += ["-atomic_writing", "1"]
     args += ["-y", str(snapshot_path)]
+    # fmt: on
     return args
