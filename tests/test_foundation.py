@@ -13,8 +13,9 @@ from pi_guard.core.events import Event, EventBus, EventType
 from pi_guard.core.lifecycle import Backoff, ComponentState, supervise
 from pi_guard.core.timeutil import TimeWindow, parse_duration
 from pi_guard.i18n import LANGUAGES, catalog, format_duration, t
+from pi_guard.logs import RedactingFormatter
 from pi_guard.security.ratelimit import RateLimiter
-from pi_guard.security.redact import RedactingFilter, redact
+from pi_guard.security.redact import mask_sender, redact
 from pi_guard.storage.db import Database
 
 from .conftest import TOKEN
@@ -78,11 +79,24 @@ def test_time_window_wraps_midnight() -> None:
         TimeWindow.parse("8-18")
 
 
-def test_redaction() -> None:
+def test_redaction_covers_messages_and_tracebacks() -> None:
     assert TOKEN not in redact(f"POST https://api.telegram.org/bot{TOKEN}/getMe")
+    formatter = RedactingFormatter(logging.Formatter("%(message)s"), ["hunter2"])
     record = logging.LogRecord("x", logging.INFO, "", 0, "pw=%s", ("hunter2",), None)
-    RedactingFilter(["hunter2"]).filter(record)
-    assert "hunter2" not in record.getMessage()
+    assert "hunter2" not in formatter.format(record)
+    try:
+        raise RuntimeError(f"https://api.telegram.org/bot{TOKEN}/getUpdates failed")
+    except RuntimeError:
+        import sys
+
+        record = logging.LogRecord("x", logging.ERROR, "", 0, "boom", None, sys.exc_info())
+    text = formatter.format(record)
+    assert "getUpdates failed" in text and TOKEN not in text
+
+
+def test_phone_numbers_are_masked_in_logs() -> None:
+    assert mask_sender("signal:+4915112345678") == "signal:+491…78"
+    assert mask_sender("telegram:1001") == "telegram:1001"
 
 
 def test_rate_limiter() -> None:

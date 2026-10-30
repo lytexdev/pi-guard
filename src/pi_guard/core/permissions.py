@@ -123,8 +123,10 @@ class UserStore:
         if match is None:
             return None
         self._db.execute("DELETE FROM invites WHERE code = ?", (match["code"],))
+        invited = Role(match["role"])
         existing = self.get(provider, user_id)
-        user = existing or User(provider, user_id, Role(match["role"]), name=name)
-        self.save(replace(user, name=name or user.name))
+        user = existing or User(provider, user_id, invited, name=name)
+        role = Role.ADMIN if Role.ADMIN in (user.role, invited) else Role.VIEWER
+        self.save(replace(user, name=name or user.name, role=role))
         self._db.audit(f"{provider}:{user_id}", "invite.redeem", match["role"])
         return self.get(provider, user_id)

@@ -8,9 +8,21 @@ import logging.handlers
 import sys
 from pathlib import Path
 
-from pi_guard.security.redact import RedactingFilter
+from pi_guard.security.redact import redact
 
 _NOISY = ("httpx", "httpcore", "telegram.ext", "apscheduler", "aiomqtt")
+
+
+class RedactingFormatter(logging.Formatter):
+    """Redacts the final text, so secrets inside tracebacks are caught as well."""
+
+    def __init__(self, inner: logging.Formatter, secrets: list[str]) -> None:
+        super().__init__()
+        self._inner = inner
+        self._secrets = [s for s in secrets if s]
+
+    def format(self, record: logging.LogRecord) -> str:
+        return redact(self._inner.format(record), self._secrets)
 
 
 class JsonFormatter(logging.Formatter):
@@ -40,10 +52,8 @@ def setup_logging(
         handlers.append(
             logging.handlers.RotatingFileHandler(log_file, maxBytes=5_000_000, backupCount=3)
         )
-    redactor = RedactingFilter(secrets or [])
     for handler in handlers:
-        handler.setFormatter(formatter)
-        handler.addFilter(redactor)
+        handler.setFormatter(RedactingFormatter(formatter, secrets or []))
     logging.basicConfig(level=level, handlers=handlers, force=True)
     for name in _NOISY:
         logging.getLogger(name).setLevel(max(logging.WARNING, logging.getLevelName(level)))

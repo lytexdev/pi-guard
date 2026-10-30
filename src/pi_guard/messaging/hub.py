@@ -18,6 +18,7 @@ from pi_guard.messaging.base import Button, Incoming, Reply
 from pi_guard.messaging.commands.context import CommandContext
 from pi_guard.messaging.commands.registry import ArgError, ParsedCommand, bind_args, normalize
 from pi_guard.security.ratelimit import RateLimiter
+from pi_guard.security.redact import mask_sender
 
 if TYPE_CHECKING:
     from pi_guard.app import App
@@ -58,7 +59,7 @@ class Messenger:
             await self._handle_stranger(msg, parsed, sender)
             return
         if not self._limiter.allow(sender):
-            log.warning("rate limit hit by %s", sender)
+            log.warning("rate limit hit by %s", mask_sender(sender))
             return
         if parsed is None:
             if msg.attachment_kind == "audio":
@@ -117,8 +118,10 @@ class Messenger:
         if code and self._limiter.allow(f"invite:{sender}"):
             await self._redeem(msg, code, sender)
             return
-        log.info("rejected message from unknown sender %s", sender)
+        log.info("rejected message from unknown sender %s", mask_sender(sender))
         self._app.db.audit(sender, "rejected", msg.provider)
+        if len(self._unknown_replied) > 1000:  # bound memory if many strangers write
+            self._unknown_replied.clear()
         last = self._unknown_replied.get(sender, 0.0)
         if not msg.is_group and time.monotonic() - last > _UNKNOWN_REPLY_INTERVAL:
             self._unknown_replied[sender] = time.monotonic()
@@ -133,10 +136,10 @@ class Messenger:
         user = self._app.users.redeem(code, msg.provider, msg.sender_id, msg.sender_name)
         lang = self._app.settings.language
         if user is None:
-            log.info("invalid invite code from %s", sender)
+            log.info("invalid invite code from %s", mask_sender(sender))
             await self._send_safely(msg.provider, msg.chat_id, Reply(t("invite.invalid", lang)))
             return
-        log.info("%s joined as %s", sender, user.role)
+        log.info("%s joined as %s", mask_sender(sender), user.role)
         await self._notify_admins(t("invite.joined_admin", lang, name=user.name or user.user_id))
         ctx = self._context(msg, user)
         welcome = await self._app.registry.get("menu").handler(ctx, {})  # type: ignore[union-attr]

@@ -123,6 +123,10 @@ async def test_upload_validation(tmp_path: Path, db: Any) -> None:
         await audio.validate_upload(make_audio(tmp_path / "long.ogg", 12))
     with pytest.raises(AudioError, match="invalid_file"):
         await audio.validate_upload(make_audio(tmp_path / "clip.mp4", 1, "aac", video=True))
+    playlist = tmp_path / "voice.ogg"
+    playlist.write_text("#EXTM3U\n#EXTINF:1,\nfile:///etc/passwd\n")
+    with pytest.raises(AudioError, match="invalid_file"):
+        await audio.validate_upload(playlist)
     script = tmp_path / "evil.ogg"
     script.write_text("#!/bin/sh\nrm -rf /\n")
     with pytest.raises(AudioError, match="invalid_file"):
