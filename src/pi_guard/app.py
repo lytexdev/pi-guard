@@ -3,22 +3,24 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
-from typing import Any
 
 from pi_guard import __version__
+from pi_guard.audio.service import AudioError, AudioService
+from pi_guard.audio.sounds import SoundLibrary
 from pi_guard.cameras import discovery
 from pi_guard.cameras.pipeline import CameraPipeline
 from pi_guard.config import Config
 from pi_guard.config.files import CameraConfig
 from pi_guard.core.events import Event, EventBus, EventType
 from pi_guard.core.lifecycle import ComponentState, supervise
-from pi_guard.core.modes import ModeController
+from pi_guard.core.modes import Mode, ModeController
 from pi_guard.core.permissions import Role, UserStore
 from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.analysis import MotionAnalysis
@@ -40,6 +42,7 @@ log = logging.getLogger(__name__)
 
 HEARTBEAT_SECONDS = 5
 MAX_PARALLEL_CLIPS = 2
+ALERT_SOUND_COOLDOWN = 60.0
 
 
 def discovered_cameras() -> list[CameraConfig]:
@@ -88,7 +91,17 @@ class App:
         self.motion: dict[str, MotionDetector] = {}
         self.analysis: MotionAnalysis | None = None
         self.presence: PresenceMonitor | None = None
-        self.audio: Any = None
+        self.audio: AudioService | None = None
+        if s.audio_playback_enabled or s.audio_recording_enabled:
+            self.audio = AudioService(
+                config.file.audio,
+                self.db,
+                SoundLibrary(s.data_dir / "sounds"),
+                s.tz,
+                playback_enabled=s.audio_playback_enabled,
+                recording_enabled=s.audio_recording_enabled,
+                max_volume=s.audio_max_volume,
+            )
         if s.motion_enabled:
             self._setup_detection()
         self.retention = Retention(config, self.db, self.bus)
@@ -104,6 +117,7 @@ class App:
         self.components: dict[str, ComponentState] = {}
         self._started = time.monotonic()
         self._clip_slots = asyncio.Semaphore(MAX_PARALLEL_CLIPS)
+        self._last_alert_sound = -ALERT_SOUND_COOLDOWN
 
     def _pipeline(self, camera: CameraConfig) -> CameraPipeline:
         s = self.settings
@@ -181,6 +195,23 @@ class App:
             data["snapshot"] = event.snapshot.name
         await asyncio.to_thread(self.db.add_event, event.ts, event.type.value, event.camera, data)
 
+    async def _alert_sound(self, event: Event) -> None:
+        """Optional deterrent: play the configured sound on motion or people while AWAY."""
+        if event.type not in (EventType.MOTION_DETECTED, EventType.UNKNOWN_PERSON):
+            return
+        if self.modes.effective is not Mode.AWAY or self.audio is None:
+            return
+        now = time.monotonic()
+        if now - self._last_alert_sound < ALERT_SOUND_COOLDOWN:
+            return
+        self._last_alert_sound = now
+        path = self.audio.sounds.path(self.config.file.audio.alert_sound or "")
+        if path is None:
+            log.warning("alert sound %r not found", self.config.file.audio.alert_sound)
+            return
+        with contextlib.suppress(AudioError):
+            await self.audio.play(path)
+
     async def _heartbeat(self) -> None:
         """Expires timed mode overrides and proves liveness to `pi-guard health`."""
         path = secure_dir(self.settings.runtime_dir) / "heartbeat"
@@ -201,6 +232,12 @@ class App:
         }
         if self.presence is not None:
             parts["presence"] = self.presence.run
+        if (
+            self.audio is not None
+            and self.audio.playback_enabled
+            and self.config.file.audio.alert_sound
+        ):
+            parts["alert-sound"] = lambda: self.bus.consume("alert-sound", self._alert_sound, 10)
         for camera_id, pipeline in self.cameras.items():
             parts[f"camera:{camera_id}"] = pipeline.run
         for name, provider in self.providers.items():
