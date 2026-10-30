@@ -6,7 +6,7 @@ offers (Telegram: inline buttons, Signal: a numbered text menu).
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
@@ -52,7 +52,7 @@ class Incoming:
     attachment_meta: dict[str, object] = field(default_factory=dict)
 
 
-MessageHandler = Callable[[Incoming], Awaitable[None]]
+MessageHandler = Callable[[Incoming], Coroutine[None, None, None]]
 
 
 class ProviderUnavailableError(Exception):

@@ -28,6 +28,7 @@ from pi_guard.detection.faces import BiometricStore, FaceRecognizer
 from pi_guard.detection.motion import MotionDetector
 from pi_guard.detection.persons import PersonDetector
 from pi_guard.i18n import LANGUAGES, t
+from pi_guard.integrations.mqtt.bridge import MqttBridge
 from pi_guard.messaging.base import Provider
 from pi_guard.messaging.commands import build_registry
 from pi_guard.messaging.hub import Messenger
@@ -108,6 +109,7 @@ class App:
         self.registry = build_registry()
         self.providers: dict[str, Provider] = providers if providers is not None else {}
         self.messenger = Messenger(self)
+        self.mqtt: MqttBridge | None = None
         self.notifier = Notifier(self)
         if s.presence_enabled:
             presence = config.file.presence
@@ -232,6 +234,8 @@ class App:
         }
         if self.presence is not None:
             parts["presence"] = self.presence.run
+        if self.mqtt is not None:
+            parts["mqtt"] = self.mqtt.run
         if (
             self.audio is not None
             and self.audio.playback_enabled
@@ -285,4 +289,17 @@ def build_app(config: Config) -> App:
             may_upload,
             app.command_menu(),
         )
+    if s.signal_enabled and s.signal_phone_number:
+        from pi_guard.messaging.signal.provider import SignalProvider
+
+        app.providers["signal"] = SignalProvider(s.signal_phone_number, s.signal_cli_address)
+    if s.mqtt_enabled:
+        try:
+            import aiomqtt  # noqa: F401
+        except ImportError:
+            log.error("MQTT is enabled but aiomqtt is not installed (pip install pi-guard[mqtt])")
+        else:
+            from pi_guard.integrations.mqtt.bridge import MqttBridge
+
+            app.mqtt = MqttBridge(app)
     return app
