@@ -105,7 +105,7 @@ class UserStore:
         )
 
     def create_invite(self, role: Role, created_by: str, ttl: timedelta) -> tuple[str, datetime]:
-        code = secrets.token_urlsafe(9)
+        code = secrets.token_hex(6)  # lowercase: chat input is case-folded
         expires = utcnow() + ttl
         self._db.execute(
             "INSERT INTO invites (code, role, created_by, expires_at) VALUES (?, ?, ?, ?)",

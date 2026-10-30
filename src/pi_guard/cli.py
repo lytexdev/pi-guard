@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import Annotated
 
@@ -48,6 +49,31 @@ def _config() -> Config:
 def version() -> None:
     """Print the version."""
     typer.echo(__version__)
+
+
+@app.command()
+def run() -> None:
+    """Run the service (normally started by systemd)."""
+    import asyncio
+    import signal
+
+    from pi_guard.app import build_app
+    from pi_guard.logs import setup_logging
+
+    config = _config()
+    s = config.settings
+    setup_logging(s.log_level, s.log_format, s.log_file, s.secrets)
+    application = build_app(config)
+
+    async def main() -> None:
+        task = asyncio.create_task(application.run())
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, task.cancel)
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    asyncio.run(main())
 
 
 @config_app.command("check")
