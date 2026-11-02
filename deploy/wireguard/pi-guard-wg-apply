@@ -1,0 +1,51 @@
+#!/bin/bash
+# Loads the VPN devices managed in the pi-guard dashboard into WireGuard.
+#
+# Runs as root, started by pi-guard-wg-apply.path whenever pi-guard changes its
+# peers file. pi-guard runs without privileges, so nothing in that file is
+# trusted: every line must be exactly "public-key<TAB>preshared-key<TAB>10.8.0.N/32",
+# anything else is skipped. The interface section (private key, port, NAT) lives
+# in /etc/wireguard/<iface>.base, written by scripts/wireguard.sh, and is never
+# influenced by pi-guard.
+set -euo pipefail
+IFACE="${1:-wg0}"
+SRC="${PI_GUARD_WG_PEERS:-/var/lib/pi-guard/wireguard/peers}"
+DIR="${PI_GUARD_WG_DIR:-/etc/wireguard}"
+BASE="$DIR/$IFACE.base"
+CONF="$DIR/$IFACE.conf"
+KEY_RE='^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$'
+IP_RE='^10\.8\.0\.([2-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-4])/32$'
+
+[[ -f "$BASE" ]] || { echo "pi-guard-wg-apply: $BASE missing; run scripts/wireguard.sh setup" >&2; exit 1; }
+
+umask 077
+TMP="$(mktemp "$DIR/.$IFACE.XXXXXX")"
+trap 'rm -f "$TMP"' EXIT
+cat "$BASE" > "$TMP"
+
+declare -A SEEN_KEY=() SEEN_IP=()
+COUNT=0 SKIPPED=0
+if [[ -f "$SRC" && ! -L "$SRC" ]]; then
+    while IFS=$'\t' read -r pub psk ip extra; do
+        [[ -z "${pub}${psk}${ip}" ]] && continue
+        if [[ -n "${extra:-}" || ! "$pub" =~ $KEY_RE || ! "$psk" =~ $KEY_RE || ! "$ip" =~ $IP_RE \
+            || -n "${SEEN_KEY[$pub]:-}" || -n "${SEEN_IP[$ip]:-}" ]]; then
+            SKIPPED=$((SKIPPED + 1))
+            continue
+        fi
+        SEEN_KEY[$pub]=1 SEEN_IP[$ip]=1
+        printf '\n[Peer]\nPublicKey = %s\nPresharedKey = %s\nAllowedIPs = %s\n' "$pub" "$psk" "$ip" >> "$TMP"
+        COUNT=$((COUNT + 1))
+        [[ $COUNT -ge 250 ]] && break
+    done < <(head -c 262144 "$SRC")
+fi
+chmod 0600 "$TMP"
+mv "$TMP" "$CONF"
+trap - EXIT
+[[ $SKIPPED -gt 0 ]] && echo "pi-guard-wg-apply: skipped $SKIPPED invalid line(s)" >&2
+
+if [[ -z "${PI_GUARD_WG_DIR:-}" ]] && wg show "$IFACE" >/dev/null 2>&1; then
+    wg syncconf "$IFACE" <(wg-quick strip "$CONF")
+    [[ -x /usr/local/sbin/pi-guard-wg-status ]] && /usr/local/sbin/pi-guard-wg-status "$IFACE" || true
+fi
+echo "pi-guard-wg-apply: $COUNT device(s) loaded into $IFACE"

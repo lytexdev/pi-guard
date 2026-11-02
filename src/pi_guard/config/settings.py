@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from pathlib import Path
 from typing import Annotated, Literal
@@ -105,6 +106,10 @@ class Settings(BaseSettings):
     pihole_password: SecretStr | None = None
     wireguard_enabled: bool = False
     wireguard_interface: str = "wg0"
+    # Where phones reach home from outside: MyFRITZ!/DynDNS name or public IP, optional :port.
+    wireguard_endpoint: str | None = None
+    # The home network, reachable for VPN devices set to "home network only".
+    wireguard_home_network: str | None = None
 
     # Web dashboard (optional)
     dashboard_enabled: bool = False
@@ -199,6 +204,31 @@ class Settings(BaseSettings):
         if not re.match(r"^[a-zA-Z0-9_.-]{1,15}$", value):
             raise ValueError("not a network interface name")
         return value
+
+    @field_validator("wireguard_endpoint")
+    @classmethod
+    def _check_endpoint(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        if not re.match(
+            r"^(\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]{1,253}|[0-9a-fA-F:]+)(:\d{1,5})?$", value
+        ):
+            raise ValueError("expected a host name or IP address, optionally with :port")
+        return value
+
+    @field_validator("wireguard_home_network")
+    @classmethod
+    def _check_home_network(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        try:
+            network = ipaddress.ip_network(value.strip(), strict=False)
+        except ValueError:
+            raise ValueError("expected a network like 192.168.178.0/24") from None
+        if not network.is_private:
+            raise ValueError("the home network must be a private range")
+        return str(network)
 
     @field_validator("webpush_contact")
     @classmethod

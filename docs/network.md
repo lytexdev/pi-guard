@@ -85,32 +85,44 @@ private (random) MAC address. *Use as trusted device* adds a device to
 
 ## WireGuard (home VPN)
 
-With a VPN you can reach the dashboard from anywhere without opening it to the
-internet. Recommended: [PiVPN](https://pivpn.io) with WireGuard.
+With the VPN, phones and laptops reach home from anywhere — dashboard, cameras,
+Pi-hole ad blocking — without opening anything but one UDP port.
 
 ```bash
-curl -L https://install.pivpn.io | bash     # choose WireGuard; uses Pi-hole as DNS if present
-sudo pivpn add -n phone                      # one profile per device
-sudo pivpn -qr phone                         # QR code for the WireGuard app
+sudo ./scripts/wireguard.sh setup --endpoint myname.myfritz.net   # once
 ```
 
-Forward UDP port 51820 in the router to the Pi (FRITZ!Box: *Internet ›
-Freigaben*). FRITZ!Box 7.50+ also has WireGuard built in, which is an
-alternative to running it on the Pi.
+Use a name that follows your public IP address (MyFRITZ!: *Internet ›
+MyFRITZ!-Konto*, or any DynDNS). Without `--endpoint` the current public IP is
+used; it can change, and every device would need its QR code again. Change it
+later with `sudo ./scripts/wireguard.sh endpoint <name>` or in the dashboard
+settings.
 
-### Status in the dashboard
+Then forward **UDP 51820** in the router to the Pi (FRITZ!Box: *Internet ›
+Freigaben › Portfreigaben › Gerät für Freigaben hinzufügen*).
 
-Reading WireGuard's state needs root rights, which pi-guard does not have. A
-small root job writes the status (peer names, endpoints, last handshake,
-traffic — never private or preshared keys) every 30 seconds to
-`/run/pi-guard/wireguard.status`:
+### Devices
 
-```bash
-sudo install -m 0755 deploy/wireguard/pi-guard-wg-status /usr/local/sbin/
-sudo install -m 0644 deploy/wireguard/pi-guard-wg-status.{service,timer} /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable --now pi-guard-wg-status.timer
-```
+Dashboard › **Network › VPN access › Add device**: enter a name ("Anna's
+phone"), choose whether all internet traffic goes through home (ad blocking
+and safety in public Wi-Fi) or only the home network, and scan the QR code with
+the WireGuard app (iOS/Android). The QR code can be shown again later; laptops
+download a `.conf` file. Removing a device locks it out within seconds.
 
-and set `PI_GUARD_WIREGUARD_ENABLED=true`. The installer does this when it
-finds WireGuard. Adding devices stays a root task (`pivpn add`); the dashboard
-shows the command.
+### How it works
+
+pi-guard runs without root rights and never changes the network itself:
+
+| Part | Runs as | Does |
+| --- | --- | --- |
+| `scripts/wireguard.sh setup` | root, once | server key in `/etc/wireguard/wg0.base`, IP forwarding, NAT for 10.8.0.0/24, ufw rules, systemd units |
+| dashboard | pi-guard | creates device keys (private keys stored AES-GCM encrypted with the dashboard secret key), writes public key, preshared key and address per device to `/var/lib/pi-guard/wireguard/peers` |
+| `pi-guard-wg-apply` (path unit) | root | accepts only lines of the form `key<TAB>key<TAB>10.8.0.N/32`, writes `wg0.conf`, `wg syncconf` |
+| `pi-guard-wg-status` (timer) | root | status for the dashboard (no keys) every 30 s |
+
+The VPN uses 10.8.0.0/24; the Pi is 10.8.0.1 and the DNS server of the devices
+when Pi-hole is enabled. If `PI_GUARD_DASHBOARD_SECRET_KEY` changes, stored
+devices keep working but their QR codes cannot be shown again.
+
+FRITZ!OS 7.50+ also has WireGuard built in, an alternative without the Pi —
+but without Pi-hole as DNS and without management in the dashboard.

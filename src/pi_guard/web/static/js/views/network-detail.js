@@ -1,5 +1,5 @@
 // Pi-hole statistics and blocking, WireGuard peers, devices in the LAN.
-import { api, attempt, fill, h, icon, t, when } from "../api.js";
+import { api, attempt, confirmDialog, fill, h, icon, t, when } from "../api.js";
 import { meter } from "./overview.js";
 import { restartPrompt } from "./settings.js";
 
@@ -27,19 +27,73 @@ function piholePanel(p, redraw) {
     h("p", {}, h("a", { href: p.url.replace(/\/$/, "") + "/admin/", target: "_blank", rel: "noopener" }, t("web.open_pihole"))));
 }
 
-function wireguardPanel(enabled, wg) {
-  const panel = h("section", { class: "panel" }, h("h2", {}, "WireGuard"));
-  if (!enabled) { panel.append(h("p", { class: "muted" }, t("web.wireguard_off"))); return panel; }
+function showAccess(peer) {
+  // QR code for the WireGuard app, plus the file for laptops.
+  const dialog = h("dialog", { class: "wg-dialog" },
+    h("h2", {}, peer.name),
+    h("ol", { class: "howto" },
+      h("li", {}, t("web.wg_step_app")),
+      h("li", {}, t("web.wg_step_scan")),
+      h("li", {}, t("web.wg_step_on"))),
+    h("img", { class: "qr", src: peer.qr, alt: t("web.wg_qr_alt") }),
+    h("p", { class: "muted" }, h("small", {}, t("web.wg_qr_secret"))),
+    h("div", { class: "row end" },
+      h("a", { class: "button", href: `/api/network/wireguard/peers/${peer.id}/file`, download: "" }, icon("download"), t("web.wg_download")),
+      h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+function addForm(redraw) {
+  const name = h("input", { type: "text", maxlength: 32, placeholder: t("web.wg_name_placeholder"), required: true });
+  const full = h("input", { type: "checkbox", checked: true });
+  const form = h("form", { class: "stack" },
+    h("label", {}, t("web.wg_name"), name),
+    h("label", { class: "check" }, full, h("span", {}, t("web.wg_full_tunnel"), h("br"), h("small", { class: "muted" }, t("web.wg_full_tunnel_hint")))),
+    h("button", { class: "primary", type: "submit" }, icon("plus"), t("web.wg_add")));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const peer = await attempt(() => api("/api/network/wireguard/peers", { method: "POST", body: { name: name.value, full_tunnel: full.checked } }));
+    if (!peer) return;
+    showAccess(peer);
+    redraw();
+  });
+  return form;
+}
+
+function wireguardPanel(d, redraw) {
+  const wg = d.wireguard;
+  const panel = h("section", { class: "panel" }, h("h2", {}, t("web.wg_title")));
+  if (!d.wireguard_enabled) { panel.append(h("p", { class: "muted" }, t("web.wireguard_off"))); return panel; }
   if (!wg) { panel.append(h("p", { class: "notice" }, t("web.wireguard_no_status"))); return panel; }
+  const peers = wg.peers;
   panel.append(
-    h("p", { class: "muted" }, t("web.wireguard_port", { port: wg.interface.listen_port || "–" })),
-    h("ul", { class: "list" }, wg.peers.length ? wg.peers.map((p) => h("li", {},
+    h("p", { class: "muted" }, t("web.wg_intro")),
+    d.wireguard_endpoint
+      ? h("p", { class: "muted" }, h("small", {}, t("web.wg_reachable", { endpoint: d.wireguard_endpoint, port: wg.interface.listen_port || "51820" })))
+      : h("p", { class: "notice" }, t("web.wg_no_endpoint")),
+    h("ul", { class: "list" }, peers.length ? peers.map((p) => h("li", {},
       h("span", { class: `dot ${p.active ? "ok" : ""}` }),
-      h("div", { class: "grow" }, h("div", {}, p.name || p.public_key.slice(0, 10) + "…"),
-        h("small", {}, p.latest_handshake ? t("web.last_handshake", { time: when(p.latest_handshake) }) : t("web.never_connected"))),
-      h("small", { class: "muted" }, `↓${(p.received / 1e6).toFixed(1)} ↑${(p.sent / 1e6).toFixed(1)} MB`)))
+      h("div", { class: "grow" },
+        h("div", {}, p.name || p.public_key.slice(0, 10) + "…",
+          p.id && !p.full_tunnel ? h("span", { class: "badge" }, t("web.wg_home_only")) : null),
+        h("small", {}, p.pending ? t("web.wg_pending")
+          : p.latest_handshake ? t("web.last_handshake", { time: when(p.latest_handshake) }) : t("web.never_connected"))),
+      p.received || p.sent ? h("small", { class: "muted" }, `↓${(p.received / 1e6).toFixed(1)} ↑${(p.sent / 1e6).toFixed(1)} MB`) : null,
+      p.id ? [
+        h("button", { class: "icon-only", title: t("web.wg_show"), onclick: async () => {
+          const peer = await attempt(() => api(`/api/network/wireguard/peers/${p.id}`));
+          if (peer) showAccess(peer);
+        } }, icon("qrcode")),
+        h("button", { class: "icon-only danger", title: t("web.wg_remove"), onclick: async () => {
+          if (!await confirmDialog(t("web.wg_remove_confirm", { name: p.name }), t("web.wg_remove"), true)) return;
+          if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "DELETE" }), t("web.saved"))) redraw();
+        } }, icon("trash")),
+      ] : null))
       : h("li", { class: "empty" }, t("web.no_peers"))),
-    h("p", { class: "muted" }, h("small", {}, t("web.wireguard_add_hint"))));
+    h("h3", {}, t("web.wg_add")),
+    addForm(redraw));
   return panel;
 }
 
@@ -68,7 +122,7 @@ export async function render(main, data) {
     fill(main, main.firstChild, build(fresh));
   };
   const build = (d) => [
-    h("div", { class: "grid wide" }, piholePanel(d.pihole, redraw), wireguardPanel(d.wireguard_enabled, d.wireguard)),
+    h("div", { class: "grid wide" }, piholePanel(d.pihole, redraw), wireguardPanel(d, redraw)),
     devicesPanel(d.devices, redraw),
   ];
   main.append(...build(data));

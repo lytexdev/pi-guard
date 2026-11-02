@@ -1,0 +1,9 @@
+[Unit]
+Description=Load the VPN devices from the pi-guard dashboard into WireGuard
+After=wg-quick@wg0.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-guard-wg-apply wg0
+ProtectHome=yes
+PrivateTmp=yes

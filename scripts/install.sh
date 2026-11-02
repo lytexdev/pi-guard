@@ -245,14 +245,15 @@ if command -v pihole >/dev/null && ! grep -q '^PI_GUARD_PIHOLE_ENABLED=true' "$E
     set_env PI_GUARD_PIHOLE_PASSWORD "$REPLY"
 fi
 
-if command -v wg >/dev/null && [[ -d /etc/wireguard ]] \
-    && yes_no "Show WireGuard (PiVPN) status in the dashboard?" y; then
-    install -m 0755 "$REPO/deploy/wireguard/pi-guard-wg-status" /usr/local/sbin/pi-guard-wg-status
-    install -m 0644 "$REPO/deploy/wireguard/pi-guard-wg-status.service" /etc/systemd/system/
-    install -m 0644 "$REPO/deploy/wireguard/pi-guard-wg-status.timer" /etc/systemd/system/
-    systemctl daemon-reload
-    systemctl enable --now --quiet pi-guard-wg-status.timer
-    set_env PI_GUARD_WIREGUARD_ENABLED true
+if grep -q '^PI_GUARD_DASHBOARD_ENABLED=true' "$ENV_FILE" \
+    && ! grep -q '^PI_GUARD_WIREGUARD_ENABLED=true' "$ENV_FILE" \
+    && yes_no "Set up a WireGuard VPN (reach home from anywhere; devices are managed in the dashboard)?" n; then
+    ask "Address of your home from the internet (MyFRITZ!/DynDNS name, empty: current public IP)" ""
+    if [[ -n "$REPLY" ]]; then
+        "$REPO/scripts/wireguard.sh" setup --endpoint "$REPLY" || warn "WireGuard not set up; see docs/network.md"
+    else
+        "$REPO/scripts/wireguard.sh" setup || warn "WireGuard not set up; see docs/network.md"
+    fi
 fi
 
 if command -v nmcli >/dev/null && [[ "$(nmcli -g ipv4.method connection show "$(nmcli -t -f NAME connection show --active | head -1)" 2>/dev/null)" == "auto" ]] \

@@ -57,6 +57,7 @@ FIELDS = (
     Field("pihole_enabled", "network", "bool"),
     Field("pihole_url", "network", "text"),
     Field("wireguard_enabled", "network", "bool"),
+    Field("wireguard_endpoint", "network", "text"),
     Field("webpush_enabled", "dashboard", "bool"),
     Field("dashboard_honeypot", "dashboard", "bool"),
     Field("dashboard_ban_minutes", "dashboard", "int", 1, 10080),

@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch the VPN devices managed in the pi-guard dashboard
+
+[Path]
+PathChanged=/var/lib/pi-guard/wireguard/peers
+Unit=pi-guard-wg-apply.service
+
+[Install]
+WantedBy=paths.target

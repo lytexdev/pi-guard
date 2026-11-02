@@ -81,6 +81,12 @@ class Dashboard:
         )
         self.tls_dir = s.data_dir / "tls"
         self.microphones: dict[str, Any] = {}  # device -> api_live.MicrophoneStream
+        self.wg_peers = None
+        if s.wireguard_enabled:
+            from pi_guard.network.wgpeers import PeerStore
+
+            self.wg_peers = PeerStore(app.db, s.data_dir, self._secret_key())
+            self.wg_peers.write_file()
         self.web = self._build()
 
     def _secret_key(self) -> bytes:

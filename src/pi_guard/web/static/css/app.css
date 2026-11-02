@@ -244,3 +244,6 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .choice { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .choice button { min-height: 72px; flex-direction: column; }
 .qr { width: 220px; height: 220px; background: #fff; border-radius: 8px; padding: 8px; }
+.howto { padding-left: 1.3em; margin: 0 0 12px; }
+.howto li + li { margin-top: 4px; }
+.wg-dialog .qr { display: block; margin: 8px auto; width: min(260px, 70vw); height: auto; aspect-ratio: 1; }

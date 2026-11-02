@@ -8,6 +8,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- WireGuard VPN managed in the dashboard: `scripts/wireguard.sh setup` prepares
+  the server once; devices (family phones, laptops) are added with a name and
+  a QR code for the WireGuard app, shown again or removed later. A root path
+  unit loads them after strict validation; pi-guard itself stays unprivileged.
+
 - `PI_GUARD_PRESENCE_AUTO_HOME` / `PI_GUARD_PRESENCE_AUTO_AWAY`: limit which way
   presence detection switches the mode; an arriving trusted device can trigger
   an "I am at home" prompt instead of silencing alerts.
