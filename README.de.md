@@ -5,11 +5,6 @@ Telegram (und optional Signal). pi-guard zeichnet durchgehend auf die
 Speicherkarte auf, erkennt Bewegungen und zeigt Ihnen Ihr Zuhause mit zwei
 Knöpfen: **Foto ansehen** und **Video ansehen**.
 
-pi-guard ist für Haushalte gedacht, in denen die Person, die dort wohnt, nicht
-die Person ist, die das System eingerichtet hat – zum Beispiel ältere
-Angehörige. Für die tägliche Nutzung braucht man keine Befehle, keine
-zusätzliche App und keine Fachbegriffe.
-
 [English version](README.md)
 
 ## Was pi-guard kann

@@ -5,10 +5,6 @@ Home monitoring for a Raspberry Pi and a USB camera, operated through Telegram
 movement, and lets you look at your home with two buttons: **View photo** and
 **View video**.
 
-pi-guard is written for households where the person living there is not the
-person who set it up — typically an older relative. Everyday use needs no
-commands, no app besides the messenger, and no technical vocabulary.
-
 [Deutsche Version](README.de.md)
 
 ## What it does
