@@ -1,0 +1,10 @@
+[Unit]
+Description=WireGuard status for the pi-guard dashboard
+After=wg-quick@wg0.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-guard-wg-status wg0
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes

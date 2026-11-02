@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh WireGuard status for the pi-guard dashboard
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=30
+AccuracySec=5
+
+[Install]
+WantedBy=timers.target

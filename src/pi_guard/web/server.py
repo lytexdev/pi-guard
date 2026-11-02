@@ -75,7 +75,7 @@ class Dashboard:
         self.web = self._build()
 
     def _build(self) -> web.Application:
-        from pi_guard.web import api_core, api_live, api_manage
+        from pi_guard.web import api_core, api_live, api_manage, api_network
 
         webapp = web.Application(
             middlewares=[self.guard.middleware, self._auth_middleware],
@@ -93,7 +93,7 @@ class Dashboard:
         webapp.router.add_post("/api/login", self._login)
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
-        for module in (api_core, api_manage, api_live):
+        for module in (api_core, api_manage, api_live, api_network):
             webapp.add_routes(module.routes())
         return webapp
 

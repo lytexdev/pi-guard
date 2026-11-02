@@ -1,0 +1,102 @@
+"""Network page: Pi-hole, WireGuard and the devices in the LAN."""
+
+from __future__ import annotations
+
+import asyncio
+import re
+from typing import Any
+
+import yaml
+from aiohttp import web
+
+from pi_guard.config import OVERRIDE_YAML
+from pi_guard.config.files import FileConfig, TrustedDevice
+from pi_guard.network.lan import merge, neighbour_table, reverse_names
+from pi_guard.network.pihole import PiholeError
+from pi_guard.network.wireguard import read_status
+from pi_guard.security.files import atomic_write
+from pi_guard.web.server import current, dashboard, read_json
+
+_MAC_RE = re.compile(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$")
+
+
+def routes() -> list[web.RouteDef]:
+    return [
+        web.get("/api/network", overview),
+        web.post("/api/network/pihole/blocking", blocking),
+        web.post("/api/network/trust", trust_device),
+    ]
+
+
+async def overview(request: web.Request) -> web.Response:
+    app = dashboard(request).app
+    s = app.settings
+    pihole: dict[str, Any] | None = None
+    pihole_devices = []
+    if app.pihole is not None:
+        try:
+            summary, top, pihole_devices = await asyncio.gather(
+                app.pihole.summary(), app.pihole.top_blocked(8), app.pihole.devices()
+            )
+            pihole = {**summary, "top_blocked": top, "url": s.pihole_url}
+        except PiholeError as exc:
+            pihole = {"error": str(exc), "url": s.pihole_url}
+    try:
+        neighbours = await neighbour_table(app.config.file.presence.interface)
+    except (OSError, TimeoutError):
+        neighbours = {}
+    trusted = {d.mac_address: d.name for d in app.config.file.presence.devices}
+    ips = [ip for _, (ip, _) in neighbours.items()]
+    names = await reverse_names(ips)
+    devices = merge(neighbours, pihole_devices, trusted, names)
+    wireguard = read_status(s.runtime_dir / "wireguard.status") if s.wireguard_enabled else None
+    return web.json_response({
+        "pihole": pihole,
+        "pihole_enabled": app.pihole is not None,
+        "wireguard_enabled": s.wireguard_enabled,
+        "wireguard": wireguard,
+        "devices": [d.as_dict() for d in devices],
+    })  # fmt: skip
+
+
+async def blocking(request: web.Request) -> web.Response:
+    app = dashboard(request).app
+    if app.pihole is None:
+        raise web.HTTPConflict(text="Pi-hole is not set up")
+    data = await read_json(request)
+    enabled = data.get("enabled") is True
+    minutes = int(data.get("minutes") or 0) or None
+    try:
+        await app.pihole.set_blocking(enabled, minutes)
+    except PiholeError as exc:
+        raise web.HTTPBadGateway(text=str(exc)) from None
+    app.db.audit(f"web:{current(request).username}", "pihole.blocking",
+                 f"{'on' if enabled else 'off'} {minutes or ''}".strip())  # fmt: skip
+    return web.json_response({"ok": True})
+
+
+async def trust_device(request: web.Request) -> web.Response:
+    """Add a LAN device to presence.devices (written to dashboard.yaml)."""
+    d = dashboard(request)
+    data = await read_json(request)
+    mac = str(data.get("mac", "")).lower()
+    name = str(data.get("name", "")).strip()[:40]
+    if not _MAC_RE.match(mac) or not name:
+        raise web.HTTPBadRequest(text="name and MAC address required")
+    config = d.app.config.file.model_dump(mode="json")
+    if any(dev["mac_address"] == mac for dev in config["presence"]["devices"]):
+        raise web.HTTPConflict(text="already trusted")
+    slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:28] or "device"
+    taken = {dev["id"] for dev in config["presence"]["devices"]}
+    device_id, n = slug, 2
+    while device_id in taken:
+        device_id, n = f"{slug}_{n}", n + 1
+    config["presence"]["devices"].append(
+        TrustedDevice(id=device_id, name=name, mac_address=mac).model_dump(mode="json")
+    )
+    validated = FileConfig.model_validate(config)
+    text = "# Written by the pi-guard dashboard; replaces config.yaml while it exists.\n"
+    text += yaml.safe_dump(validated.model_dump(mode="json"), sort_keys=False, allow_unicode=True)
+    await asyncio.to_thread(atomic_write, d.settings.data_dir / OVERRIDE_YAML, text.encode())
+    d.app.db.audit(f"web:{current(request).username}", "presence.trust", device_id)
+    return web.json_response({"ok": True, "restart_required": True})

@@ -18,6 +18,9 @@ fi
 echo "==> stopping and removing the service"
 systemctl disable --now pi-guard 2>/dev/null || true
 systemctl disable --now pi-guard-signal 2>/dev/null || true
+systemctl disable --now pi-guard-wg-status.timer 2>/dev/null || true
+rm -f /etc/systemd/system/pi-guard-wg-status.service /etc/systemd/system/pi-guard-wg-status.timer \
+    /usr/local/sbin/pi-guard-wg-status
 rm -f /etc/systemd/system/pi-guard.service /etc/systemd/system/pi-guard-signal.service
 rm -rf /etc/systemd/system/pi-guard.service.d
 systemctl daemon-reload

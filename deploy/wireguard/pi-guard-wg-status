@@ -1,0 +1,23 @@
+#!/bin/sh
+# Writes WireGuard status for the pi-guard dashboard. Runs as root (wg needs
+# CAP_NET_ADMIN); pi-guard itself only reads the result. Private and preshared
+# keys are never written.
+set -eu
+IFACE="${1:-wg0}"
+DIR=/run/pi-guard
+[ -d "$DIR" ] || exit 0
+OUT="$DIR/wireguard.status"
+TMP="$OUT.tmp"
+{
+    printf 'written\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    # PiVPN keeps "name public-key date" per client
+    if [ -f /etc/wireguard/configs/clients.txt ]; then
+        awk '{ printf "name\t%s\t%s\n", $1, $2 }' /etc/wireguard/configs/clients.txt
+    fi
+    wg show "$IFACE" dump | awk -F'\t' 'BEGIN { OFS = "\t" }
+        NR == 1 { print "(hidden)", $2, $3, $4; next }
+        { $2 = "(hidden)"; print }'
+} > "$TMP"
+chgrp pi-guard "$TMP"
+chmod 0640 "$TMP"
+mv "$TMP" "$OUT"

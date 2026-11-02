@@ -17,12 +17,14 @@ import json
 import logging
 import re
 import socket
+from datetime import UTC, datetime
 from typing import Protocol
 from xml.etree import ElementTree
 
 import httpx
 
 from pi_guard.config.files import FritzBoxSettings, TrustedDevice
+from pi_guard.network.pihole import Pihole, PiholeError
 from pi_guard.presence.resolver import Observation
 
 log = logging.getLogger(__name__)
@@ -149,4 +151,36 @@ class FritzBoxSource:
                 except (httpx.HTTPError, ValueError, ElementTree.ParseError) as exc:
                     log.warning("FRITZ!Box query failed: %s", exc)
                     result[device.id] = Observation.ERROR
+        return result
+
+
+class PiholeSource:
+    """A device counts as seen when it sent a DNS query to Pi-hole recently.
+
+    Phones keep querying in the background, so this works well when Pi-hole is
+    the network's DNS server. It complements the neighbour table.
+    """
+
+    name = "pihole"
+
+    def __init__(self, pihole: Pihole, window_seconds: int = 300) -> None:
+        self._pihole = pihole
+        self._window = window_seconds
+
+    async def observe(self, devices: list[TrustedDevice]) -> dict[str, Observation]:
+        try:
+            known = {d.mac: d for d in await self._pihole.devices()}
+        except PiholeError as exc:
+            log.warning("Pi-hole presence check failed: %s", exc)
+            return {d.id: Observation.ERROR for d in devices}
+        now = datetime.now(UTC)
+        result = {}
+        for device in devices:
+            entry = known.get(device.mac_address)
+            recent = (
+                entry is not None
+                and entry.last_query is not None
+                and ((now - entry.last_query).total_seconds() < self._window)
+            )
+            result[device.id] = Observation.SEEN if recent else Observation.NOT_SEEN
         return result

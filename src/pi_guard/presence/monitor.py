@@ -10,8 +10,14 @@ from pi_guard.config.settings import Settings
 from pi_guard.core.events import Event, EventBus, EventType
 from pi_guard.core.modes import Mode, ModeController, Presence
 from pi_guard.core.timeutil import utcnow
+from pi_guard.network.pihole import Pihole
 from pi_guard.presence.resolver import Observation, PresenceResolver, combine
-from pi_guard.presence.sources import FritzBoxSource, NeighbourSource, PresenceSource
+from pi_guard.presence.sources import (
+    FritzBoxSource,
+    NeighbourSource,
+    PiholeSource,
+    PresenceSource,
+)
 
 log = logging.getLogger(__name__)
 
@@ -24,11 +30,18 @@ class DeviceStatus:
     observation: Observation | None
 
 
-def build_sources(settings: Settings, presence: PresenceSettings) -> list[PresenceSource]:
+def build_sources(
+    settings: Settings, presence: PresenceSettings, pihole: Pihole | None = None
+) -> list[PresenceSource]:
     sources: list[PresenceSource] = []
     for name in presence.sources:
         if name == "neighbours":
             sources.append(NeighbourSource(presence.interface))
+        elif name == "pihole":
+            if pihole is None:
+                log.warning("presence source pihole needs PI_GUARD_PIHOLE_ENABLED")
+                continue
+            sources.append(PiholeSource(pihole))
         else:
             password = settings.fritzbox_password
             sources.append(

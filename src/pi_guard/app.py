@@ -34,6 +34,7 @@ from pi_guard.integrations.mqtt.bridge import MqttBridge
 from pi_guard.messaging.base import Provider
 from pi_guard.messaging.commands import build_registry
 from pi_guard.messaging.hub import Messenger
+from pi_guard.network.pihole import Pihole
 from pi_guard.notifications.engine import Notifier
 from pi_guard.notifications.escalation import Escalation
 from pi_guard.presence.monitor import PresenceMonitor, build_sources
@@ -123,10 +124,14 @@ class App:
         self.webpush: WebPush | None = None
         self.escalation = Escalation(self)
         self.notifier = Notifier(self)
+        self.pihole: Pihole | None = None
+        if s.pihole_enabled:
+            password = s.pihole_password.get_secret_value() if s.pihole_password else None
+            self.pihole = Pihole(s.pihole_url, password)
         if s.presence_enabled:
             presence = config.file.presence
             self.presence = PresenceMonitor(
-                presence, build_sources(s, presence), self.modes, self.bus
+                presence, build_sources(s, presence, self.pihole), self.modes, self.bus
             )
         self.components: dict[str, ComponentState] = {}
         self._started = time.monotonic()

@@ -107,6 +107,8 @@ async def overview(request: web.Request) -> web.Response:
             "audio_recording": bool(app.audio and app.audio.recording_enabled),
             "faces": app.faces is not None,
             "presence": app.presence is not None,
+            "pihole": app.pihole is not None,
+            "push": app.webpush is not None,
         },
     })  # fmt: skip
 

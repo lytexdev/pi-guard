@@ -2,13 +2,13 @@
 FROM python:3.11-slim-bookworm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg iproute2 \
+    && apt-get install -y --no-install-recommends ffmpeg iproute2 openssl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
-RUN pip install --no-cache-dir ".[vision,mqtt]" && rm -rf /src
+RUN pip install --no-cache-dir ".[vision,mqtt,web]" && rm -rf /src
 
 RUN useradd --system --uid 10001 --home-dir /data pi-guard \
     && install -d -o pi-guard -g pi-guard -m 0700 /data /recordings

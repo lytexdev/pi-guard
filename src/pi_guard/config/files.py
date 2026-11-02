@@ -127,7 +127,7 @@ class TrustedDevice(_Model):
         return bool(int(self.mac_address[:2], 16) & 0x02)
 
 
-PresenceSource = Literal["neighbours", "fritzbox"]
+PresenceSource = Literal["neighbours", "fritzbox", "pihole"]
 
 
 class FritzBoxSettings(_Model):

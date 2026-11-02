@@ -16,6 +16,9 @@ services:
       - ./config:/config:ro
       - ./data:/data
       - ./recordings:/recordings
+    ports:
+      # Web dashboard; only listens when PI_GUARD_DASHBOARD_ENABLED=true.
+      - "${DASHBOARD_PORT:-8443}:8443"
     devices:
       - ${CAMERA_DEVICE:-/dev/video0}:${CAMERA_DEVICE:-/dev/video0}
       # Uncomment for audio:
@@ -36,3 +39,22 @@ services:
     # On the default bridge network it only sees the container's own neighbours; use the
     # FRITZ!Box source, or opt into host networking deliberately:
     # network_mode: host
+
+  # Optional network-wide ad blocking and DNS: docker compose --profile pihole up -d
+  # Then set PI_GUARD_PIHOLE_ENABLED=true and PI_GUARD_PIHOLE_URL=http://pihole in .env,
+  # and make the router hand out this machine's address as DNS server.
+  pihole:
+    profiles: [pihole]
+    image: pihole/pihole:latest
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "${PIHOLE_WEB_PORT:-8080}:80/tcp"
+    environment:
+      TZ: ${PI_GUARD_TIMEZONE:-Europe/Berlin}
+      FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD:-}
+      FTLCONF_dns_listeningMode: all
+    volumes:
+      - ./pihole:/etc/pihole
+

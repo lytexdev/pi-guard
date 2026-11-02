@@ -163,6 +163,63 @@ RECORDINGS="$(sed -n 's/^PI_GUARD_RECORDINGS_DIR=//p' "$ENV_FILE" | tail -1)"
 RECORDINGS="${RECORDINGS:-$DATA/recordings}"
 install -d -m 0700 -o "$USER_NAME" -g "$USER_NAME" "$RECORDINGS"
 
+# optional: dashboard, Pi-hole, WireGuard status, fixed address ----------------------
+set_env() {  # set_env KEY VALUE: replace or append a line; VALUE is taken literally
+    local tmp
+    tmp="$(mktemp)"
+    grep -v "^$1=" "$ENV_FILE" > "$tmp" || true
+    printf '%s=%s\n' "$1" "$2" >> "$tmp"
+    cat "$tmp" > "$ENV_FILE"  # keeps owner and mode of the env file
+    rm -f "$tmp"
+}
+
+if ! grep -q '^PI_GUARD_DASHBOARD_ENABLED=true' "$ENV_FILE" \
+    && yes_no "Enable the web dashboard (https://<pi>:8443)?" n; then
+    say "choose a dashboard password (at least 10 characters)"
+    HASH="$("$PREFIX/venv/bin/python" - <<'PY'
+import getpass, sys
+from pi_guard.web.auth import hash_password
+first = getpass.getpass("Dashboard password: ")
+if len(first) < 10 or first != getpass.getpass("Repeat: "):
+    sys.exit("passwords differ or are shorter than 10 characters")
+print(hash_password(first))
+PY
+)"
+    set_env PI_GUARD_DASHBOARD_ENABLED true
+    set_env PI_GUARD_DASHBOARD_PASSWORD_HASH "$HASH"
+    say "dashboard enabled; install the certificate from https://<pi>:8443/ca.crt on your devices"
+fi
+
+if ! command -v pihole >/dev/null && yes_no "Install Pi-hole (network-wide ad blocking, official installer from pi-hole.net)?" n; then
+    echo "This downloads and runs https://install.pi-hole.net as root. It asks its own questions."
+    if yes_no "Run the official Pi-hole installer now?" n; then
+        curl -sSL https://install.pi-hole.net | bash
+    fi
+fi
+if command -v pihole >/dev/null && ! grep -q '^PI_GUARD_PIHOLE_ENABLED=true' "$ENV_FILE" \
+    && yes_no "Connect pi-guard to the local Pi-hole?" y; then
+    echo "Create an app password in Pi-hole: Settings > Web interface / API > Configure app password."
+    ask_secret "Pi-hole app password"
+    set_env PI_GUARD_PIHOLE_ENABLED true
+    set_env PI_GUARD_PIHOLE_URL "http://127.0.0.1"
+    set_env PI_GUARD_PIHOLE_PASSWORD "$REPLY"
+fi
+
+if command -v wg >/dev/null && [[ -d /etc/wireguard ]] \
+    && yes_no "Show WireGuard (PiVPN) status in the dashboard?" y; then
+    install -m 0755 "$REPO/deploy/wireguard/pi-guard-wg-status" /usr/local/sbin/pi-guard-wg-status
+    install -m 0644 "$REPO/deploy/wireguard/pi-guard-wg-status.service" /etc/systemd/system/
+    install -m 0644 "$REPO/deploy/wireguard/pi-guard-wg-status.timer" /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl enable --now --quiet pi-guard-wg-status.timer
+    set_env PI_GUARD_WIREGUARD_ENABLED true
+fi
+
+if command -v nmcli >/dev/null && [[ "$(nmcli -g ipv4.method connection show "$(nmcli -t -f NAME connection show --active | head -1)" 2>/dev/null)" == "auto" ]] \
+    && yes_no "Give this device a fixed IP address (recommended with Pi-hole)?" n; then
+    "$REPO/scripts/network.sh" static || warn "fixed address not set; see docs/network.md"
+fi
+
 # 13: systemd ------------------------------------------------------------------------
 say "installing systemd service"
 install -m 0644 "$REPO/deploy/systemd/pi-guard.service" /etc/systemd/system/pi-guard.service
