@@ -420,21 +420,36 @@ def faces_list() -> None:
 
 
 @faces_app.command("enroll")
-def faces_enroll(name: str, photos: list[Path]) -> None:
-    """Enroll a person from photos that each show only that person."""
+def faces_enroll(name: str, files: list[Path]) -> None:
+    """Enroll a person from photos or videos that show only that person."""
+    from pi_guard.detection.enrollment import EnrollmentSession, video_frames
     from pi_guard.detection.faces import EnrollmentError
 
-    typer.echo("Only enroll people who have agreed to be recognised. Photos are not stored.")
+    typer.echo("Only enroll people who have agreed to be recognised. Files are not stored.")
     if not typer.confirm(f"Has {name} given consent?"):
         raise typer.Exit(1)
     recognizer = _recognizer(_config())
-    for photo in photos:
-        try:
-            count = recognizer.enroll(name, recognizer.prepare(photo), "cli")
-        except EnrollmentError as exc:
-            typer.secho(f"{photo}: {exc.key}", fg="red", err=True)
-            continue
-        typer.echo(f"{photo}: stored ({count} sample(s) for {name})")
+    session = EnrollmentSession(name=name)
+    limit = recognizer.settings.max_samples_per_person
+    for file in files:
+        images = [file]
+        workdir = None
+        if file.suffix.lower() in (".mp4", ".mov", ".mkv", ".webm", ".avi"):
+            workdir, images = asyncio.run(video_frames(file))
+        added = 0
+        for image in images:
+            try:
+                added += session.add(recognizer.prepare(image), limit)
+            except EnrollmentError as exc:
+                if workdir is None:
+                    typer.secho(f"{file}: {exc.key}", fg="red", err=True)
+        if workdir is not None:
+            shutil.rmtree(workdir, ignore_errors=True)
+        typer.echo(f"{file}: {added} sample(s)")
+    count = 0
+    for embedding in session.samples:
+        count = recognizer.enroll(name, embedding, "cli")
+    typer.echo(f"{name}: {count} sample(s) stored")
 
 
 @faces_app.command("delete")
