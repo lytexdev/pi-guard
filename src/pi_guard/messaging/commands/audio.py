@@ -21,6 +21,7 @@ from pi_guard.messaging.commands.core import menu_row
 from pi_guard.messaging.commands.registry import (
     ArgError,
     CameraArg,
+    ChoiceArg,
     Command,
     IntArg,
     Registry,
@@ -29,6 +30,8 @@ from pi_guard.messaging.commands.registry import (
 from pi_guard.recording.segments import ClipError
 
 DEFAULT_LISTEN_SECONDS = 10
+ALARM_SECONDS = 30
+ALARM_UPLOAD_NAME = "alarm"
 
 
 def _audio(ctx: CommandContext) -> AudioService:
@@ -130,7 +133,7 @@ async def upload(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     """Handles audio files sent by an admin, and the buttons offered afterwards."""
     audio = _audio(ctx)
     action, _, rest = args.get("text", "").partition(" ")
-    if action in ("play", "save", "discard"):
+    if action in ("play", "save", "alarm", "discard"):
         token, _, name = rest.partition(" ")
         path = _pending(ctx, token)
         if path is None:
@@ -146,6 +149,12 @@ async def upload(ctx: CommandContext, args: dict[str, Any]) -> Reply:
                     return Reply(ctx.t("audio.bad_name"), buttons=_upload_buttons(ctx, token))
                 audio.sounds.save(name, path)
                 return Reply(ctx.t("audio.saved", name=name), buttons=(menu_row(ctx),))
+            if action == "alarm":
+                audio.sounds.save(ALARM_UPLOAD_NAME, path)
+                audio.set_alarm_sound(ALARM_UPLOAD_NAME)
+                ctx.app.db.audit(ctx.user.key, "audio.alarm_sound")
+                return Reply(ctx.t("audio.alarm_sound_set"), buttons=(
+                    (ctx.button("alarm.test_button", "alarm"),), menu_row(ctx)))  # fmt: skip
         except AudioError as exc:
             return _error(ctx, exc)
         except ValueError:
@@ -172,12 +181,41 @@ def _upload_buttons(ctx: CommandContext, token: str) -> tuple[tuple[Button, ...]
     return (
         (ctx.button("audio.play_now", f"upload play {token}"),),
         (ctx.button("audio.save_as_sound", f"upload save {token}"),),
+        (ctx.button("audio.use_as_alarm", f"upload alarm {token}"),),
         (ctx.button("audio.discard", f"upload discard {token}"),),
         menu_row(ctx),
     )
 
 
+async def alarm(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    """Sound the alarm on the speaker. Without "on", it asks first, so typing never triggers it."""
+    audio = _audio(ctx)
+    state = args.get("state")
+    if state == "off":
+        stopped = await audio.stop_alarm()
+        if stopped:
+            ctx.app.db.audit(ctx.user.key, "alarm.stop")
+        return Reply(ctx.t("alarm.stopped" if stopped else "alarm.not_running"),
+                     buttons=(menu_row(ctx),))  # fmt: skip
+    if state != "on":
+        return Reply(ctx.t("alarm.confirm", seconds=ALARM_SECONDS), buttons=(
+            (ctx.button("alarm.start_button", "alarm on"),),
+            (ctx.button("faces.cancel_button", "menu"),),
+        ))  # fmt: skip
+    try:
+        audio.start_alarm(ALARM_SECONDS)
+    except AudioError as exc:
+        return _error(ctx, exc)
+    ctx.app.db.audit(ctx.user.key, "alarm.start")
+    stop = (ctx.button("alarm.stop_button", "alarm off"),)
+    return Reply(ctx.t("alarm.started", seconds=ALARM_SECONDS), buttons=(stop, menu_row(ctx)))
+
+
 def register(registry: Registry) -> None:
+    on_off = {"on": "on", "an": "on", "ein": "on", "los": "on",
+              "off": "off", "aus": "off", "stop": "off", "stopp": "off"}  # fmt: skip
+    registry.add(Command("alarm", alarm, ("sirene", "alarmton"), (ChoiceArg("state", on_off),),
+                         role=Role.ADMIN, help_key="help.alarm"))  # fmt: skip
     registry.add(
         Command(
             "listen",

@@ -100,8 +100,11 @@ async def more(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     if ctx.app.modes.presence_enabled:
         rows[0] += (ctx.button("mode.button_auto", "mode auto"),)
     if ctx.user.role is Role.ADMIN:
-        if ctx.app.audio and ctx.app.audio.playback_enabled:
-            rows.append((ctx.button("more.sounds", "sound"),))
+        audio = ctx.app.audio
+        if audio and audio.playback_enabled:
+            rows.append((ctx.button("more.sounds", "sound"), ctx.button("more.alarm", "alarm")))
+        if audio and audio.recording_enabled:
+            rows.append((ctx.button("more.listen", "listen"),))
         if ctx.app.faces is not None:
             rows.append((ctx.button("more.people", "faces"),))
         rows.append((ctx.button("more.users", "users"), ctx.button("more.invite", "invite")))

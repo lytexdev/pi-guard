@@ -9,8 +9,10 @@ listening then cuts the audio track out of the recording instead.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -53,19 +55,35 @@ async def _run(args: list[str], limit: float) -> tuple[int, bytes, bytes]:
     )
     try:
         stdout, stderr = await asyncio.wait_for(process.communicate(), limit)
-    except TimeoutError:
+    except (TimeoutError, asyncio.CancelledError):
+        # Also on cancellation: stopping an alarm must silence the speaker at once.
         process.kill()
         await process.wait()
         raise
     return process.returncode or 0, stdout, stderr
 
 
+_MAGIC = (b"OggS", b"ID3", b"\xff\xfb", b"\xff\xf3", b"\xff\xf2", b"RIFF", b"fLaC",
+          b"\x1a\x45\xdf\xa3")  # fmt: skip
+
+
+def sniff(path: Path) -> bool:
+    """Only plain audio containers; rejects playlists and other files FFmpeg would follow."""
+    with path.open("rb") as handle:
+        head = handle.read(12)
+    return head.startswith(_MAGIC) or head[4:8] == b"ftyp"
+
+
 async def probe(path: Path) -> AudioInfo:
+    if not sniff(path):
+        raise AudioError("audio.invalid_file")
     code, out, _ = await _run(
         [
             "ffprobe",
             "-v",
             "error",
+            "-protocol_whitelist",
+            "file",
             "-print_format",
             "json",
             "-show_format",
@@ -108,6 +126,7 @@ class AudioService:
         self._tz = tz
         self._quiet = TimeWindow.parse(settings.quiet_hours) if settings.quiet_hours else None
         self._playing = False
+        self._alarm: asyncio.Task[None] | None = None
 
     @property
     def volume(self) -> int:
@@ -132,7 +151,9 @@ class AudioService:
             raise AudioError("audio.too_long", seconds=self.settings.max_upload_seconds)
         return info
 
-    async def play(self, path: Path, *, ignore_quiet_hours: bool = False) -> None:
+    async def play(
+        self, path: Path, *, ignore_quiet_hours: bool = False, volume: int | None = None
+    ) -> None:
         if not self.playback_enabled or self.settings.speaker is None:
             raise AudioError("audio.playback_disabled")
         if self.quiet_now() and not ignore_quiet_hours:
@@ -142,7 +163,7 @@ class AudioService:
         self._playing = True  # claimed before the first await, so requests cannot overlap
         try:
             info = await probe(path)
-            gain = self.volume / 100
+            gain = min(volume if volume is not None else self.volume, self.max_volume) / 100
             code, _, err = await _run(
                 [
                     "ffmpeg",
@@ -150,6 +171,8 @@ class AudioService:
                     "-nostdin",
                     "-loglevel",
                     "error",
+                    "-protocol_whitelist",
+                    "file",
                     "-i",
                     str(path),
                     "-t",
@@ -202,3 +225,49 @@ class AudioService:
             log.warning("audio recording failed: %s", err.decode(errors="replace").strip()[-200:])
             raise AudioError("audio.recording_failed")
         return output
+
+    # --- alarm ----------------------------------------------------------------------------
+
+    def alarm_sound(self) -> Path | None:
+        """The chosen alarm sound: set in chat, else audio.alert_sound, else "warning"."""
+        for name in (self._db.get("audio.alarm_sound"), self.settings.alert_sound, "warning"):
+            path = self.sounds.path(str(name)) if name else None
+            if path is not None:
+                return path
+        return None
+
+    def set_alarm_sound(self, name: str) -> None:
+        self._db.set("audio.alarm_sound", name)
+
+    @property
+    def alarm_active(self) -> bool:
+        return self._alarm is not None and not self._alarm.done()
+
+    def start_alarm(self, seconds: int) -> None:
+        """Repeat the alarm sound at maximum allowed volume; ignores quiet hours."""
+        if not self.playback_enabled:
+            raise AudioError("audio.playback_disabled")
+        path = self.alarm_sound()
+        if path is None:
+            raise AudioError("audio.unknown_sound", name="alarm")
+        if self.alarm_active or self._playing:
+            raise AudioError("audio.busy")
+        self._alarm = asyncio.get_running_loop().create_task(self._alarm_loop(path, seconds))
+
+    async def stop_alarm(self) -> bool:
+        task, self._alarm = self._alarm, None
+        if task is None or task.done():
+            return False
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        return True
+
+    async def _alarm_loop(self, path: Path, seconds: int) -> None:
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            try:
+                await self.play(path, ignore_quiet_hours=True, volume=self.max_volume)
+            except AudioError as exc:
+                log.warning("alarm sound stopped: %s", exc.key)
+                return

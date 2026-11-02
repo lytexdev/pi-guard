@@ -242,5 +242,17 @@
   "image.no_photo": "Please look at a photo first, then it can be enlarged or brightened.",
   "help.sharper": "A sharper picture, enlarged around a person if one is visible",
   "help.zoom": "Enlarge part of the last photo, e.g. /zoom left",
-  "help.brighter": "Brighten the last photo"
+  "help.brighter": "Brighten the last photo",
+  "audio.use_as_alarm": "Use as alarm sound",
+  "audio.alarm_sound_set": "This is now the alarm sound.",
+  "alarm.confirm": "Sound the alarm on the speaker for {seconds} seconds?",
+  "alarm.start_button": "Yes, sound the alarm",
+  "alarm.stop_button": "Stop the alarm",
+  "alarm.test_button": "Sound the alarm",
+  "alarm.started": "The alarm is sounding for {seconds} seconds.",
+  "alarm.stopped": "The alarm has been stopped.",
+  "alarm.not_running": "No alarm is sounding.",
+  "more.alarm": "Alarm",
+  "more.listen": "Listen (microphone)",
+  "help.alarm": "Sound the alarm on the speaker; /alarm off stops it"
 }

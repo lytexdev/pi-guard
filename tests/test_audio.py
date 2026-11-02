@@ -165,6 +165,9 @@ async def test_playback_errors(tmp_path: Path, db: Any, monkeypatch: pytest.Monk
     played = commands[-1]
     assert played[played.index("-af") + 1] == "volume=0.60"
     assert played[-1] == "plughw:CARD=Nope,DEV=0"
+    assert played[played.index("-protocol_whitelist") + 1] == "file"
+    probe_call = next(c for c in commands if c[0] == "ffprobe")
+    assert probe_call[probe_call.index("-protocol_whitelist") + 1] == "file"
 
 
 def _audio_app(tmp_path: Path, **settings: Any):  # type: ignore[no-untyped-def]
@@ -202,7 +205,7 @@ async def test_upload_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
         Incoming("telegram", ADMIN, ADMIN, "", attachment=voice, attachment_kind="audio")
     )
     reply = app.providers["telegram"].last()
-    play, save, _discard, _menu = (row[0].command for row in reply.buttons)
+    play, save, _alarm, _discard, _menu = (row[0].command for row in reply.buttons)
     await app.messenger.handle(msg(play, ADMIN, from_button=True))
     assert len(played) == 1 and played[0].exists()
     await app.messenger.handle(msg(save, ADMIN, from_button=True))
@@ -264,3 +267,53 @@ async def test_listen_announces_with_chime_even_in_quiet_hours(
     assert app.providers["telegram"].last().audio is not None
     assert app.db.execute("SELECT action FROM audit WHERE action = 'audio.listen'").fetchone()
     app.db.close()
+
+
+def test_sniff_rejects_playlists_and_scripts(tmp_path: Path) -> None:
+    from pi_guard.audio.service import sniff
+
+    good = tmp_path / "a.ogg"
+    good.write_bytes(b"OggS" + b"\0" * 20)
+    m4a = tmp_path / "a.m4a"
+    m4a.write_bytes(b"\0\0\0\x20ftypM4A " + b"\0" * 8)
+    playlist = tmp_path / "b.ogg"
+    playlist.write_text("#EXTM3U\nfile:///etc/passwd\n")
+    assert sniff(good) and sniff(m4a) and not sniff(playlist)
+
+
+async def test_alarm_repeats_loud_and_stops(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = _audio_app(tmp_path, audio_max_volume=90)
+    played: list[tuple[str, bool, int | None]] = []
+
+    async def fake_play(
+        path: Path, *, ignore_quiet_hours: bool = False, volume: int | None = None
+    ) -> None:
+        played.append((path.stem, ignore_quiet_hours, volume))
+        await asyncio.sleep(0.05)
+
+    monkeypatch.setattr(app.audio, "play", fake_play)
+    await app.messenger.handle(msg("/alarm", ADMIN))
+    assert "alarm on" in [
+        b.command for row in app.providers["telegram"].last().buttons for b in row
+    ]
+    assert played == []  # asking first: typing "alarm" never starts it
+    await app.messenger.handle(msg("alarm on", ADMIN, from_button=True))
+    await asyncio.sleep(0.12)
+    assert app.audio.alarm_active and len(played) >= 2
+    assert played[0] == ("warning", True, 90)
+    await app.messenger.handle(msg("/alarm aus", ADMIN))
+    assert not app.audio.alarm_active
+    assert "stopped" in app.providers["telegram"].last().text
+    app.db.close()
+
+
+async def test_cancelled_playback_kills_ffmpeg() -> None:
+    task = asyncio.create_task(service_module._run(["sleep", "30"], 60))
+    await asyncio.sleep(0.1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    out = subprocess.run(["pgrep", "-f", "^sleep 30$"], capture_output=True, text=True)
+    assert out.stdout.strip() == ""

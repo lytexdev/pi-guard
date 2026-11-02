@@ -242,5 +242,17 @@
   "image.no_photo": "Bitte sehen Sie sich zuerst ein Foto an, dann kann es vergrößert oder aufgehellt werden.",
   "help.sharper": "Ein schärferes Bild, auf eine Person vergrößert, wenn eine zu sehen ist",
   "help.zoom": "Einen Teil des letzten Fotos vergrößern, z. B. /vergrößern links",
-  "help.brighter": "Das letzte Foto aufhellen"
+  "help.brighter": "Das letzte Foto aufhellen",
+  "audio.use_as_alarm": "Als Alarmton verwenden",
+  "audio.alarm_sound_set": "Das ist jetzt der Alarmton.",
+  "alarm.confirm": "Den Alarm {seconds} Sekunden lang über den Lautsprecher auslösen?",
+  "alarm.start_button": "Ja, Alarm auslösen",
+  "alarm.stop_button": "Alarm stoppen",
+  "alarm.test_button": "Alarm auslösen",
+  "alarm.started": "Der Alarm ertönt {seconds} Sekunden lang.",
+  "alarm.stopped": "Der Alarm wurde gestoppt.",
+  "alarm.not_running": "Es ertönt gerade kein Alarm.",
+  "more.alarm": "Alarm",
+  "more.listen": "Mithören (Mikrofon)",
+  "help.alarm": "Alarm über den Lautsprecher auslösen; /alarm aus stoppt ihn"
 }
