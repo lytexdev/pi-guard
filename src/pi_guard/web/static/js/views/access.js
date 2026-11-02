@@ -3,12 +3,21 @@ import { api, attempt, confirmDialog, h, icon, t, when, fill } from "../api.js";
 
 export async function render(main) {
   const draw = async () => {
-    const [users, access] = await Promise.all([api("/api/users"), api("/api/access")]);
+    const [users, access, account] = await Promise.all([api("/api/users"), api("/api/access"), api("/api/account")]);
     const keyName = h("input", { id: "kname", placeholder: "laptop", pattern: "[A-Za-z0-9_-]{1,40}" });
     const inviteOut = h("div", { class: "stack" });
     fill(main,
       h("div", { class: "topbar" }, h("h1", {}, t("web.nav_access"))),
       h("div", { class: "grid wide" },
+        h("section", { class: "panel" }, h("h2", {}, t("web.account")),
+          h("p", {}, icon("user"), " ", account.username, " ",
+            account.totp ? h("span", { class: "badge ok" }, t("web.totp_on")) : null),
+          h("div", { class: "row" },
+            h("a", { class: "button", href: "#/setup/account" }, icon("key"), t("web.account_change")),
+            account.totp ? h("button", { class: "danger", onclick: async () => {
+              const password = prompt(t("web.totp_disable_confirm"));
+              if (password && await attempt(() => api("/api/account/totp/disable", { method: "POST", body: { password } }), t("web.saved"))) draw();
+            } }, t("web.totp_disable")) : null)),
         h("section", { class: "panel" }, h("h2", {}, t("web.chat_users")),
           h("ul", { class: "list" }, users.map((u) => h("li", {},
             icon(u.role === "admin" ? "shield-check" : "user"),

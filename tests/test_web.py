@@ -64,14 +64,13 @@ def test_totp_codes_work_once(db: Any) -> None:
 
 
 async def _client(tmp_path: Path, **settings: Any) -> tuple[TestClient, Any]:
-    values = {
-        "dashboard_enabled": True,
-        "dashboard_tls": False,
-        "dashboard_password_hash": auth.hash_password(PASSWORD),
-    } | settings
+    fresh = settings.pop("fresh", False)
+    values = {"dashboard_enabled": True, "dashboard_tls": False} | settings
     app = make_app(tmp_path, **values)
     dashboard = Dashboard(app)
     app.dashboard = dashboard
+    if not fresh:  # skip the first-login password change in most tests
+        dashboard.auth.change_credentials(auth.DEFAULT_PASSWORD, "admin", PASSWORD)
     client = TestClient(TestServer(dashboard.web))
     await client.start_server()
     return client, app
@@ -153,14 +152,16 @@ async def test_repeated_failures_ban(web) -> None:  # type: ignore[no-untyped-de
 
 
 async def test_totp_second_step(tmp_path: Path) -> None:
-    secret = auth.new_totp_secret()
-    client, app = await _client(tmp_path, dashboard_totp_secret=secret)
+    import time
+
+    client, app = await _client(tmp_path)
+    secret = app.dashboard.auth.begin_totp()
+    assert app.dashboard.auth.confirm_totp(auth.totp_code(secret, int(time.time() // 30)))
+    client.session.cookie_jar.clear()
     first = await client.post("/api/login", json={"username": "admin", "password": PASSWORD})
     assert (await first.json())["totp_required"]
     assert (await client.get("/api/overview")).status == 401  # half logged in
-    import time
-
-    code = auth.totp_code(secret, int(time.time() // 30))
+    code = auth.totp_code(secret, int(time.time() // 30) + 1)  # the current step was used once
     assert (await client.post("/api/login/totp", json={"code": "000000"})).status == 401
     assert (await client.post("/api/login/totp", json={"code": code})).status == 200
     assert (await client.get("/api/overview")).status == 200
@@ -185,7 +186,7 @@ async def test_settings_are_validated_and_written(web) -> None:  # type: ignore[
     csrf = await _login(client)
     headers = {"X-CSRF-Token": csrf}
     data = await (await client.get("/api/settings")).json()
-    assert data["secrets"]["telegram_bot_token"] is True and TOKEN not in json.dumps(data)
+    assert data["values"]["telegram_bot_token"] == "" and TOKEN not in json.dumps(data)
     bad = await client.put("/api/settings", json={"telegram_bot_token": "x"}, headers=headers)
     assert bad.status == 400
     bad = await client.put("/api/settings", json={"motion_sensitivity": 500}, headers=headers)
@@ -309,8 +310,10 @@ def test_unauthenticated_dashboard_needs_explicit_opt_in() -> None:
         dashboard_auth="none",
         dashboard_host="127.0.0.1",
     )
-    with pytest.raises(ValidationError, match="PASSWORD"):
-        Settings(telegram_enabled=False, dashboard_enabled=True)
+    with pytest.raises(ValidationError, match="SECRET_KEY"):
+        Settings(telegram_enabled=False, dashboard_enabled=True, dashboard_secret_key="short")
+    # Telegram can be set up later in the dashboard.
+    assert not Settings(dashboard_enabled=True).telegram_ready
 
 
 # --- live streams ------------------------------------------------------------------------
@@ -381,3 +384,122 @@ def test_certificates_cover_extra_names_and_renew(tmp_path: Path) -> None:
     assert cert.read_bytes() == first  # nothing changed, nothing reissued
     tls.ensure_certificates(tmp_path, ["192.0.2.11"])
     assert "192.0.2.11" in tls._san(cert) and ca.exists()
+
+
+# --- first login, account, setup ----------------------------------------------------------
+
+
+async def test_default_login_must_be_changed_first(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path, fresh=True)
+    login = await client.post("/api/login", json={"username": "admin", "password": "admin123"})
+    assert login.status == 200
+    session = await (await client.get("/api/session")).json()
+    assert session["setup_required"] and not session["setup_done"]
+    headers = {"X-CSRF-Token": session["csrf"]}
+    blocked = await client.get("/api/overview")
+    assert blocked.status == 403 and await blocked.text() == "setup_required"
+    assert (await client.get("/api/account")).status == 200
+
+    async def change(current: str, username: str, password: str) -> tuple[int, str]:
+        r = await client.post(
+            "/api/account/credentials",
+            headers=headers,
+            json={"current": current, "username": username, "password": password},
+        )
+        return r.status, await r.text()
+
+    assert await change("wrong", "oma", PASSWORD) == (400, "web.wrong_password")
+    assert await change("admin123", "oma", "short") == (400, "web.password_too_short")
+    assert await change("admin123", "oma", "admin123") == (400, "web.password_too_short")
+    assert await change("admin123", "oma", "admin123admin") == (
+        200,
+        '{"ok": true, "username": "oma"}',
+    )
+    assert (await client.get("/api/overview")).status == 200
+    assert not (await (await client.get("/api/session")).json())["setup_required"]
+    client.session.cookie_jar.clear()
+    old = await client.post("/api/login", json={"username": "admin", "password": "admin123"})
+    assert old.status == 401
+    new = await client.post("/api/login", json={"username": "Oma", "password": "admin123admin"})
+    assert new.status == 200
+    await client.close()
+    app.db.close()
+
+
+async def test_totp_setup_through_the_api(web) -> None:  # type: ignore[no-untyped-def]
+    import time
+
+    client, app = web
+    csrf = await _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    begin = await (await client.post("/api/account/totp/begin", headers=headers)).json()
+    assert begin["qr"].startswith("data:image/svg+xml;base64,") and begin["uri"].startswith(
+        "otpauth://"
+    )
+    bad = await client.post("/api/account/totp/confirm", json={"code": "000000"}, headers=headers)
+    assert bad.status == 400
+    code = auth.totp_code(begin["secret"], int(time.time() // 30))
+    ok = await client.post("/api/account/totp/confirm", json={"code": code}, headers=headers)
+    assert ok.status == 200 and (await (await client.get("/api/account")).json())["totp"]
+    stored = app.db.execute("SELECT totp FROM web_account").fetchone()[0]
+    assert begin["secret"] not in stored  # encrypted at rest
+    wrong = await client.post("/api/account/totp/disable", json={"password": "x"}, headers=headers)
+    assert wrong.status == 400
+    off = await client.post(
+        "/api/account/totp/disable", json={"password": PASSWORD}, headers=headers
+    )
+    assert off.status == 200
+
+
+def test_secret_key_peppers_passwords_and_protects_totp(db: Any) -> None:
+    store = AuthStore(db, b"k" * 40)
+    store.ensure_account()
+    store.change_credentials("admin123", "admin", PASSWORD)
+    secret = store.begin_totp()
+    assert store.check_password("admin", PASSWORD) == "admin"
+    other = AuthStore(db, b"x" * 40)  # same database, different key
+    assert other.check_password("admin", PASSWORD) is None
+    assert other._decrypt(db.execute("SELECT totp_pending FROM web_account").fetchone()[0]) is None
+    assert secret not in str(db.execute("SELECT * FROM web_account").fetchone()[:])
+    other.reset_account()
+    assert other.check_password("admin", "admin123") == "admin"
+    assert other.account()["must_change"]
+
+
+async def test_secret_key_is_generated_when_not_configured(web) -> None:  # type: ignore[no-untyped-def]
+    _, app = web
+    key = app.settings.data_dir / "dashboard.secret"
+    assert len(key.read_text().strip()) == 64 and key.stat().st_mode & 0o077 == 0
+
+
+async def test_bot_token_is_write_only(web) -> None:  # type: ignore[no-untyped-def]
+    client, app = web
+    csrf = await _login(client)
+    new_token = "987654321:BBH" + "z" * 32
+    r = await client.put("/api/settings", json={"telegram_bot_token": new_token,
+                                                "telegram_admin_user_ids": ["4242"]},
+                         headers={"X-CSRF-Token": csrf})  # fmt: skip
+    assert r.status == 200
+    data = await (await client.get("/api/settings")).json()
+    assert data["values"]["telegram_bot_token"] == "" and new_token not in json.dumps(data)
+    written = (app.settings.data_dir / "dashboard.env").read_text()
+    assert f"PI_GUARD_TELEGRAM_BOT_TOKEN={new_token}" in written
+    keep = await client.put("/api/settings", json={"telegram_bot_token": ""},
+                            headers={"X-CSRF-Token": csrf})  # fmt: skip
+    assert keep.status == 200 and new_token in (app.settings.data_dir / "dashboard.env").read_text()
+    bad = await client.put("/api/settings", json={"telegram_bot_token": "not-a-token"},
+                           headers={"X-CSRF-Token": csrf})  # fmt: skip
+    assert bad.status == 400 and "not-a-token" not in await bad.text()
+
+
+async def test_setup_done_and_models_need_confirmation(web) -> None:  # type: ignore[no-untyped-def]
+    client, _ = web
+    csrf = await _login(client)
+    headers = {"X-CSRF-Token": csrf}
+    assert not (await (await client.get("/api/session")).json())["setup_done"]
+    assert (await client.post("/api/setup/done", headers=headers)).status == 200
+    assert (await (await client.get("/api/session")).json())["setup_done"]
+    models = await (await client.get("/api/models")).json()
+    assert {m["name"] for m in models} == {"yunet", "sface"} and all(m["size_mb"] for m in models)
+    no = await client.post("/api/models/download", json={}, headers=headers)
+    assert no.status == 400

@@ -6,39 +6,73 @@ internet with a port forwarding.
 
 ## Enable
 
-```bash
-pi-guard dashboard password          # prints PI_GUARD_DASHBOARD_PASSWORD_HASH=…
-```
-
-In `pi-guard.env`:
-
 ```dotenv
 PI_GUARD_DASHBOARD_ENABLED=true
-PI_GUARD_DASHBOARD_PASSWORD_HASH=scrypt$…
+PI_GUARD_DASHBOARD_SECRET_KEY=<openssl rand -hex 32>
 ```
 
-Restart pi-guard and open `https://<pi-address>:8443`. The installer can do
-this for you.
+Restart pi-guard and open `https://<pi-address>:8443`. Telegram does not need
+to be configured beforehand: with the dashboard enabled, pi-guard starts
+without a bot token and Telegram can be set up in the assistant.
 
-## Login
+## First login and setup assistant
+
+The first login is **admin / admin123**. Before anything else works, the
+dashboard asks for your own user name and password (at least 10 characters,
+not the default). It then offers two-factor codes: scan the QR code with an
+authenticator app (Google Authenticator, Aegis, 2FAS, …) and confirm one code.
+
+The setup assistant continues with — every step can be skipped and opened
+again later under *More → Setup assistant*:
+
+1. Welcome and language
+2. Login and two-factor codes
+3. Cameras, microphone and speaker (selection fields)
+4. Telegram: bot token, administrator and viewer IDs, group chats
+5. Alerts and modes: alerts also while at home, video instead of photo,
+   quiet hours, presence detection
+6. Emergency contacts
+7. Trusted people: switch recognition on (the two model files are only
+   downloaded after you press the button, with size and source shown), then
+   enroll people
+8. Design: dark, light or high contrast, normal or large text (per device)
+9. Finish: restart pi-guard if settings changed
+
+Until the default password has been changed, the default login is the only
+way in; keep the dashboard off the internet until then. While pi-guard still
+uses it, the log says so at every start.
+
+## Login methods
 
 `PI_GUARD_DASHBOARD_AUTH` takes one or both methods:
 
 | Method | How |
 |---|---|
-| `password` | `PI_GUARD_DASHBOARD_USERNAME` (default `admin`) and the scrypt hash from `pi-guard dashboard password`. A plain `PI_GUARD_DASHBOARD_PASSWORD` also works but is not recommended. |
-| `keyfile` | Choose a key file instead of typing a password. Create one with `pi-guard dashboard keyfile tablet -o tablet.key` or in the dashboard under *Access*. Only a hash is stored; delete the key there if a device is lost. |
+| `password` | the dashboard account (default `admin` / `admin123`, changed at first login) |
+| `keyfile` | Choose a key file instead of typing a password. Create one under *Access* or with `pi-guard dashboard keyfile tablet -o tablet.key`. Only a hash is stored; delete the key there if a device is lost. |
 | `none` | No login. Only allowed on `127.0.0.1`, or with `PI_GUARD_DASHBOARD_ALLOW_UNAUTHENTICATED=true`. |
 
-Optional two-factor login for both methods:
+Two-factor codes apply to both methods. Change the login or switch codes on
+and off later under *Access → Your account*. All dashboard logins have full
+administrator rights.
+
+### The secret key
+
+`PI_GUARD_DASHBOARD_SECRET_KEY` (at least 32 characters) is mixed into the
+password hash as a pepper and encrypts the stored two-factor secret. A copy of
+the database alone is therefore not enough to guess the password offline or to
+create login codes. If it is empty, pi-guard creates `DATA_DIR/dashboard.secret`
+— that works, but keeping the key in the env file separates it from the data.
+If the key changes, the password and two-factor codes stop working.
+
+### Locked out?
 
 ```bash
-pi-guard dashboard totp     # shows a QR code for an authenticator app
+sudo -u pi-guard pi-guard dashboard reset-password
 ```
 
-and set `PI_GUARD_DASHBOARD_TOTP_SECRET`. Each code is accepted only once.
-
-All dashboard logins have full administrator rights.
+resets the login to admin / admin123 (to be changed at the next login), turns
+two-factor codes off and ends all sessions.
 
 ## HTTPS and the certificate
 
@@ -91,7 +125,7 @@ encrypted, and are delivered through the browser vendor's push service
 | People | trusted people: add with photos/videos or a camera picture (consent checkbox), add more pictures, rename, delete |
 | Network | Pi-hole statistics and pause, WireGuard peers, devices in the LAN (see [network.md](network.md)) |
 | Devices | camera device, resolution, frame rate, motion settings, microphone and speaker as selection fields; trusted presence devices |
-| Settings | the non-secret `.env` settings, grouped |
+| Settings | the `.env` settings, grouped; the Telegram bot token can be entered but is never shown again |
 | Access | Telegram/Signal users and invitations, key files, active sessions, blocked addresses, certificate download |
 | Logs | service log and audit trail |
 
@@ -103,7 +137,8 @@ take precedence over `pi-guard.env` and `config.yaml`. Delete those files to
 return to the files in `/etc/pi-guard`. Most changes need a restart, which the
 dashboard offers; recording pauses for a few seconds.
 
-Secrets (bot token, passwords) can only be changed in `pi-guard.env`.
+The Telegram bot token can be entered in the dashboard (write-only, stored in
+`dashboard.env` with mode 0600); other secrets only in `pi-guard.env`.
 
 ### Live view, listening and talking
 

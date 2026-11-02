@@ -324,7 +324,7 @@ def build_app(config: Config) -> App:
         )
     app = App(config, cameras=cameras)
     s = config.settings
-    if s.telegram_enabled and s.telegram_bot_token:
+    if s.telegram_ready and s.telegram_bot_token is not None:
         from pi_guard.messaging.telegram.provider import TelegramProvider
 
         def may_upload(user_id: str) -> bool:

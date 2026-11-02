@@ -63,6 +63,8 @@ def routes() -> list[web.RouteDef]:
         web.delete("/api/keyfiles/{name}", delete_keyfile),
         web.post("/api/sessions/logout-all", logout_all),
         web.delete("/api/bans/{ip}", unban),
+        web.get("/api/models", models),
+        web.post("/api/models/download", download_models),
         web.get("/api/push", push_info),
         web.post("/api/push/subscribe", push_subscribe),
         web.post("/api/push/unsubscribe", push_unsubscribe),
@@ -80,7 +82,7 @@ def _actor(request: web.Request) -> str:
 async def get_settings(request: web.Request) -> web.Response:
     s = dashboard(request).settings
     return web.json_response({
-        "values": {f.key: _plain(getattr(s, f.key)) for f in FIELDS},
+        "values": {f.key: "" if f.kind == "secret" else _plain(getattr(s, f.key)) for f in FIELDS},
         "fields": [{"key": f.key, "group": f.group, "kind": f.kind, "min": f.minimum,
                     "max": f.maximum, "options": list(f.options)} for f in FIELDS],
         "secrets": {key: getattr(s, key) is not None for key in SECRETS},
@@ -104,10 +106,17 @@ async def put_settings(request: web.Request) -> web.Response:
             field_ = BY_KEY.get(key)
             if field_ is None:
                 raise ValueError(f"{key} cannot be changed here")
+            if field_.kind == "secret" and not str(value).strip():
+                continue  # empty means: keep the current secret
             rendered[key] = to_env(field_, value)
         # Validate the complete result before anything is written.
         Settings(**{**_base_values(d.settings), **rendered})
-    except (ValueError, ValidationError) as exc:
+    except ValidationError as exc:
+        # Only messages: the input (possibly a token) is never echoed back.
+        text = "; ".join(f"{'.'.join(map(str, e['loc'])) or 'settings'}: {e['msg']}"
+                         for e in exc.errors())  # fmt: skip
+        raise web.HTTPBadRequest(text=text[:500]) from None
+    except ValueError as exc:
         raise web.HTTPBadRequest(text=str(exc)[:500]) from None
     lines = ["# Written by the pi-guard dashboard; takes precedence over pi-guard.env."]
     lines += [f"PI_GUARD_{key.upper()}={value}" for key, value in sorted(rendered.items())]
@@ -118,7 +127,9 @@ async def put_settings(request: web.Request) -> web.Response:
 
 
 def _base_values(settings: Settings) -> dict[str, Any]:
-    return {k: v for k, v in settings.model_dump().items() if v is not None}
+    # telegram_bot_id is derived from the token and must follow a new token.
+    return {k: v for k, v in settings.model_dump().items()
+            if v is not None and k != "telegram_bot_id"}  # fmt: skip
 
 
 async def get_config(request: web.Request) -> web.Response:
@@ -430,7 +441,7 @@ async def access(request: web.Request) -> web.Response:
         "sessions": d.auth.sessions(),
         "bans": d.guard.bans(),
         "methods": sorted(d.settings.dashboard_methods),
-        "totp": d.settings.dashboard_totp_secret is not None,
+        "totp": d.auth.account()["totp"],
     })  # fmt: skip
 
 
@@ -508,3 +519,38 @@ async def push_test(request: web.Request) -> web.Response:
         for lang in ("de", "en")
     }  # fmt: skip
     return web.json_response({"delivered": await sender.send(texts)})
+
+
+# --- detection models -------------------------------------------------------------------
+
+
+async def models(request: web.Request) -> web.Response:
+    from pi_guard.detection.models import MODELS
+
+    models_dir = dashboard(request).settings.data_dir / "models"
+    return web.json_response([
+        {"name": m.name, "file": m.filename, "size_mb": m.size_mb, "license": m.license,
+         "source": m.url, "purpose": m.purpose, "installed": m.present(models_dir)}
+        for m in MODELS
+    ])  # fmt: skip
+
+
+async def download_models(request: web.Request) -> web.Response:
+    """Downloads only after the user confirmed size and source in the dashboard."""
+    from pi_guard.detection.models import MODELS, ChecksumError, download
+
+    d = dashboard(request)
+    if (await read_json(request)).get("confirmed") is not True:
+        raise web.HTTPBadRequest(text="confirmation required")
+    models_dir = d.settings.data_dir / "models"
+    fetched = []
+    for model in MODELS:
+        if model.present(models_dir):
+            continue
+        try:
+            await asyncio.to_thread(download, model, models_dir)
+        except (ChecksumError, OSError) as exc:
+            raise web.HTTPBadGateway(text=f"{model.filename}: {exc}") from None
+        fetched.append(model.name)
+    d.app.db.audit(_actor(request), "models.download", ",".join(fetched))
+    return web.json_response({"downloaded": fetched, "restart_required": bool(fetched)})

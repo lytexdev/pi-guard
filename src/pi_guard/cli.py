@@ -463,33 +463,27 @@ def faces_delete(name: str) -> None:
     typer.echo(f"{name} deleted.")
 
 
-@dashboard_app.command("password")
-def dashboard_password() -> None:
-    """Hash a dashboard password for PI_GUARD_DASHBOARD_PASSWORD_HASH."""
-    from pi_guard.web.auth import hash_password
+@dashboard_app.command("reset-password")
+def dashboard_reset_password() -> None:
+    """Reset the dashboard login to admin / admin123 (changed again at the next login)."""
+    from pi_guard.storage.db import Database
+    from pi_guard.web.auth import AuthStore
 
-    password = typer.prompt("New dashboard password", hide_input=True, confirmation_prompt=True)
-    if len(password) < 10:
-        typer.secho("Use at least 10 characters.", fg="red", err=True)
+    settings = _config().settings
+    if not typer.confirm(
+        "Reset the dashboard login, turn off two-factor codes and log everyone out?"
+    ):
         raise typer.Exit(1)
-    typer.echo("Add this line to the env file and restart pi-guard:\n")
-    typer.echo(f"PI_GUARD_DASHBOARD_PASSWORD_HASH={hash_password(password)}")
-
-
-@dashboard_app.command("totp")
-def dashboard_totp(account: str = "admin") -> None:
-    """Create a TOTP secret for two-factor login and show it as a QR code."""
-    import qrcode
-
-    from pi_guard.web.auth import new_totp_secret, totp_uri
-
-    secret = new_totp_secret()
-    uri = totp_uri(secret, account)
-    code = qrcode.QRCode(border=1)
-    code.add_data(uri)
-    code.print_ascii(invert=True)
-    typer.echo(f"\n{uri}\n\nScan the code with an authenticator app, then add:\n")
-    typer.echo(f"PI_GUARD_DASHBOARD_TOTP_SECRET={secret}")
+    key = settings.dashboard_secret_key.get_secret_value() if settings.dashboard_secret_key else ""
+    secret_file = settings.data_dir / "dashboard.secret"
+    if not key and secret_file.exists():
+        key = secret_file.read_text().strip()
+    db = Database(settings.data_dir / "pi-guard.db")
+    store = AuthStore(db, key.encode())
+    store.reset_account()
+    db.audit("cli", "account.reset")
+    db.close()
+    typer.echo("Login reset to admin / admin123; it must be changed at the next login.")
 
 
 @dashboard_app.command("keyfile")

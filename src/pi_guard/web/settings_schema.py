@@ -41,6 +41,10 @@ FIELDS = (
     Field("audio_recording_enabled", "audio", "bool"),
     Field("audio_playback_enabled", "audio", "bool"),
     Field("audio_max_volume", "audio", "int", 0, 100),
+    Field("telegram_enabled", "messaging", "bool"),
+    # Write-only: the dashboard never shows it again; empty keeps the current token.
+    Field("telegram_bot_token", "messaging", "secret"),
+    Field("telegram_admin_user_ids", "messaging", "list"),
     Field("telegram_viewer_user_ids", "messaging", "list"),
     Field("telegram_allowed_chat_ids", "messaging", "list"),
     Field("emergency_telegram_user_ids", "emergency", "list"),
@@ -59,8 +63,8 @@ FIELDS = (
     Field("dashboard_rate_limit_per_minute", "dashboard", "int", 30, 10000),
 )
 BY_KEY = {f.key: f for f in FIELDS}
-SECRETS = ("telegram_bot_token", "mqtt_password", "fritzbox_password", "pihole_password",
-           "dashboard_password_hash", "dashboard_password", "dashboard_totp_secret")  # fmt: skip
+SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password",
+           "dashboard_secret_key")  # fmt: skip
 
 
 def to_env(field_: Field, value: Any) -> str:
@@ -80,6 +84,11 @@ def to_env(field_: Field, value: Any) -> str:
         if value not in field_.options:
             raise ValueError(f"{field_.key}: one of {', '.join(field_.options)}")
         return str(value)
+    if field_.kind == "secret":
+        text = str(value).strip()
+        if not text or "\n" in text or len(text) > 200:
+            raise ValueError(f"{field_.key}: invalid value")
+        return text
     if field_.kind == "list":
         items = value if isinstance(value, list) else str(value).split(",")
         return ",".join(str(i).strip() for i in items if str(i).strip())

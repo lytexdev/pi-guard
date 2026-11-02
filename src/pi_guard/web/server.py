@@ -16,7 +16,8 @@ from typing import TYPE_CHECKING, Any
 
 from aiohttp import web
 
-from pi_guard.web.auth import AuthStore, Session, totp_match, verify_password
+from pi_guard.security.files import atomic_write
+from pi_guard.web.auth import AuthStore, Session, totp_match
 from pi_guard.web.security import Guard
 from pi_guard.web.tls import ensure_certificates, server_context
 
@@ -27,6 +28,10 @@ log = logging.getLogger(__name__)
 
 COOKIE = "pg_session"
 PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.crt"}
+# Reachable while the default password has not been changed yet.
+SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",
+                 "/api/account/totp/confirm"}  # fmt: skip
+SETUP_DONE_KEY = "web.setup_done"
 STATIC = Path(str(resources.files("pi_guard.web").joinpath("static")))
 
 DASHBOARD_KEY: web.AppKey[Dashboard] = web.AppKey("dashboard")
@@ -62,7 +67,11 @@ class Dashboard:
         self.app = app
         s = app.settings
         self.settings = s
-        self.auth = AuthStore(app.db)
+        self.auth = AuthStore(app.db, self._secret_key())
+        self.auth.ensure_account()
+        if self.auth.account()["must_change"] and "password" in s.dashboard_methods:
+            log.warning("dashboard still uses the default login admin/admin123; "
+                        "it must be changed at the first login")  # fmt: skip
         self.guard = Guard(
             s.dashboard_rate_limit_per_minute,
             s.dashboard_ban_minutes,
@@ -74,8 +83,18 @@ class Dashboard:
         self.microphones: dict[str, Any] = {}  # device -> api_live.MicrophoneStream
         self.web = self._build()
 
+    def _secret_key(self) -> bytes:
+        """PI_GUARD_DASHBOARD_SECRET_KEY, or a key generated once in the data directory."""
+        configured = self.settings.dashboard_secret_key
+        if configured and configured.get_secret_value():
+            return configured.get_secret_value().encode()
+        path = self.settings.data_dir / "dashboard.secret"
+        if not path.exists():
+            atomic_write(path, secrets.token_hex(32).encode())
+        return path.read_bytes().strip()
+
     def _build(self) -> web.Application:
-        from pi_guard.web import api_core, api_live, api_manage, api_network
+        from pi_guard.web import api_account, api_core, api_live, api_manage, api_network
 
         webapp = web.Application(
             middlewares=[self.guard.middleware, self._auth_middleware],
@@ -93,7 +112,7 @@ class Dashboard:
         webapp.router.add_post("/api/login", self._login)
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
-        for module in (api_core, api_manage, api_live, api_network):
+        for module in (api_account, api_core, api_manage, api_live, api_network):
             webapp.add_routes(module.routes())
         return webapp
 
@@ -135,6 +154,8 @@ class Dashboard:
         session = self._resolve(request)
         if session is None or session.pending:
             raise web.HTTPUnauthorized(text="login required")
+        if path not in SETUP_ALLOWED and self._setup_required(session):
+            raise web.HTTPForbidden(text="setup_required")
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             token = request.headers.get("X-CSRF-Token", "")
             if not secrets.compare_digest(token, session.csrf):
@@ -144,6 +165,12 @@ class Dashboard:
                 raise web.HTTPForbidden(text="cross-origin request")
         request[SESSION_KEY] = session
         return await handler(request)
+
+    def _setup_required(self, session: Session) -> bool:
+        """The default password must be replaced before anything else works."""
+        if "password" not in self.settings.dashboard_methods or session.username == "local":
+            return False
+        return bool(self.auth.account()["must_change"])
 
     def _resolve(self, request: web.Request) -> Session | None:
         if "none" in self.settings.dashboard_methods:
@@ -181,12 +208,15 @@ class Dashboard:
 
     async def _session(self, request: web.Request) -> web.Response:
         session = self._resolve(request)
+        active = session is not None and not session.pending
         return web.json_response({
             "authenticated": bool(session and not session.pending),
             "totp_pending": bool(session and session.pending),
             "username": session.username if session else None,
             "csrf": session.csrf if session and not session.pending else None,
             "methods": sorted(self.settings.dashboard_methods),
+            "setup_required": bool(active and session and self._setup_required(session)),
+            "setup_done": bool(self.app.db.get(SETUP_DONE_KEY)),
             "language": self.settings.language,
         })  # fmt: skip
 
@@ -207,7 +237,7 @@ class Dashboard:
             self.guard.login_failed(ip)
             self.app.db.audit(f"web:{ip}", "login.failed")
             raise web.HTTPUnauthorized(text="login failed")
-        pending = self.settings.dashboard_totp_secret is not None
+        pending = self.auth.totp_secret() is not None
         token = self.auth.create_session(username, ip, request.headers.get("User-Agent", ""),
                                          pending=pending)  # fmt: skip
         if not pending:
@@ -228,14 +258,7 @@ class Dashboard:
             return None
         if not isinstance(password, str) or len(password) > 1000:
             return None
-        user_ok = secrets.compare_digest(username.strip(), s.dashboard_username)
-        if s.dashboard_password_hash:
-            ok = verify_password(password, s.dashboard_password_hash.get_secret_value())
-        elif s.dashboard_password:
-            ok = secrets.compare_digest(password, s.dashboard_password.get_secret_value())
-        else:
-            ok = False
-        return s.dashboard_username if user_ok and ok else None
+        return self.auth.check_password(username, password)
 
     async def _login_totp(self, request: web.Request) -> web.Response:
         ip = self.guard.client_ip(request)
@@ -243,12 +266,12 @@ class Dashboard:
             raise web.HTTPTooManyRequests(text="Too many login attempts")
         token = request.cookies.get(COOKIE)
         session = self.auth.session(token)
-        secret = self.settings.dashboard_totp_secret
+        secret = self.auth.totp_secret()
         if token is None or session is None or not session.pending or secret is None:
             raise web.HTTPUnauthorized(text="login required")
         data = await read_json(request)
-        step = totp_match(secret.get_secret_value(), str(data.get("code", "")))
-        if step is None or not self.auth.totp_step_unused(session.username, step):
+        step = totp_match(secret, str(data.get("code", "")))
+        if step is None or not self.auth.totp_step_unused("account", step):
             self.guard.login_failed(ip)
             self.app.db.audit(f"web:{ip}", "login.totp_failed")
             raise web.HTTPUnauthorized(text="wrong code")

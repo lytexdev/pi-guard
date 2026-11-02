@@ -196,9 +196,10 @@ async def test_trust_device_writes_presence_config(tmp_path: Path) -> None:
 
     from .helpers import make_app
 
-    app = make_app(tmp_path, dashboard_enabled=True, dashboard_tls=False,
-                   dashboard_password_hash=auth.hash_password("pw-1234567890"))  # fmt: skip
-    client = TestClient(TestServer(Dashboard(app).web))
+    app = make_app(tmp_path, dashboard_enabled=True, dashboard_tls=False)
+    dashboard = Dashboard(app)
+    dashboard.auth.change_credentials(auth.DEFAULT_PASSWORD, "admin", "pw-1234567890")
+    client = TestClient(TestServer(dashboard.web))
     await client.start_server()
     await client.post("/api/login", json={"username": "admin", "password": "pw-1234567890"})
     csrf = (await (await client.get("/api/session")).json())["csrf"]

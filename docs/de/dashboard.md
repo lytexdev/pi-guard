@@ -6,26 +6,41 @@ per Portfreigabe ins Internet stellen.
 
 ## Einschalten
 
-```bash
-sudo -u pi-guard pi-guard dashboard password
+In `/etc/pi-guard/pi-guard.env`:
+
+```
+PI_GUARD_DASHBOARD_ENABLED=true
+PI_GUARD_DASHBOARD_SECRET_KEY=<Ausgabe von: openssl rand -hex 32>
 ```
 
-Die ausgegebene Zeile `PI_GUARD_DASHBOARD_PASSWORD_HASH=…` und
-`PI_GUARD_DASHBOARD_ENABLED=true` in `/etc/pi-guard/pi-guard.env` eintragen,
 `sudo systemctl restart pi-guard`, dann `https://<Adresse-des-Pi>:8443`
-öffnen. Das Installationsprogramm kann das auch für Sie erledigen.
+öffnen. Telegram muss dafür noch nicht eingerichtet sein.
+
+## Erste Anmeldung und Einrichtungsassistent
+
+Die erste Anmeldung ist **admin / admin123**. Danach verlangt das Dashboard
+sofort einen eigenen Benutzernamen und ein eigenes Passwort (mindestens 10
+Zeichen) und bietet einen Zwei-Faktor-Code an: QR-Code mit einer
+Authenticator-App scannen (z. B. Google Authenticator, Aegis, 2FAS) und einen
+Code bestätigen.
+
+Der Assistent führt dann durch: Kameras, Mikrofon und Lautsprecher –
+Telegram (Bot-Token, Ihre Benutzer-ID, weitere Benutzer) – Meldungen und
+Ruhezeiten – Notfallkontakte – vertraute Personen – Design (dunkel, hell,
+hoher Kontrast, große Schrift). Jeder Schritt außer der Anmeldung lässt sich
+überspringen und später unter *Mehr → Einrichtungsassistent* wieder öffnen.
+
+**Ausgesperrt?** `sudo -u pi-guard pi-guard dashboard reset-password` setzt
+die Anmeldung auf admin / admin123 zurück.
 
 ## Anmeldung
 
-- **Benutzername und Passwort** (Standard-Benutzer `admin`).
+- **Benutzername und Passwort** (siehe oben).
 - **Schlüsseldatei:** Statt eines Passworts wählen Sie eine Datei aus.
-  Erstellen unter *Zugang → Schlüsseldatei erstellen* oder mit
-  `pi-guard dashboard keyfile tablet -o tablet.key`. Geht ein Gerät verloren,
+  Erstellen unter *Zugang → Schlüsseldatei erstellen*. Geht ein Gerät verloren,
   löschen Sie die Datei dort.
 - Beides zusammen: `PI_GUARD_DASHBOARD_AUTH=password,keyfile`.
-- **Zwei-Faktor-Code (optional):** `pi-guard dashboard totp` zeigt einen
-  QR-Code für eine Authenticator-App; den Schlüssel als
-  `PI_GUARD_DASHBOARD_TOTP_SECRET` eintragen.
+- Passwort ändern und Zwei-Faktor-Code ein-/ausschalten: *Zugang → Ihr Konto*.
 
 ## Zertifikat installieren (einmal pro Gerät)
 

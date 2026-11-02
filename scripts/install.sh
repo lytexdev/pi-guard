@@ -175,18 +175,10 @@ set_env() {  # set_env KEY VALUE: replace or append a line; VALUE is taken liter
 
 if ! grep -q '^PI_GUARD_DASHBOARD_ENABLED=true' "$ENV_FILE" \
     && yes_no "Enable the web dashboard (https://<pi>:8443)?" n; then
-    say "choose a dashboard password (at least 10 characters)"
-    HASH="$("$PREFIX/venv/bin/python" - <<'PY'
-import getpass, sys
-from pi_guard.web.auth import hash_password
-first = getpass.getpass("Dashboard password: ")
-if len(first) < 10 or first != getpass.getpass("Repeat: "):
-    sys.exit("passwords differ or are shorter than 10 characters")
-print(hash_password(first))
-PY
-)"
     set_env PI_GUARD_DASHBOARD_ENABLED true
-    set_env PI_GUARD_DASHBOARD_PASSWORD_HASH "$HASH"
+    grep -q '^PI_GUARD_DASHBOARD_SECRET_KEY=..' "$ENV_FILE" \
+        || set_env PI_GUARD_DASHBOARD_SECRET_KEY "$(openssl rand -hex 32)"
+    say "first login: admin / admin123 - the dashboard then asks for your own password"
     say "dashboard enabled; install the certificate from https://<pi>:8443/ca.crt on your devices"
 fi
 

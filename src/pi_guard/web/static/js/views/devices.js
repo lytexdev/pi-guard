@@ -43,7 +43,7 @@ function cameraEditor(camera, devices, mics, remove) {
   return panel;
 }
 
-export async function render(main) {
+export async function render(main, params = [], opts = {}) {
   const [config, devices] = await Promise.all([api("/api/config"), api("/api/devices")]);
   const mics = devices.audio.filter((a) => a.capture).map((a) => [a.device, a.name]);
   const speakers = devices.audio.filter((a) => a.playback).map((a) => [a.device, a.name]);
@@ -73,11 +73,14 @@ export async function render(main) {
     body.audio = { ...body.audio, speaker: speaker.value || null, microphone: microphone.value || null, quiet_hours: quiet.value || null };
     body.notifications = { ...body.notifications, quiet_hours: notifyQuiet.value || null };
     body.presence = { ...body.presence, devices: [...presence.children].map((li) => li.read()) };
-    if (await attempt(() => api("/api/config", { method: "PUT", body }), t("web.saved"))) restartPrompt();
+    if (await attempt(() => api("/api/config", { method: "PUT", body }), t("web.saved"))) {
+      if (opts.onSaved) opts.onSaved(); else restartPrompt();
+    }
   } }, icon("check"), t("web.save"));
 
+  opts.register?.(() => save.click());
   fill(main,
-    h("div", { class: "topbar" }, h("h1", {}, t("web.nav_devices")), save),
+    opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t("web.nav_devices")), save),
     h("h3", {}, t("web.cameras")), cameraPanels,
     h("div", { class: "row" }, devices.cameras.filter((c) => !config.cameras.some((x) => x.device === c.path)).map((c) =>
       h("button", { onclick: () => addCamera({ id: c.slug, name: c.name, device: c.path, enabled: true, resolution: "1280x720",

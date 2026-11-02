@@ -23,7 +23,11 @@ export async function api(path, { method = "GET", body, raw } = {}) {
     location.hash = "#/login";
     throw new ApiError(401, t("web.login_required"));
   }
-  if (!response.ok) throw new ApiError(response.status, (await response.text()) || response.statusText);
+  if (!response.ok) {
+    const message = (await response.text()) || response.statusText;
+    if (response.status === 403 && message === "setup_required") location.hash = "#/setup/account";
+    throw new ApiError(response.status, message);
+  }
   if (raw) return response;
   const type = response.headers.get("Content-Type") || "";
   return type.includes("json") ? response.json() : response.text();
@@ -86,7 +90,8 @@ export async function attempt(action, success) {
     if (success) toast(success);
     return result;
   } catch (error) {
-    if (error.status !== 401) toast(error.message || t("web.error"), true);
+    // Server messages are often translation keys ("web.wrong_password").
+    if (error.status !== 401) toast(error.message ? t(error.message) : t("web.error"), true);
     return undefined;
   }
 }

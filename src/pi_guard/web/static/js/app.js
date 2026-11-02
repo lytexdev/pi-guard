@@ -1,5 +1,6 @@
 // Shell, navigation and hash router. Views live in ./views and render into <main>.
 import { api, h, icon, loadTexts, lang, setCsrf, t, fill } from "./api.js";
+import { applyDesign } from "./theme.js";
 
 const VIEWS = {
   overview: () => import("./views/overview.js"),
@@ -13,6 +14,7 @@ const VIEWS = {
   access: () => import("./views/access.js"),
   logs: () => import("./views/logs.js"),
   login: () => import("./views/login.js"),
+  setup: () => import("./views/setup.js"),
 };
 const PRIMARY = [
   ["overview", "home", "web.nav_overview"],
@@ -80,9 +82,12 @@ async function show() {
   const session = await refreshSession();
   if (!session.authenticated && name !== "login") { location.hash = "#/login"; return; }
   if (session.authenticated && name === "login") { location.hash = "#/overview"; return; }
+  if (session.setup_required && name !== "setup") { location.hash = "#/setup/welcome"; return; }
+  if (session.authenticated && !session.setup_done && name === "overview"
+      && !sessionStorage.getItem("pg.setup_later")) { location.hash = "#/setup/welcome"; return; }
   const loader = VIEWS[name] || VIEWS.overview;
   const view = await loader();
-  if (name === "login") {
+  if (name === "login" || name === "setup") {
     root.replaceChildren();
     cleanup = await view.render(root, params) || null;
     return;
@@ -99,6 +104,7 @@ async function show() {
 }
 
 async function start() {
+  applyDesign();
   const session = await api("/api/session");
   await loadTexts(localStorage.getItem("lang") || session.language || lang);
   window.addEventListener("hashchange", route);

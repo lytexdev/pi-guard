@@ -117,10 +117,9 @@ class Settings(BaseSettings):
     dashboard_tls_names: StrList = Field(default_factory=list)
     # Comma-separated: password, keyfile; or "none" (only with ALLOW_UNAUTHENTICATED).
     dashboard_auth: StrList = Field(default_factory=lambda: ["password"])
-    dashboard_username: str = "admin"
-    dashboard_password_hash: SecretStr | None = None
-    dashboard_password: SecretStr | None = None
-    dashboard_totp_secret: SecretStr | None = None
+    # Pepper for the dashboard password hash and key for the stored TOTP secret.
+    # Generated in DATA_DIR if empty; keeping it in the env file separates it from the database.
+    dashboard_secret_key: SecretStr | None = None
     dashboard_allow_unauthenticated: bool = False
     dashboard_rate_limit_per_minute: int = Field(240, ge=30, le=10000)
     dashboard_honeypot: bool = True
@@ -225,8 +224,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_consistency(self) -> Settings:
-        if self.telegram_enabled:
-            token = self.telegram_bot_token.get_secret_value() if self.telegram_bot_token else ""
+        token = self.telegram_bot_token.get_secret_value() if self.telegram_bot_token else ""
+        # With the dashboard, Telegram can be set up later in its setup assistant;
+        # until then it simply stays off.
+        if self.telegram_enabled and not (self.dashboard_enabled and not token):
             match = _TOKEN_RE.match(token)
             if not match:
                 raise ValueError(
@@ -239,7 +240,7 @@ class Settings(BaseSettings):
                     "PI_GUARD_TELEGRAM_BOT_ID does not match the bot token; leave it empty"
                 )
             self.telegram_bot_id = derived
-            if not self.telegram_admin_user_ids:
+            if not self.telegram_admin_user_ids and not self.dashboard_enabled:
                 raise ValueError("PI_GUARD_TELEGRAM_ADMIN_USER_IDS needs at least one user ID")
             if derived in self.telegram_admin_user_ids:
                 raise ValueError(
@@ -276,19 +277,20 @@ class Settings(BaseSettings):
                     "a dashboard without login on the network needs "
                     "PI_GUARD_DASHBOARD_ALLOW_UNAUTHENTICATED=true"
                 )
-        if "password" in methods and not (self.dashboard_password_hash or self.dashboard_password):
+        key = self.dashboard_secret_key.get_secret_value() if self.dashboard_secret_key else ""
+        if key and len(key) < 32:
             raise ValueError(
-                "set PI_GUARD_DASHBOARD_PASSWORD_HASH (pi-guard dashboard password) "
-                "or PI_GUARD_DASHBOARD_PASSWORD"
+                "PI_GUARD_DASHBOARD_SECRET_KEY needs at least 32 characters "
+                "(e.g. openssl rand -hex 32)"
             )
-        if self.dashboard_totp_secret:
-            import base64
 
-            secret = self.dashboard_totp_secret.get_secret_value().upper()
-            try:
-                base64.b32decode(secret + "=" * (-len(secret) % 8))
-            except ValueError as exc:
-                raise ValueError("PI_GUARD_DASHBOARD_TOTP_SECRET is not base32") from exc
+    @property
+    def telegram_ready(self) -> bool:
+        return (
+            self.telegram_enabled
+            and self.telegram_bot_token is not None
+            and bool(self.telegram_bot_token.get_secret_value())
+        )
 
     @property
     def dashboard_methods(self) -> set[str]:
@@ -308,8 +310,7 @@ class Settings(BaseSettings):
             self.telegram_bot_token,
             self.mqtt_password,
             self.fritzbox_password,
-            self.dashboard_password,
-            self.dashboard_totp_secret,
+            self.dashboard_secret_key,
             self.pihole_password,
         ]
         return [v.get_secret_value() for v in values if v and v.get_secret_value()]

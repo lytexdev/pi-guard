@@ -1,9 +1,9 @@
 // Trusted people: add, add more pictures, rename, delete.
 import { api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
 
-export async function render(main) {
+export async function render(main, params = [], opts = {}) {
   const overview = await api("/api/overview");
-  fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_people"))));
+  fill(main, opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t("web.nav_people"))));
   if (!overview.features.faces) {
     main.append(h("section", { class: "panel" }, h("p", {}, t("web.faces_disabled")), h("p", { class: "muted" }, t("web.faces_enable_hint"))));
     return;

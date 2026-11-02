@@ -33,6 +33,21 @@ All notable changes are documented here. The format follows
   WireGuard/PiVPN status, `scripts/network.sh` for a fixed address with
   automatic rollback, Pi-hole Docker profile.
 
+- Dashboard login starts as admin / admin123 and must be changed at the first
+  login; two-factor codes are set up with a QR code in the dashboard;
+  `PI_GUARD_DASHBOARD_SECRET_KEY` peppers the password hash and encrypts the
+  stored TOTP secret; `pi-guard dashboard reset-password`.
+- Setup assistant in the dashboard (language, login, devices, Telegram,
+  alerts, emergency contacts, trusted people with model download, design);
+  light, high-contrast and large-text designs; Telegram can be set up in the
+  dashboard after a start without bot token.
+
+### Removed
+
+- `PI_GUARD_DASHBOARD_USERNAME`, `…_PASSWORD`, `…_PASSWORD_HASH`, `…_TOTP_SECRET`
+  and `pi-guard dashboard password`/`totp`: the login now lives in the
+  database and is managed in the dashboard.
+
 ### Fixed
 
 - Upload hardening described in an earlier commit was missing in
