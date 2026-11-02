@@ -102,6 +102,8 @@ async def more(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     if ctx.user.role is Role.ADMIN:
         if ctx.app.audio and ctx.app.audio.playback_enabled:
             rows.append((ctx.button("more.sounds", "sound"),))
+        if ctx.app.faces is not None:
+            rows.append((ctx.button("more.people", "faces"),))
         rows.append((ctx.button("more.users", "users"), ctx.button("more.invite", "invite")))
     rows.append((ctx.button("more.settings", "settings"),))
     rows.append(menu_row(ctx))

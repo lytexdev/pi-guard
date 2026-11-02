@@ -155,6 +155,7 @@ class Database:
         removed = self.execute("DELETE FROM events WHERE ts < ?", (cutoff,)).rowcount
         removed += self.execute("DELETE FROM audit WHERE ts < ?", (cutoff,)).rowcount
         self.execute("DELETE FROM invites WHERE expires_at < ?", (utcnow().isoformat(),))
+        self.execute("DELETE FROM kv WHERE key LIKE 'trust:%' AND updated_at < ?", (cutoff,))
         return removed
 
     def audit(self, actor: str, action: str, detail: str = "") -> None:

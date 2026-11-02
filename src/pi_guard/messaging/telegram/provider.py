@@ -25,7 +25,7 @@ from telegram.ext import (
     filters,
 )
 
-from pi_guard.messaging.base import Incoming, ProviderUnavailableError, Reply
+from pi_guard.messaging.base import AttachmentKind, Incoming, ProviderUnavailableError, Reply
 from pi_guard.messaging.base import MessageHandler as OnMessage
 from pi_guard.security.files import secure_dir
 
@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 CAPTION_LIMIT = 1024
 CALLBACK_LIMIT = 64
 UPLOAD_TIMEOUT = 120
+TELEGRAM_DOWNLOAD_LIMIT = 20_000_000  # what the Bot API lets bots download
 
 
 class TelegramProvider:
@@ -69,7 +70,14 @@ class TelegramProvider:
         application.add_handler(
             MessageHandler(filters.VOICE | filters.AUDIO | filters.Document.AUDIO, self._on_audio)
         )
-        application.add_handler(MessageHandler(filters.PHOTO, self._on_photo))
+        application.add_handler(
+            MessageHandler(filters.PHOTO | filters.Document.IMAGE, self._on_photo)
+        )
+        application.add_handler(
+            MessageHandler(
+                filters.VIDEO | filters.VIDEO_NOTE | filters.Document.VIDEO, self._on_video
+            )
+        )
         async with application:
             me = await application.bot.get_me()
             self.username = me.username
@@ -174,14 +182,46 @@ class TelegramProvider:
 
     async def _on_photo(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message = update.effective_message
-        if message is None or message.from_user is None or not message.photo:
+        if message is None:
             return
+        if message.photo:
+            await self._receive(message, message.photo[-1].file_id, None, ".jpg", "photo")
+        elif message.document:
+            suffix = Path(message.document.file_name or "image.jpg").suffix or ".jpg"
+            await self._receive(
+                message, message.document.file_id, message.document.file_size, suffix, "photo"
+            )
+
+    async def _on_video(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        message = update.effective_message
+        media = message and (message.video or message.video_note or message.document)
+        if message is None or not media:
+            return
+        await self._receive(message, media.file_id, media.file_size, ".mp4", "video")
+
+    async def _receive(
+        self,
+        message: Message,
+        file_id: str,
+        size: int | None,
+        suffix: str,
+        kind: AttachmentKind,
+    ) -> None:
+        """Download an admin's photo or video; others only get their caption handled."""
+        if message.from_user is None:
+            return
+        caption = message.caption or ""
         if not self._may_upload(str(message.from_user.id)):
-            await self._dispatch(self._incoming(message, message.caption or ""))
+            await self._dispatch(self._incoming(message, caption))
             return
-        path = await self._download(message.photo[-1].file_id, ".jpg")
+        if (size or 0) > TELEGRAM_DOWNLOAD_LIMIT:
+            await self._dispatch(
+                self._incoming(message, caption, attachment_meta={"too_large": True})
+            )
+            return
+        path = await self._download(file_id, suffix)
         await self._dispatch(
-            self._incoming(message, message.caption or "", attachment=path, attachment_kind="photo")
+            self._incoming(message, caption, attachment=path, attachment_kind=kind)
         )
 
     async def _download(self, file_id: str, suffix: str) -> Path:

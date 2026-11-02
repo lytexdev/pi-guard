@@ -25,16 +25,16 @@ class Reply:
     video: Path | None = None
     audio: Path | None = None
     buttons: tuple[tuple[Button, ...], ...] = ()
+    # The user's next plain-text answer is handed to this command, e.g. a name
+    # after "What is the person's name?".
+    expect: str | None = None
 
     @property
     def media(self) -> Path | None:
         return self.photo or self.video or self.audio
 
-    def with_buttons(self, *rows: tuple[Button, ...]) -> Reply:
-        return Reply(self.text, self.photo, self.video, self.audio, self.buttons + rows)
 
-
-AttachmentKind = Literal["audio", "photo"]
+AttachmentKind = Literal["audio", "photo", "video"]
 
 
 @dataclass(frozen=True)

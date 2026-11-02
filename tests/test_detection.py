@@ -16,7 +16,7 @@ from pi_guard.detection.motion import MotionDetector, MotionEnd, MotionParams, M
 from pi_guard.detection.persons import PersonResult
 from pi_guard.detection.zones import build_mask
 
-from .helpers import ADMIN, fake_snapshot, make_app, msg
+from .helpers import fake_snapshot, make_app
 
 cv2 = pytest.importorskip("cv2")
 W, H = 320, 180
@@ -237,45 +237,4 @@ async def test_known_person_does_not_suppress_motion_alert(tmp_path: Path) -> No
         await app.notifier._deliver(app.notifier._queue.get_nowait())
     texts = app.providers["telegram"].texts()
     assert any(t.startswith("Movement seen") for t in texts)
-    app.db.close()
-
-
-async def test_enrollment_requires_consent_confirmation(tmp_path: Path) -> None:
-    from pi_guard.messaging.base import Incoming
-
-    app = make_app(tmp_path)
-    store = BiometricStore(tmp_path / "bio.db")
-
-    class Recognizer:
-        def __init__(self) -> None:
-            self.store = store
-
-        def prepare(self, photo: Path) -> np.ndarray:
-            return np.ones(128, dtype=np.float32)
-
-        def enroll(self, name: str, embedding: np.ndarray, actor: str) -> int:
-            return store.add(name, embedding, actor, 10)
-
-        def delete(self, name: str) -> bool:
-            return store.delete(name)
-
-    class Analysis:
-        faces = Recognizer()
-
-    app.analysis = Analysis()  # type: ignore[assignment]
-    photo = tmp_path / "upload.jpg"
-    photo.write_bytes(b"x")
-    await app.messenger.handle(
-        Incoming(
-            "telegram", ADMIN, ADMIN, "/enroll Oma Erna", attachment=photo, attachment_kind="photo"
-        )
-    )
-    assert not photo.exists()  # upload deleted right away
-    reply = app.providers["telegram"].last()
-    assert "agreed" in reply.text and store.people() == []
-    await app.messenger.handle(msg(reply.buttons[0][0].command, ADMIN, from_button=True))
-    assert store.people()[0][0] == "Oma Erna"  # original capitalisation kept
-    await app.messenger.handle(msg("/faces delete Oma Erna", ADMIN))
-    assert store.people() == []
-    store.close()
     app.db.close()

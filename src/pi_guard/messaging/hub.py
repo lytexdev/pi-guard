@@ -27,6 +27,7 @@ log = logging.getLogger(__name__)
 
 _INVITE_RE = re.compile(r"^[0-9a-f]{12}$")
 _UNKNOWN_REPLY_INTERVAL = 3600.0
+_EXPECT_SECONDS = 600.0
 
 
 def flatten(reply: Reply) -> list[Button]:
@@ -39,6 +40,7 @@ class Messenger:
         self._limiter = RateLimiter(per_minute=20, burst=8)
         self._unknown_replied: dict[str, float] = {}
         self._menus: dict[tuple[str, str], list[str]] = {}
+        self._expect: dict[tuple[str, str, str], tuple[str, float]] = {}
 
     async def handle(self, msg: Incoming) -> None:
         try:
@@ -61,9 +63,16 @@ class Messenger:
         if not self._limiter.allow(sender):
             log.warning("rate limit hit by %s", mask_sender(sender))
             return
+        if parsed is None and msg.attachment_meta.get("too_large"):
+            await self._reply(msg, user, Reply(t("error.file_too_large", self._lang(user))))
+            return
+        if parsed is None:
+            parsed = self._follow_up(msg)
         if parsed is None:
             if msg.attachment_kind == "audio":
                 parsed = app.registry.parse("upload")
+            elif msg.attachment_kind in ("photo", "video") and app.faces is not None:
+                parsed = app.registry.parse("enroll add")
             elif msg.is_group and not msg.from_button:
                 return
         if parsed is None:
@@ -95,6 +104,13 @@ class Messenger:
             if number.isdigit() and menu and 1 <= int(number) <= len(menu):
                 text = menu[int(number) - 1]
         return self._app.registry.parse(text, getattr(provider, "username", None))
+
+    def _follow_up(self, msg: Incoming) -> ParsedCommand | None:
+        """A plain-text answer to a question the bot asked in this chat."""
+        pending = self._expect.pop((msg.provider, msg.chat_id, msg.sender_id), None)
+        if pending is None or msg.attachment is not None or time.monotonic() > pending[1]:
+            return None
+        return self._app.registry.parse(f"{pending[0]} {msg.text}")
 
     def _group_allowed(self, msg: Incoming) -> bool:
         s = self._app.settings
@@ -164,6 +180,11 @@ class Messenger:
             reply = Reply(ctx.t("error.internal"), buttons=((ctx.button("button.menu", "menu"),),))
         if command.role is Role.ADMIN:
             self._app.db.audit(user.key, "command", command.name)
+        key = (msg.provider, msg.chat_id, msg.sender_id)
+        if reply.expect:
+            self._expect[key] = (reply.expect, time.monotonic() + _EXPECT_SECONDS)
+        else:
+            self._expect.pop(key, None)
         await self._reply(msg, ctx.user, reply)
 
     def _context(self, msg: Incoming, user: User) -> CommandContext:

@@ -24,6 +24,7 @@ from pi_guard.core.modes import Mode, mode_controller
 from pi_guard.core.permissions import Role, UserStore
 from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.analysis import MotionAnalysis
+from pi_guard.detection.enrollment import EnrollmentSession
 from pi_guard.detection.faces import BiometricStore, FaceRecognizer
 from pi_guard.detection.motion import MotionDetector
 from pi_guard.detection.persons import PersonDetector
@@ -90,6 +91,7 @@ class App:
         }
         self.motion: dict[str, MotionDetector] = {}
         self.analysis: MotionAnalysis | None = None
+        self.enrollments: dict[str, EnrollmentSession] = {}  # per admin, see commands/faces.py
         self.presence: PresenceMonitor | None = None
         self.audio: AudioService | None = None
         if s.audio_playback_enabled or s.audio_recording_enabled:

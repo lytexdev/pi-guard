@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import secrets
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -46,6 +47,7 @@ class Recipient:
     chat_id: str
     language: str
     user_key: str | None = None
+    admin: bool = False
 
 
 @dataclass
@@ -108,7 +110,9 @@ class Notifier:
             if rule.recipients == "admins" and user.role is not Role.ADMIN:
                 continue
             language = user.language or app.settings.language
-            result.append(Recipient(user.provider, user.user_id, language, user.key))
+            result.append(
+                Recipient(user.provider, user.user_id, language, user.key, user.role is Role.ADMIN)
+            )
         if (
             rule.recipients == "all"
             and "telegram" in app.providers
@@ -126,9 +130,21 @@ class Notifier:
         if not recipients:
             return
         attachment = await self._attachment(event, rule)
+        trust = self._trust_token(event, attachment)
         for recipient in recipients:
-            reply = self.message(event, recipient.language, attachment, rule)
+            token = trust if recipient.admin else None
+            reply = self.message(event, recipient.language, attachment, rule, token)
             self._enqueue(Delivery(recipient, reply))
+
+    def _trust_token(self, event: Event, attachment: Path | None) -> str | None:
+        """Lets admins enroll the person in this alert's photo with one tap."""
+        if self._app.faces is None or attachment is None or attachment.suffix != ".jpg":
+            return None
+        if event.type not in (EventType.UNKNOWN_PERSON, EventType.PERSON_DETECTED):
+            return None
+        token = secrets.token_hex(4)
+        self._app.db.set(f"trust:{token}", attachment.name)
+        return token
 
     async def _attachment(self, event: Event, rule: Rule) -> Path | None:
         if rule.attach == "none" or event.camera not in self._app.cameras:
@@ -145,7 +161,14 @@ class Notifier:
         except SnapshotUnavailableError:
             return None
 
-    def message(self, event: Event, lang: str, attachment: Path | None, rule: Rule) -> Reply:
+    def message(
+        self,
+        event: Event,
+        lang: str,
+        attachment: Path | None,
+        rule: Rule,
+        trust_token: str | None = None,
+    ) -> Reply:
         app = self._app
         camera = app.cameras.get(event.camera or "")
         values: dict[str, object] = {
@@ -171,6 +194,8 @@ class Notifier:
             )
         if event.type in _OFFER_HOME and app.modes.effective.value == "AWAY":
             buttons.append((Button(t("mode.button_home", lang), "home"),))
+        if trust_token:
+            buttons.append((Button(t("faces.trust_button", lang), f"trust {trust_token}"),))
         buttons.append((Button(t("button.menu", lang), "menu"),))
         is_video = attachment is not None and attachment.suffix == ".mp4"
         return Reply(

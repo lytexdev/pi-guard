@@ -71,7 +71,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S", "PTH", "ASYNC109"]
+"tests/*" = ["S", "PTH", "ASYNC109", "ASYNC221"]
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
