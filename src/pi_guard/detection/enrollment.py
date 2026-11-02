@@ -19,9 +19,9 @@ from pi_guard.detection.faces import Embedding
 
 SESSION_SECONDS = 900
 MAX_VIDEO_SECONDS = 60
-VIDEO_FRAMES = 20
+VIDEO_FRAMES = 40
 # Two samples this similar add nothing; keep the session's samples diverse.
-DUPLICATE_SIMILARITY = 0.95
+DUPLICATE_SIMILARITY = 0.93
 
 
 @dataclass

@@ -210,7 +210,8 @@ class FaceSettings(_Model):
     match_threshold: float = Field(0.40, ge=0.2, le=0.8)
     uncertain_margin: float = Field(0.06, ge=0.0, le=0.2)
     min_interval_seconds: float = Field(5.0, ge=1, le=300)
-    max_samples_per_person: int = Field(10, ge=1, le=50)
+    # Many varied pictures (light, glasses, angles) make recognition reliable.
+    max_samples_per_person: int = Field(40, ge=1, le=80)
 
 
 class FileConfig(_Model):

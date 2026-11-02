@@ -46,6 +46,7 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/people", people),
         web.post("/api/people/{name}/samples", add_samples),
         web.post("/api/people/{name}/camera", add_from_camera),
+        web.post("/api/people-test", test_recognition),
         web.patch("/api/people/{name}", rename_person),
         web.delete("/api/people/{name}", delete_person),
         web.get("/api/sounds", sounds),
@@ -192,8 +193,42 @@ def _name(request: web.Request) -> str:
 
 async def people(request: web.Request) -> web.Response:
     faces = _faces(request)
-    return web.json_response([{"name": n, "samples": c, "enrolled": e}
-                              for n, c, e in faces.store.people()])  # fmt: skip
+    similar = await asyncio.to_thread(faces.similar_people)
+    warn_at = faces.settings.match_threshold - faces.settings.uncertain_margin
+    rows = []
+    for name, count, enrolled in faces.store.people():
+        other, score = similar.get(name, (None, 0.0))
+        rows.append({
+            "name": name, "samples": count, "enrolled": enrolled,
+            # Advice: below 10 varied pictures recognition is shaky.
+            "few_samples": count < 10,
+            "similar_to": other if other and score >= warn_at else None,
+        })  # fmt: skip
+    return web.json_response(rows)
+
+
+async def _receive(request: web.Request, workdir: Path) -> tuple[dict[str, str], list[Path]]:
+    """Multipart upload: text fields and the photo/video files (saved in `workdir`)."""
+    fields: dict[str, str] = {}
+    files: list[Path] = []
+    reader = await request.multipart()
+    total = 0
+    async for part in reader:
+        if not getattr(part, "filename", None):
+            fields[str(part.name)] = (await part.text())[:200]  # type: ignore[union-attr]
+            continue
+        suffix = Path(part.filename or "").suffix.lower()  # type: ignore[union-attr]
+        if suffix not in IMAGE_SUFFIXES + VIDEO_SUFFIXES:
+            raise web.HTTPBadRequest(text=f"unsupported file type {suffix}")
+        path = workdir / f"{uuid.uuid4().hex}{suffix}"
+        with path.open("wb") as out:
+            while chunk := await part.read_chunk():  # type: ignore[union-attr]
+                total += len(chunk)
+                if total > MAX_UPLOAD:
+                    raise web.HTTPRequestEntityTooLarge(max_size=MAX_UPLOAD, actual_size=total)
+                out.write(chunk)
+        files.append(path)
+    return fields, files
 
 
 async def add_samples(request: web.Request) -> web.Response:
@@ -201,59 +236,86 @@ async def add_samples(request: web.Request) -> web.Response:
     faces = _faces(request)
     name = _name(request)
     workdir = Path(tempfile.mkdtemp(prefix="pi-guard-upload-"))
-    consent, files = False, []
     try:
-        reader = await request.multipart()
-        total = 0
-        async for part in reader:
-            if part.name == "consent":  # type: ignore[union-attr]
-                consent = (await part.text()) == "yes"  # type: ignore[union-attr]
-                continue
-            suffix = Path(part.filename or "").suffix.lower()  # type: ignore[union-attr]
-            if suffix not in IMAGE_SUFFIXES + VIDEO_SUFFIXES:
-                raise web.HTTPBadRequest(text=f"unsupported file type {suffix}")
-            path = workdir / f"{uuid.uuid4().hex}{suffix}"
-            with path.open("wb") as out:
-                while chunk := await part.read_chunk():  # type: ignore[union-attr]
-                    total += len(chunk)
-                    if total > MAX_UPLOAD:
-                        raise web.HTTPRequestEntityTooLarge(max_size=MAX_UPLOAD, actual_size=total)
-                    out.write(chunk)
-            files.append(path)
-        if not consent:
+        fields, files = await _receive(request, workdir)
+        if fields.get("consent") != "yes":
             raise web.HTTPBadRequest(text="consent required")
         session = EnrollmentSession(name=name)
         result = await _collect(faces, session, files)
-        count = 0
-        for embedding in session.samples:
-            count = faces.enroll(name, embedding, _actor(request))
-        dashboard(request).app.db.audit(_actor(request), "faces.enroll", f"samples={count}")
-        return web.json_response({**result, "stored": len(session.samples), "total": count})
+        try:
+            report = await asyncio.to_thread(
+                faces.enroll_many, name, session.samples, _actor(request)
+            )
+        except EnrollmentError as exc:
+            raise web.HTTPBadRequest(text=exc.key) from None
+        dashboard(request).app.db.audit(_actor(request), "faces.enroll",
+                                        f"samples={report.stored}")  # fmt: skip
+        return web.json_response({
+            **result, "stored": report.stored, "total": report.total or _sample_count(faces, name),
+            "outliers": report.outliers, "conflicts": report.conflicts,
+        })  # fmt: skip
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 
 
+def _sample_count(faces: FaceRecognizer, name: str) -> int:
+    return next((c for n, c, _ in faces.store.people() if n.casefold() == name.casefold()), 0)
+
+
 async def _collect(
     faces: FaceRecognizer, session: EnrollmentSession, files: list[Path]
-) -> dict[str, int]:
+) -> dict[str, Any]:
+    """Faces from all pictures and video frames; counts why pictures were left out."""
     limit = faces.settings.max_samples_per_person
-    skipped = 0
+    reasons: dict[str, int] = {}
+    pictures = 0
     for path in files:
         images = [path]
         frames_dir = None
         if path.suffix in VIDEO_SUFFIXES:
             frames_dir, images = await video_frames(path)
         for image in images:
+            pictures += 1
             try:
                 embedding = await asyncio.to_thread(faces.prepare, image)
-            except EnrollmentError:
-                skipped += 1
+            except EnrollmentError as exc:
+                reasons[exc.key] = reasons.get(exc.key, 0) + 1
+                continue
+            except ValueError:
+                reasons["faces.unreadable"] = reasons.get("faces.unreadable", 0) + 1
                 continue
             if not session.add(embedding, limit):
-                skipped += 1
+                reasons["faces.duplicate"] = reasons.get("faces.duplicate", 0) + 1
         if frames_dir is not None:
             shutil.rmtree(frames_dir, ignore_errors=True)
-    return {"skipped": skipped}
+    return {"pictures": pictures, "skipped": sum(reasons.values()), "reasons": reasons}
+
+
+async def test_recognition(request: web.Request) -> web.Response:
+    """Who would pi-guard see in this photo? Nothing is stored."""
+    faces = _faces(request)
+    detector = dashboard(request).app.analysis
+    workdir = Path(tempfile.mkdtemp(prefix="pi-guard-test-"))
+    try:
+        _, files = await _receive(request, workdir)
+        images = [f for f in files if f.suffix in IMAGE_SUFFIXES][:1]
+        if not images:
+            raise web.HTTPBadRequest(text="web.test_needs_photo")
+        persons = getattr(detector, "persons", None)
+        if persons is None:
+            raise web.HTTPConflict(text="web.faces_disabled")
+        result = await asyncio.to_thread(persons.detect, images[0])
+        found = []
+        for face in result.faces if result.faces is not None else []:
+            identity = await asyncio.to_thread(faces.identify, result.image, face)
+            found.append({
+                "verdict": identity.verdict.value, "name": identity.name,
+                "score": round(identity.score, 2), "runner_up": identity.runner_up,
+                "runner_up_score": round(identity.runner_up_score, 2), "reason": identity.reason,
+            })  # fmt: skip
+        return web.json_response({"faces": found, "bodies": result.bodies})
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
 
 
 async def add_from_camera(request: web.Request) -> web.Response:
@@ -272,11 +334,11 @@ async def add_from_camera(request: web.Request) -> web.Response:
         raise web.HTTPServiceUnavailable(text="no picture from the camera") from None
     try:
         embedding = await asyncio.to_thread(faces.prepare, photo)
+        count = faces.enroll(name, embedding, _actor(request))
     except EnrollmentError as exc:
         raise web.HTTPUnprocessableEntity(text=exc.key) from None
     finally:
         photo.unlink(missing_ok=True)
-    count = faces.enroll(name, embedding, _actor(request))
     app.db.audit(_actor(request), "faces.enroll", f"samples={count}")
     return web.json_response({"stored": 1, "total": count})
 

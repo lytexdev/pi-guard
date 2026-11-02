@@ -19,6 +19,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/account/totp/confirm", totp_confirm),
         web.post("/api/account/totp/disable", totp_disable),
         web.post("/api/setup/done", setup_done),
+        web.get("/api/setup/status", setup_status),
     ]
 
 
@@ -84,3 +85,28 @@ async def setup_done(request: web.Request) -> web.Response:
     d.app.db.set(SETUP_DONE_KEY, True)
     d.app.db.audit(_actor(request), "setup.done")
     return web.json_response({"ok": True})
+
+
+async def setup_status(request: web.Request) -> web.Response:
+    """What the installer (or an earlier run of the assistant) already set up.
+
+    The assistant shows these steps as done with a short summary instead of asking again.
+    """
+    app = dashboard(request).app
+    s = app.settings
+    configured = s.model_fields_set
+    telegram = app.providers.get("telegram")
+    file = app.config.file
+    return web.json_response({
+        "language": s.language if "language" in configured else None,
+        "telegram": {
+            "bot": getattr(telegram, "username", None),
+            "admins": len(s.telegram_admin_user_ids),
+        } if s.telegram_ready and s.telegram_admin_user_ids else None,
+        "devices": {
+            "cameras": [c.name for c in file.cameras if c.enabled],
+            "speaker": file.audio.speaker if s.audio_playback_enabled else None,
+            "microphone": file.audio.microphone if s.audio_recording_enabled else None,
+        } if file.cameras else None,
+        "presence": s.presence_enabled if "presence_enabled" in configured else None,
+    })  # fmt: skip

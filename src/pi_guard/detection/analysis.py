@@ -113,6 +113,15 @@ class MotionAnalysis:
         if not result.found:
             return None
         known = [i for i in identities if i.verdict is Verdict.KNOWN]
+        strangers = [i for i in identities if i.verdict is Verdict.UNKNOWN]
+        if strangers:
+            # A stranger next to a family member is still a stranger.
+            return Event(
+                EventType.UNKNOWN_PERSON,
+                camera=camera,
+                snapshot=snapshot,
+                data={"faces": len(identities), "known": sorted({i.name for i in known if i.name})},
+            )
         if known:
             best = max(known, key=lambda i: i.score)
             return Event(
@@ -127,13 +136,6 @@ class MotionAnalysis:
                 camera=camera,
                 snapshot=snapshot,
                 data={"recognition": "uncertain"},
-            )
-        if identities:
-            return Event(
-                EventType.UNKNOWN_PERSON,
-                camera=camera,
-                snapshot=snapshot,
-                data={"faces": len(identities)},
             )
         return Event(
             EventType.PERSON_DETECTED,

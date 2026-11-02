@@ -24,17 +24,28 @@ from pi_guard.detection.models import YUNET
 log = logging.getLogger(__name__)
 
 ANALYSIS_WIDTH = 640
+# Recognition reads faces from the full picture (up to this width): a face that is
+# 40 pixels wide after shrinking to 640 has 80 in a 1280 camera picture.
+FULL_WIDTH = 1920
+# YuNet rows: x, y, w, h, 5 landmarks (x, y), score. All but the score scale with the image.
+_GEOMETRY = slice(0, 14)
 HOG_MIN_WEIGHT = 0.5
 FACE_MIN_SCORE = 0.8
 
 Image = npt.NDArray[np.uint8]
 
 
+def scale_faces(faces: npt.NDArray[np.float32], factor: float) -> npt.NDArray[np.float32]:
+    scaled = faces.copy()
+    scaled[:, _GEOMETRY] *= factor
+    return scaled
+
+
 @dataclass(frozen=True)
 class PersonResult:
     bodies: int
     faces: npt.NDArray[np.float32] | None = None  # YuNet rows, in `image` coordinates
-    image: Image | None = field(default=None, repr=False)
+    image: Image | None = field(default=None, repr=False)  # full resolution
     seconds: float = 0.0
 
     @property
@@ -68,15 +79,30 @@ class PersonDetector:
     def detects_faces(self) -> bool:
         return self._faces is not None
 
-    def load(self, path: Path) -> Image:
+    def load(self, path: Path, width: int = ANALYSIS_WIDTH) -> Image:
         cv2 = self._cv2
         image = cv2.imread(str(path))
         if image is None:
             raise ValueError(f"cannot read image {path.name}")
-        height, width = image.shape[:2]
-        if width > ANALYSIS_WIDTH:
-            image = cv2.resize(image, (ANALYSIS_WIDTH, round(height * ANALYSIS_WIDTH / width)))
-        return image  # type: ignore[no-any-return]
+        return self.shrink(image, width)
+
+    def shrink(self, image: Image, width: int) -> Image:
+        height, current = image.shape[:2]
+        if current <= width:
+            return image
+        return self._cv2.resize(  # type: ignore[no-any-return]
+            image, (width, round(height * width / current)), interpolation=self._cv2.INTER_AREA
+        )
+
+    def faces_full(
+        self, image: Image, width: int = ANALYSIS_WIDTH
+    ) -> npt.NDArray[np.float32] | None:
+        """Find faces on a smaller copy (fast), return them in `image` coordinates."""
+        small = self.shrink(image, width)
+        faces = self.faces(small)
+        if faces is None or not len(faces) or small is image:
+            return faces
+        return scale_faces(faces, image.shape[1] / small.shape[1])
 
     def faces(self, image: Image) -> npt.NDArray[np.float32] | None:
         if self._faces is None:
@@ -88,11 +114,14 @@ class PersonDetector:
 
     def detect(self, path: Path) -> PersonResult:
         started = time.monotonic()
-        image = self.load(path)
+        full = self.load(path, FULL_WIDTH)
+        image = self.shrink(full, ANALYSIS_WIDTH)
         rects, weights = self._hog.detectMultiScale(image, winStride=(8, 8), scale=1.05)
         bodies = int(sum(1 for w in np.ravel(weights) if w >= HOG_MIN_WEIGHT)) if len(rects) else 0
         faces = self.faces(image)
-        return PersonResult(bodies, faces, image, time.monotonic() - started)
+        if faces is not None and len(faces) and image is not full:
+            faces = scale_faces(faces, full.shape[1] / image.shape[1])
+        return PersonResult(bodies, faces, full, time.monotonic() - started)
 
     def locate(self, image: Image) -> tuple[int, int, int, int] | None:
         """Box (x, y, w, h) of the most prominent person in `image`, faces first."""

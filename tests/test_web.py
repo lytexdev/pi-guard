@@ -503,3 +503,20 @@ async def test_setup_done_and_models_need_confirmation(web) -> None:  # type: ig
     assert {m["name"] for m in models} == {"yunet", "sface"} and all(m["size_mb"] for m in models)
     no = await client.post("/api/models/download", json={}, headers=headers)
     assert no.status == 400
+
+
+async def test_setup_status_reports_what_the_installer_set(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path, fresh=True, language="de")
+    try:
+        response = await client.post(
+            "/api/login", json={"username": "admin", "password": auth.DEFAULT_PASSWORD}
+        )
+        assert response.status == 200
+        # Readable while the first-login password change is still pending.
+        status = await (await client.get("/api/setup/status")).json()
+        assert status["language"] == "de"
+        assert status["telegram"]["admins"] >= 1
+        assert status["devices"]["cameras"]
+    finally:
+        await client.close()
+        app.db.close()

@@ -30,7 +30,7 @@ COOKIE = "pg_session"
 PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.crt"}
 # Reachable while the default password has not been changed yet.
 SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",
-                 "/api/account/totp/confirm"}  # fmt: skip
+                 "/api/account/totp/confirm", "/api/setup/status"}  # fmt: skip
 SETUP_DONE_KEY = "web.setup_done"
 STATIC = Path(str(resources.files("pi_guard.web").joinpath("static")))
 

@@ -213,15 +213,23 @@ def _store(ctx: CommandContext, recognizer: FaceRecognizer) -> Reply:
     session = ctx.app.enrollments.pop(ctx.user.key, None)
     if session is None or session.expired or not session.name or not session.samples:
         return Reply(ctx.t("faces.expired"), buttons=(menu_row(ctx),))
-    count = 0
     try:
-        for embedding in session.samples:
-            count = recognizer.enroll(session.name, embedding, ctx.user.key)
+        report = recognizer.enroll_many(session.name, session.samples, ctx.user.key)
     except EnrollmentError as exc:
         return Reply(ctx.t(exc.key), buttons=(menu_row(ctx),))
-    ctx.app.db.audit(ctx.user.key, "faces.enroll", f"samples={count}")
+    ctx.app.db.audit(ctx.user.key, "faces.enroll", f"samples={report.stored}")
+    lines = (
+        [ctx.t("faces.enrolled", name=session.name, samples=report.total)] if report.stored else []
+    )
+    if report.outliers:
+        lines.append(ctx.t("faces.outliers", count=report.outliers))
+    lines += [
+        ctx.t("faces.conflict", count=n, other=other) for other, n in report.conflicts.items()
+    ]
+    if not report.stored:
+        lines.append(ctx.t("faces.nothing_stored"))
     return Reply(
-        ctx.t("faces.enrolled", name=session.name, samples=count),
+        "\n".join(lines),
         buttons=((ctx.button("faces.list_button", "faces"),), menu_row(ctx)),
     )
 

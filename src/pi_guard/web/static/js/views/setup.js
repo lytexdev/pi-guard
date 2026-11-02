@@ -8,6 +8,7 @@ import { setDesign, SIZES, THEMES } from "../theme.js";
 
 const STEPS = ["welcome", "account", "devices", "telegram", "alerts", "emergency", "people", "design", "finish"];
 const restartNeeded = () => sessionStorage.getItem("pg.restart") === "1";
+let status = {};  // what the installer already set up (GET /api/setup/status)
 const needRestart = () => sessionStorage.setItem("pg.restart", "1");
 
 function go(step) { location.hash = `#/setup/${step}`; }
@@ -43,12 +44,13 @@ function welcome(root) {
       [["video", "web.setup_intro_record"], ["bell", "web.setup_intro_alerts"],
        ["device-mobile", "web.setup_intro_phone"], ["shield-lock", "web.setup_intro_private"]]
         .map(([i, key]) => h("li", {}, icon(i, "lg"), h("span", { class: "grow" }, t(key)))))),
-    h("section", { class: "panel" }, h("h2", {}, t("web.language")),
+    status.language ? null : h("section", { class: "panel" }, h("h2", {}, t("web.language")),
       h("div", { class: "choice" }, [["de", "Deutsch"], ["en", "English"]].map(([code, name]) =>
         h("button", { class: lang === code ? "on" : "", onclick: async () => {
           await switchLanguage(code);
           await attempt(() => api("/api/settings", { method: "PUT", body: { language: code } }));
-        } }, name))))),
+        } }, name)))),
+    installed()),
   { canSkip: false, onNext: () => next("welcome") });
 }
 
@@ -110,6 +112,28 @@ async function account(root) {
   body.append(form, totpPanel);
   if (forced) totpPanel.classList.add("hidden"); else await drawTotp();
   frame(root, "account", body, { canSkip: !forced, onNext: forced ? null : () => next("account") });
+}
+
+function installed() {
+  // Summary of what the installer already asked, so nobody types it twice.
+  const items = [];
+  if (status.language) items.push(t("web.setup_have_language", { language: status.language === "de" ? "Deutsch" : "English" }));
+  if (status.telegram) items.push(t("web.setup_have_telegram", { bot: status.telegram.bot ? `@${status.telegram.bot}` : "Telegram", admins: status.telegram.admins }));
+  if (status.devices) items.push(t("web.setup_have_devices", { cameras: status.devices.cameras.join(", ") }));
+  if (!items.length) return null;
+  return h("section", { class: "panel" }, h("h2", {}, t("web.setup_have_title")),
+    h("ul", { class: "list" }, items.map((text) => h("li", {}, icon("circle-check"), h("span", { class: "grow" }, text)))),
+    h("p", { class: "muted" }, h("small", {}, t("web.setup_have_hint"))));
+}
+
+function doneStep(root, step, lines, change) {
+  // A step the installer already covered: show what is set, offer to change it anyway.
+  frame(root, step, h("div", { class: "stack" },
+    h("section", { class: "panel" },
+      h("p", {}, h("span", { class: "badge ok" }, icon("circle-check"), t("web.setup_already_done"))),
+      h("ul", { class: "list" }, lines.filter(Boolean).map((text) => h("li", {}, h("span", { class: "grow" }, text)))),
+      h("button", { onclick: change }, icon("pencil"), t("web.setup_change_anyway")))),
+  { canSkip: false, onNext: () => next(step) });
 }
 
 async function embedded(root, step, loader, opts = {}) {
@@ -224,10 +248,24 @@ function finish(root) {
 
 export async function render(root, params) {
   if (state.session.setup_required && params[0] !== "account" && params[0] !== "welcome") { go("welcome"); return; }
+  try { status = await api("/api/setup/status"); } catch { status = {}; }
   const step = STEPS.includes(params[0]) ? params[0] : "welcome";
   if (step === "welcome") welcome(root);
   else if (step === "account") await account(root);
+  else if (step === "devices" && status.devices && !params[1]) {
+    const d = status.devices;
+    doneStep(root, "devices", [
+      t("web.setup_have_devices", { cameras: d.cameras.join(", ") }),
+      d.speaker ? t("web.setup_have_speaker", { device: d.speaker }) : null,
+      d.microphone ? t("web.setup_have_microphone", { device: d.microphone }) : null,
+    ], () => go("devices/change"));
+  }
   else if (step === "devices") await embedded(root, "devices", () => import("./devices.js"));
+  else if (step === "telegram" && status.telegram && !params[1]) {
+    doneStep(root, "telegram", [
+      t("web.setup_have_telegram", { bot: status.telegram.bot ? `@${status.telegram.bot}` : "Telegram", admins: status.telegram.admins }),
+    ], () => go("telegram/change"));
+  }
   else if (step === "telegram") await embedded(root, "telegram", () => import("./settings.js"), { groups: ["messaging"] });
   else if (step === "alerts") await alerts(root);
   else if (step === "emergency") await embedded(root, "emergency", () => import("./settings.js"), { groups: ["emergency"] });

@@ -30,7 +30,7 @@ export async function render(main, params = [], opts = {}) {
       upload.disabled = true; status.textContent = t("web.processing");
       const result = await attempt(() => api(`/api/people/${encodeURIComponent(name.value.trim())}/samples`, { method: "POST", body: form }));
       upload.disabled = false;
-      status.textContent = result ? t("web.enroll_result", { stored: result.stored, skipped: result.skipped, total: result.total }) : "";
+      fill(status, result ? enrollSummary(result) : "");
       if (result) { files.value = ""; drawList(); }
     } }, icon("upload"), t("web.upload_pictures"));
     const fromCamera = h("button", { type: "button", onclick: async () => {
@@ -55,7 +55,9 @@ export async function render(main, params = [], opts = {}) {
     fill(listPanel, h("h2", {}, t("faces.list_button")),
       h("ul", { class: "list" }, people.length ? people.map((p) => h("li", {},
         icon("user-check", "lg"),
-        h("div", { class: "grow" }, h("div", {}, p.name), h("small", {}, t("web.samples_since", { samples: p.samples, date: when(p.enrolled) }))),
+        h("div", { class: "grow" }, h("div", {}, p.name), h("small", {}, t("web.samples_since", { samples: p.samples, date: when(p.enrolled) })),
+          p.similar_to ? h("small", { class: "warn-text" }, h("br"), t("web.similar_warning", { other: p.similar_to })) : null,
+          !p.similar_to && p.few_samples ? h("small", { class: "muted" }, h("br"), t("web.few_samples")) : null),
         h("button", { class: "icon-only", title: t("faces.more_button", { name: p.name }), onclick: () => { enrollForm(p.name); formPanel.scrollIntoView({ behavior: "smooth" }); } }, icon("plus")),
         h("button", { class: "icon-only", title: t("web.rename"), onclick: async () => {
           const next = prompt(t("web.new_name"), p.name);
@@ -70,5 +72,47 @@ export async function render(main, params = [], opts = {}) {
   };
   enrollForm();
   await drawList();
-  main.append(h("div", { class: "grid wide" }, listPanel, formPanel));
+  main.append(h("div", { class: "grid wide" }, listPanel, formPanel), testPanel());
+}
+
+function enrollSummary(result) {
+  const reasons = Object.entries(result.reasons || {});
+  const notes = [];
+  if (result.outliers) notes.push(t("faces.outliers", { count: result.outliers }));
+  Object.entries(result.conflicts || {}).forEach(([other, count]) => notes.push(t("faces.conflict", { count, other })));
+  if (!result.stored) notes.push(t("faces.nothing_stored"));
+  return [
+    h("span", {}, t("web.enroll_result", { stored: result.stored, skipped: result.skipped, pictures: result.pictures ?? result.skipped + result.stored, total: result.total })),
+    reasons.length ? h("small", { class: "muted" }, h("br"), t("web.enroll_reasons"), " ",
+      reasons.map(([key, count]) => `${t(key)} (${count}×)`).join(" · ")) : null,
+    notes.map((note) => h("small", { class: "warn-text" }, h("br"), note)),
+  ];
+}
+
+function testPanel() {
+  // Upload a photo and see who pi-guard would recognise; nothing is stored.
+  const file = h("input", { id: "ptest", type: "file", accept: "image/*" });
+  const out = h("div", { "aria-live": "polite" });
+  const button = h("button", { type: "button", onclick: async () => {
+    if (!file.files.length) { toast(t("web.test_needs_photo"), true); return; }
+    const form = new FormData();
+    form.append("file", file.files[0], file.files[0].name);
+    button.disabled = true;
+    const result = await attempt(() => api("/api/people-test", { method: "POST", body: form }));
+    button.disabled = false;
+    if (!result) return;
+    fill(out, result.faces.length ? h("ul", { class: "list" }, result.faces.map((f) => h("li", {},
+      icon(f.verdict === "known" ? "user-check" : f.verdict === "unknown" ? "user-x" : "user"),
+      h("div", { class: "grow" },
+        h("div", {}, f.verdict === "known" ? t("web.test_known", { name: f.name, score: f.score })
+          : f.verdict === "unknown" ? t("web.test_unknown", { score: f.score }) : t("web.test_uncertain")),
+        f.reason ? h("small", { class: "muted" }, t(f.reason)) : null,
+        f.runner_up ? h("small", { class: "muted" }, f.reason ? " · " : "", t("web.test_runner_up", { name: f.runner_up, score: f.runner_up_score })) : null))))
+      : h("p", { class: "muted" }, t("web.test_no_face")));
+  } }, icon("user-check"), t("web.test_button"));
+  return h("section", { class: "panel" },
+    h("h2", {}, t("web.test_title")),
+    h("p", { class: "muted" }, t("web.test_hint")),
+    h("div", { class: "row" }, file, button),
+    out);
 }

@@ -64,7 +64,18 @@ class TelegramProvider:
 
     async def run(self, on_message: OnMessage) -> None:
         self._on_message = on_message
-        application = Application.builder().token(self._token).concurrent_updates(True).build()
+        # The library's 5 s defaults are short for a busy Pi on Wi-Fi; a reply that times
+        # out is simply lost for the user.
+        application = (
+            Application.builder()
+            .token(self._token)
+            .concurrent_updates(True)
+            .connect_timeout(10)
+            .read_timeout(20)
+            .write_timeout(20)
+            .pool_timeout(10)
+            .build()
+        )
         application.add_handler(CallbackQueryHandler(self._on_callback))
         application.add_handler(MessageHandler(filters.TEXT, self._on_text))
         application.add_handler(

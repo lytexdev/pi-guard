@@ -448,10 +448,12 @@ def faces_enroll(name: str, files: list[Path]) -> None:
         if workdir is not None:
             shutil.rmtree(workdir, ignore_errors=True)
         typer.echo(f"{file}: {added} sample(s)")
-    count = 0
-    for embedding in session.samples:
-        count = recognizer.enroll(name, embedding, "cli")
-    typer.echo(f"{name}: {count} sample(s) stored")
+    report = recognizer.enroll_many(name, session.samples, "cli")
+    if report.outliers:
+        typer.echo(f"{report.outliers} picture(s) left out: they show somebody else")
+    for other, count in report.conflicts.items():
+        typer.secho(f"{count} picture(s) left out: they look more like {other}", fg="yellow")
+    typer.echo(f"{name}: {report.stored} new, {report.total} sample(s) in total")
 
 
 @faces_app.command("delete")

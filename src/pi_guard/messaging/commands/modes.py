@@ -72,6 +72,8 @@ async def presence(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     state = ctx.app.modes.state.presence
     lines = [ctx.t("presence.summary", state=ctx.t(f"presence.{state.value.lower()}"))]
     tz = ctx.app.settings.tz
+    if not monitor.devices():
+        lines.append(ctx.t("presence.no_devices"))
     for device in monitor.devices():
         seen = (
             format_time(device.last_seen, tz, ctx.lang, with_date=True)

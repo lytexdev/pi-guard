@@ -77,41 +77,65 @@ function resultPanel() {
   return { panel, show };
 }
 
+const TALK_LIMIT_SECONDS = 60;
+
 function talkButton(camera) {
-  // Push-to-talk: record while pressed, send on release. Needs HTTPS for the microphone.
-  const button = h("button", { class: "talk big" }, icon("microphone"), t("web.talk_hold"));
+  // Tap to start, tap again to send. Holding a button is unreliable on phones: after about
+  // a second the browser takes the touch for a long-press and cancels it.
+  const label = h("span", {}, t("web.talk_start"));
+  const button = h("button", { class: "talk big", type: "button" }, icon("microphone"), label);
+  const cancel = h("button", { class: "hidden", type: "button" }, icon("x"), t("web.cancel"));
+  const wrap = h("div", { class: "row" }, button, cancel);
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
     button.disabled = true;
     button.title = t("web.talk_needs_https");
-    return button;
+    return wrap;
   }
-  let recorder = null, chunks = [], stream = null;
-  const start = async (e) => {
-    e.preventDefault();
-    if (recorder) return;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
-    catch { toast(t("web.mic_denied"), true); return; }
-    chunks = [];
-    recorder = new MediaRecorder(stream);
-    recorder.ondataavailable = (ev) => chunks.push(ev.data);
-    recorder.onstop = async () => {
-      stream.getTracks().forEach((track) => track.stop());
-      const blob = new Blob(chunks, { type: recorder.mimeType });
-      recorder = null;
-      button.classList.remove("active");
-      if (blob.size < 2000) return;
-      await attempt(() => api("/api/talk", { method: "POST", body: blob }), t("web.talk_sent"));
-    };
-    recorder.start();
-    button.classList.add("active");
+  let recorder = null, stream = null, chunks = [], timer = null, started = 0, discard = false;
+  const reset = () => {
+    clearInterval(timer);
+    stream?.getTracks().forEach((track) => track.stop());
+    recorder = null; stream = null;
+    button.classList.remove("active");
+    cancel.classList.add("hidden");
+    label.textContent = t("web.talk_start");
   };
-  const stop = (e) => { e.preventDefault(); if (recorder && recorder.state === "recording") recorder.stop(); };
-  button.addEventListener("pointerdown", start);
-  button.addEventListener("pointerup", stop);
-  button.addEventListener("pointerleave", stop);
-  button.addEventListener("pointercancel", stop);
-  button.addEventListener("contextmenu", (e) => e.preventDefault());
-  return button;
+  const stop = (send) => {
+    if (!recorder || recorder.state !== "recording") return;
+    discard = !send;
+    recorder.stop();
+  };
+  button.addEventListener("click", async () => {
+    if (recorder) { stop(true); return; }
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+    catch { toast(t("web.mic_denied"), true); return; }
+    chunks = []; discard = false;
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = (ev) => { if (ev.data.size) chunks.push(ev.data); };
+    recorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: recorder?.mimeType || "audio/webm" });
+      reset();
+      if (discard || blob.size < 2000) return;
+      button.disabled = true;
+      label.textContent = t("web.talk_sending");
+      await attempt(() => api("/api/talk", { method: "POST", body: blob }), t("web.talk_sent"));
+      button.disabled = false;
+      label.textContent = t("web.talk_start");
+    };
+    recorder.start(250);  // collect data regularly, so nothing is lost at the end
+    started = Date.now();
+    button.classList.add("active");
+    cancel.classList.remove("hidden");
+    const tick = () => {
+      const seconds = Math.floor((Date.now() - started) / 1000);
+      label.textContent = t("web.talk_recording", { seconds });
+      if (seconds >= TALK_LIMIT_SECONDS) stop(true);
+    };
+    tick();
+    timer = setInterval(tick, 500);
+  });
+  cancel.addEventListener("click", () => stop(false));
+  return wrap;
 }
 
 async function soundsPanel(features) {
@@ -165,11 +189,30 @@ export async function render(main, params) {
   const audio = h("audio", { class: "hidden" });
   const listen = h("button", { class: "big" }, icon("volume"), t("web.listen"));
   listen.disabled = !features.audio_recording;
+  let listening = false, retries = 0;
+  const connect = () => {
+    audio.src = `/api/live/${camera.id}/audio?ts=${Date.now()}`;
+    audio.play().catch(() => { if (listening) toast(t("web.live_unavailable"), true); });
+  };
+  const stopListening = () => {
+    listening = false;
+    audio.pause(); audio.removeAttribute("src"); audio.load();
+    listen.classList.remove("on");
+  };
+  // A live stream has no end: if the browser stops (network hiccup, buffer ran dry), reconnect.
+  const recover = () => {
+    if (!listening) return;
+    if (retries++ > 5) { stopListening(); toast(t("web.live_unavailable"), true); return; }
+    setTimeout(() => { if (listening) connect(); }, 800);
+  };
+  audio.addEventListener("ended", recover);
+  audio.addEventListener("error", recover);
+  audio.addEventListener("playing", () => { retries = 0; });
   listen.addEventListener("click", () => {
-    if (audio.src) { audio.pause(); audio.removeAttribute("src"); audio.load(); listen.classList.remove("on"); return; }
-    audio.src = `/api/live/${camera.id}/audio`;
-    audio.play().catch(() => toast(t("web.live_unavailable"), true));
+    if (listening) { stopListening(); return; }
+    listening = true; retries = 0;
     listen.classList.add("on");
+    connect();
   });
   const photo = async () => {
     const data = await attempt(() => api(`/api/live/${camera.id}/snapshot`, { method: "POST" }));
@@ -204,5 +247,5 @@ export async function render(main, params) {
     result.panel);
   const sounds = await soundsPanel(features);
   if (sounds) main.append(sounds);
-  return () => { img.removeAttribute("src"); audio.pause(); audio.removeAttribute("src"); };
+  return () => { listening = false; img.removeAttribute("src"); audio.pause(); audio.removeAttribute("src"); };
 }

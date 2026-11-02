@@ -7,13 +7,21 @@ this module.
 
 Results are deliberately three-valued: a match must clear the threshold by a
 margin, a near miss is reported as "uncertain", everything else is "unknown".
+
+How mistakes are kept out (family members often look alike):
+- enrollment takes only clear faces: big enough, sharp, roughly frontal, one per picture
+- an upload is checked for consistency; pictures of somebody else in a video are dropped
+- a sample that looks more like another enrolled person than like this one is refused
+- a person's score is the mean of their best few samples, not one lucky sample
+- "known" also needs a clear lead over the next most similar person
+- faces too small or blurry to judge are "uncertain", never "known"
 """
 
 from __future__ import annotations
 
 import logging
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -24,7 +32,7 @@ import numpy.typing as npt
 from pi_guard.config.files import FaceSettings
 from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.models import SFACE, YUNET
-from pi_guard.detection.persons import Image, PersonDetector
+from pi_guard.detection.persons import FULL_WIDTH, Image, PersonDetector
 from pi_guard.security.files import secure_file
 
 log = logging.getLogger(__name__)
@@ -51,6 +59,59 @@ class Identification:
     verdict: Verdict
     name: str | None
     score: float
+    runner_up: str | None = None  # the next most similar person, for the test page
+    runner_up_score: float = 0.0
+    reason: str | None = None  # why a face could not be judged
+
+
+# Quality limits: (enrollment, recognition). Sizes in pixels of the full picture.
+MIN_FACE_PX = (64, 36)
+MIN_DETECTION_SCORE = (0.88, 0.0)
+# Horizontal offset of the nose from the middle between the eyes, relative to the eye
+# distance: 0 looks straight at the camera, ~0.5 is a half profile.
+MAX_TURN = (0.30, 0.55)
+MIN_SHARPNESS = (25.0, 8.0)  # variance of the Laplacian on the aligned 112x112 face
+TOP_K = 3
+PERSON_MARGIN = 0.06  # lead over the next most similar person needed for "known"
+SAME_PERSON_MIN = 0.30  # samples of one upload must be at least this similar to each other
+DOMINANT_FACE = 2.5  # a face this many times bigger than the others is the subject
+
+
+@dataclass
+class EnrollReport:
+    stored: int = 0
+    total: int = 0
+    outliers: int = 0
+    conflicts: dict[str, int] = field(default_factory=dict)
+
+
+def person_scores(probe: Embedding, samples: list[tuple[str, Embedding]]) -> dict[str, float]:
+    """Per person: mean of the TOP_K best sample similarities (fewer if fewer samples)."""
+    by_person: dict[str, list[float]] = {}
+    for name, sample in samples:
+        by_person.setdefault(name, []).append(float(np.dot(probe, sample)))
+    return {
+        name: float(np.mean(sorted(values, reverse=True)[:TOP_K]))
+        for name, values in by_person.items()
+    }
+
+
+def consistent(samples: list[Embedding]) -> tuple[list[Embedding], int]:
+    """Keep the samples that show the same person as most of the upload."""
+    if len(samples) < 3:
+        return samples, 0
+    matrix = np.stack(samples) @ np.stack(samples).T
+    np.fill_diagonal(matrix, np.nan)
+    medians = np.nanmedian(matrix, axis=1)
+    anchor = int(np.argmax(medians))
+    keep = [
+        sample
+        for index, sample in enumerate(samples)
+        if index == anchor
+        or matrix[anchor, index] >= SAME_PERSON_MIN
+        or medians[index] >= SAME_PERSON_MIN
+    ]
+    return keep, len(samples) - len(keep)
 
 
 class BiometricStore:
@@ -145,52 +206,150 @@ class FaceRecognizer:
 
         if not (YUNET.present(models_dir) and SFACE.present(models_dir)):
             raise FileNotFoundError("face models missing; run `pi-guard models download`")
+        self._cv2 = cv2
         self.settings = settings
         self.store = store
         self._detector = detector
         self._sface: Any = cv2.FaceRecognizerSF.create(str(SFACE.path(models_dir)), "")
         self._cache: list[tuple[str, Embedding]] | None = None
 
-    def embedding(self, image: Image, face: npt.NDArray[np.float32]) -> Embedding:
-        aligned = self._sface.alignCrop(image, face)
+    # --- faces --------------------------------------------------------------------------
+
+    def _aligned(self, image: Image, face: npt.NDArray[np.float32]) -> Image:
+        return self._sface.alignCrop(image, face)  # type: ignore[no-any-return]
+
+    def _embed(self, aligned: Image) -> Embedding:
         feature: Embedding = self._sface.feature(aligned).ravel().astype(np.float32)
         return feature / (np.linalg.norm(feature) or 1.0)
 
+    def embedding(self, image: Image, face: npt.NDArray[np.float32]) -> Embedding:
+        return self._embed(self._aligned(image, face))
+
+    def problem(
+        self, image: Image, face: npt.NDArray[np.float32], enrolling: bool
+    ) -> tuple[str | None, Image]:
+        """(translation key of what is wrong with this face or None, aligned face)."""
+        level = 0 if enrolling else 1
+        w, h = float(face[2]), float(face[3])
+        if min(w, h) < MIN_FACE_PX[level]:
+            return "faces.too_small", image
+        if float(face[14]) < MIN_DETECTION_SCORE[level]:
+            return "faces.unclear", image
+        right_eye, left_eye, nose = face[4:6], face[6:8], face[8:10]
+        eye_distance = float(np.linalg.norm(left_eye - right_eye)) or 1.0
+        turn = abs(float(nose[0]) - float(right_eye[0] + left_eye[0]) / 2) / eye_distance
+        if turn > MAX_TURN[level]:
+            return "faces.turned", image
+        aligned = self._aligned(image, face)
+        gray = self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY)
+        if float(self._cv2.Laplacian(gray, self._cv2.CV_64F).var()) < MIN_SHARPNESS[level]:
+            return "faces.blurry", aligned
+        return None, aligned
+
     def prepare(self, photo: Path) -> Embedding:
-        """Embedding of the single face in `photo`; the photo itself is not kept."""
-        image = self._detector.load(photo)
-        faces = self._detector.faces(image)
+        """Embedding of the person in `photo` (one clear face); the photo is not kept."""
+        image = self._detector.load(photo, FULL_WIDTH)
+        faces = self._detector.faces_full(image, 1280)
         if faces is None or len(faces) == 0:
             raise EnrollmentError("faces.no_face")
         if len(faces) > 1:
-            raise EnrollmentError("faces.several_faces")
-        return self.embedding(image, faces[0])
+            areas = sorted((float(f[2] * f[3]) for f in faces), reverse=True)
+            if areas[0] < DOMINANT_FACE * areas[1]:
+                raise EnrollmentError("faces.several_faces")
+        face = max(faces, key=lambda f: float(f[2] * f[3]))
+        problem, aligned = self.problem(image, face, enrolling=True)
+        if problem:
+            raise EnrollmentError(problem)
+        return self._embed(aligned)
 
-    def enroll(self, name: str, embedding: Embedding, actor: str) -> int:
+    # --- enrollment ---------------------------------------------------------------------
+
+    def _samples(self) -> list[tuple[str, Embedding]]:
+        if self._cache is None:
+            self._cache = [
+                (name, sample / (np.linalg.norm(sample) or 1.0))
+                for name, sample in self.store.samples()
+            ]
+        return self._cache
+
+    def enroll_many(self, name: str, samples: list[Embedding], actor: str) -> EnrollReport:
+        """Store an upload's samples after the consistency and look-alike checks."""
         name = name.strip()
         if not name or len(name) > 64:
             raise EnrollmentError("faces.bad_name")
-        count = self.store.add(name, embedding, actor, self.settings.max_samples_per_person)
+        report = EnrollReport()
+        kept, report.outliers = consistent(samples)
+        existing = self._samples()
+        own = [(n, s) for n, s in existing if n.casefold() == name.casefold()]
+        others = [(n, s) for n, s in existing if n.casefold() != name.casefold()]
+        # Relatives may look alike, so "similar to somebody else" alone is no reason to refuse:
+        # a picture is refused when it matches another person about as well as it matches
+        # this person (their stored samples plus the rest of this upload).
+        known_at = self.settings.match_threshold + self.settings.uncertain_margin
+        for index, sample in enumerate(kept):
+            other_scores = person_scores(sample, others)
+            if other_scores:
+                other, score = max(other_scores.items(), key=lambda item: item[1])
+                pool = [s for _, s in own] + [s for i, s in enumerate(kept) if i != index]
+                mine = person_scores(sample, [("self", s) for s in pool]).get("self", -1.0)
+                if score >= known_at and score >= mine - PERSON_MARGIN:
+                    report.conflicts[other] = report.conflicts.get(other, 0) + 1
+                    continue
+            report.total = self.store.add(name, sample, actor, self.settings.max_samples_per_person)
+            report.stored += 1
+            own.append((name, sample))
         self._cache = None
-        log.info("face sample stored for an enrolled person (%d samples)", count)
-        return count
+        if report.stored:
+            log.info("face samples stored for an enrolled person (%d new, %d total)",
+                     report.stored, report.total)  # fmt: skip
+        return report
+
+    def enroll(self, name: str, embedding: Embedding, actor: str) -> int:
+        report = self.enroll_many(name, [embedding], actor)
+        if report.conflicts:
+            raise EnrollmentError("faces.looks_like_other")
+        return report.total
 
     def delete(self, name: str) -> bool:
         self._cache = None
         return self.store.delete(name)
 
+    def similar_people(self) -> dict[str, tuple[str, float]]:
+        """For each person, the most similar other person and how similar (for warnings)."""
+        samples = self._samples()
+        names = sorted({n for n, _ in samples})
+        result: dict[str, tuple[str, float]] = {}
+        for name in names:
+            mine = [s for n, s in samples if n == name]
+            others = [(n, s) for n, s in samples if n != name]
+            if not others:
+                continue
+            best: dict[str, list[float]] = {}
+            for sample in mine:
+                for other, score in person_scores(sample, others).items():
+                    best.setdefault(other, []).append(score)
+            other, scores = max(best.items(), key=lambda item: float(np.mean(item[1])))
+            result[name] = (other, float(np.mean(scores)))
+        return result
+
+    # --- recognition --------------------------------------------------------------------
+
     def identify(self, image: Image, face: npt.NDArray[np.float32]) -> Identification:
-        if self._cache is None:
-            self._cache = self.store.samples()
-        if not self._cache:
+        samples = self._samples()
+        if not samples:
             return Identification(Verdict.UNKNOWN, None, 0.0)
-        probe = self.embedding(image, face)
-        best_name, best = None, -1.0
-        for name, sample in self._cache:
-            score = float(np.dot(probe, sample / (np.linalg.norm(sample) or 1.0)))
-            if score > best:
-                best_name, best = name, score
-        return classify(best_name, best, self.settings)
+        problem, aligned = self.problem(image, face, enrolling=False)
+        if problem:
+            # Too small or blurry to tell: never claim it is a family member.
+            return Identification(Verdict.UNCERTAIN, None, 0.0, reason=problem)
+        scores = person_scores(self._embed(aligned), samples)
+        ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        best_name, best = ranked[0]
+        runner_up, second = ranked[1] if len(ranked) > 1 else (None, 0.0)
+        result = classify(best_name, best, self.settings)
+        if result.verdict is Verdict.KNOWN and runner_up and best - second < PERSON_MARGIN:
+            result = Identification(Verdict.UNCERTAIN, None, best, reason="faces.look_alike")
+        return Identification(result.verdict, result.name, best, runner_up, second, result.reason)
 
 
 def classify(name: str | None, score: float, settings: FaceSettings) -> Identification:

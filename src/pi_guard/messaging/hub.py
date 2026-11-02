@@ -7,6 +7,7 @@ command handler.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
@@ -258,12 +259,26 @@ class Messenger:
         await provider.send(chat_id, reply)
 
     async def _send_safely(self, provider_name: str, chat_id: str, reply: Reply) -> None:
-        try:
-            await self.send(provider_name, chat_id, reply)
-        except Exception as exc:
-            log.warning("could not reply via %s: %s", provider_name, exc)
+        # Answers to commands get two more tries: a short network hiccup must not mean
+        # that the user gets no answer at all.
+        for attempt, pause in enumerate((2.0, 5.0, None)):
+            try:
+                await self.send(provider_name, chat_id, reply)
+                return
+            except Exception as exc:
+                if pause is None or not _transient(exc):
+                    log.warning("could not reply via %s: %s", provider_name, exc)
+                    return
+                log.info("reply via %s failed (%s), try %d again", provider_name, exc, attempt + 2)
+                await asyncio.sleep(pause)
 
     async def _notify_admins(self, text: str) -> None:
         for user in self._app.users.all():
             if user.role is Role.ADMIN and user.provider in self._app.providers:
                 await self._send_safely(user.provider, user.user_id, Reply(text))
+
+
+def _transient(exc: Exception) -> bool:
+    """Timeouts and connection problems, not refusals (blocked bot, bad request)."""
+    name = type(exc).__name__
+    return isinstance(exc, (TimeoutError, OSError)) or name in ("TimedOut", "NetworkError")

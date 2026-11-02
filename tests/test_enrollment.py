@@ -37,6 +37,15 @@ class FakeRecognizer:
     def enroll(self, name: str, embedding: np.ndarray, actor: str) -> int:
         return self.store.add(name, embedding, actor, self.settings.max_samples_per_person)
 
+    def enroll_many(self, name: str, samples: list[np.ndarray], actor: str) -> Any:
+        from pi_guard.detection.faces import EnrollReport
+
+        report = EnrollReport()
+        for sample in samples:
+            report.total = self.enroll(name, sample, actor)
+            report.stored += 1
+        return report
+
     def delete(self, name: str) -> bool:
         return self.store.delete(name)
 
