@@ -103,7 +103,7 @@ class Dashboard:
             if self.settings.dashboard_tls_cert and self.settings.dashboard_tls_key:
                 cert, key = self.settings.dashboard_tls_cert, self.settings.dashboard_tls_key
             else:
-                _, cert, key = ensure_certificates(self.tls_dir)
+                _, cert, key = ensure_certificates(self.tls_dir, self.settings.dashboard_tls_names)
             ssl_context = server_context(cert, key)
         runner = web.AppRunner(self.web, access_log=None, shutdown_timeout=5)
         await runner.setup()

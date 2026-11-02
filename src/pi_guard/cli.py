@@ -515,7 +515,8 @@ def dashboard_certs() -> None:
 
     from pi_guard.web.tls import ensure_certificates
 
-    ca, cert, _ = ensure_certificates(_config().settings.data_dir / "tls")
+    settings = _config().settings
+    ca, cert, _ = ensure_certificates(settings.data_dir / "tls", settings.dashboard_tls_names)
     fingerprint = subprocess.run(
         ["openssl", "x509", "-in", str(ca), "-noout", "-fingerprint", "-sha256"],
         capture_output=True,

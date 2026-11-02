@@ -9,6 +9,7 @@ device's addresses change or it is about to expire.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import socket
@@ -51,10 +52,18 @@ def _openssl(*args: str) -> str:
                           check=True).stdout  # fmt: skip
 
 
+def _normalize(entry: str) -> str:
+    entry = entry.strip()
+    try:
+        return str(ipaddress.ip_address(entry))  # "0:0:0:0:0:0:0:1" and "::1" compare equal
+    except ValueError:
+        return entry.lower()
+
+
 def _san(cert: Path) -> set[str]:
     text = _openssl("x509", "-in", str(cert), "-noout", "-ext", "subjectAltName")
-    entries = text.split("\n", 1)[-1].replace(" ", "").split(",")
-    return {e.split(":", 1)[1] for e in entries if ":" in e}
+    entries = text.split("\n", 1)[-1].split(",")
+    return {_normalize(e.split(":", 1)[1]) for e in entries if ":" in e}
 
 
 def _expires(cert: Path) -> datetime:
@@ -62,8 +71,12 @@ def _expires(cert: Path) -> datetime:
     return datetime.strptime(text.split("=", 1)[1], "%b %d %H:%M:%S %Y %Z").replace(tzinfo=UTC)
 
 
-def ensure_certificates(directory: Path) -> tuple[Path, Path, Path]:
-    """Create or renew CA and server certificate; returns (ca_cert, cert, key)."""
+def ensure_certificates(directory: Path, extra: list[str] | None = None) -> tuple[Path, Path, Path]:
+    """Create or renew CA and server certificate; returns (ca_cert, cert, key).
+
+    `extra` adds names or addresses the device is reached by but cannot see
+    itself, e.g. the host's LAN address when running in a container.
+    """
     secure_dir(directory)
     ca_key, ca_cert = directory / "ca.key", directory / "ca.crt"
     key, cert = directory / "server.key", directory / "server.crt"
@@ -76,7 +89,14 @@ def ensure_certificates(directory: Path) -> tuple[Path, Path, Path]:
                  "-addext", "keyUsage=critical,keyCertSign,cRLSign")  # fmt: skip
         ca_key.chmod(0o600)
     names, addresses = local_names(), local_addresses()
-    wanted = set(names) | set(addresses)
+    for entry in extra or []:
+        try:
+            ipaddress.ip_address(entry)
+        except ValueError:
+            names.append(entry)
+        else:
+            addresses.append(entry)
+    wanted = {_normalize(entry) for entry in (*names, *addresses)}
     if cert.exists():
         try:
             fresh = _expires(cert) - datetime.now(UTC) > RENEW_BEFORE

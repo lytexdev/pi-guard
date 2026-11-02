@@ -135,7 +135,9 @@ Secrets (bot token, passwords) can only be changed in `pi-guard.env`.
 ## Docker
 
 The compose file publishes port 8443. Certificates and keys live in the
-`data` volume. Set `PI_GUARD_DASHBOARD_ENABLED=true` and the password hash in
+`data` volume. Inside a container pi-guard only sees the container's own
+addresses, so add the names and addresses you open the dashboard with:
+`PI_GUARD_DASHBOARD_TLS_NAMES=192.168.178.10,raspberrypi.local`. Set `PI_GUARD_DASHBOARD_ENABLED=true` and the password hash in
 `.env`.
 
 ## Later

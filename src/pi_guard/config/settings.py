@@ -113,6 +113,8 @@ class Settings(BaseSettings):
     dashboard_tls: bool = True
     dashboard_tls_cert: Path | None = None
     dashboard_tls_key: Path | None = None
+    # Extra names/addresses for the certificate, e.g. the host's LAN IP in Docker.
+    dashboard_tls_names: StrList = Field(default_factory=list)
     # Comma-separated: password, keyfile; or "none" (only with ALLOW_UNAUTHENTICATED).
     dashboard_auth: StrList = Field(default_factory=lambda: ["password"])
     dashboard_username: str = "admin"
@@ -143,6 +145,7 @@ class Settings(BaseSettings):
         "dashboard_trusted_proxies",
         "emergency_telegram_user_ids",
         "emergency_signal_numbers",
+        "dashboard_tls_names",
         mode="before",
     )
     @classmethod

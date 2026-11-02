@@ -366,3 +366,18 @@ async def test_live_video_stream(web) -> None:  # type: ignore[no-untyped-def]
     response.close()
     await task
     assert b"frame0" in body or b"frame1" in body
+
+
+@pytest.mark.skipif(__import__("shutil").which("openssl") is None, reason="openssl missing")
+def test_certificates_cover_extra_names_and_renew(tmp_path: Path) -> None:
+    from pi_guard.web import tls
+
+    ca, cert, key = tls.ensure_certificates(tmp_path, ["192.0.2.10", "pi.example"])
+    sans = tls._san(cert)
+    assert {"192.0.2.10", "pi.example", "localhost", "127.0.0.1"} <= sans
+    assert key.stat().st_mode & 0o077 == 0 and (tmp_path / "ca.key").stat().st_mode & 0o077 == 0
+    first = cert.read_bytes()
+    tls.ensure_certificates(tmp_path, ["192.0.2.10", "pi.example"])
+    assert cert.read_bytes() == first  # nothing changed, nothing reissued
+    tls.ensure_certificates(tmp_path, ["192.0.2.11"])
+    assert "192.0.2.11" in tls._san(cert) and ca.exists()
