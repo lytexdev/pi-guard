@@ -65,7 +65,3 @@ der Installation [docs/de/datenschutz.md](docs/de/datenschutz.md).
 
 MIT, siehe [LICENSE](LICENSE). Die technische Dokumentation ist auf Englisch
 im Ordner [docs](docs).
-
----
-
-pi-guard · made by lytex

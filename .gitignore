@@ -6,6 +6,8 @@ backups/
 *.sqlite-*
 *.db
 .env
+.env.production
+.env.development
 .env.*
 !.env.example
 CLAUDE.md

@@ -135,7 +135,3 @@ default and need deliberate configuration.
 ## License
 
 MIT, see [LICENSE](LICENSE).
-
----
-
-pi-guard · made by lytex
