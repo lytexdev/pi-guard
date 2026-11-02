@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 
-from pi_guard import __version__
+from pi_guard import CREDIT, __version__
 from pi_guard.audio.service import AudioError, AudioService
 from pi_guard.audio.sounds import SoundLibrary
 from pi_guard.cameras import discovery
@@ -276,7 +276,9 @@ class App:
         return parts
 
     async def run(self) -> None:
-        log.info("pi-guard %s starting with %d camera(s)", __version__, len(self.cameras))
+        log.info(
+            "pi-guard %s (%s) starting with %d camera(s)", __version__, CREDIT, len(self.cameras)
+        )
         tasks = []
         for name, factory in self._components().items():
             state = self.components[name] = ComponentState(name)

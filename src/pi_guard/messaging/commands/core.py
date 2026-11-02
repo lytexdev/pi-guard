@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
+from pi_guard import CREDIT, __version__
 from pi_guard.cameras.pipeline import CameraState, SnapshotUnavailableError
 from pi_guard.core.modes import Selection
 from pi_guard.core.permissions import Role
@@ -355,8 +356,9 @@ async def layout(ctx: CommandContext, args: dict[str, Any]) -> Reply:
 
 
 async def help_(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    credit = f"pi-guard {__version__} · {CREDIT}"
     if ctx.simple:
-        return Reply(ctx.t("help.simple"), buttons=(menu_row(ctx),))
+        return Reply(f"{ctx.t('help.simple')}\n\n{credit}", buttons=(menu_row(ctx),))
     lines = [ctx.t("help.title")]
     for command in ctx.app.registry:
         if command.help_key and ctx.user.role.allows(command.role):
@@ -365,6 +367,7 @@ async def help_(ctx: CommandContext, args: dict[str, Any]) -> Reply:
             lines.append(f"/{command.name}{suffix} – {ctx.t(command.help_key)}")
     lines.append("")
     lines.append(ctx.t("help.plain_text"))
+    lines += ["", credit]
     return Reply("\n".join(lines), buttons=(menu_row(ctx),))
 
 

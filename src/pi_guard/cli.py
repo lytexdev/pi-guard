@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Annotated
 import typer
 from pydantic import ValidationError
 
-from pi_guard import __version__
+from pi_guard import CREDIT, __version__
 from pi_guard.config import Config, load_config
 
 if TYPE_CHECKING:
@@ -84,7 +84,7 @@ def _line(level: str, name: str, detail: str) -> None:
 @app.command()
 def version() -> None:
     """Print the version."""
-    typer.echo(__version__)
+    typer.echo(f"pi-guard {__version__} · {CREDIT}")
 
 
 @app.command()

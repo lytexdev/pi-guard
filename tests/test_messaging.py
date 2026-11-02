@@ -276,3 +276,11 @@ async def test_numbered_menu_for_signal(tmp_path: Path) -> None:
     await app.messenger.handle(msg("1", "+491511111111", provider="signal"))
     assert signal.last().photo is not None
     app.db.close()
+
+
+async def test_help_shows_credit(app) -> None:  # type: ignore[no-untyped-def]
+    await app.messenger.handle(msg("hilfe", VIEWER))
+    assert "made by lytex" in provider(app).last().text
+    await app.messenger.handle(msg("/layout advanced", VIEWER))
+    await app.messenger.handle(msg("/help", VIEWER))
+    assert "made by lytex" in provider(app).last().text
