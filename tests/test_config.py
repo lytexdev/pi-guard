@@ -169,16 +169,20 @@ def test_starter_config_survives_awkward_device_names(tmp_path: Path) -> None:
                          "HD Web Camera: HD Web Camera",
                          (VideoFormat("mjpeg", True, ((1280, 720),)),))  # fmt: skip
     audio = [
+        # What a Raspberry Pi with a USB speaker, a USB microphone and a webcam reports.
         AudioDevice(0, "vc4hdmi0", 0, "vc4-hdmi – MAI PCM", True, False),
-        AudioDevice(3, "SF558", 0, "USB-Audio - SF-558 – USB Audio", True, False),
-        AudioDevice(2, "Camera", 0, "USB-Audio - HD Web Camera – USB Audio", False, True),
+        AudioDevice(3, "Device", 0, "USB-Audio - USB PnP Audio Device – USB Audio", True, False),
+        AudioDevice(3, "Device", 0, "USB-Audio - USB PnP Audio Device – USB Audio", False, True),
+        AudioDevice(4, "Camera", 0, "USB-Audio - HD Web Camera – USB Audio", False, True),
+        AudioDevice(5, "SF558", 0, "USB-Audio - SF-558 – USB Audio", False, True),
     ]
     path = tmp_path / "config.yaml"
     path.write_text(starter_config([camera], audio))
     config = load_file_config(path)
     assert config.cameras[0].name == "HD Web Camera: HD Web Camera"
-    assert config.audio.speaker == "plughw:CARD=SF558,DEV=0"  # USB before HDMI
-    assert config.audio.microphone == "plughw:CARD=Camera,DEV=0"
+    assert config.audio.speaker == "plughw:CARD=Device,DEV=0"  # USB before HDMI
+    # Not the speaker's dummy input, not the webcam: the separate microphone.
+    assert config.audio.microphone == "plughw:CARD=SF558,DEV=0"
 
 
 def test_broken_yaml_gives_a_readable_error(tmp_path: Path) -> None:

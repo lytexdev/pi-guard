@@ -65,7 +65,7 @@ export async function render(main, params = [], opts = {}) {
           if (await confirmDialog(t("web.delete_person_confirm", { name: p.name }), t("web.delete"), true)
               && await attempt(() => api(`/api/people/${encodeURIComponent(p.name)}`, { method: "DELETE" }), t("web.deleted"))) drawList();
         } }, icon("trash"))))
-        : h("li", { class: "empty" }, t("faces.none")))),
+        : h("li", { class: "empty" }, t("faces.none"))),
       h("p", { class: "muted" }, h("small", {}, t("web.faces_privacy"))));
   };
   enrollForm();

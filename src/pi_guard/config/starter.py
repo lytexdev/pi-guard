@@ -31,6 +31,22 @@ def _prefer_usb(devices: list[AudioDevice]) -> AudioDevice | None:
     return next((d for d in devices if d.usb), devices[0] if devices else None)
 
 
+def _pick_microphone(devices: list[AudioDevice], cameras: list[VideoDevice]) -> AudioDevice | None:
+    """A dedicated USB microphone (a card that cannot play sound) beats the dummy input of
+    USB speakers and sound cards, which often records nothing but noise; a separate
+    microphone beats the one built into a webcam."""
+    playback_cards = {d.card for d in devices if d.playback}
+    capture = [d for d in devices if d.capture]
+    dedicated = [d for d in capture if d.usb and d.card not in playback_cards]
+    camera_names = {c.name.split(":")[0].strip().casefold() for c in cameras} - {""}
+
+    def in_camera(device: AudioDevice) -> bool:
+        return any(name in device.name.casefold() for name in camera_names)
+
+    ranked = sorted(dedicated, key=in_camera)
+    return ranked[0] if ranked else _prefer_usb(capture)
+
+
 def starter_config(cameras: list[VideoDevice], audio: list[AudioDevice]) -> str:
     lines = [
         "# pi-guard configuration. Reference: docs/configuration.md",
@@ -63,7 +79,7 @@ def starter_config(cameras: list[VideoDevice], audio: list[AudioDevice]) -> str:
         lines.append("  []  # no camera detected; see `pi-guard cameras`")
 
     speaker = _prefer_usb([d for d in audio if d.playback])
-    microphone = _prefer_usb([d for d in audio if d.capture])
+    microphone = _pick_microphone(audio, cameras)
     lines += ["", "audio:"]
     lines.append(f"  speaker: {_q(speaker.alsa_name) if speaker else 'null'}")
     lines.append(f"  microphone: {_q(microphone.alsa_name) if microphone else 'null'}")

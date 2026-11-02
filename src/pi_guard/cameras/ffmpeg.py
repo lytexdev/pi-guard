@@ -145,6 +145,11 @@ def detection_size(camera: CameraConfig) -> tuple[int, int]:
     return out_w, out_h
 
 
+SEGMENT_MOVFLAGS = (
+    "movflags=+frag_keyframe+empty_moov+default_base_moof:frag_duration=2000000:flush_packets=1"
+)
+
+
 def build_command(
     camera: CameraConfig,
     choice: CaptureChoice,
@@ -199,7 +204,9 @@ def build_command(
         args += [
             "-f", "segment", "-segment_time", str(segment_seconds), "-segment_atclocktime", "1",
             "-segment_format", "mp4",
-            "-segment_format_options", "movflags=+frag_keyframe+empty_moov+default_base_moof",
+            # frag_duration: cameras sending H.264 with rare keyframes would otherwise
+            # write nothing for minutes (looks like a stall, and a crash loses it all).
+            "-segment_format_options", SEGMENT_MOVFLAGS,
             "-reset_timestamps", "1", "-strftime", "1",
             str(segment_dir / SEGMENT_PATTERN),
         ]

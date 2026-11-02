@@ -164,6 +164,11 @@ else
     PRESENCE=false
     yes_no "Detect automatically whether you are at home via your phone's Wi-Fi?" n && PRESENCE=true
 
+    MIC=false
+    echo "Microphone: lets admins listen in live and record sound clips. Read docs/privacy.md;"
+    echo "everyone in the home should know about it."
+    yes_no "Enable the microphone?" n && MIC=true
+
     ask "Where should recordings be stored?" "$DATA/recordings"; RECORDINGS="$REPLY"
     ask "Keep recordings for how many days?" "7"; RETENTION="$REPLY"
 
@@ -183,6 +188,8 @@ PI_GUARD_SIGNAL_ENABLED=$SIGNAL_ENABLED
 PI_GUARD_SIGNAL_PHONE_NUMBER=$SIGNAL_NUMBER
 PI_GUARD_SIGNAL_ADMIN_NUMBERS=$SIGNAL_ADMINS
 PI_GUARD_PRESENCE_ENABLED=$PRESENCE
+PI_GUARD_AUDIO_PLAYBACK_ENABLED=true
+PI_GUARD_AUDIO_RECORDING_ENABLED=$MIC
 PI_GUARD_MOTION_ENABLED=true
 PI_GUARD_DEFAULT_MODE=HOME
 ENV
