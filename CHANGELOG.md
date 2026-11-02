@@ -21,6 +21,18 @@ All notable changes are documented here. The format follows
 - Everyday sentences in private chats, with buttons when unclear.
 - Credit "made by lytex" in help, `pi-guard version` and the startup log.
 
+- Optional web dashboard (see docs/dashboard.md) with password/key-file
+  login, optional TOTP, local HTTPS certificate authority, CSRF protection,
+  rate limits, bans, honeypots and noindex; live view, listening,
+  push-to-talk, image tools, trusted people, sounds and alarm, device
+  selection, settings, users, key files, sessions, statistics and logs;
+  installable PWA with optional Web Push.
+- Emergency contacts for alerts that stay unconfirmed; "Everything is fine"
+  button and `ok` command.
+- Pi-hole v6 integration (statistics, pause, LAN devices, presence source),
+  WireGuard/PiVPN status, `scripts/network.sh` for a fixed address with
+  automatic rollback, Pi-hole Docker profile.
+
 ### Fixed
 
 - Upload hardening described in an earlier commit was missing in

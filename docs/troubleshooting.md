@@ -87,6 +87,19 @@ sudo journalctl -u pi-guard -n 100
 - The microphone of a camera cannot be listened to separately while the camera
   records with it; `/listen` cuts the audio from the recording in that case.
 
+## Dashboard
+
+- "Your connection is not private": install the CA certificate on that device
+  ([dashboard.md](dashboard.md#https-and-the-certificate)). After a new IP
+  address the certificate is reissued at the next start.
+- "Talk" button greyed out: the page is not on trusted HTTPS.
+- 403 on every page: your address was banned (honeypot or too many failed
+  logins). Wait `PI_GUARD_DASHBOARD_BAN_MINUTES` or restart pi-guard.
+- No push on iPhone: only the installed app (Home Screen) can receive push,
+  iOS 16.4 or newer.
+- Live picture black: `PI_GUARD_DASHBOARD_LIVE_FPS` is 0, or the camera is
+  reconnecting (see Overview).
+
 ## Signal
 
 - `pi-guard signal test` must report a version.

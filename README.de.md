@@ -34,6 +34,15 @@ zusätzliche App und keine Fachbegriffe.
   eine unbekannte Person. Unbekannte Personen werden mit Foto gemeldet.
 - **Alarm:** Alarmton (auch einen eigenen) über einen Lautsprecher auslösen
   und wieder stoppen.
+- **Notfallkontakte:** Bleiben Meldungen unbestätigt, bekommen eingetragene
+  Ersatzkontakte eine Zusammenfassung mit Fotos.
+- **Web-Dashboard (optional):** Live-Bild und -Ton, Sprechen über den
+  Lautsprecher, Bildwerkzeuge, vertraute Personen, Geräteauswahl,
+  Einstellungen, Statistik und Logs; als App installierbar mit
+  Push-Meldungen; Anmeldung mit Passwort oder Schlüsseldatei, optional mit
+  Zwei-Faktor-Code. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
+- **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-Status,
+  feste IP-Adresse. Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
 - **Optional und standardmäßig aus:** Signal, Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
   Home Assistant.

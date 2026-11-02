@@ -33,6 +33,14 @@ commands, no app besides the messenger, and no technical vocabulary.
   unknown person. Unknown people are reported with a photo.
 - **Alarm.** Sound the alarm (or your own uploaded sound) on a speaker, and stop
   it, from the chat.
+- **Emergency contacts.** If alerts stay unconfirmed, backup contacts get a
+  summary with photos.
+- **Web dashboard (optional).** Live picture and sound, talk through the
+  speaker, image tools, trusted people, device selection, settings,
+  statistics and logs; installable as an app with push notifications; login
+  by password or key file with optional two-factor codes.
+- **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
+  WireGuard status, a safe fixed-IP script.
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
@@ -111,12 +119,15 @@ pi-guard logs -f
 | [Privacy](docs/privacy.md) | what is stored, what leaves the device, legal notes |
 | [Hardware](docs/hardware.md) | cameras, audio, storage |
 | [Docker](docs/docker.md) | optional container deployment |
+| [Dashboard](docs/dashboard.md) | web dashboard, certificates, app and push |
+| [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
 | [Architecture](docs/architecture.md) | how the parts fit together |
 | [Performance](docs/performance.md) | measurements and limits |
 | [Troubleshooting](docs/troubleshooting.md) | common problems |
 
 German: [Installation](docs/de/installation.md) ·
-[Bedienung](docs/de/bedienung.md) · [Datenschutz](docs/de/datenschutz.md)
+[Bedienung](docs/de/bedienung.md) · [Dashboard](docs/de/dashboard.md) ·
+[Netzwerk](docs/de/netzwerk.md) · [Datenschutz](docs/de/datenschutz.md)
 
 ## Privacy
 

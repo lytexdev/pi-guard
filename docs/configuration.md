@@ -89,6 +89,30 @@ ID; group IDs are negative).
 | `PERSON_DETECTION_ENABLED` | `false` | |
 | `FACE_RECOGNITION_ENABLED` | `false` | requires person detection |
 
+### Emergency contacts
+
+| Name | Default | |
+|---|---|---|
+| `EMERGENCY_TELEGRAM_USER_IDS` | – | contacts that must have started the bot once |
+| `EMERGENCY_SIGNAL_NUMBERS` | – | |
+| `EMERGENCY_AFTER_ALERTS` | `3` | open (unconfirmed) alerts needed… |
+| `EMERGENCY_AFTER_MINUTES` | `30` | …the oldest open for at least this long |
+
+An alert (movement, person, unknown person) that was sent stays open until
+someone presses *Everything is fine*, sends `ok`, says they are at home
+(`/home`, "Ich bin wieder da") or confirms it in the dashboard. Automatic
+presence detection does not confirm alerts. When the thresholds are reached,
+the contacts get one message with a summary and up to three photos, and the
+admins are told; later alerts are added to the same escalation.
+
+### Dashboard, push, network
+
+See [dashboard.md](dashboard.md) and [network.md](network.md): `DASHBOARD_*`,
+`WEBPUSH_ENABLED`, `WEBPUSH_CONTACT`, `PIHOLE_ENABLED`, `PIHOLE_URL`,
+`PIHOLE_PASSWORD`, `WIREGUARD_ENABLED`, `WIREGUARD_INTERFACE`.
+Settings saved in the dashboard go to `DATA_DIR/dashboard.env` and
+`DATA_DIR/dashboard.yaml`, which take precedence over the files here.
+
 ### Audio, MQTT
 
 | Name | Default | |
@@ -157,7 +181,7 @@ presence:
   away_grace_period_seconds: 600   # nobody seen this long -> AWAY
   home_confirmation_seconds: 30    # seen continuously this long -> HOME
   unknown_mode: AWAY               # mode while presence is UNKNOWN: AWAY | HOME | last
-  sources: [neighbours]            # neighbours | fritzbox
+  sources: [neighbours]            # neighbours | fritzbox | pihole
   interface: null                  # e.g. wlan0
   fritzbox: {host: fritz.box, port: 49000, username: ""}
   devices:
@@ -202,6 +226,7 @@ Event types and their defaults:
 | `storage_low` | yes (critical) | both | admins | 12 h | – |
 | `presence_changed` | no | both | admins | – | – |
 | `arrival_detected` | yes | AWAY | all | 10 min | – |
+| `emergency_escalated` | no (admins are told directly) | both | admins | – | – |
 | `mode_changed` | yes | both | all except who changed it | – | – |
 | `system_started` | yes | both | admins | – | – |
 

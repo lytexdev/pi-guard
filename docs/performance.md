@@ -31,8 +31,14 @@ encoder CPU and memory; slower CPU: higher Python and decode cost).
 | FFmpeg capture process (libx264) | 155–245 MB RSS, 30–50 % of one core |
 | HOG person detector, 640 px image | ~20 ms |
 | YuNet face detection, 640 px image | ~15 ms |
+| Live view: parsing the MJPEG stream (60 KB frames) | 0.018 ms per frame (0.01 % of a core at 8 FPS) |
+| Image tools on a 1280×720 picture | sharpen 2 ms, zoom 3 ms, brighten 24 ms |
 
 Reproduce the motion benchmark with `python scripts/bench_motion.py [width]`.
+
+The live view is an additional MJPEG output of the capture process. Encoding
+it costs FFmpeg CPU time while the dashboard is enabled, whether or not anyone
+watches; lower `PI_GUARD_DASHBOARD_LIVE_FPS` or set it to `0` on a busy Pi.
 
 ### Rust?
 
@@ -42,6 +48,11 @@ ten times slower, it stays below 1 % CPU. The expensive work (decoding,
 encoding, scaling) already happens in FFmpeg's C code. A Rust extension would
 add a cross-compilation step for ARM without a measurable benefit, so there is
 none.
+
+The same check for the dashboard: splitting the live stream into frames uses
+FFmpeg's Content-Length headers, so Python reads each frame exactly instead of
+scanning for markers (0.018 ms per frame); fan-out to viewers is network I/O.
+Neither benefits measurably from Rust.
 
 ## Limits on a Raspberry Pi 4 (2 GB)
 

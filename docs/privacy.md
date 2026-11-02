@@ -27,6 +27,9 @@ runs with `UMask=0077`; databases are `0600`).
 | The same | **Signal** (end-to-end encrypted) | only if Signal is enabled |
 | Mode, presence state, camera status, motion events (no images, no names) | your **MQTT broker** | only if MQTT is enabled |
 | A presence query per trusted device | your **router** (FRITZ!Box source) | only if configured |
+| Alert summary and up to three photos | **emergency contacts** via Telegram/Signal | only if alerts stay unconfirmed and contacts are configured |
+| Alert text (no photos, no names) | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |
+| Live picture and sound, files you upload | your own browser, over HTTPS | only while you use the dashboard |
 | Model files (download) | from GitHub | only when you run `pi-guard models download` |
 
 Telegram bot chats are **not end-to-end encrypted**: photos and videos sent by
@@ -55,6 +58,10 @@ independent of data protection law. pi-guard therefore:
 - plays a chime on the speaker (if one is configured) before a live recording
 - writes every `/listen` to the audit log
 
+Live listening in the dashboard follows the same rules: it needs
+`PI_GUARD_AUDIO_RECORDING_ENABLED`, plays the chime on site, ends after ten
+minutes and is audited. Talking through the speaker is audited too.
+
 If a camera has a `microphone`, its audio is part of the continuous recording.
 Only do this where everyone who can be recorded knows and agrees.
 
@@ -82,6 +89,14 @@ text is sent to any language service.
 
 Delete a person with `/faces delete NAME` or `pi-guard faces delete NAME`.
 To remove all biometric data, stop the service and delete `biometrics.db`.
+
+## Network data
+
+The dashboard's network page shows what the Pi already knows (its neighbour
+table) and, if connected, Pi-hole's client list. Pi-hole itself records every
+DNS query of every device in the home; that is a separate product with its
+own privacy settings (query logging, anonymisation) which you should review.
+pi-guard does not scan the network.
 
 ## Legal notes for Germany
 

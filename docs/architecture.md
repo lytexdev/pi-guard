@@ -39,6 +39,8 @@ pi-guard is one Python process (asyncio) plus one FFmpeg process per camera.
 | `storage` | SQLite state |
 | `security` | file permissions, redaction, rate limiting |
 | `diagnostics` | `pi-guard doctor`, host metrics |
+| `web` | optional dashboard: aiohttp server, auth, security middleware, JSON API, static single-page app, Web Push |
+| `network` | Pi-hole client, LAN inventory, WireGuard status |
 | `i18n` | English and German texts |
 
 ## Principles
