@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from pi_guard.core.permissions import User
 from pi_guard.i18n import t
-from pi_guard.messaging.base import Button
+from pi_guard.messaging.base import Button, Reply
 from pi_guard.messaging.commands.registry import ArgError
 
 if TYPE_CHECKING:
@@ -22,8 +22,13 @@ class CommandContext:
     chat_id: str
     is_group: bool
     progress: Callable[[str], Awaitable[None]]
+    send: Callable[[Reply], Awaitable[None]]
     attachment: Path | None = None
     attachment_meta: dict[str, object] = field(default_factory=dict)
+
+    @property
+    def chat_key(self) -> str:
+        return f"{self.user.provider}:{self.chat_id}"
 
     @property
     def lang(self) -> str:

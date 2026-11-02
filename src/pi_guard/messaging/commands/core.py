@@ -110,28 +110,58 @@ async def more(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     return Reply(ctx.t("more.title"), buttons=tuple(rows))
 
 
+def photo_buttons(ctx: CommandContext, camera_id: str) -> tuple[tuple[Button, ...], ...]:
+    """The buttons under every photo: what people want to do next with a picture."""
+    return (
+        (ctx.button("photo.again", f"photo {camera_id}"),
+         ctx.button("menu.video", f"video {camera_id}")),
+        (ctx.button("image.zoom_button", "zoom"),
+         ctx.button("image.sharper_button", f"sharper {camera_id}"),
+         ctx.button("image.brighter_button", "brighter")),
+        menu_row(ctx),
+    )  # fmt: skip
+
+
 async def photo(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    if args.get("all") and len(ctx.app.cameras) > 1:
+        return await _all_photos(ctx)
     pipeline = ctx.camera(args)
     if pipeline is None:
-        return Reply(ctx.t("camera.choose"), buttons=(*ctx.camera_choice("photo"), menu_row(ctx)))
+        choices = (*ctx.camera_choice("photo"), (ctx.button("photo.all", "photo all"),))
+        return Reply(ctx.t("camera.choose"), buttons=(*choices, menu_row(ctx)))
     try:
         path = await ctx.app.take_photo(pipeline.camera.id)
     except SnapshotUnavailableError:
         return Reply(
             ctx.t("photo.unavailable", name=pipeline.camera.name), buttons=(menu_row(ctx),)
         )
+    ctx.app.last_photos[ctx.chat_key] = path
     when = format_time(ctx.app.clock(), ctx.app.settings.tz, ctx.lang)
     return Reply(
         ctx.t("photo.caption", name=pipeline.camera.name, time=when),
         photo=path,
-        buttons=(
-            (
-                ctx.button("photo.again", f"photo {pipeline.camera.id}"),
-                ctx.button("menu.video", f"video {pipeline.camera.id}"),
-            ),
-            menu_row(ctx),
-        ),
+        buttons=photo_buttons(ctx, pipeline.camera.id),
     )
+
+
+async def _all_photos(ctx: CommandContext) -> Reply:
+    """One photo per camera; the last one carries the buttons."""
+    when = format_time(ctx.app.clock(), ctx.app.settings.tz, ctx.lang)
+    replies = []
+    for camera_id, pipeline in ctx.app.cameras.items():
+        try:
+            path = await ctx.app.take_photo(camera_id)
+        except SnapshotUnavailableError:
+            replies.append(Reply(ctx.t("photo.unavailable", name=pipeline.camera.name)))
+            continue
+        ctx.app.last_photos[ctx.chat_key] = path
+        replies.append(Reply(ctx.t("photo.caption", name=pipeline.camera.name, time=when),
+                             photo=path))  # fmt: skip
+    for reply in replies[:-1]:
+        await ctx.send(reply)
+    last = replies[-1]
+    return Reply(last.text, photo=last.photo, buttons=(
+        (ctx.button("photo.all_again", "photo all"),), menu_row(ctx)))  # fmt: skip
 
 
 async def video(ctx: CommandContext, args: dict[str, Any]) -> Reply:
@@ -342,7 +372,11 @@ def register(registry: Registry) -> None:
     registry.add(Command("more", more, ("mehr", "weitere"), menu=False))
     registry.add(
         Command(
-            "photo", photo, ("p", "foto", "bild", "snapshot"), (CameraArg(),), help_key="help.photo"
+            "photo",
+            photo,
+            ("p", "foto", "bild", "snapshot", "fotos", "bilder"),
+            (ChoiceArg("all", {"all": "all", "alle": "all"}), CameraArg()),
+            help_key="help.photo",
         )
     )
     registry.add(

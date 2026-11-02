@@ -92,6 +92,8 @@ class App:
         self.motion: dict[str, MotionDetector] = {}
         self.analysis: MotionAnalysis | None = None
         self.enrollments: dict[str, EnrollmentSession] = {}  # per admin, see commands/faces.py
+        self.last_photos: dict[str, Path] = {}  # "provider:chat" -> photo for /zoom, /brighter
+        self._locator: PersonDetector | None = None
         self.presence: PresenceMonitor | None = None
         self.audio: AudioService | None = None
         if s.audio_playback_enabled or s.audio_recording_enabled:
@@ -182,6 +184,27 @@ class App:
         pipeline = self.cameras[camera_id]
         dest = self.media_dir / "snapshots" / pipeline.snapshot_name(prefix)
         return await pipeline.snapshot(dest)
+
+    async def photo_series(self, camera_id: str, count: int) -> list[Path]:
+        """`count` consecutive snapshots, one per refresh of the camera's snapshot image."""
+        interval = self.cameras[camera_id].camera.snapshot_interval_seconds
+        series = []
+        for index in range(count):
+            if index:
+                await asyncio.sleep(interval + 0.1)
+            series.append(await self.take_photo(camera_id, prefix="series"))
+        return series
+
+    def person_locator(self) -> PersonDetector | None:
+        """Finds where a person is in a picture (no identification); used to frame photos."""
+        if self.analysis is not None and self.analysis.persons is not None:
+            return self.analysis.persons
+        if self._locator is None:
+            try:
+                self._locator = PersonDetector(self.settings.data_dir / "models")
+            except ImportError:
+                return None
+        return self._locator
 
     async def clip(self, camera_id: str, seconds: int, audio_only: bool = False) -> Path:
         pipeline = self.cameras[camera_id]

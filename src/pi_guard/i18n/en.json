@@ -225,5 +225,22 @@
   "faces.video_added": "{count} picture(s) taken from the video.",
   "faces.no_face_video": "I could not find a single clear face in this video.",
   "faces.no_session": "To enroll someone, start with \"Add a person\" or /enroll Name.",
-  "faces.no_samples": "No picture has been added yet."
+  "faces.no_samples": "No picture has been added yet.",
+  "photo.all": "All cameras",
+  "photo.all_again": "New photos of all cameras",
+  "image.zoom_button": "Zoom in",
+  "image.sharper_button": "Sharper",
+  "image.brighter_button": "Brighter",
+  "image.zoom_more": "Zoom in further",
+  "image.working": "One moment, I am taking a few pictures and picking the sharpest…",
+  "image.sharper": "{name}: the sharpest of several pictures, slightly sharpened.",
+  "image.sharper_person": "{name}: the sharpest of several pictures, enlarged around the person.",
+  "image.zoom_choose": "Which part of the picture should be enlarged?",
+  "image.zoom_help": "Choose the part of the picture with the buttons, e.g. \"zoom left\" or \"zoom top right\".",
+  "image.zoomed": "Enlarged. This is a digital zoom: small details can look blurry.",
+  "image.brightened": "Brightened.",
+  "image.no_photo": "Please look at a photo first, then it can be enlarged or brightened.",
+  "help.sharper": "A sharper picture, enlarged around a person if one is visible",
+  "help.zoom": "Enlarge part of the last photo, e.g. /zoom left",
+  "help.brighter": "Brighten the last photo"
 }

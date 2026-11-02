@@ -188,8 +188,11 @@ class Messenger:
         await self._reply(msg, ctx.user, reply)
 
     def _context(self, msg: Incoming, user: User) -> CommandContext:
+        async def send(reply: Reply) -> None:
+            await self._send_safely(msg.provider, msg.chat_id, reply)
+
         async def progress(text: str) -> None:
-            await self._send_safely(msg.provider, msg.chat_id, Reply(text))
+            await send(Reply(text))
 
         return CommandContext(
             self._app,
@@ -197,6 +200,7 @@ class Messenger:
             msg.chat_id,
             msg.is_group,
             progress,
+            send,
             attachment=msg.attachment,
             attachment_meta=msg.attachment_meta,
         )

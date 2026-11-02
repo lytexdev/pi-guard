@@ -225,5 +225,22 @@
   "faces.video_added": "{count} Bild(er) aus dem Video übernommen.",
   "faces.no_face_video": "In diesem Video habe ich kein einzelnes, deutliches Gesicht gefunden.",
   "faces.no_session": "Um jemanden einzutragen, beginnen Sie mit „Person hinzufügen“ oder /eintragen Name.",
-  "faces.no_samples": "Es wurde noch kein Bild hinzugefügt."
+  "faces.no_samples": "Es wurde noch kein Bild hinzugefügt.",
+  "photo.all": "Alle Kameras",
+  "photo.all_again": "Neue Fotos aller Kameras",
+  "image.zoom_button": "Vergrößern",
+  "image.sharper_button": "Schärfer",
+  "image.brighter_button": "Heller",
+  "image.zoom_more": "Weiter vergrößern",
+  "image.working": "Einen Moment, ich mache mehrere Bilder und suche das schärfste aus …",
+  "image.sharper": "{name}: das schärfste von mehreren Bildern, leicht nachgeschärft.",
+  "image.sharper_person": "{name}: das schärfste von mehreren Bildern, auf die Person vergrößert.",
+  "image.zoom_choose": "Welcher Teil des Bildes soll vergrößert werden?",
+  "image.zoom_help": "Wählen Sie den Bildteil mit den Knöpfen, z. B. „vergrößern links“ oder „vergrößern oben rechts“.",
+  "image.zoomed": "Vergrößert. Das ist ein digitaler Zoom: Kleine Details können unscharf aussehen.",
+  "image.brightened": "Aufgehellt.",
+  "image.no_photo": "Bitte sehen Sie sich zuerst ein Foto an, dann kann es vergrößert oder aufgehellt werden.",
+  "help.sharper": "Ein schärferes Bild, auf eine Person vergrößert, wenn eine zu sehen ist",
+  "help.zoom": "Einen Teil des letzten Fotos vergrößern, z. B. /vergrößern links",
+  "help.brighter": "Das letzte Foto aufhellen"
 }

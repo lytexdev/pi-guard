@@ -134,6 +134,9 @@ class Notifier:
         for recipient in recipients:
             token = trust if recipient.admin else None
             reply = self.message(event, recipient.language, attachment, rule, token)
+            if reply.photo is not None:
+                # "Zoom in" under the alert then works on this very picture.
+                self._app.last_photos[f"{recipient.provider}:{recipient.chat_id}"] = reply.photo
             self._enqueue(Delivery(recipient, reply))
 
     def _trust_token(self, event: Event, attachment: Path | None) -> str | None:
@@ -190,6 +193,7 @@ class Notifier:
                 (
                     Button(t("menu.video", lang), f"video {camera.camera.id} 30"),
                     Button(t("photo.again", lang), f"photo {camera.camera.id}"),
+                    Button(t("image.zoom_button", lang), "zoom"),
                 )
             )
         if event.type in _OFFER_HOME and app.modes.effective.value == "AWAY":

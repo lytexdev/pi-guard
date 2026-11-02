@@ -35,7 +35,7 @@ class MotionAnalysis:
         self, app: App, persons: PersonDetector | None, faces: FaceRecognizer | None
     ) -> None:
         self._app = app
-        self._persons = persons
+        self.persons = persons
         self.faces = faces
         self._worker = asyncio.Semaphore(1)
         self._last_check: dict[str, float] = {}
@@ -72,7 +72,7 @@ class MotionAnalysis:
                 snapshot=snapshot,
             )
         )
-        if self._persons is None or snapshot is None:
+        if self.persons is None or snapshot is None:
             return
         interval = self._app.config.file.faces.min_interval_seconds
         now = time.monotonic()
@@ -94,11 +94,11 @@ class MotionAnalysis:
                 return
 
     async def _check(self, camera: str, snapshot: Path) -> Event | None:
-        assert self._persons is not None
+        assert self.persons is not None
         async with self._worker:
             started = time.monotonic()
             try:
-                result = await asyncio.to_thread(self._persons.detect, snapshot)
+                result = await asyncio.to_thread(self.persons.detect, snapshot)
                 identities = []
                 if self.faces is not None and result.faces is not None and result.image is not None:
                     image = result.image

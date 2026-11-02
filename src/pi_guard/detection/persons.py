@@ -93,3 +93,27 @@ class PersonDetector:
         bodies = int(sum(1 for w in np.ravel(weights) if w >= HOG_MIN_WEIGHT)) if len(rects) else 0
         faces = self.faces(image)
         return PersonResult(bodies, faces, image, time.monotonic() - started)
+
+    def locate(self, image: Image) -> tuple[int, int, int, int] | None:
+        """Box (x, y, w, h) of the most prominent person in `image`, faces first."""
+        cv2 = self._cv2
+        height, width = image.shape[:2]
+        scale = width / ANALYSIS_WIDTH if width > ANALYSIS_WIDTH else 1.0
+        small = (
+            image if scale == 1.0 else cv2.resize(image, (ANALYSIS_WIDTH, round(height / scale)))
+        )
+        boxes: list[tuple[float, float, float, float]] = []
+        faces = self.faces(small)
+        if faces is not None and len(faces):
+            boxes = [tuple(row[:4]) for row in faces]
+        else:
+            rects, weights = self._hog.detectMultiScale(small, winStride=(8, 8), scale=1.05)
+            boxes = [
+                tuple(r)
+                for r, w in zip(rects, np.ravel(weights), strict=False)
+                if w >= HOG_MIN_WEIGHT
+            ]
+        if not boxes:
+            return None
+        x, y, w, h = max(boxes, key=lambda b: b[2] * b[3])
+        return round(x * scale), round(y * scale), round(w * scale), round(h * scale)
