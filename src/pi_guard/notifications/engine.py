@@ -20,7 +20,7 @@ from pi_guard.cameras.pipeline import SnapshotUnavailableError
 from pi_guard.core.events import Event, EventType
 from pi_guard.core.permissions import Role
 from pi_guard.core.timeutil import TimeWindow
-from pi_guard.i18n import format_time, t
+from pi_guard.i18n import LANGUAGES, format_time, t
 from pi_guard.messaging.base import Button, ProviderUnavailableError, Reply
 from pi_guard.notifications.escalation import ALERT_TYPES
 from pi_guard.notifications.rules import Rule, resolve
@@ -68,6 +68,7 @@ class Notifier:
         self._recent: deque[float] = deque()
         self._queue: asyncio.Queue[Delivery] = asyncio.Queue(QUEUE_SIZE)
         self._events = app.bus.subscribe("notifier")
+        self._push_tasks: set[asyncio.Task[int]] = set()
 
     async def run(self) -> None:
         await asyncio.gather(
@@ -128,6 +129,9 @@ class Notifier:
         if not self.should_send(event, rule):
             return
         recipients = self.recipients(rule, exclude=event.data.get("actor"))
+        webpush = self._app.webpush
+        if webpush is not None:
+            self._push(event, rule)
         if not recipients:
             return
         attachment = await self._attachment(event, rule)
@@ -142,6 +146,19 @@ class Notifier:
                 # "Zoom in" under the alert then works on this very picture.
                 self._app.last_photos[f"{recipient.provider}:{recipient.chat_id}"] = reply.photo
             self._enqueue(Delivery(recipient, reply))
+
+    def _push(self, event: Event, rule: Rule) -> None:
+        """Short text-only notification to installed dashboard apps."""
+        assert self._app.webpush is not None
+        texts = {
+            lang: {"title": "pi-guard", "body": self.message(event, lang, None, rule).text,
+                   "tag": f"{event.type.value}:{event.camera or ''}", "priority": rule.priority,
+                   "url": "/#/overview"}
+            for lang in LANGUAGES
+        }  # fmt: skip
+        task = asyncio.get_running_loop().create_task(self._app.webpush.send(texts))
+        self._push_tasks.add(task)
+        task.add_done_callback(self._push_tasks.discard)
 
     def _trust_token(self, event: Event, attachment: Path | None) -> str | None:
         """Lets admins enroll the person in this alert's photo with one tap."""

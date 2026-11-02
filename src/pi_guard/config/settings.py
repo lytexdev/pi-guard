@@ -130,6 +130,8 @@ class Settings(BaseSettings):
     # Push notifications to installed dashboard apps; payloads are end-to-end
     # encrypted but travel through the browser vendor's push service.
     webpush_enabled: bool = False
+    # Contact the push services may use to reach the operator (VAPID "sub").
+    webpush_contact: str = "mailto:pi-guard@localhost"
 
     @field_validator(
         "telegram_admin_user_ids",
@@ -194,6 +196,13 @@ class Settings(BaseSettings):
     def _check_interface(cls, value: str) -> str:
         if not re.match(r"^[a-zA-Z0-9_.-]{1,15}$", value):
             raise ValueError("not a network interface name")
+        return value
+
+    @field_validator("webpush_contact")
+    @classmethod
+    def _check_contact(cls, value: str) -> str:
+        if not value.startswith(("mailto:", "https://")):
+            raise ValueError("expected mailto:… or https://…")
         return value
 
     @field_validator("pihole_url")

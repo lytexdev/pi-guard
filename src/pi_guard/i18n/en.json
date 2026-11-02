@@ -480,5 +480,18 @@
   "web.open_alerts": "Open alerts",
   "web.ack_all": "Everything is fine",
   "web.open_alerts_note": "These alerts have not been confirmed. Emergency contacts are informed after {count} unconfirmed alert(s) and {minutes} minutes.",
-  "web.escalated": "forwarded"
+  "web.escalated": "forwarded",
+  "web.this_app": "This app and notifications",
+  "web.install_hint": "Tip: add pi-guard to your home screen (share menu → \"Add to Home Screen\" on iPhone, browser menu → \"Install app\" on Android and computers). On iPhone, push notifications only work in the installed app.",
+  "web.push_disabled": "Push notifications are switched off (Settings → Dashboard).",
+  "web.push_unsupported": "This browser cannot receive push notifications here. Open pi-guard over trusted HTTPS (install the certificate) or install the app.",
+  "web.push_on": "This device receives alerts.",
+  "web.push_off": "This device does not receive alerts.",
+  "web.push_turn_on": "Receive alerts on this device",
+  "web.push_turn_off": "Stop alerts on this device",
+  "web.push_denied": "Notifications were not allowed in the browser.",
+  "web.push_test": "Send a test",
+  "web.push_test_sent": "Test sent.",
+  "web.push_test_body": "Push notifications are working.",
+  "web.push_privacy": "Alerts reach this device through your browser vendor's push service, end-to-end encrypted and without photos."
 }

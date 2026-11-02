@@ -43,6 +43,7 @@ from pi_guard.security.files import atomic_write, secure_dir
 from pi_guard.storage.db import Database
 
 if TYPE_CHECKING:
+    from pi_guard.web.push import WebPush
     from pi_guard.web.server import Dashboard
 
 log = logging.getLogger(__name__)
@@ -119,6 +120,7 @@ class App:
         self.messenger = Messenger(self)
         self.mqtt: MqttBridge | None = None
         self.dashboard: Dashboard | None = None
+        self.webpush: WebPush | None = None
         self.escalation = Escalation(self)
         self.notifier = Notifier(self)
         if s.presence_enabled:
@@ -342,6 +344,10 @@ def build_app(config: Config) -> App:
             log.error("the dashboard needs aiohttp (pip install pi-guard[web])")
         else:
             app.dashboard = WebDashboard(app)
+            if s.webpush_enabled:
+                from pi_guard.web.push import WebPush as WebPushSender
+
+                app.webpush = WebPushSender(app.db, s.data_dir / "vapid.pem", s.webpush_contact)
     if s.mqtt_enabled:
         try:
             import aiomqtt  # noqa: F401

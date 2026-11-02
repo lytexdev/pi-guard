@@ -1,6 +1,45 @@
 // Mobile hub for the secondary pages, plus language and app settings.
-import { h, icon, lang, t, fill } from "../api.js";
+import { api, attempt, h, icon, lang, t, toast, fill } from "../api.js";
 import { switchLanguage } from "../app.js";
+
+function b64ToBytes(base64) {
+  const padded = (base64 + "===".slice((base64.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+}
+
+async function pushPanel() {
+  const info = await api("/api/push").catch(() => ({ enabled: false }));
+  const panel = h("section", { class: "panel stack" }, h("h2", {}, t("web.this_app")));
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  if (!standalone) panel.append(h("p", { class: "muted" }, t("web.install_hint")));
+  if (!info.enabled) { panel.append(h("p", { class: "muted" }, t("web.push_disabled"))); return panel; }
+  if (!window.isSecureContext || !("PushManager" in window) || !navigator.serviceWorker) {
+    panel.append(h("p", { class: "notice" }, t("web.push_unsupported"))); return panel;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+  const status = h("p", {}, "");
+  const toggle = h("button", { class: "big" });
+  const draw = () => {
+    status.textContent = subscription ? t("web.push_on") : t("web.push_off");
+    fill(toggle, icon(subscription ? "bell-ringing" : "bell"), subscription ? t("web.push_turn_off") : t("web.push_turn_on"));
+  };
+  toggle.addEventListener("click", async () => {
+    if (subscription) {
+      await attempt(() => api("/api/push/unsubscribe", { method: "POST", body: { endpoint: subscription.endpoint } }));
+      await subscription.unsubscribe(); subscription = null; draw(); return;
+    }
+    if (await Notification.requestPermission() !== "granted") { toast(t("web.push_denied"), true); return; }
+    subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(info.public_key) });
+    await attempt(() => api("/api/push/subscribe", { method: "POST", body: { subscription: subscription.toJSON(), language: lang } }), t("web.saved"));
+    draw();
+  });
+  draw();
+  panel.append(status, h("div", { class: "row" }, toggle,
+    h("button", { onclick: () => attempt(() => api("/api/push/test", { method: "POST" }), t("web.push_test_sent")) }, t("web.push_test"))),
+    h("p", { class: "muted" }, h("small", {}, t("web.push_privacy"))));
+  return panel;
+}
 
 export async function render(main) {
   const entries = [["network", "network", "web.nav_network"], ["devices", "camera", "web.nav_devices"],
@@ -13,5 +52,6 @@ export async function render(main) {
     h("section", { class: "panel" }, h("h2", {}, t("web.language")),
       h("div", { class: "segmented" }, [["de", "Deutsch"], ["en", "English"]].map(([code, name]) =>
         h("button", { class: lang === code ? "on" : "", onclick: () => switchLanguage(code) }, name)))),
+    await pushPanel(),
     h("p", { class: "muted" }, h("small", {}, "pi-guard · made by lytex")));
 }

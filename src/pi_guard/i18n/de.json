@@ -480,5 +480,18 @@
   "web.open_alerts": "Offene Meldungen",
   "web.ack_all": "Alles in Ordnung",
   "web.open_alerts_note": "Diese Meldungen wurden nicht bestätigt. Notfallkontakte werden nach {count} unbestätigten Meldung(en) und {minutes} Minuten informiert.",
-  "web.escalated": "weitergeleitet"
+  "web.escalated": "weitergeleitet",
+  "web.this_app": "Diese App und Benachrichtigungen",
+  "web.install_hint": "Tipp: Legen Sie pi-guard auf den Startbildschirm (iPhone: Teilen-Menü → „Zum Home-Bildschirm“; Android und Computer: Browser-Menü → „App installieren“). Auf dem iPhone funktionieren Push-Benachrichtigungen nur in der installierten App.",
+  "web.push_disabled": "Push-Benachrichtigungen sind ausgeschaltet (Einstellungen → Dashboard).",
+  "web.push_unsupported": "Dieser Browser kann hier keine Push-Benachrichtigungen empfangen. Öffnen Sie pi-guard über vertrauenswürdiges HTTPS (Zertifikat installieren) oder installieren Sie die App.",
+  "web.push_on": "Dieses Gerät bekommt Meldungen.",
+  "web.push_off": "Dieses Gerät bekommt keine Meldungen.",
+  "web.push_turn_on": "Meldungen auf diesem Gerät erhalten",
+  "web.push_turn_off": "Keine Meldungen mehr auf diesem Gerät",
+  "web.push_denied": "Benachrichtigungen wurden im Browser nicht erlaubt.",
+  "web.push_test": "Test senden",
+  "web.push_test_sent": "Test gesendet.",
+  "web.push_test_body": "Push-Benachrichtigungen funktionieren.",
+  "web.push_privacy": "Meldungen erreichen dieses Gerät über den Push-Dienst Ihres Browser-Herstellers, Ende-zu-Ende-verschlüsselt und ohne Fotos."
 }

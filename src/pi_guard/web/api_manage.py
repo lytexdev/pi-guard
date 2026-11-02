@@ -25,6 +25,7 @@ from pi_guard.config.settings import Settings
 from pi_guard.core.permissions import Role
 from pi_guard.detection.enrollment import EnrollmentSession, video_frames
 from pi_guard.detection.faces import EnrollmentError, FaceRecognizer
+from pi_guard.i18n import t
 from pi_guard.security.files import atomic_write
 from pi_guard.web.server import current, dashboard, read_json
 from pi_guard.web.settings_schema import BY_KEY, FIELDS, SECRETS, to_env
@@ -62,6 +63,10 @@ def routes() -> list[web.RouteDef]:
         web.delete("/api/keyfiles/{name}", delete_keyfile),
         web.post("/api/sessions/logout-all", logout_all),
         web.delete("/api/bans/{ip}", unban),
+        web.get("/api/push", push_info),
+        web.post("/api/push/subscribe", push_subscribe),
+        web.post("/api/push/unsubscribe", push_unsubscribe),
+        web.post("/api/push/test", push_test),
     ]
 
 
@@ -460,3 +465,46 @@ async def logout_all(request: web.Request) -> web.Response:
 async def unban(request: web.Request) -> web.Response:
     dashboard(request).guard.unban(request.match_info["ip"])
     return web.json_response({"ok": True})
+
+
+# --- push notifications -------------------------------------------------------------------
+
+
+def _push(request: web.Request) -> Any:
+    sender = dashboard(request).app.webpush
+    if sender is None:
+        raise web.HTTPConflict(text="push notifications are switched off")
+    return sender
+
+
+async def push_info(request: web.Request) -> web.Response:
+    sender = dashboard(request).app.webpush
+    if sender is None:
+        return web.json_response({"enabled": False})
+    return web.json_response({"enabled": True, "public_key": sender.public_key,
+                              "devices": len(sender.subscriptions())})  # fmt: skip
+
+
+async def push_subscribe(request: web.Request) -> web.Response:
+    data = await read_json(request)
+    try:
+        _push(request).subscribe(data.get("subscription") or {}, str(data.get("language", "")),
+                                 current(request).username)  # fmt: skip
+    except ValueError as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from None
+    return web.json_response({"ok": True})
+
+
+async def push_unsubscribe(request: web.Request) -> web.Response:
+    data = await read_json(request)
+    return web.json_response({"removed": _push(request).unsubscribe(str(data.get("endpoint", "")))})
+
+
+async def push_test(request: web.Request) -> web.Response:
+    sender = _push(request)
+    texts = {
+        lang: {"title": "pi-guard", "body": t("web.push_test_body", lang), "tag": "test",
+               "priority": "normal", "url": "/#/overview"}
+        for lang in ("de", "en")
+    }  # fmt: skip
+    return web.json_response({"delivered": await sender.send(texts)})
