@@ -39,6 +39,7 @@ DEFAULTS: dict[EventType, Rule] = {
     EventType.RECORDING_FAILED: Rule(True, "critical", BOTH, "admins", 3600),
     EventType.STORAGE_LOW: Rule(True, "critical", BOTH, "admins", 12 * 3600),
     EventType.PRESENCE_CHANGED: Rule(False, "low", BOTH, "admins", 0),
+    EventType.ARRIVAL_DETECTED: Rule(True, "high", (Mode.AWAY,), "all", 600),
     EventType.MODE_CHANGED: Rule(True, "low", BOTH, "all", 0),
     EventType.SYSTEM_STARTED: Rule(True, "low", BOTH, "admins", 0),
     EventType.MOTION_ENDED: Rule(False, "low", BOTH, "admins", 0),

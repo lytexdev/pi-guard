@@ -29,6 +29,13 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Alerts that someone at home may have caused; they get an "I am at home" button.
+_OFFER_HOME = (
+    EventType.MOTION_DETECTED,
+    EventType.PERSON_DETECTED,
+    EventType.UNKNOWN_PERSON,
+    EventType.ARRIVAL_DETECTED,
+)
 RETRY_DELAYS = (5.0, 30.0, 120.0)
 QUEUE_SIZE = 200
 
@@ -162,11 +169,7 @@ class Notifier:
                     Button(t("photo.again", lang), f"photo {camera.camera.id}"),
                 )
             )
-        if (
-            event.type
-            in (EventType.MOTION_DETECTED, EventType.PERSON_DETECTED, EventType.UNKNOWN_PERSON)
-            and app.modes.effective.value == "AWAY"
-        ):
+        if event.type in _OFFER_HOME and app.modes.effective.value == "AWAY":
             buttons.append((Button(t("mode.button_home", lang), "home"),))
         buttons.append((Button(t("button.menu", lang), "menu"),))
         is_video = attachment is not None and attachment.suffix == ".mp4"

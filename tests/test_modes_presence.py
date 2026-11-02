@@ -256,3 +256,49 @@ async def test_monitor_updates_mode_and_publishes(tmp_path: Path, db: Database) 
     assert types.count(EventType.PRESENCE_CHANGED) == 2
     assert EventType.MODE_CHANGED in types
     assert monitor.devices()[0].last_seen == at(0)
+
+
+# --- direction limits ---------------------------------------------------------------------
+
+
+def test_auto_home_off_arms_but_never_disarms(db: Database) -> None:
+    modes = ModeController(db, None, Mode.HOME, True, "AWAY", auto_home=False)
+    modes.update_presence(Presence.AWAY)
+    assert modes.effective is Mode.AWAY
+    modes.update_presence(Presence.HOME)
+    assert modes.effective is Mode.AWAY  # a phone in the Wi-Fi does not disarm
+    modes.set_manual(Mode.HOME)
+    assert modes.effective is Mode.HOME  # a person still can
+
+
+def test_auto_away_off_never_arms(db: Database) -> None:
+    modes = ModeController(db, None, Mode.HOME, True, "AWAY", auto_away=False)
+    modes.update_presence(Presence.AWAY)
+    assert modes.effective is Mode.HOME
+    modes.set_manual(Mode.AWAY)
+    modes.set_auto()
+    modes.update_presence(Presence.HOME)
+    assert modes.effective is Mode.HOME
+
+
+async def test_arrival_while_armed_is_announced(db: Database) -> None:
+    settings = PresenceSettings(
+        home_confirmation_seconds=0,
+        away_grace_period_seconds=60,
+        devices=[TrustedDevice(id="phone", name="Annas Handy", mac_address="aa:bb:cc:dd:ee:ff")],
+    )
+    bus = EventBus()
+    events = bus.subscribe("t")
+    modes = ModeController(db, bus, Mode.HOME, True, "AWAY", auto_home=False)
+    monitor = PresenceMonitor(settings, [ScriptedSource([MISS, MISS, SEEN])], modes, bus)
+    await monitor.check(at(0))
+    await monitor.check(at(60))
+    assert modes.effective is Mode.AWAY
+    await monitor.check(at(120))
+    assert modes.effective is Mode.AWAY
+    arrivals = []
+    while not events.empty():
+        event = events.get_nowait()
+        if event.type is EventType.ARRIVAL_DETECTED:
+            arrivals.append(event)
+    assert arrivals and arrivals[0].data == {"devices": "Annas Handy"}

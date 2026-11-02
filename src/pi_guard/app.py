@@ -20,7 +20,7 @@ from pi_guard.config import Config
 from pi_guard.config.files import CameraConfig
 from pi_guard.core.events import Event, EventBus, EventType
 from pi_guard.core.lifecycle import ComponentState, supervise
-from pi_guard.core.modes import Mode, ModeController
+from pi_guard.core.modes import Mode, mode_controller
 from pi_guard.core.permissions import Role, UserStore
 from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.analysis import MotionAnalysis
@@ -82,9 +82,7 @@ class App:
                 | {n: Role.ADMIN for n in s.signal_admin_numbers},
             },
         )
-        self.modes = ModeController(
-            self.db, self.bus, s.default_mode, s.presence_enabled, config.file.presence.unknown_mode
-        )
+        self.modes = mode_controller(self.db, self.bus, config)
         if cameras is None:
             cameras = config.cameras
         self.cameras: dict[str, CameraPipeline] = {

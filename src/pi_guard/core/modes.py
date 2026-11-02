@@ -18,6 +18,7 @@ from pi_guard.core.events import Event, EventBus, EventType
 from pi_guard.core.timeutil import utcnow
 
 if TYPE_CHECKING:
+    from pi_guard.config import Config
     from pi_guard.storage.db import Database
 
 log = logging.getLogger(__name__)
@@ -63,8 +64,13 @@ class ModeController:
         default_mode: Mode,
         presence_enabled: bool,
         unknown_mode: Literal["AWAY", "HOME", "last"] = "AWAY",
+        *,
+        auto_home: bool = True,
+        auto_away: bool = True,
     ) -> None:
         self._db = db
+        self._auto_home = auto_home
+        self._auto_away = auto_away
         self._bus = bus
         self._presence_enabled = presence_enabled
         self._unknown_mode = unknown_mode
@@ -107,14 +113,14 @@ class ModeController:
         if not self._presence_enabled:
             raise AutoUnavailableError
         state = replace(self._state, selection=Selection.AUTO, manual_until=None, revert_to=None)
-        self._apply(state, self._derive(state), actor)
+        self._apply(state, self._target(state), actor)
         return self._state
 
     def update_presence(self, presence: Presence) -> None:
         if presence is self._state.presence:
             return
         state = replace(self._state, presence=presence)
-        target = self._derive(state) if state.selection is Selection.AUTO else state.effective
+        target = self._target(state) if state.selection is Selection.AUTO else state.effective
         self._apply(state, target, "presence")
 
     def tick(self, now: datetime | None = None) -> None:
@@ -131,7 +137,7 @@ class ModeController:
                 state = replace(
                     self._state, selection=Selection.AUTO, manual_until=None, revert_to=None
                 )
-                self._apply(state, self._derive(state), "override-expired")
+                self._apply(state, self._target(state), "override-expired")
             else:
                 target = self._state.revert_to or self._state.effective
                 self._apply(
@@ -139,6 +145,19 @@ class ModeController:
                     target,
                     "override-expired",
                 )
+
+    def _target(self, state: ModeState) -> Mode:
+        """Presence-derived mode, limited to the directions automation may switch.
+
+        With auto_home off, presence can arm (AWAY) but never disarm: a phone in
+        the Wi-Fi is not proof that its owner is the one at the door.
+        """
+        target = self._derive(state)
+        if target is Mode.HOME and state.effective is Mode.AWAY and not self._auto_home:
+            return Mode.AWAY
+        if target is Mode.AWAY and state.effective is Mode.HOME and not self._auto_away:
+            return Mode.HOME
+        return target
 
     def _derive(self, state: ModeState) -> Mode:
         if state.presence is Presence.HOME:
@@ -207,3 +226,16 @@ class ModeController:
             revert_to=Mode(raw["revert_to"]) if raw.get("revert_to") else None,
             changed_at=datetime.fromisoformat(changed) if changed else None,
         )
+
+
+def mode_controller(db: Database, bus: EventBus | None, config: Config) -> ModeController:
+    s = config.settings
+    return ModeController(
+        db,
+        bus,
+        s.default_mode,
+        s.presence_enabled,
+        config.file.presence.unknown_mode,
+        auto_home=s.presence_auto_home,
+        auto_away=s.presence_auto_away,
+    )

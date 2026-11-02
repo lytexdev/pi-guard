@@ -158,6 +158,7 @@ EventName = Literal[
     "recording_failed",
     "storage_low",
     "presence_changed",
+    "arrival_detected",
     "mode_changed",
     "system_started",
 ]

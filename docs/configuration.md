@@ -83,6 +83,8 @@ ID; group IDs are negative).
 | `MOTION_SENSITIVITY` | `50` | 0–100; per camera override |
 | `DEFAULT_MODE` | `HOME` | mode on first start |
 | `PRESENCE_ENABLED` | `false` | |
+| `PRESENCE_AUTO_HOME` | `true` | `false`: presence never switches to HOME by itself; a "trusted device is back" message with an *I am at home* button is sent instead |
+| `PRESENCE_AUTO_AWAY` | `true` | `false`: presence never switches to AWAY by itself |
 | `FRITZBOX_PASSWORD` | – | for the `fritzbox` presence source |
 | `PERSON_DETECTION_ENABLED` | `false` | |
 | `FACE_RECOGNITION_ENABLED` | `false` | requires person detection |

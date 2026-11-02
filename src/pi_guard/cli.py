@@ -136,7 +136,7 @@ def health() -> None:
 @app.command()
 def status() -> None:
     """Show service state, mode, cameras and recent events."""
-    from pi_guard.core.modes import ModeController
+    from pi_guard.core.modes import mode_controller
     from pi_guard.diagnostics.doctor import heartbeat_age, service_state
     from pi_guard.diagnostics.system import system_snapshot
     from pi_guard.recording.segments import latest_segment
@@ -148,9 +148,7 @@ def status() -> None:
     beat = f", heartbeat {age:.0f}s ago" if age is not None else ", no heartbeat"
     typer.echo(f"service:   {service_state()}{beat}")
     db = Database(s.data_dir / "pi-guard.db")
-    modes = ModeController(
-        db, None, s.default_mode, s.presence_enabled, config.file.presence.unknown_mode
-    )
+    modes = mode_controller(db, None, config)
     state = modes.state
     until = (
         f" until {state.manual_until.astimezone(s.tz):%Y-%m-%d %H:%M}" if state.manual_until else ""
@@ -202,16 +200,14 @@ def mode(
     duration: Annotated[str | None, typer.Option("--for", help="e.g. 2h, 30m")] = None,
 ) -> None:
     """Show or set the HOME/AWAY mode; the running service applies it within seconds."""
-    from pi_guard.core.modes import AutoUnavailableError, Mode, ModeController
+    from pi_guard.core.modes import AutoUnavailableError, Mode, mode_controller
     from pi_guard.core.timeutil import parse_duration
     from pi_guard.storage.db import Database
 
     config = _config()
     s = config.settings
     db = Database(s.data_dir / "pi-guard.db")
-    modes = ModeController(
-        db, None, s.default_mode, s.presence_enabled, config.file.presence.unknown_mode
-    )
+    modes = mode_controller(db, None, config)
     try:
         if target and target.lower() == "auto":
             modes.set_auto(actor="cli")

@@ -205,5 +205,7 @@
   "audio.saved": "Als Ton „{name}“ gespeichert.",
   "audio.bad_name": "Ton-Namen dürfen nur a-z, 0-9 und _ enthalten.",
   "audio.discarded": "Verworfen.",
-  "audio.upload_expired": "Diese Audiodatei ist nicht mehr verfügbar. Bitte schicken Sie sie noch einmal."
+  "audio.upload_expired": "Diese Audiodatei ist nicht mehr verfügbar. Bitte schicken Sie sie noch einmal.",
+  "notify.arrival_detected": "Ein vertrautes Gerät ist wieder im WLAN: {devices}. Der Modus bleibt „Abwesend“, bis jemand bestätigt, zuhause zu sein.",
+  "event.arrival_detected": "Vertrautes Gerät zurück"
 }

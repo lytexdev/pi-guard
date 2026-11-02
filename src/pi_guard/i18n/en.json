@@ -205,5 +205,7 @@
   "audio.saved": "Saved as sound \"{name}\".",
   "audio.bad_name": "Sound names may only contain a-z, 0-9 and _.",
   "audio.discarded": "Discarded.",
-  "audio.upload_expired": "This audio is no longer available. Please send it again."
+  "audio.upload_expired": "This audio is no longer available. Please send it again.",
+  "notify.arrival_detected": "A trusted device is back in the Wi-Fi: {devices}. The mode stays \"Away\" until someone confirms being at home.",
+  "event.arrival_detected": "Trusted device back"
 }

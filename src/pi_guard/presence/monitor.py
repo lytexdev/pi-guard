@@ -8,7 +8,7 @@ from datetime import datetime
 from pi_guard.config.files import PresenceSettings
 from pi_guard.config.settings import Settings
 from pi_guard.core.events import Event, EventBus, EventType
-from pi_guard.core.modes import ModeController, Presence
+from pi_guard.core.modes import Mode, ModeController, Presence
 from pi_guard.core.timeutil import utcnow
 from pi_guard.presence.resolver import Observation, PresenceResolver, combine
 from pi_guard.presence.sources import FritzBoxSource, NeighbourSource, PresenceSource
@@ -92,6 +92,13 @@ class PresenceMonitor:
                 )
             )
         self._modes.update_presence(state)
+        if (
+            state is Presence.HOME
+            and previous is not Presence.HOME
+            and self._modes.effective is Mode.AWAY
+        ):
+            seen = [d.name for d in self._devices if self._last.get(d.id) is Observation.SEEN]
+            self._bus.publish(Event(EventType.ARRIVAL_DETECTED, data={"devices": ", ".join(seen)}))
         return state
 
     async def run(self) -> None:

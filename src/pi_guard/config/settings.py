@@ -71,6 +71,9 @@ class Settings(BaseSettings):
 
     default_mode: Mode = Mode.HOME
     presence_enabled: bool = False
+    # Which way presence detection may switch the mode on its own.
+    presence_auto_home: bool = True
+    presence_auto_away: bool = True
     person_detection_enabled: bool = False
     face_recognition_enabled: bool = False
 
