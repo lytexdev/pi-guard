@@ -24,6 +24,16 @@ zusätzliche App und keine Fachbegriffe.
   Zeitbegrenzung oder automatisch über Ihr Handy im WLAN umschalten.
 - **Telegram mit großen Knöpfen**, auf Deutsch und Englisch, mit einer
   einfachen Ansicht für den Alltag und einer erweiterten für Administratoren.
+  Man kann auch ganz normal schreiben: „Kannst du mir ein Foto schicken?“,
+  „Ich bin wieder da“, „Das Bild ist zu dunkel“.
+- **Bessere Bilder auf Wunsch:** *Schärfer* sucht das schärfste von mehreren
+  Bildern aus und vergrößert auf die Person, *Vergrößern* und *Heller* wirken
+  auf das letzte Foto oder die letzte Meldung.
+- **Vertraute Personen (optional):** Familienmitglieder mit Namen und Fotos,
+  Videos oder einem Kamerabild eintragen – oder direkt aus einer Meldung über
+  eine unbekannte Person. Unbekannte Personen werden mit Foto gemeldet.
+- **Alarm:** Alarmton (auch einen eigenen) über einen Lautsprecher auslösen
+  und wieder stoppen.
 - **Optional und standardmäßig aus:** Signal, Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
   Home Assistant.
@@ -51,3 +61,7 @@ der Installation [docs/de/datenschutz.md](docs/de/datenschutz.md).
 
 MIT, siehe [LICENSE](LICENSE). Die technische Dokumentation ist auf Englisch
 im Ordner [docs](docs).
+
+---
+
+pi-guard · made by lytex

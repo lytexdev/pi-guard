@@ -63,7 +63,13 @@ angeschlossen ist) und protokolliert jede Aufnahme.
 geschützte Daten (Art. 9 DSGVO). Tragen Sie nur Personen ein, die ausdrücklich
 zugestimmt haben, und halten Sie die Zustimmung fest. pi-guard fragt vor dem
 Speichern nach. Das Foto wird sofort gelöscht, gespeichert werden nur
-Merkmalswerte. Löschen: `/gesichter löschen Name`.
+Merkmalswerte. Löschen: `/gesichter löschen Name`. Beim Eintragen werden
+Fotos und Videobilder sofort nach dem Auswerten gelöscht; die Gesichtsdaten
+bleiben nur im Arbeitsspeicher, bis Sie die Zustimmung bestätigen.
+
+**Schärfer und normale Sätze.** „Schärfer“ sucht nur, *wo* eine Person im Bild
+ist, nicht *wer* sie ist. Geschriebene Sätze werden auf dem Gerät anhand von
+Stichwörtern verstanden; es wird kein Text an einen Sprachdienst geschickt.
 
 **Nicht länger aufbewahren als nötig.** 7 Tage sind ein Ausgangswert. Wenn
 Ihnen weniger reicht, stellen Sie weniger ein

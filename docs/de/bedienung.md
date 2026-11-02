@@ -33,7 +33,32 @@ Was möchten Sie machen?
 Mit **Zurück zum Menü** kommen Sie immer zum Anfang.
 
 Gibt es mehrere Kameras, fragt der Bot „Welche Kamera?“ und zeigt für jede
-einen Knopf.
+einen Knopf – oder **Alle Kameras** für ein Foto von jeder.
+
+## Einfach schreiben
+
+Sie können dem Bot auch ganz normal schreiben, zum Beispiel:
+
+- „Kannst du mir bitte ein Foto schicken?“
+- „Schick mir ein Video vom Eingang“
+- „Das Bild ist zu dunkel“ – „Kannst du das vergrößern?“
+- „Ich gehe jetzt weg“ – „Ich bin wieder da“
+- „Funktioniert alles?“ – „Was ist passiert?“
+
+Ist ein Satz nicht eindeutig, fragt der Bot mit Knöpfen nach, statt zu raten.
+
+## Fotos genauer ansehen
+
+Unter jedem Foto gibt es drei Knöpfe:
+
+- **Vergrößern** – zeigt neun Pfeile (↖ ↑ ↗ ← · → ↙ ↓ ↘). Tippen Sie auf den
+  Bildteil, den Sie näher sehen möchten. Das geht auch mehrmals hintereinander.
+  Es ist ein digitaler Zoom: Sehr kleine Details bleiben unscharf.
+- **Schärfer** – die Kamera macht mehrere Bilder kurz hintereinander, und Sie
+  bekommen das schärfste. Ist eine Person zu sehen, wird auf sie vergrößert.
+- **Heller** – für dunkle Bilder, zum Beispiel am Abend.
+
+Das funktioniert auch mit dem Foto aus einer Bewegungsmeldung.
 
 ## Zuhause und Abwesend
 
@@ -81,7 +106,25 @@ Administratoren.
 - **Einstellungen** – Sprache und Ansicht (einfach/erweitert)
 
 Sprachnachrichten, die ein Administrator dem Bot schickt, können über den
-Lautsprecher abgespielt werden.
+Lautsprecher abgespielt, als Ton gespeichert oder als **Alarmton** verwendet
+werden.
+
+**Alarm** (mit Lautsprecher): *Weitere Funktionen → Alarm*. Der Bot fragt noch
+einmal nach, dann ertönt der Alarm 30 Sekunden lang, auch in der Ruhezeit.
+Mit **Alarm stoppen** oder `alarm aus` hört er sofort auf.
+
+**Vertraute Personen** (wenn die Gesichtserkennung eingerichtet ist):
+*Weitere Funktionen → Vertraute Personen → Person hinzufügen*.
+
+1. Den Namen schreiben.
+2. Fotos oder ein kurzes Video schicken, auf denen nur diese Person zu sehen
+   ist – oder die Person stellt sich vor die Kamera und Sie tippen auf
+   **Bild mit der Kamera aufnehmen**. Mehrere Bilder aus verschiedenen
+   Blickwinkeln helfen.
+3. **Fertig** drücken und bestätigen, dass die Person einverstanden ist.
+
+Meldet die Kamera eine unbekannte Person, die Sie kennen, tippen Sie unter der
+Meldung auf **Als vertraute Person eintragen**.
 
 ## Befehle zum Eintippen
 
@@ -96,5 +139,7 @@ Wer lieber tippt: Groß- und Kleinschreibung und der Schrägstrich sind egal.
 | `benachrichtigungen aus` / `an` | eigene Meldungen |
 | `sprache de` / `sprache en` | Sprache |
 | `hilfe` | Hilfe |
+| `schärfer`, `vergrößern links`, `heller` | Foto verbessern |
+| `foto alle` | ein Foto von jeder Kamera |
 
 Die vollständige Liste steht in [telegram.md](../telegram.md) (Englisch).

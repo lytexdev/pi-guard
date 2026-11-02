@@ -71,6 +71,15 @@ Art. 9 GDPR. pi-guard:
 - reports *known*, *uncertain* or *unknown*, never a certainty, and never
   suppresses a motion alert because a known person was recognised
 
+- keeps face data collected during an enrollment session in memory only, until
+  the admin confirms consent; cancelled or expired sessions leave nothing behind
+
+`/sharper` finds *where* a person is in the picture to frame it (body or face
+detection); it does not identify anyone and works without face recognition.
+
+Sentences written to the bot are matched against keywords on the device; no
+text is sent to any language service.
+
 Delete a person with `/faces delete NAME` or `pi-guard faces delete NAME`.
 To remove all biometric data, stop the service and delete `biometrics.db`.
 

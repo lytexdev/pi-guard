@@ -98,11 +98,46 @@ Dann schaltet es automatisch zwischen „Zuhause“ und „Abwesend“ um.
 3. In `/etc/pi-guard/pi-guard.env` muss `PI_GUARD_PRESENCE_ENABLED=true` stehen.
 4. `sudo systemctl restart pi-guard`
 
+Soll pi-guard nur automatisch auf „Abwesend“ schalten, aber **nicht** von
+selbst wieder auf „Zuhause“, setzen Sie in `/etc/pi-guard/pi-guard.env`:
+
+```
+PI_GUARD_PRESENCE_AUTO_HOME=false
+```
+
+Kommt dann ein vertrautes Handy zurück ins WLAN, schickt pi-guard eine
+Nachricht mit dem Knopf **Ich bin zuhause**. So kann zum Beispiel ein
+gestohlenes Handy die Meldungen nicht abschalten.
+(`PI_GUARD_PRESENCE_AUTO_AWAY=false` verhindert umgekehrt das automatische
+Umschalten auf „Abwesend“.)
+
 Mit einer FRITZ!Box ist die Erkennung zuverlässiger, siehe
 [Konfiguration](../configuration.md#how-presence-detection-decides).
 
 Wichtig: Ein Handy im WLAN zeigt nur, dass *wahrscheinlich* jemand da ist.
 Ein ausgeschaltetes Handy sieht aus wie „niemand zuhause“.
+
+## Vertraute Personen (optional)
+
+pi-guard kann eingetragene Personen erkennen und meldet unbekannte Personen mit
+Foto. Bitte lesen Sie vorher [Datenschutz](datenschutz.md).
+
+1. In `/etc/pi-guard/pi-guard.env`:
+
+   ```
+   PI_GUARD_PERSON_DETECTION_ENABLED=true
+   PI_GUARD_FACE_RECOGNITION_ENABLED=true
+   ```
+
+2. Die Erkennungsmodelle herunterladen (etwa 37 MB, es wird vorher gefragt):
+
+   ```bash
+   sudo -u pi-guard pi-guard models download
+   sudo systemctl restart pi-guard
+   ```
+
+3. In Telegram: *Weitere Funktionen → Vertraute Personen → Person hinzufügen*,
+   siehe [Bedienung](bedienung.md).
 
 ## Einstellungen ändern
 

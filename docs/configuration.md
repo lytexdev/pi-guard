@@ -201,6 +201,7 @@ Event types and their defaults:
 | `recording_failed` | yes (critical) | both | admins | 1 h | – |
 | `storage_low` | yes (critical) | both | admins | 12 h | – |
 | `presence_changed` | no | both | admins | – | – |
+| `arrival_detected` | yes | AWAY | all | 10 min | – |
 | `mode_changed` | yes | both | all except who changed it | – | – |
 | `system_started` | yes | both | admins | – | – |
 

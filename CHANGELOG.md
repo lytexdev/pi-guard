@@ -4,6 +4,31 @@ All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `PI_GUARD_PRESENCE_AUTO_HOME` / `PI_GUARD_PRESENCE_AUTO_AWAY`: limit which way
+  presence detection switches the mode; an arriving trusted device can trigger
+  an "I am at home" prompt instead of silencing alerts.
+- Trusted people: enrollment sessions with photo series, videos and pictures
+  taken by the camera, enrollment from alerts, consent before storing;
+  `pi-guard faces enroll` accepts videos.
+- `/sharper`, `/zoom` (nine areas) and `/brighter`; photo buttons for them;
+  `/photo all`.
+- `/alarm` with confirmation and stop; uploaded audio as alarm sound; Alarm and
+  Listen buttons for admins.
+- Everyday sentences in private chats, with buttons when unclear.
+- Credit "made by lytex" in help, `pi-guard version` and the startup log.
+
+### Fixed
+
+- Upload hardening described in an earlier commit was missing in
+  `audio/service.py`: uploads are now checked by file signature and FFmpeg only
+  reads local files. Stopping playback kills FFmpeg.
+- Files too large to download got "I did not understand" instead of a clear
+  message.
+
 ## [0.1.0] - unreleased
 
 First release.

@@ -22,8 +22,17 @@ commands, no app besides the messenger, and no technical vocabulary.
   Away, alerts arrive with a snapshot. The mode can be set by button, command,
   timer, or automatically from your phone's presence in the Wi-Fi.
 - **Telegram first.** Large buttons, German and English, a simple view for
-  everyday users and an advanced view for administrators. Plain text works too:
-  `foto`, `video 30`, `abwesend 2h`.
+  everyday users and an advanced view for administrators. Commands work as plain
+  text (`foto`, `video 30`, `abwesend 2h`) and as ordinary sentences
+  ("Kannst du mir ein Foto schicken?", "Ich bin wieder da").
+- **Better pictures on request.** *Sharper* picks the least blurred of several
+  pictures and enlarges the area around a person; *Zoom in* and *Brighter*
+  work on the last photo or alert.
+- **Trusted people (optional).** Enroll family members with a name and photos,
+  videos or a picture taken by the camera — or straight from an alert about an
+  unknown person. Unknown people are reported with a photo.
+- **Alarm.** Sound the alarm (or your own uploaded sound) on a speaker, and stop
+  it, from the chat.
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
@@ -119,3 +128,7 @@ default and need deliberate configuration.
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+---
+
+pi-guard · made by lytex

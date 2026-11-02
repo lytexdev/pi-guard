@@ -76,7 +76,10 @@ listed aliases. `video 30`, `/v 30` and `Video 30` do the same.
 | Command | Aliases | Arguments | |
 |---|---|---|---|
 | `/menu` | start, m, menü, menue, hauptmenü | | main menu |
-| `/photo` | p, foto, bild, snapshot | [camera] | current photo |
+| `/photo` | p, foto, bild, snapshot, fotos, bilder | [all/alle] [camera] | current photo; `alle` = one per camera |
+| `/sharper` | schärfer, schaerfer, scharf, deutlicher | [camera] | sharpest of several pictures, enlarged around a person |
+| `/zoom` | vergrößern, näher, zoomen | [area] | enlarge part of the last photo: `links`, `oben rechts`, `mitte`, `1`–`9` |
+| `/brighter` | heller, aufhellen, hell | | brighten the last photo |
 | `/video` | v, clip, film | [camera] [3–120 s, default 15] | the last seconds |
 | `/status` | s, zustand, kamerastatus | | |
 | `/cameras` | kameras | | |
@@ -93,8 +96,9 @@ listed aliases. `video 30`, `/v 30` and `Video 30` do the same.
 | `/presence` | anwesenheit | | admin |
 | `/invite` | einladen | [viewer, admin] | admin |
 | `/users` | benutzer | | admin |
-| `/faces` | gesichter, personen | [delete NAME] | admin |
-| `/enroll` | eintragen, anlernen | NAME (as photo caption) | admin |
+| `/faces` | gesichter, personen, vertraute | [delete NAME] | admin: trusted people |
+| `/enroll` | eintragen, anlernen, hinzufügen | [NAME] | admin: enroll a trusted person |
+| `/alarm` | sirene, alarmton | [on/an, off/aus] | admin: sound or stop the alarm |
 | `/listen` | audio, anhören, anhoeren | [camera] [seconds] | admin |
 | `/sound` | ton, klang, abspielen | [name] | admin |
 | `/volume` | lautstärke, lautstaerke, vol | [0–100] | admin |
@@ -107,6 +111,28 @@ listed aliases. `video 30`, `/v 30` and `Video 30` do the same.
   detection (or to the previous mode if presence detection is off).
 - Only canonical names are registered as Telegram slash commands (the list
   that appears when typing `/`); aliases work as typed text.
+- `/zoom` and `/brighter` work on the last photo the chat received — a
+  requested photo or an alert — so "zoom in" under an alert enlarges that very
+  picture.
+
+## Ordinary sentences
+
+In private chats the bot also understands everyday sentences:
+
+| You write | It does |
+|---|---|
+| "Kannst du mir ein Foto vom Eingang schicken?" | `/photo entrance` |
+| "Schick mir ein Video von 30 Sekunden" | `/video 30` |
+| "Das Bild ist unscharf" / "zu dunkel" / "vergrößern" | `/sharper` / `/brighter` / `/zoom` |
+| "Ich bin wieder da" / "Ich gehe jetzt weg" | `/home` / `/away` |
+| "Funktioniert alles?" / "Was ist passiert?" | `/status` / `/events` |
+| "Hallo" / "Danke" | menu / a friendly reply |
+
+This is keyword matching, not a language model; everything stays on the
+device. Only harmless commands can be reached this way: never the alarm, the
+microphone or user administration. If a sentence fits several commands or
+negates a mode change ("ich gehe heute nicht weg"), the bot asks with buttons
+instead of guessing. In groups only real commands work.
 
 ## Audio messages
 
@@ -115,9 +141,35 @@ FLAC; up to `audio.max_upload_seconds` and `audio.max_upload_bytes`). The bot
 checks the file and offers *Play on the speaker now*, *Save as sound* and
 *Discard*. Files from other users are never downloaded.
 
-## Face enrollment
+## Trusted people
 
-Send a photo that shows only the person, with the caption `/enroll Name`. The
-bot computes the face data, deletes the photo, and asks whether the person has
-consented; only after *Yes, consent was given* is anything stored. See
-[privacy.md](privacy.md).
+Requires `PI_GUARD_FACE_RECOGNITION_ENABLED=true` and
+`pi-guard models download`. Admins find everything under
+*More functions → Trusted people*.
+
+Enrolling is a short session:
+
+1. *Add a person* (or `/enroll Erna`). Without a name the bot asks for it.
+2. Send photos, image files or a short video (up to a minute) showing only this
+   person, or press *Take a picture with the camera* while they stand in front
+   of it. Each is checked for exactly one face; near-duplicates are skipped.
+   Photos sent without a caption during the session are added automatically.
+3. *Done*, then confirm that the person has consented. Only then is anything
+   stored. Photos and video frames are deleted right after their face data has
+   been computed.
+
+Alerts about a person that was not recognised carry an *Add as trusted person*
+button for admins, which starts a session with that picture.
+
+Recognised people do not silence alerts: motion is still reported in AWAY mode.
+Unknown people are reported with a photo (`unknown_person`), and an uncertain
+recognition is reported as such. More photos of different angles and lighting
+improve recognition (*More photos of …*). See [privacy.md](privacy.md).
+
+## Alarm
+
+With a speaker configured (`PI_GUARD_AUDIO_PLAYBACK_ENABLED=true`), admins can
+press *More functions → Alarm* or send `/alarm`. The bot asks once more, then
+the alarm sound repeats for 30 seconds at the maximum allowed volume, also
+during quiet hours. `/alarm aus` or *Stop the alarm* stops it immediately.
+Any uploaded audio can be made the alarm sound with *Use as alarm sound*.
