@@ -50,7 +50,15 @@ async def mode(ctx: CommandContext, args: dict[str, Any]) -> Reply:
 
 
 async def home(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    # Saying "I am at home" also means the alerts so far were fine.
+    ctx.app.escalation.acknowledge(ctx.user.key)
     return _set(ctx, Mode.HOME, args.get("duration"))
+
+
+async def ok(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    count = ctx.app.escalation.acknowledge(ctx.user.key)
+    text = ctx.t("alert.acked", count=count) if count else ctx.t("alert.none_open")
+    return Reply(text, buttons=(menu_row(ctx),))
 
 
 async def away(ctx: CommandContext, args: dict[str, Any]) -> Reply:
@@ -114,6 +122,7 @@ def register(registry: Registry) -> None:
             help_key="help.away",
         )
     )
+    registry.add(Command("ok", ok, ("okay", "entwarnung", "allesok", "passt"), help_key="help.ok"))
     registry.add(
         Command("presence", presence, ("anwesenheit",), role=Role.ADMIN, help_key="help.presence")
     )

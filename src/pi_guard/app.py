@@ -35,6 +35,7 @@ from pi_guard.messaging.base import Provider
 from pi_guard.messaging.commands import build_registry
 from pi_guard.messaging.hub import Messenger
 from pi_guard.notifications.engine import Notifier
+from pi_guard.notifications.escalation import Escalation
 from pi_guard.presence.monitor import PresenceMonitor, build_sources
 from pi_guard.recording.retention import Retention
 from pi_guard.recording.segments import recent_clip
@@ -118,6 +119,7 @@ class App:
         self.messenger = Messenger(self)
         self.mqtt: MqttBridge | None = None
         self.dashboard: Dashboard | None = None
+        self.escalation = Escalation(self)
         self.notifier = Notifier(self)
         if s.presence_enabled:
             presence = config.file.presence
@@ -265,6 +267,8 @@ class App:
         }
         if self.presence is not None:
             parts["presence"] = self.presence.run
+        if self.escalation.enabled:
+            parts["escalation"] = self.escalation.run
         if self.mqtt is not None:
             parts["mqtt"] = self.mqtt.run
         if self.dashboard is not None:

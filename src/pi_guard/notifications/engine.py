@@ -22,6 +22,7 @@ from pi_guard.core.permissions import Role
 from pi_guard.core.timeutil import TimeWindow
 from pi_guard.i18n import format_time, t
 from pi_guard.messaging.base import Button, ProviderUnavailableError, Reply
+from pi_guard.notifications.escalation import ALERT_TYPES
 from pi_guard.notifications.rules import Rule, resolve
 from pi_guard.recording.segments import ClipError
 
@@ -130,6 +131,9 @@ class Notifier:
         if not recipients:
             return
         attachment = await self._attachment(event, rule)
+        self._app.escalation.record(
+            event, attachment if attachment and attachment.suffix == ".jpg" else event.snapshot
+        )
         trust = self._trust_token(event, attachment)
         for recipient in recipients:
             token = trust if recipient.admin else None
@@ -196,6 +200,8 @@ class Notifier:
                     Button(t("image.zoom_button", lang), "zoom"),
                 )
             )
+        if event.type in ALERT_TYPES:
+            buttons.append((Button(t("alert.ack_button", lang), "ok"),))
         if event.type in _OFFER_HOME and app.modes.effective.value == "AWAY":
             buttons.append((Button(t("mode.button_home", lang), "home"),))
         if trust_token:

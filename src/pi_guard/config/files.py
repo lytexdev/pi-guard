@@ -159,6 +159,7 @@ EventName = Literal[
     "storage_low",
     "presence_changed",
     "arrival_detected",
+    "emergency_escalated",
     "mode_changed",
     "system_started",
 ]

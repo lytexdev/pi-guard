@@ -464,5 +464,21 @@
   "web.setting_dashboard_rate_limit_per_minute": "Requests per minute and address",
   "web.retry": "Try again",
   "web.rate_limited": "Too many requests. Please wait a moment.",
-  "web.offline": "pi-guard cannot be reached."
+  "web.offline": "pi-guard cannot be reached.",
+  "emergency.title": "pi-guard emergency notice",
+  "emergency.summary": "There have been {count} alert(s) since {since} that nobody at home has confirmed.",
+  "emergency.what_to_do": "You are listed as an emergency contact. Please check on the household or try to reach them. If you think someone is in danger, call 112.",
+  "emergency.photo": "Photo from the alert",
+  "emergency.owner_note": "Alerts stayed unconfirmed, so {contacts} emergency contact(s) were informed. Press \"Everything is fine\" under an alert to confirm alerts in future.",
+  "emergency.registered": "You are an emergency contact for this pi-guard. You will only be written to if alerts stay unconfirmed.",
+  "alert.ack_button": "Everything is fine",
+  "alert.acked": "Thank you. {count} alert(s) confirmed.",
+  "alert.none_open": "There are no open alerts.",
+  "event.emergency_escalated": "Emergency contacts informed",
+  "notify.emergency_escalated": "{alerts} unconfirmed alert(s) were forwarded to {contacts} emergency contact(s).",
+  "help.ok": "Confirm open alerts (\"everything is fine\")",
+  "web.open_alerts": "Open alerts",
+  "web.ack_all": "Everything is fine",
+  "web.open_alerts_note": "These alerts have not been confirmed. Emergency contacts are informed after {count} unconfirmed alert(s) and {minutes} minutes.",
+  "web.escalated": "forwarded"
 }

@@ -26,7 +26,7 @@ export function eventRow(event, cameras = {}) {
 
 export async function render(main) {
   const draw = async () => {
-    const [o, events] = await Promise.all([api("/api/overview"), api("/api/events?limit=8")]);
+    const [o, events, open] = await Promise.all([api("/api/overview"), api("/api/events?limit=8"), api("/api/alerts")]);
     const cameras = Object.fromEntries(o.cameras.map((c) => [c.id, c.name]));
     const mode = o.mode;
     const modeButtons = h("div", { class: "segmented" },
@@ -41,6 +41,15 @@ export async function render(main) {
     fill(main,
       h("div", { class: "topbar" }, h("h1", {}, t("web.nav_overview")),
         h("span", { class: "badge" }, `v${o.version} · ${t("web.uptime")} ${duration(o.uptime)}`)),
+      open.length ? h("section", { class: "panel" },
+        h("div", { class: "row between" }, h("h2", {}, icon("alert-triangle"), " ", t("web.open_alerts"), ` (${open.length})`),
+          h("button", { class: "primary big", onclick: async () => {
+            await attempt(() => api("/api/alerts/ack", { method: "POST" }), t("web.saved")); draw();
+          } }, icon("circle-check"), t("web.ack_all"))),
+        h("ul", { class: "list" }, open.slice(-5).reverse().map((a) => eventRow(
+          { type: a.type, ts: a.ts, camera: a.camera, data: { snapshot: a.snapshot } }, cameras))),
+        o.emergency_contacts ? h("p", { class: "muted" }, h("small", {}, t("web.open_alerts_note",
+          { count: o.emergency_after_alerts ?? "", minutes: o.emergency_after_minutes ?? "" }))) : null) : null,
       h("div", { class: "grid" },
         h("section", { class: "panel" },
           h("h2", {}, t("web.mode")),

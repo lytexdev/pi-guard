@@ -32,7 +32,8 @@ class EventType(StrEnum):
     RECORDING_FAILED = "recording_failed"
     STORAGE_LOW = "storage_low"
     PRESENCE_CHANGED = "presence_changed"
-    ARRIVAL_DETECTED = "arrival_detected"  # trusted device back, but the mode stays AWAY
+    ARRIVAL_DETECTED = "arrival_detected"
+    EMERGENCY_ESCALATED = "emergency_escalated"  # trusted device back, but the mode stays AWAY
     MODE_CHANGED = "mode_changed"
     SYSTEM_STARTED = "system_started"
 

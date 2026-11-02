@@ -30,6 +30,8 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/logs", logs),
         web.get("/api/audit", audit),
         web.post("/api/mode", set_mode),
+        web.get("/api/alerts", alerts),
+        web.post("/api/alerts/ack", acknowledge),
         web.get("/api/media/{kind}/{name}", media),
     ]
 
@@ -96,6 +98,10 @@ async def overview(request: web.Request) -> web.Response:
             for c in app.components.values()
         ],
         "last_24h": {row["type"]: row["n"] for row in counts},
+        "open_alerts": len(app.escalation.open_alerts()),
+        "emergency_contacts": len(app.escalation.contacts),
+        "emergency_after_alerts": app.escalation.after_alerts,
+        "emergency_after_minutes": int(app.escalation.after.total_seconds() // 60),
         "features": {
             "audio_playback": bool(app.audio and app.audio.playback_enabled),
             "audio_recording": bool(app.audio and app.audio.recording_enabled),
@@ -171,6 +177,8 @@ async def set_mode(request: web.Request) -> web.Response:
         if target == "AUTO":
             app.modes.set_auto(actor=actor)
         elif target in ("HOME", "AWAY"):
+            if target == "HOME":
+                app.escalation.acknowledge(actor)
             minutes = data.get("minutes")
             duration = timedelta(minutes=int(minutes)) if minutes else None
             app.modes.set_manual(Mode(target), duration, actor=actor)
@@ -189,3 +197,18 @@ async def media(request: web.Request) -> web.FileResponse:
     if kind not in MEDIA_KINDS or "/" in name or not is_within(path, root) or not path.is_file():
         raise web.HTTPNotFound()
     return web.FileResponse(path, headers={"Cache-Control": "private, max-age=3600"})
+
+
+async def alerts(request: web.Request) -> web.Response:
+    app = dashboard(request).app
+    return web.json_response([
+        {"id": a.id, "ts": a.ts.isoformat(), "type": a.type, "camera": a.camera,
+         "snapshot": a.snapshot, "escalated": a.escalated}
+        for a in app.escalation.open_alerts()
+    ])  # fmt: skip
+
+
+async def acknowledge(request: web.Request) -> web.Response:
+    app = dashboard(request).app
+    count = app.escalation.acknowledge(f"web:{current(request).username}")
+    return web.json_response({"acknowledged": count})

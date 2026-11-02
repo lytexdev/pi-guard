@@ -165,6 +165,14 @@ class Messenger:
         if code and self._limiter.allow(f"invite:{sender}"):
             await self._redeem(msg, code, sender)
             return
+        if self._app.escalation.is_contact(msg.provider, msg.sender_id) and not msg.is_group:
+            last = self._unknown_replied.get(sender, 0.0)
+            if time.monotonic() - last > _UNKNOWN_REPLY_INTERVAL:
+                self._unknown_replied[sender] = time.monotonic()
+                lang = self._app.settings.language
+                await self._send_safely(msg.provider, msg.chat_id,
+                                        Reply(t("emergency.registered", lang)))  # fmt: skip
+            return
         log.info("rejected message from unknown sender %s", mask_sender(sender))
         self._app.db.audit(sender, "rejected", msg.provider)
         if len(self._unknown_replied) > 1000:  # bound memory if many strangers write

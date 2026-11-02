@@ -464,5 +464,21 @@
   "web.setting_dashboard_rate_limit_per_minute": "Anfragen pro Minute und Adresse",
   "web.retry": "Erneut versuchen",
   "web.rate_limited": "Zu viele Anfragen. Bitte warten Sie einen Moment.",
-  "web.offline": "pi-guard ist nicht erreichbar."
+  "web.offline": "pi-guard ist nicht erreichbar.",
+  "emergency.title": "pi-guard Notfallhinweis",
+  "emergency.summary": "Seit {since} gab es {count} Meldung(en), die niemand zuhause bestätigt hat.",
+  "emergency.what_to_do": "Sie sind als Notfallkontakt eingetragen. Bitte sehen Sie nach dem Rechten oder versuchen Sie, den Haushalt zu erreichen. Wenn Sie glauben, dass jemand in Gefahr ist, rufen Sie 112 an.",
+  "emergency.photo": "Foto aus der Meldung",
+  "emergency.owner_note": "Meldungen blieben unbestätigt, deshalb wurden {contacts} Notfallkontakt(e) informiert. Tippen Sie künftig unter einer Meldung auf „Alles in Ordnung“, um sie zu bestätigen.",
+  "emergency.registered": "Sie sind Notfallkontakt für dieses pi-guard. Sie bekommen nur dann eine Nachricht, wenn Meldungen unbestätigt bleiben.",
+  "alert.ack_button": "Alles in Ordnung",
+  "alert.acked": "Danke. {count} Meldung(en) bestätigt.",
+  "alert.none_open": "Es gibt keine offenen Meldungen.",
+  "event.emergency_escalated": "Notfallkontakte informiert",
+  "notify.emergency_escalated": "{alerts} unbestätigte Meldung(en) wurden an {contacts} Notfallkontakt(e) weitergeleitet.",
+  "help.ok": "Offene Meldungen bestätigen („alles in Ordnung“)",
+  "web.open_alerts": "Offene Meldungen",
+  "web.ack_all": "Alles in Ordnung",
+  "web.open_alerts_note": "Diese Meldungen wurden nicht bestätigt. Notfallkontakte werden nach {count} unbestätigten Meldung(en) und {minutes} Minuten informiert.",
+  "web.escalated": "weitergeleitet"
 }
