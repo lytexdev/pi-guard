@@ -17,6 +17,7 @@ from pi_guard.i18n import t
 from pi_guard.messaging.base import Button, Incoming, Reply
 from pi_guard.messaging.commands.context import CommandContext
 from pi_guard.messaging.commands.registry import ArgError, ParsedCommand, bind_args, normalize
+from pi_guard.messaging.intents import understand
 from pi_guard.security.ratelimit import RateLimiter
 from pi_guard.security.redact import mask_sender
 
@@ -28,6 +29,18 @@ log = logging.getLogger(__name__)
 _INVITE_RE = re.compile(r"^[0-9a-f]{12}$")
 _UNKNOWN_REPLY_INTERVAL = 3600.0
 _EXPECT_SECONDS = 600.0
+_INTENT_LABELS = {
+    "photo": "menu.photo",
+    "video": "menu.video",
+    "status": "menu.status",
+    "help": "menu.help",
+    "events": "more.events",
+    "home": "mode.button_home",
+    "away": "mode.button_away",
+    "sharper": "image.sharper_button",
+    "zoom": "image.zoom_button",
+    "brighter": "image.brighter_button",
+}
 
 
 def flatten(reply: Reply) -> list[Button]:
@@ -68,6 +81,15 @@ class Messenger:
             return
         if parsed is None:
             parsed = self._follow_up(msg)
+        if parsed is None and not msg.is_group and msg.attachment is None:
+            understood = understand(
+                msg.text, {cid: p.camera.name for cid, p in app.cameras.items()}
+            )
+            if understood.command:
+                parsed = app.registry.parse(understood.command)
+            elif understood.options:
+                await self._reply(msg, user, self._suggest(user, understood.options))
+                return
         if parsed is None:
             if msg.attachment_kind == "audio":
                 parsed = app.registry.parse("upload")
@@ -104,6 +126,15 @@ class Messenger:
             if number.isdigit() and menu and 1 <= int(number) <= len(menu):
                 text = menu[int(number) - 1]
         return self._app.registry.parse(text, getattr(provider, "username", None))
+
+    def _suggest(self, user: User, intents: tuple[str, ...]) -> Reply:
+        lang = self._lang(user)
+        rows = tuple(
+            (Button(t(_INTENT_LABELS[i], lang), i),) for i in intents if i in _INTENT_LABELS
+        )
+        return Reply(
+            t("intent.which", lang), buttons=(*rows, (Button(t("button.menu", lang), "menu"),))
+        )
 
     def _follow_up(self, msg: Incoming) -> ParsedCommand | None:
         """A plain-text answer to a question the bot asked in this chat."""

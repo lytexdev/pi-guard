@@ -254,5 +254,7 @@
   "alarm.not_running": "No alarm is sounding.",
   "more.alarm": "Alarm",
   "more.listen": "Listen (microphone)",
-  "help.alarm": "Sound the alarm on the speaker; /alarm off stops it"
+  "help.alarm": "Sound the alarm on the speaker; /alarm off stops it",
+  "intent.which": "Did you mean one of these?",
+  "intent.thanks": "You're welcome."
 }

@@ -254,5 +254,7 @@
   "alarm.not_running": "Es ertönt gerade kein Alarm.",
   "more.alarm": "Alarm",
   "more.listen": "Mithören (Mikrofon)",
-  "help.alarm": "Alarm über den Lautsprecher auslösen; /alarm aus stoppt ihn"
+  "help.alarm": "Alarm über den Lautsprecher auslösen; /alarm aus stoppt ihn",
+  "intent.which": "Meinten Sie eines davon?",
+  "intent.thanks": "Gern geschehen."
 }

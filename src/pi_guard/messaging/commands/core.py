@@ -368,7 +368,12 @@ async def help_(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     return Reply("\n".join(lines), buttons=(menu_row(ctx),))
 
 
+async def thanks(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    return Reply(ctx.t("intent.thanks"), buttons=(menu_row(ctx),))
+
+
 def register(registry: Registry) -> None:
+    registry.add(Command("thanks", thanks, ("danke",), menu=False))
     registry.add(
         Command("menu", menu, ("start", "m", "menü", "menue", "hauptmenü"), help_key="help.menu")
     )
