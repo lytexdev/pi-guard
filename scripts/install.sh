@@ -92,8 +92,8 @@ VENV_ARGS=()
 (( SYSTEM_OPENCV )) && VENV_ARGS+=(--system-site-packages)
 [[ -x "$PREFIX/venv/bin/python" ]] || python3 -m venv "${VENV_ARGS[@]}" "$PREFIX/venv"
 "$PREFIX/venv/bin/pip" install --quiet --upgrade pip
-EXTRAS="vision,mqtt"
-(( SYSTEM_OPENCV )) && EXTRAS="mqtt"
+EXTRAS="vision,mqtt,web"
+(( SYSTEM_OPENCV )) && EXTRAS="mqtt,web"
 "$PREFIX/venv/bin/pip" install --quiet "$REPO[$EXTRAS]"
 ln -sf "$PREFIX/venv/bin/pi-guard" /usr/local/bin/pi-guard
 

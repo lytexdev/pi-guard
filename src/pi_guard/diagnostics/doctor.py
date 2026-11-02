@@ -272,6 +272,20 @@ def check_detection(config: Config) -> list[Check]:
     return checks
 
 
+def check_dashboard(config: Config) -> list[Check]:
+    s = config.settings
+    if not s.dashboard_enabled:
+        return [Check("dashboard", Level.SKIP, "disabled")]
+    import importlib.util
+
+    missing = [m for m in ("aiohttp", "qrcode") if importlib.util.find_spec(m) is None]
+    if missing:
+        return [Check("dashboard", Level.FAIL,
+                      f"missing {', '.join(missing)}: pip install 'pi-guard[web]'")]  # fmt: skip
+    scheme = "https" if s.dashboard_tls else "http"
+    return [Check("dashboard", Level.OK, f"{scheme}://<this device>:{s.dashboard_port}")]
+
+
 def check_service(config: Config) -> list[Check]:
     state = service_state()
     age = heartbeat_age(config.settings.runtime_dir)
@@ -289,6 +303,7 @@ CHECKS: list[Callable[[Config], list[Check]]] = [
     check_detection,
     check_telegram,
     check_signal,
+    check_dashboard,
     check_service,
 ]
 
