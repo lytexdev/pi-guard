@@ -8,6 +8,9 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Run from / so commands executed as other users (pi-guard, pihole) never trip over
+# a home directory they cannot read, and no stray ./.env is picked up.
+cd /
 PREFIX=/opt/pi-guard
 CONF=/etc/pi-guard
 DATA=/var/lib/pi-guard
@@ -99,8 +102,27 @@ install -d -m 0700 -o "$USER_NAME" -g "$USER_NAME" "$DATA"
 
 # 7-12: configuration ----------------------------------------------------------------
 ENV_FILE="$CONF/pi-guard.env"
+set_env() {  # set_env KEY VALUE: replace or append a line; VALUE is taken literally
+    local tmp
+    tmp="$(mktemp)"
+    grep -v "^$1=" "$ENV_FILE" > "$tmp" || true
+    printf '%s=%s\n' "$1" "$2" >> "$tmp"
+    cat "$tmp" > "$ENV_FILE"  # keeps owner and mode of the env file
+    rm -f "$tmp"
+}
+
+TOKEN_RE='^[0-9]{5,15}:[A-Za-z0-9_-]{30,}$'
+PHONE_RE='^\+[1-9][0-9]{6,14}$'
+
 if [[ -f "$ENV_FILE" ]]; then
     say "keeping existing $ENV_FILE (edit it and run: sudo systemctl restart pi-guard)"
+elif [[ -f "$REPO/.env" ]] && yes_no "Use $REPO/.env as configuration?" y; then
+    install -m 0640 -o root -g "$USER_NAME" "$REPO/.env" "$ENV_FILE"
+    # Paths in a development .env do not fit the installed service.
+    set_env PI_GUARD_CONFIG_FILE "$CONF/config.yaml"
+    set_env PI_GUARD_DATA_DIR "$DATA"
+    sed -i '/^PI_GUARD_RUNTIME_DIR=/d; /^PI_GUARD_RECORDINGS_DIR=[^/]/d; /^PI_GUARD_ENV_FILE=/d' "$ENV_FILE"
+    say "copied to $ENV_FILE"
 else
     (( ASSUME_YES )) && die "$ENV_FILE does not exist; run without --yes once"
     say "basic settings"
@@ -109,14 +131,34 @@ else
     ask "Time zone" "$TZ_DEFAULT"; TIMEZONE="$REPLY"
 
     say "Telegram (create a bot with @BotFather, find your user ID with @userinfobot)"
-    ask_secret "Bot token"; TOKEN="$REPLY"
-    ask "Your Telegram user ID (admin, several separated by commas)" ""; ADMINS="$REPLY"
+    while true; do
+        ask_secret "Bot token (empty: set up later in the dashboard)"; TOKEN="$REPLY"
+        [[ -z "$TOKEN" || "$TOKEN" =~ $TOKEN_RE ]] && break
+        warn "that does not look like a bot token (123456789:AA...); paste the whole token"
+    done
+    ADMINS=""
+    if [[ -n "$TOKEN" ]]; then
+        ask "Your Telegram user ID (admin, several separated by commas)" ""; ADMINS="$REPLY"
+    fi
 
     SIGNAL_ENABLED=false SIGNAL_NUMBER="" SIGNAL_ADMINS=""
     if yes_no "Set up Signal as well? (needs signal-cli, see docs/signal.md)" n; then
         SIGNAL_ENABLED=true
-        ask "Phone number of the pi-guard Signal account (+49...)" ""; SIGNAL_NUMBER="$REPLY"
-        ask "Your own Signal number (+49...)" ""; SIGNAL_ADMINS="$REPLY"
+        echo "pi-guard needs its own Signal account (a second number). Messages from the"
+        echo "account to itself cannot be used as commands."
+        while true; do
+            ask "Phone number of the pi-guard Signal account (+49...)" ""; SIGNAL_NUMBER="${REPLY// /}"
+            ask "Your own Signal number (+49...)" ""; SIGNAL_ADMINS="${REPLY// /}"
+            if [[ ! "$SIGNAL_NUMBER" =~ $PHONE_RE || ! "$SIGNAL_ADMINS" =~ $PHONE_RE ]]; then
+                warn "use the international format, e.g. +4915112345678"
+            elif [[ "$SIGNAL_NUMBER" == "$SIGNAL_ADMINS" ]]; then
+                warn "these must be two different numbers"
+            else
+                break
+            fi
+        done
+        command -v signal-cli >/dev/null \
+            || warn "signal-cli is not installed yet; Signal stays offline until it runs (docs/signal.md)"
     fi
 
     PRESENCE=false
@@ -149,6 +191,15 @@ fi
 chown root:"$USER_NAME" "$ENV_FILE"
 chmod 0640 "$ENV_FILE"
 
+if [[ -f "$CONF/config.yaml" ]] && ! "$PREFIX/venv/bin/python" -c '
+import sys
+from pathlib import Path
+from pi_guard.config.files import load_file_config
+load_file_config(Path(sys.argv[1]))' "$CONF/config.yaml" 2>/dev/null; then
+    BROKEN="$CONF/config.yaml.broken-$(date +%Y%m%d%H%M%S)"
+    warn "$CONF/config.yaml is invalid; kept as $BROKEN and writing a new one"
+    mv "$CONF/config.yaml" "$BROKEN"
+fi
 if [[ ! -f "$CONF/config.yaml" ]]; then
     say "writing $CONF/config.yaml for the detected hardware"
     "$PREFIX/venv/bin/pi-guard" config init -o "$CONF/config.yaml"
@@ -164,14 +215,6 @@ RECORDINGS="${RECORDINGS:-$DATA/recordings}"
 install -d -m 0700 -o "$USER_NAME" -g "$USER_NAME" "$RECORDINGS"
 
 # optional: dashboard, Pi-hole, WireGuard status, fixed address ----------------------
-set_env() {  # set_env KEY VALUE: replace or append a line; VALUE is taken literally
-    local tmp
-    tmp="$(mktemp)"
-    grep -v "^$1=" "$ENV_FILE" > "$tmp" || true
-    printf '%s=%s\n' "$1" "$2" >> "$tmp"
-    cat "$tmp" > "$ENV_FILE"  # keeps owner and mode of the env file
-    rm -f "$tmp"
-}
 
 if ! grep -q '^PI_GUARD_DASHBOARD_ENABLED=true' "$ENV_FILE" \
     && yes_no "Enable the web dashboard (https://<pi>:8443)?" n; then
@@ -185,7 +228,12 @@ fi
 if ! command -v pihole >/dev/null && yes_no "Install Pi-hole (network-wide ad blocking, official installer from pi-hole.net)?" n; then
     echo "This downloads and runs https://install.pi-hole.net as root. It asks its own questions."
     if yes_no "Run the official Pi-hole installer now?" n; then
-        curl -sSL https://install.pi-hole.net | bash
+        # Downloaded first and run with the terminal attached, so its setup dialogs appear
+        # (piped into bash it silently uses defaults).
+        PIHOLE_SCRIPT="$(mktemp)"
+        curl -fsSL https://install.pi-hole.net -o "$PIHOLE_SCRIPT"
+        bash "$PIHOLE_SCRIPT" </dev/tty || warn "the Pi-hole installer did not finish"
+        rm -f "$PIHOLE_SCRIPT"
     fi
 fi
 if command -v pihole >/dev/null && ! grep -q '^PI_GUARD_PIHOLE_ENABLED=true' "$ENV_FILE" \
@@ -210,6 +258,13 @@ fi
 if command -v nmcli >/dev/null && [[ "$(nmcli -g ipv4.method connection show "$(nmcli -t -f NAME connection show --active | head -1)" 2>/dev/null)" == "auto" ]] \
     && yes_no "Give this device a fixed IP address (recommended with Pi-hole)?" n; then
     "$REPO/scripts/network.sh" static || warn "fixed address not set; see docs/network.md"
+fi
+
+# Telegram without a token only works when it can be set up in the dashboard.
+if ! grep -qE '^PI_GUARD_TELEGRAM_BOT_TOKEN=.+' "$ENV_FILE" \
+    && ! grep -q '^PI_GUARD_DASHBOARD_ENABLED=true' "$ENV_FILE"; then
+    warn "no Telegram bot token: Telegram is switched off (set the token in $ENV_FILE later)"
+    set_env PI_GUARD_TELEGRAM_ENABLED false
 fi
 
 # 13: systemd ------------------------------------------------------------------------

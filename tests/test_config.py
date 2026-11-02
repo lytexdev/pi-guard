@@ -157,3 +157,32 @@ def test_zone_points_must_be_fractions() -> None:
                 ]
             }
         )
+
+
+def test_starter_config_survives_awkward_device_names(tmp_path: Path) -> None:
+    from pi_guard.audio.devices import AudioDevice
+    from pi_guard.cameras.discovery import VideoDevice, VideoFormat
+    from pi_guard.config.starter import starter_config
+
+    camera = VideoDevice(Path("/dev/video0"),
+                         Path("/dev/v4l/by-id/usb-HD_Web_Camera_HD_Web_Camera_Ucamera001-video-index0"),
+                         "HD Web Camera: HD Web Camera",
+                         (VideoFormat("mjpeg", True, ((1280, 720),)),))  # fmt: skip
+    audio = [
+        AudioDevice(0, "vc4hdmi0", 0, "vc4-hdmi – MAI PCM", True, False),
+        AudioDevice(3, "SF558", 0, "USB-Audio - SF-558 – USB Audio", True, False),
+        AudioDevice(2, "Camera", 0, "USB-Audio - HD Web Camera – USB Audio", False, True),
+    ]
+    path = tmp_path / "config.yaml"
+    path.write_text(starter_config([camera], audio))
+    config = load_file_config(path)
+    assert config.cameras[0].name == "HD Web Camera: HD Web Camera"
+    assert config.audio.speaker == "plughw:CARD=SF558,DEV=0"  # USB before HDMI
+    assert config.audio.microphone == "plughw:CARD=Camera,DEV=0"
+
+
+def test_broken_yaml_gives_a_readable_error(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text("cameras:\n  - id: a\n    name: HD Web Camera: HD Web Camera\n")
+    with pytest.raises(ValueError, match=r"line 3, column 24"):
+        load_file_config(path)

@@ -32,12 +32,12 @@ OLD_ADDR="$(nmcli -g ipv4.addresses connection show "$CON")"
 OLD_GW="$(nmcli -g ipv4.gateway connection show "$CON")"
 OLD_DNS="$(nmcli -g ipv4.dns connection show "$CON")"
 
-show() {
+show() {  # always reads the current state, not the values from script start
     echo "connection: $CON ($DEV)"
-    echo "method:     $OLD_METHOD"
-    echo "address:    $CUR_IP"
-    echo "gateway:    $CUR_GW"
-    echo "dns:        $CUR_DNS"
+    echo "method:     $(nmcli -g ipv4.method connection show "$CON")"
+    echo "address:    $(nmcli -g IP4.ADDRESS device show "$DEV" | head -1)"
+    echo "gateway:    $(nmcli -g IP4.GATEWAY device show "$DEV")"
+    echo "dns:        $(nmcli -g IP4.DNS device show "$DEV" | paste -sd, -)"
 }
 
 schedule_rollback() {

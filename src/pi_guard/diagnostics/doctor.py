@@ -225,17 +225,26 @@ def check_signal(config: Config) -> list[Check]:
     s = config.settings
     if not s.signal_enabled:
         return [Check("signal", Level.SKIP, "disabled")]
+    checks: list[Check] = []
+    own = s.signal_phone_number
+    if own in {*s.signal_admin_numbers, *s.signal_allowed_numbers}:
+        checks.append(Check(
+            "signal numbers", Level.WARN,
+            f"{own} is pi-guard's own account; messages from it are ignored. "
+            "Use your personal number in PI_GUARD_SIGNAL_ADMIN_NUMBERS",
+        ))  # fmt: skip
     from pi_guard.messaging.signal.provider import probe
 
     try:
         version = asyncio.run(probe(s.signal_cli_address))
     except (OSError, TimeoutError, ValueError) as exc:
         return [
+            *checks,
             Check(
                 "signal", Level.FAIL, f"signal-cli not reachable at {s.signal_cli_address}: {exc}"
-            )
+            ),
         ]
-    return [Check("signal", Level.OK, f"signal-cli {version}")]
+    return [*checks, Check("signal", Level.OK, f"signal-cli {version}")]
 
 
 def check_detection(config: Config) -> list[Check]:

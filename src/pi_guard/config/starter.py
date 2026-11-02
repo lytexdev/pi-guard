@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from pi_guard.audio.devices import AudioDevice
 from pi_guard.cameras.discovery import VideoDevice
 
@@ -16,6 +18,17 @@ def _resolution(device: VideoDevice) -> str:
             return f"{size[0]}x{size[1]}"
     width, height = sizes[0]
     return f"{width}x{height}"
+
+
+def _q(value: object) -> str:
+    """Quote a value for YAML. Device names contain ': ' and other special characters
+    (e.g. "HD Web Camera: HD Web Camera"); a JSON string is a valid YAML scalar."""
+    return json.dumps(str(value), ensure_ascii=False)
+
+
+def _prefer_usb(devices: list[AudioDevice]) -> AudioDevice | None:
+    """USB sound devices are what people plug in for pi-guard; HDMI is rarely wanted."""
+    return next((d for d in devices if d.usb), devices[0] if devices else None)
 
 
 def starter_config(cameras: list[VideoDevice], audio: list[AudioDevice]) -> str:
@@ -33,8 +46,8 @@ def starter_config(cameras: list[VideoDevice], audio: list[AudioDevice]) -> str:
         seen.add(camera_id)
         lines += [
             f"  - id: {camera_id}",
-            f"    name: {device.name}",
-            f"    device: {device.path}",
+            f"    name: {_q(device.name)}",
+            f"    device: {_q(device.path)}",
             f"    resolution: {_resolution(device)}",
             "    fps: 15",
             "    recording: true",
@@ -49,11 +62,11 @@ def starter_config(cameras: list[VideoDevice], audio: list[AudioDevice]) -> str:
     if not cameras:
         lines.append("  []  # no camera detected; see `pi-guard cameras`")
 
-    speakers = [d for d in audio if d.playback]
-    microphones = [d for d in audio if d.capture]
+    speaker = _prefer_usb([d for d in audio if d.playback])
+    microphone = _prefer_usb([d for d in audio if d.capture])
     lines += ["", "audio:"]
-    lines.append(f"  speaker: {speakers[0].alsa_name if speakers else 'null'}")
-    lines.append(f"  microphone: {microphones[0].alsa_name if microphones else 'null'}")
+    lines.append(f"  speaker: {_q(speaker.alsa_name) if speaker else 'null'}")
+    lines.append(f"  microphone: {_q(microphone.alsa_name) if microphone else 'null'}")
     lines += [f"  # available: {d.alsa_name} ({d.name})" for d in audio]
     lines += [
         '  quiet_hours: "22:00-07:00"',

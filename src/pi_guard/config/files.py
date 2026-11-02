@@ -237,7 +237,13 @@ class FileConfig(_Model):
 def load_file_config(path: Path) -> FileConfig:
     if not path.exists():
         return FileConfig()
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        mark = getattr(exc, "problem_mark", None)
+        where = f" (line {mark.line + 1}, column {mark.column + 1})" if mark else ""
+        problem = getattr(exc, "problem", None) or "invalid YAML"
+        raise ValueError(f"{path}{where}: {problem}") from None
     if not isinstance(data, dict):
         raise ValueError(f"{path} must contain a YAML mapping")
     return FileConfig.model_validate(data)
