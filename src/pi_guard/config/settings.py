@@ -93,12 +93,54 @@ class Settings(BaseSettings):
 
     fritzbox_password: SecretStr | None = None
 
+    # Emergency contacts: written to when alerts stay unacknowledged.
+    emergency_telegram_user_ids: IntList = Field(default_factory=list)
+    emergency_signal_numbers: StrList = Field(default_factory=list)
+    emergency_after_alerts: int = Field(3, ge=1, le=50)
+    emergency_after_minutes: int = Field(30, ge=1, le=1440)
+
+    # Network integrations (optional)
+    pihole_enabled: bool = False
+    pihole_url: str = "http://127.0.0.1:8080"
+    pihole_password: SecretStr | None = None
+    wireguard_enabled: bool = False
+    wireguard_interface: str = "wg0"
+
+    # Web dashboard (optional)
+    dashboard_enabled: bool = False
+    dashboard_host: str = "0.0.0.0"  # noqa: S104 - the dashboard is meant for the LAN
+    dashboard_port: int = Field(8443, ge=1, le=65535)
+    dashboard_tls: bool = True
+    dashboard_tls_cert: Path | None = None
+    dashboard_tls_key: Path | None = None
+    # Comma-separated: password, keyfile; or "none" (only with ALLOW_UNAUTHENTICATED).
+    dashboard_auth: StrList = Field(default_factory=lambda: ["password"])
+    dashboard_username: str = "admin"
+    dashboard_password_hash: SecretStr | None = None
+    dashboard_password: SecretStr | None = None
+    dashboard_totp_secret: SecretStr | None = None
+    dashboard_allow_unauthenticated: bool = False
+    dashboard_rate_limit_per_minute: int = Field(240, ge=30, le=10000)
+    dashboard_honeypot: bool = True
+    dashboard_ban_minutes: int = Field(60, ge=1, le=10080)
+    dashboard_trusted_proxies: StrList = Field(default_factory=list)
+    # Live view: frames per second (0 turns it off) and width of the live picture.
+    dashboard_live_fps: float = Field(8, ge=0, le=15)
+    dashboard_live_width: int = Field(960, ge=320, le=1920)
+    # Push notifications to installed dashboard apps; payloads are end-to-end
+    # encrypted but travel through the browser vendor's push service.
+    webpush_enabled: bool = False
+
     @field_validator(
         "telegram_admin_user_ids",
         "telegram_viewer_user_ids",
         "telegram_allowed_chat_ids",
         "signal_admin_numbers",
         "signal_allowed_numbers",
+        "dashboard_auth",
+        "dashboard_trusted_proxies",
+        "emergency_telegram_user_ids",
+        "emergency_signal_numbers",
         mode="before",
     )
     @classmethod
@@ -131,7 +173,7 @@ class Settings(BaseSettings):
             raise ValueError("phone numbers must use international format, e.g. +4915112345678")
         return value or None
 
-    @field_validator("signal_admin_numbers", "signal_allowed_numbers")
+    @field_validator("signal_admin_numbers", "signal_allowed_numbers", "emergency_signal_numbers")
     @classmethod
     def _check_phones(cls, values: list[str]) -> list[str]:
         for value in values:
@@ -146,6 +188,20 @@ class Settings(BaseSettings):
         if not sep or not host or not port.isdigit():
             raise ValueError("expected host:port")
         return value
+
+    @field_validator("wireguard_interface")
+    @classmethod
+    def _check_interface(cls, value: str) -> str:
+        if not re.match(r"^[a-zA-Z0-9_.-]{1,15}$", value):
+            raise ValueError("not a network interface name")
+        return value
+
+    @field_validator("pihole_url")
+    @classmethod
+    def _check_url(cls, value: str) -> str:
+        if not value.startswith(("http://", "https://")):
+            raise ValueError("expected http://… or https://…")
+        return value.rstrip("/")
 
     @field_validator("mqtt_topic_prefix")
     @classmethod
@@ -182,6 +238,10 @@ class Settings(BaseSettings):
                 raise ValueError("PI_GUARD_SIGNAL_PHONE_NUMBER is required when Signal is enabled")
             if not self.signal_admin_numbers:
                 raise ValueError("PI_GUARD_SIGNAL_ADMIN_NUMBERS needs at least one number")
+        if self.dashboard_enabled:
+            self._check_dashboard()
+        if self.webpush_enabled and not self.dashboard_enabled:
+            raise ValueError("push notifications need the dashboard (PI_GUARD_DASHBOARD_ENABLED)")
         if self.mqtt_enabled and not self.mqtt_host:
             raise ValueError("PI_GUARD_MQTT_HOST is required when MQTT is enabled")
         if self.face_recognition_enabled and not self.person_detection_enabled:
@@ -190,6 +250,37 @@ class Settings(BaseSettings):
                 "enable PI_GUARD_PERSON_DETECTION_ENABLED as well"
             )
         return self
+
+    def _check_dashboard(self) -> None:
+        methods = {m.lower() for m in self.dashboard_auth}
+        if not methods or not methods <= {"password", "keyfile", "none"}:
+            raise ValueError("PI_GUARD_DASHBOARD_AUTH: use password, keyfile or none")
+        if "none" in methods:
+            if len(methods) > 1:
+                raise ValueError("PI_GUARD_DASHBOARD_AUTH=none cannot be combined")
+            loopback = self.dashboard_host in ("127.0.0.1", "::1", "localhost")
+            if not loopback and not self.dashboard_allow_unauthenticated:
+                raise ValueError(
+                    "a dashboard without login on the network needs "
+                    "PI_GUARD_DASHBOARD_ALLOW_UNAUTHENTICATED=true"
+                )
+        if "password" in methods and not (self.dashboard_password_hash or self.dashboard_password):
+            raise ValueError(
+                "set PI_GUARD_DASHBOARD_PASSWORD_HASH (pi-guard dashboard password) "
+                "or PI_GUARD_DASHBOARD_PASSWORD"
+            )
+        if self.dashboard_totp_secret:
+            import base64
+
+            secret = self.dashboard_totp_secret.get_secret_value().upper()
+            try:
+                base64.b32decode(secret + "=" * (-len(secret) % 8))
+            except ValueError as exc:
+                raise ValueError("PI_GUARD_DASHBOARD_TOTP_SECRET is not base32") from exc
+
+    @property
+    def dashboard_methods(self) -> set[str]:
+        return {m.lower() for m in self.dashboard_auth}
 
     @property
     def recordings_path(self) -> Path:
@@ -201,5 +292,12 @@ class Settings(BaseSettings):
 
     @property
     def secrets(self) -> list[str]:
-        values = [self.telegram_bot_token, self.mqtt_password, self.fritzbox_password]
+        values = [
+            self.telegram_bot_token,
+            self.mqtt_password,
+            self.fritzbox_password,
+            self.dashboard_password,
+            self.dashboard_totp_secret,
+            self.pihole_password,
+        ]
         return [v.get_secret_value() for v in values if v and v.get_secret_value()]

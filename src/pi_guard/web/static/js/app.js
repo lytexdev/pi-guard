@@ -1,0 +1,116 @@
+// Shell, navigation and hash router. Views live in ./views and render into <main>.
+import { api, h, icon, loadTexts, lang, setCsrf, t, fill } from "./api.js";
+
+const VIEWS = {
+  overview: () => import("./views/overview.js"),
+  live: () => import("./views/live.js"),
+  events: () => import("./views/events.js"),
+  people: () => import("./views/people.js"),
+  more: () => import("./views/more.js"),
+  network: () => import("./views/network.js"),
+  settings: () => import("./views/settings.js"),
+  devices: () => import("./views/devices.js"),
+  access: () => import("./views/access.js"),
+  logs: () => import("./views/logs.js"),
+  login: () => import("./views/login.js"),
+};
+const PRIMARY = [
+  ["overview", "home", "web.nav_overview"],
+  ["live", "video", "web.nav_live"],
+  ["events", "bell", "web.nav_events"],
+  ["people", "users", "web.nav_people"],
+];
+const SECONDARY = [
+  ["network", "network", "web.nav_network"],
+  ["devices", "camera", "web.nav_devices"],
+  ["settings", "settings", "web.nav_settings"],
+  ["access", "shield-lock", "web.nav_access"],
+  ["logs", "list-details", "web.nav_logs"],
+];
+
+export const state = { session: null, overview: null };
+let cleanup = null;
+
+function link(route, iconName, label, current) {
+  return h("a", { href: `#/${route}`, class: current === route ? "active" : "" },
+    icon(iconName), h("span", {}, t(label)));
+}
+
+function shell(route) {
+  const main = h("main", { id: "main" });
+  const nav = h("nav", { class: "nav", "aria-label": "pi-guard" },
+    h("div", { class: "brand" }, h("img", { src: "/static/img/icon-192.png", alt: "" }), "pi-guard"),
+    PRIMARY.map(([r, i, l]) => link(r, i, l, route)),
+    h("h3", {}, t("web.nav_system")),
+    SECONDARY.map(([r, i, l]) => link(r, i, l, route)),
+    h("div", { class: "spacer" }),
+    h("a", { href: "#/logout" }, icon("logout"), h("span", {}, t("web.logout"))),
+    h("div", { class: "credit" }, "pi-guard · made by lytex"));
+  const tabbar = h("nav", { class: "tabbar", "aria-label": "pi-guard" },
+    PRIMARY.map(([r, i, l]) => link(r, i, l, route)),
+    link("more", "menu-2", "web.nav_more",
+      SECONDARY.some(([r]) => r === route) || route === "more" ? "more" : route));
+  return h("div", { class: "shell" }, nav, main, tabbar);
+}
+
+async function refreshSession() {
+  state.session = await api("/api/session");
+  setCsrf(state.session.csrf);
+  return state.session;
+}
+
+async function route() {
+  try { await show(); }
+  catch (error) {
+    fill(document.getElementById("app"), h("div", { class: "login" }, h("div", { class: "panel" },
+      h("p", { class: "notice danger" }, error.status === 429 ? t("web.rate_limited") : t("web.offline")),
+      h("button", { onclick: route }, t("web.retry")))));
+  }
+}
+
+async function show() {
+  if (cleanup) { cleanup(); cleanup = null; }
+  const [name, ...params] = (location.hash.replace(/^#\/?/, "") || "overview").split("/");
+  const root = document.getElementById("app");
+  if (name === "logout") {
+    await api("/api/logout", { method: "POST" }).catch(() => {});
+    location.hash = "#/login";
+    return;
+  }
+  const session = await refreshSession();
+  if (!session.authenticated && name !== "login") { location.hash = "#/login"; return; }
+  if (session.authenticated && name === "login") { location.hash = "#/overview"; return; }
+  const loader = VIEWS[name] || VIEWS.overview;
+  const view = await loader();
+  if (name === "login") {
+    root.replaceChildren();
+    cleanup = await view.render(root, params) || null;
+    return;
+  }
+  fill(root, shell(name in VIEWS ? name : "overview"));
+  const main = document.getElementById("main");
+  try {
+    cleanup = await view.render(main, params) || null;
+  } catch (error) {
+    fill(main, h("section", { class: "panel" },
+      h("p", { class: "notice danger" }, error.status === 429 ? t("web.rate_limited") : (error.message || t("web.error"))),
+      h("button", { onclick: route }, t("web.retry"))));
+  }
+}
+
+async function start() {
+  const session = await api("/api/session");
+  await loadTexts(localStorage.getItem("lang") || session.language || lang);
+  window.addEventListener("hashchange", route);
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+  }
+  await route();
+}
+
+export async function switchLanguage(language) {
+  await loadTexts(language);
+  await route();
+}
+
+start();

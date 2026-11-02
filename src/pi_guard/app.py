@@ -10,6 +10,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pi_guard import CREDIT, __version__
 from pi_guard.audio.service import AudioError, AudioService
@@ -39,6 +40,9 @@ from pi_guard.recording.retention import Retention
 from pi_guard.recording.segments import recent_clip
 from pi_guard.security.files import atomic_write, secure_dir
 from pi_guard.storage.db import Database
+
+if TYPE_CHECKING:
+    from pi_guard.web.server import Dashboard
 
 log = logging.getLogger(__name__)
 
@@ -113,6 +117,7 @@ class App:
         self.providers: dict[str, Provider] = providers if providers is not None else {}
         self.messenger = Messenger(self)
         self.mqtt: MqttBridge | None = None
+        self.dashboard: Dashboard | None = None
         self.notifier = Notifier(self)
         if s.presence_enabled:
             presence = config.file.presence
@@ -135,6 +140,8 @@ class App:
             runtime_dir=s.runtime_dir,
             analysis_fps=camera.motion.analysis_fps if detect else 1.0,
             microphone=camera.microphone if s.audio_recording_enabled else None,
+            live_fps=s.dashboard_live_fps if s.dashboard_enabled else 0,
+            live_width=s.dashboard_live_width,
         )
 
     def _setup_detection(self) -> None:
@@ -260,6 +267,8 @@ class App:
             parts["presence"] = self.presence.run
         if self.mqtt is not None:
             parts["mqtt"] = self.mqtt.run
+        if self.dashboard is not None:
+            parts["dashboard"] = self.dashboard.run
         if (
             self.audio is not None
             and self.audio.playback_enabled
@@ -322,6 +331,13 @@ def build_app(config: Config) -> App:
         from pi_guard.messaging.signal.provider import SignalProvider
 
         app.providers["signal"] = SignalProvider(s.signal_phone_number, s.signal_cli_address)
+    if s.dashboard_enabled:
+        try:
+            from pi_guard.web.server import Dashboard as WebDashboard
+        except ImportError:
+            log.error("the dashboard needs aiohttp (pip install pi-guard[web])")
+        else:
+            app.dashboard = WebDashboard(app)
     if s.mqtt_enabled:
         try:
             import aiomqtt  # noqa: F401

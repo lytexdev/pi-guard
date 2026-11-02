@@ -15,7 +15,7 @@ import os
 import signal
 import time
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -26,11 +26,13 @@ import numpy.typing as npt
 from pi_guard.cameras import discovery
 from pi_guard.cameras.ffmpeg import (
     CaptureChoice,
+    LiveOutputs,
     build_command,
     choose_capture,
     detection_size,
     supports_atomic_snapshots,
 )
+from pi_guard.cameras.live import AudioFanout, LiveFrames, open_reader, read_chunks, read_mpjpeg
 from pi_guard.config.files import CameraConfig
 from pi_guard.core.events import Event, EventBus, EventType
 from pi_guard.core.lifecycle import Backoff
@@ -88,8 +90,14 @@ class CameraPipeline:
         runtime_dir: Path,
         analysis_fps: float,
         microphone: str | None = None,
+        live_fps: float = 0,
+        live_width: int = 960,
     ) -> None:
         self.camera = camera
+        self.live_fps = live_fps
+        self.live_width = live_width
+        self.live_frames = LiveFrames()
+        self.live_audio = AudioFanout()
         self.segment_dir = segment_dir
         self.segment_seconds = segment_seconds
         self.snapshot_path = runtime_dir / f"{camera.id}.jpg"
@@ -141,16 +149,42 @@ class CameraPipeline:
         if choice.warning:
             log.warning("camera %s: %s", self.camera.id, choice.warning)
         self.status.input_format, self.status.encoder = choice.input_format, choice.encoder
-        process = await self._spawn(choice)
-        stderr_task = asyncio.create_task(self._drain_stderr(process))
+        live, read_ends = self._live_pipes()
+        try:
+            process = await self._spawn(choice, live)
+        finally:
+            for fd in (live.video_fd, live.audio_fd) if live else ():
+                if fd is not None:
+                    os.close(fd)  # the child has its copy
+        tasks = [asyncio.create_task(self._drain_stderr(process))]
+        tasks += [asyncio.create_task(reader) for reader in await self._live_readers(read_ends)]
         try:
             await self._read_frames(process)
         finally:
             await self._stop(process)
-            stderr_task.cancel()
+            for task in tasks:
+                task.cancel()
             self.status.restarts += 1
 
-    async def _spawn(self, choice: CaptureChoice) -> asyncio.subprocess.Process:
+    def _live_pipes(self) -> tuple[LiveOutputs | None, list[int]]:
+        if self.live_fps <= 0:
+            return None, []
+        video_r, video_w = os.pipe()
+        audio_r, audio_w = os.pipe() if self.microphone and self.segment_dir else (None, None)
+        live = LiveOutputs(video_w, self.live_fps, self.live_width, audio_w)
+        return live, [fd for fd in (video_r, audio_r) if fd is not None]
+
+    async def _live_readers(self, read_ends: list[int]) -> list[Coroutine[None, None, None]]:
+        readers: list[Coroutine[None, None, None]] = []
+        if read_ends:
+            readers.append(read_mpjpeg(await open_reader(read_ends[0]), self.live_frames))
+        if len(read_ends) > 1:
+            readers.append(read_chunks(await open_reader(read_ends[1]), self.live_audio))
+        return readers
+
+    async def _spawn(
+        self, choice: CaptureChoice, live: LiveOutputs | None = None
+    ) -> asyncio.subprocess.Process:
         args = build_command(
             self.camera,
             choice,
@@ -160,6 +194,7 @@ class CameraPipeline:
             analysis_fps=self.analysis_fps,
             microphone=self.microphone,
             atomic_snapshots=supports_atomic_snapshots(),
+            live=live,
         )
         log.info(
             "camera %s: starting capture (%s -> %s)",
@@ -176,6 +211,9 @@ class CameraPipeline:
             stderr=asyncio.subprocess.PIPE,
             # Segment names come from strftime; UTC keeps them unambiguous across DST.
             env={**os.environ, "TZ": "UTC"},
+            pass_fds=[fd for fd in (live.video_fd, live.audio_fd) if fd is not None]
+            if live
+            else (),
         )
 
     async def _read_frames(self, process: asyncio.subprocess.Process) -> None:

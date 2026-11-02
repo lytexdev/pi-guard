@@ -91,6 +91,9 @@ class Database:
     def execute(self, sql: str, params: tuple[Any, ...] | dict[str, Any] = ()) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)
 
+    def executescript(self, script: str) -> None:
+        self._conn.executescript(script)
+
     def close(self) -> None:
         self._conn.close()
 

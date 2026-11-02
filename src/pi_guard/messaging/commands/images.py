@@ -15,7 +15,6 @@ from typing import Any
 from pi_guard.cameras import imaging
 from pi_guard.cameras.pipeline import SnapshotUnavailableError
 from pi_guard.core.timeutil import utcnow
-from pi_guard.detection.persons import PersonDetector
 from pi_guard.messaging.base import Button, Reply
 from pi_guard.messaging.commands.context import CommandContext
 from pi_guard.messaging.commands.core import menu_row, photo_buttons
@@ -79,25 +78,13 @@ async def sharper(ctx: CommandContext, args: dict[str, Any]) -> Reply:
         return Reply(ctx.t("photo.unavailable", name=pipeline.camera.name),
                      buttons=(menu_row(ctx),))  # fmt: skip
     try:
-        image, person = await asyncio.to_thread(_sharpest, series, ctx.app.person_locator())
+        image, person = await asyncio.to_thread(imaging.best_view, series, ctx.app.person_locator())
     finally:
         for path in series:
             path.unlink(missing_ok=True)
     key = "image.sharper_person" if person else "image.sharper"
     return _reply(ctx, image, f"{pipeline.camera.id}_sharp", ctx.t(key, name=pipeline.camera.name),
                   photo_buttons(ctx, pipeline.camera.id)[:-1])  # fmt: skip
-
-
-def _sharpest(series: list[Path], locator: PersonDetector | None) -> tuple[imaging.Image, bool]:
-    image = imaging.load(imaging.sharpest(series))
-    box = locator.locate(image) if locator else None
-    if box is not None:
-        height, width = image.shape[:2]
-        image = imaging.enlarge(imaging.crop(image, imaging.around(box, width, height)))
-    image = imaging.sharpen(image)
-    if imaging.is_dark(image):
-        image = imaging.brighten(image)
-    return image, box is not None
 
 
 def _zoom_grid(ctx: CommandContext) -> tuple[tuple[Button, ...], ...]:

@@ -6,11 +6,32 @@ import json
 import logging
 import logging.handlers
 import sys
+from collections import deque
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pi_guard.security.redact import redact
 
-_NOISY = ("httpx", "httpcore", "telegram.ext", "apscheduler", "aiomqtt")
+_NOISY = ("httpx", "httpcore", "telegram.ext", "apscheduler", "aiomqtt", "aiohttp.access")
+
+
+class MemoryHandler(logging.Handler):
+    """Keeps the most recent records for the dashboard's log view."""
+
+    def __init__(self, capacity: int = 1000) -> None:
+        super().__init__()
+        self.records: deque[dict[str, str]] = deque(maxlen=capacity)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append({
+            "ts": datetime.fromtimestamp(record.created, UTC).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": self.format(record),
+        })  # fmt: skip
+
+
+RECENT = MemoryHandler()
 
 
 class RedactingFormatter(logging.Formatter):
@@ -52,8 +73,10 @@ def setup_logging(
         handlers.append(
             logging.handlers.RotatingFileHandler(log_file, maxBytes=5_000_000, backupCount=3)
         )
+    handlers.append(RECENT)
     for handler in handlers:
         handler.setFormatter(RedactingFormatter(formatter, secrets or []))
+    RECENT.setFormatter(RedactingFormatter(logging.Formatter("%(message)s"), secrets or []))
     logging.basicConfig(level=level, handlers=handlers, force=True)
     for name in _NOISY:
         logging.getLogger(name).setLevel(max(logging.WARNING, logging.getLevelName(level)))

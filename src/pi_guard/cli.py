@@ -29,6 +29,7 @@ signal_app = typer.Typer(no_args_is_help=True, help="Signal (signal-cli) connect
 presence_app = typer.Typer(no_args_is_help=True, help="Wi-Fi presence detection.")
 models_app = typer.Typer(no_args_is_help=True, help="Optional detection models.")
 faces_app = typer.Typer(no_args_is_help=True, help="Enrolled people (face recognition).")
+dashboard_app = typer.Typer(no_args_is_help=True, help="Web dashboard access.")
 for sub, name in (
     (config_app, "config"),
     (audio_app, "audio"),
@@ -37,6 +38,7 @@ for sub, name in (
     (presence_app, "presence"),
     (models_app, "models"),
     (faces_app, "faces"),
+    (dashboard_app, "dashboard"),
 ):
     app.add_typer(sub, name=name)
 
@@ -459,6 +461,69 @@ def faces_delete(name: str) -> None:
         typer.echo(f"{name} is not enrolled.")
         raise typer.Exit(1)
     typer.echo(f"{name} deleted.")
+
+
+@dashboard_app.command("password")
+def dashboard_password() -> None:
+    """Hash a dashboard password for PI_GUARD_DASHBOARD_PASSWORD_HASH."""
+    from pi_guard.web.auth import hash_password
+
+    password = typer.prompt("New dashboard password", hide_input=True, confirmation_prompt=True)
+    if len(password) < 10:
+        typer.secho("Use at least 10 characters.", fg="red", err=True)
+        raise typer.Exit(1)
+    typer.echo("Add this line to the env file and restart pi-guard:\n")
+    typer.echo(f"PI_GUARD_DASHBOARD_PASSWORD_HASH={hash_password(password)}")
+
+
+@dashboard_app.command("totp")
+def dashboard_totp(account: str = "admin") -> None:
+    """Create a TOTP secret for two-factor login and show it as a QR code."""
+    import qrcode
+
+    from pi_guard.web.auth import new_totp_secret, totp_uri
+
+    secret = new_totp_secret()
+    uri = totp_uri(secret, account)
+    code = qrcode.QRCode(border=1)
+    code.add_data(uri)
+    code.print_ascii(invert=True)
+    typer.echo(f"\n{uri}\n\nScan the code with an authenticator app, then add:\n")
+    typer.echo(f"PI_GUARD_DASHBOARD_TOTP_SECRET={secret}")
+
+
+@dashboard_app.command("keyfile")
+def dashboard_keyfile(
+    name: str, output: Annotated[Path, typer.Option("--output", "-o")] = Path("pi-guard.key")
+) -> None:
+    """Create a key file that logs in to the dashboard (PI_GUARD_DASHBOARD_AUTH=keyfile)."""
+    from pi_guard.storage.db import Database
+    from pi_guard.web.auth import AuthStore
+
+    db = Database(_config().settings.data_dir / "pi-guard.db")
+    secret = AuthStore(db).create_keyfile(name)
+    db.close()
+    output.write_text(secret + "\n")
+    output.chmod(0o600)
+    typer.echo(f"wrote {output}; keep it like a key, delete it in the dashboard if lost")
+
+
+@dashboard_app.command("certs")
+def dashboard_certs() -> None:
+    """Create or renew the dashboard's HTTPS certificates and show the CA to install."""
+    import subprocess
+
+    from pi_guard.web.tls import ensure_certificates
+
+    ca, cert, _ = ensure_certificates(_config().settings.data_dir / "tls")
+    fingerprint = subprocess.run(
+        ["openssl", "x509", "-in", str(ca), "-noout", "-fingerprint", "-sha256"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    typer.echo(f"CA certificate: {ca}\nserver certificate: {cert}\n{fingerprint}")
+    typer.echo("Install the CA on your devices (also downloadable at https://<pi>:8443/ca.crt).")
 
 
 def main() -> None:

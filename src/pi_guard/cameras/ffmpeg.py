@@ -85,6 +85,16 @@ def ffmpeg_version() -> str | None:
 
 
 @dataclass(frozen=True)
+class LiveOutputs:
+    """File descriptors the capture process writes live picture and sound to."""
+
+    video_fd: int
+    fps: float
+    width: int
+    audio_fd: int | None = None
+
+
+@dataclass(frozen=True)
 class CaptureChoice:
     input_format: str
     encoder: str  # "copy" or an FFmpeg encoder name
@@ -145,6 +155,7 @@ def build_command(
     analysis_fps: float,
     microphone: str | None = None,
     atomic_snapshots: bool = False,
+    live: LiveOutputs | None = None,
 ) -> list[str]:
     width, height = camera.size
     det_w, det_h = detection_size(camera)
@@ -162,7 +173,7 @@ def build_command(
         args += ["-f", "alsa", "-thread_queue_size", "1024", "-ac", "1", "-i", microphone]
 
     encode = segment_dir is not None and choice.encoder != "copy"
-    branches = ["det", "snap"] + (["rec"] if encode else [])
+    branches = ["det", "snap"] + (["rec"] if encode else []) + (["live"] if live else [])
     chains = [
         f"[0:v]split={len(branches)}" + "".join(f"[{b}_in]" for b in branches),
         f"[det_in]fps={analysis_fps:g},scale={det_w}:{det_h},format=gray[det]",
@@ -170,6 +181,8 @@ def build_command(
     ]
     if encode:
         chains.append("[rec_in]format=yuv420p[rec]")
+    if live:
+        chains.append(f"[live_in]fps={live.fps:g},scale='min({live.width},iw)':-2[live]")
     args += ["-filter_complex", ";".join(chains)]
 
     if segment_dir is not None:
@@ -196,5 +209,11 @@ def build_command(
     if atomic_snapshots:
         args += ["-atomic_writing", "1"]
     args += ["-y", str(snapshot_path)]
+    if live:
+        args += ["-map", "[live]", "-c:v", "mjpeg", "-q:v", "6", "-f", "mpjpeg",
+                 f"pipe:{live.video_fd}"]
+        if live.audio_fd is not None and microphone and segment_dir:
+            args += ["-map", "1:a", "-c:a", "libmp3lame", "-b:a", "64k", "-ac", "1",
+                     "-f", "mp3", f"pipe:{live.audio_fd}"]
     # fmt: on
     return args

@@ -120,6 +120,15 @@ class BiometricStore:
             self._conn.execute("VACUUM")
         return deleted
 
+    def rename(self, old: str, new: str) -> bool:
+        try:
+            changed = self._conn.execute(
+                "UPDATE people SET name = ? WHERE name = ? COLLATE NOCASE", (new, old)
+            ).rowcount
+        except sqlite3.IntegrityError:
+            return False  # the new name is taken
+        return changed > 0
+
     def close(self) -> None:
         self._conn.close()
 

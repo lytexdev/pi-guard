@@ -7,7 +7,7 @@ sensor did not capture. Zoom is digital (crop and enlarge).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -122,3 +122,20 @@ def around(box: Box, width: int, height: int, margin: float = 0.6) -> Box:
     left = int(min(max(cx - out_w / 2, 0), width - out_w))
     top = int(min(max(cy - out_h / 2, 0), height - out_h))
     return left, top, out_w, out_h
+
+
+class Locator(Protocol):
+    def locate(self, image: Image) -> Box | None: ...
+
+
+def best_view(series: list[Path], locator: Locator | None) -> tuple[Image, bool]:
+    """Sharpest picture of a series, framed around a person if one is found."""
+    image = load(sharpest(series))
+    box = locator.locate(image) if locator else None
+    if box is not None:
+        height, width = image.shape[:2]
+        image = enlarge(crop(image, around(box, width, height)))
+    image = sharpen(image)
+    if is_dark(image):
+        image = brighten(image)
+    return image, box is not None
