@@ -94,6 +94,12 @@ class Store(context: Context) {
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
+    /** Removed in the dashboard: nothing of the old login may stay on the phone. */
+    fun forgetLogin() {
+        token = null
+        vpnConfig = null
+    }
+
     fun clear() = prefs.edit().clear().apply()
 
     private companion object {

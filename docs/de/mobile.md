@@ -51,6 +51,6 @@ Android fragt vor der Installation immer nach, wenn eine App nicht aus einem Sto
 
 - Das Anmelde-Token ist mit einem Schlüssel im Android Keystore verschlüsselt. Auf pi-guard liegt nur sein Hash.
 - Es ersetzt in der App Passwort und zweiten Faktor: Ein gestohlenes entsperrtes Handy ist also angemeldet. Nutze die
-  App-Sperre und entferne verlorene Handys.
+  App-Sperre und entferne verlorene Handys: Das beendet sofort seine Anmeldung und seinen VPN-Zugang.
 - Das Zertifikat wird beim ersten Start festgelegt. Was nicht von deinem pi-guard oder einer öffentlichen Stelle kommt, wird
   abgelehnt.

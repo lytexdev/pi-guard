@@ -23,7 +23,8 @@ log = logging.getLogger(__name__)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS mobile_devices (
-    id INTEGER PRIMARY KEY, name TEXT NOT NULL, platform TEXT NOT NULL, username TEXT NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, platform TEXT NOT NULL,
+    username TEXT NOT NULL,
     token TEXT NOT NULL UNIQUE, created TEXT NOT NULL, last_seen TEXT, info TEXT,
     vpn_peer INTEGER);
 """

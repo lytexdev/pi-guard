@@ -193,6 +193,14 @@ class AuthStore:
 
     # sessions
 
+    def label_session(self, token: str, label: str) -> None:
+        """Marks a session as belonging to something that can be removed, such as a phone."""
+        self._db.execute("UPDATE web_sessions SET agent = ? WHERE id_hash = ?",
+                         (label, _digest(token)))  # fmt: skip
+
+    def end_sessions(self, label: str) -> None:
+        self._db.execute("DELETE FROM web_sessions WHERE agent = ?", (label,))
+
     def create_session(self, username: str, ip: str, agent: str, pending: int = 0) -> str:
         token = secrets.token_urlsafe(32)
         now = utcnow().isoformat()

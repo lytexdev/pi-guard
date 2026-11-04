@@ -50,6 +50,6 @@ always asks before installing an app that does not come from a store, so updates
 
 - The token is encrypted with a key in the Android Keystore. On pi-guard only its hash is stored.
 - It replaces the password and second factor in the app, so a stolen unlocked phone is logged in. Use the
-  app lock, and remove lost phones.
+  app lock, and remove lost phones: that ends its login and its VPN access at once.
 - The certificate is pinned at the first start. Anything not issued by your pi-guard, or by a public authority,
   is refused.

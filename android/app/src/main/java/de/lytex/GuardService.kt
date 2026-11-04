@@ -21,6 +21,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Base64
+import android.webkit.CookieManager
 import androidx.core.app.NotificationCompat
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -100,8 +101,11 @@ class GuardService : Service() {
             override fun onMessage(webSocket: WebSocket, text: String) = received(JSONObject(text))
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 if (response?.code == 401) {
-                    store.token = null // removed in the dashboard: the app asks for a login again
-                    main.post(::stopSelf)
+                    store.forgetLogin()
+                    main.post {
+                        CookieManager.getInstance().removeAllCookies(null)
+                        stopSelf()
+                    }
                 } else {
                     retry()
                 }

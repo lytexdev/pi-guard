@@ -126,7 +126,10 @@ class MainActivity : AppCompatActivity() {
             val cookie = runCatching {
                 val request = Net.request(store, "/api/mobile/session").post(ByteArray(0).toRequestBody()).build()
                 Net.client(store).newCall(request).execute().use {
-                    if (it.code == 401) store.token = null // removed in the dashboard: log in again
+                    if (it.code == 401) { // removed in the dashboard
+                        store.forgetLogin()
+                        runOnUiThread { CookieManager.getInstance().removeAllCookies(null) }
+                    }
                     it.header("Set-Cookie").takeIf { _ -> it.isSuccessful }
                 }
             }.getOrNull()

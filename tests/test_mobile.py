@@ -239,3 +239,41 @@ async def test_a_call_needs_the_same_origin(tmp_path: Path) -> None:
     finally:
         await client.close()
         app.db.close()
+
+
+async def test_removing_a_phone_takes_everything(tmp_path: Path) -> None:
+    client, app, _headers, bearer = await _paired(tmp_path)
+    try:
+        # The app's stored login and the login it paired with both end.
+        client.session.cookie_jar.clear()
+        assert (await client.post("/api/mobile/session", headers=bearer)).status == 200
+        assert (await client.get("/api/overview")).status == 200
+        phone_cookies = client.session.cookie_jar.filter_cookies(client.make_url("/"))
+
+        client.session.cookie_jar.clear()
+        admin = {"X-CSRF-Token": await _login(client)}
+        removed: list[int] = []
+        app.dashboard.wg_peers = SimpleNamespace(remove=removed.append)
+        app.settings.wireguard_enabled = True
+        app.mobile.set_vpn_peer(1, 7)
+        assert (await client.delete("/api/mobile/devices/1", headers=admin)).status == 200
+        assert removed == [7]
+
+        client.session.cookie_jar.clear()
+        client.session.cookie_jar.update_cookies(phone_cookies)
+        assert (await client.get("/api/overview")).status == 401
+        assert (await client.post("/api/mobile/session", headers=bearer)).status == 401
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_the_login_that_paired_ends_with_the_phone(tmp_path: Path) -> None:
+    client, app, headers, _ = await _paired(tmp_path)
+    try:
+        assert (await client.get("/api/overview")).status == 200
+        assert (await client.delete("/api/mobile/devices/1", headers=headers)).status == 200
+        assert (await client.get("/api/overview")).status == 401
+    finally:
+        await client.close()
+        app.db.close()

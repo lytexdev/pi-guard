@@ -24,7 +24,7 @@ from pi_guard.messaging.base import ProviderUnavailableError, Reply
 from pi_guard.network.wgpeers import PeerError
 from pi_guard.security.files import atomic_write
 from pi_guard.web.api_network import _config, _server, _store
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.server import COOKIE, current, dashboard, read_json
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +58,10 @@ def _hub(request: web.Request) -> MobileHub:
     if hub is None:
         raise web.HTTPConflict(text="web.addon_not_running")
     return hub
+
+
+def _label(device_id: int) -> str:
+    return f"pi-guard app {device_id}"
 
 
 def _device(request: web.Request) -> dict[str, Any]:
@@ -99,6 +103,8 @@ async def pair(request: web.Request) -> web.Response:
     role = Role(d.auth.role_of(username))
     name = (hub.get(device_id) or {}).get("name", "")
     d.app.users.save(User("mobile", str(device_id), role, name=name))
+    # The login that paired it is the phone's now, and ends with it.
+    d.auth.label_session(request.cookies.get(COOKIE, ""), _label(device_id))
     d.app.db.audit(f"web:{username}", "mobile.pair", name)
     return web.json_response({"id": device_id, "token": token})
 
@@ -107,7 +113,8 @@ async def device_session(request: web.Request) -> web.Response:
     """The app's stored login: opens the dashboard without asking for the password again."""
     d = dashboard(request)
     device = _device(request)
-    token = d.auth.create_session(device["username"], d.guard.client_ip(request), "pi-guard app")
+    token = d.auth.create_session(device["username"], d.guard.client_ip(request),
+                                  _label(device["id"]))  # fmt: skip
     response = web.json_response({"ok": True})
     d.set_cookie(response, token)
     return response
@@ -299,9 +306,17 @@ async def devices(request: web.Request) -> web.Response:
 async def device_delete(request: web.Request) -> web.Response:
     d = dashboard(request)
     device_id = int(request.match_info["id"])
-    if not _hub(request).delete(device_id):
+    hub = _hub(request)
+    device = hub.get(device_id)
+    if device is None:
         raise web.HTTPNotFound()
+    # Removing a lost phone must take everything it could still use.
+    hub.delete(device_id)
+    d.auth.end_sessions(_label(device_id))
     d.app.users.remove("mobile", str(device_id))
+    if device.get("vpn_peer"):
+        with contextlib.suppress(web.HTTPException, PeerError):
+            await asyncio.to_thread(_store(request).remove, device["vpn_peer"])
     d.app.db.audit(f"web:{current(request).username}", "mobile.remove", str(device_id))
     return web.json_response({"ok": True})
 
