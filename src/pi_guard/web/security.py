@@ -34,7 +34,8 @@ LOGIN_WINDOW = 900.0
 TARPIT_SECONDS = 3.0
 
 CSP = (
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; "
+    "default-src 'self'; script-src 'self'; style-src 'self'; "
+    "img-src 'self' data: blob: https://tile.openstreetmap.org; "
     "media-src 'self' blob:; connect-src 'self' https://api.ipify.org; font-src 'self'; "
     "manifest-src 'self'; "
     "worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; "

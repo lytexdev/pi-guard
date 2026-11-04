@@ -44,6 +44,7 @@ DONATIONS = (
     ("bitcoin", "Bitcoin (BTC)", "bitcoin", "3B8PdpJnmL7rQyHhBytKtvUT7NgQfraBEH"),
     ("litecoin", "Litecoin (LTC)", "litecoin", "MShzshtse85i6ZkwiB1VKNGRNmEL5Dc3VX"),
 )  # fmt: skip
+NEEDS_NO_SETUP = ("mobile",)  # the others start only once their settings are filled in
 LINK_SECONDS = 300
 TEST_SECONDS = 3
 SUPPORT_FIELDS = {"name": 100, "phone": 40, "email": 100, "address": 300}
@@ -186,12 +187,14 @@ async def module_set(request: web.Request) -> web.Response:
     if module not in MODULES:
         raise web.HTTPNotFound()
     enabled = (await read_json(request)).get("enabled") is True
-    if not enabled and getattr(d.settings, f"{module}_enabled"):
-        await apply_settings(d, {f"{module}_enabled": False}, _actor(request))
+    running = getattr(d.settings, f"{module}_enabled")
+    if running != enabled and (not enabled or module in NEEDS_NO_SETUP):
+        await apply_settings(d, {f"{module}_enabled": enabled}, _actor(request))
     saved = d.app.db.get("web.modules") or {}
     d.app.db.set("web.modules", {**saved, module: enabled})
     d.app.db.audit(_actor(request), "module", f"{module} {'on' if enabled else 'off'}")
-    return web.json_response({"ok": True, "restart": not enabled and module in d.app.providers})
+    return web.json_response({"ok": True, "restart": enabled != (module in d.app.providers)
+                              and (not enabled or module in NEEDS_NO_SETUP)})  # fmt: skip
 
 
 # --- donations ------------------------------------------------------------------------------

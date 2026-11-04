@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fitsSystemWindows="true">
+<LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center_vertical" android:padding="24dp">
+    <ImageView android:layout_width="96dp" android:layout_height="96dp" android:layout_gravity="center_horizontal" android:src="@mipmap/ic_launcher" android:importantForAccessibility="no" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/setup_title" android:textSize="22sp" android:textStyle="bold" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/setup_hint" android:textColor="@color/muted" />
+    <TextView android:id="@+id/status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" />
+    <EditText android:id="@+id/address" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:hint="@string/setup_url" android:inputType="textUri" android:importantForAutofill="no" />
+    <Button android:id="@+id/connect" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/setup_connect" />
+    <Button android:id="@+id/search" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/setup_search" />
+</LinearLayout>
+</FrameLayout>

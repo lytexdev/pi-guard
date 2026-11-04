@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fitsSystemWindows="true">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+    <TextView style="@style/Heading" android:text="@string/settings_title" android:textSize="22sp" />
+    <TextView style="@style/Heading" android:text="@string/vpn_title" />
+    <TextView android:id="@+id/vpn_state" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    <Button android:id="@+id/vpn_toggle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/connect_vpn" />
+    <TextView style="@style/Heading" android:text="@string/location_section" />
+    <CheckBox android:id="@+id/location" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/location_use" />
+    <TextView style="@style/Hint" android:text="@string/location_hint" />
+    <TextView style="@style/Heading" android:text="@string/calendar_section" />
+    <CheckBox android:id="@+id/calendar" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/calendar_use" />
+    <TextView style="@style/Hint" android:text="@string/calendar_hint" />
+    <TextView style="@style/Heading" android:text="@string/lock_section" />
+    <Button android:id="@+id/pin_set" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pin_set" />
+    <Button android:id="@+id/pin_remove" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pin_remove" />
+    <CheckBox android:id="@+id/biometric" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/bio_use" />
+    <TextView style="@style/Heading" android:text="@string/address_section" />
+    <EditText android:id="@+id/address" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textUri" android:importantForAutofill="no" android:hint="@string/setup_url" />
+    <Button android:id="@+id/address_save" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/address_save" />
+    <TextView style="@style/Heading" android:text="@string/update_section" />
+    <Button android:id="@+id/update" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/update_check" />
+    <Button android:id="@+id/unpair" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/unpair" android:textColor="@color/danger" />
+</LinearLayout>
+</ScrollView>

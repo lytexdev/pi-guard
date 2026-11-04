@@ -190,7 +190,9 @@ class NotificationRule(_Model):
     priority: Literal["low", "normal", "high", "critical"] | None = None
     modes: list[Literal["HOME", "AWAY"]] | None = None
     recipients: Literal["all", "admins"] | None = None
-    providers: list[Literal["telegram", "signal", "whatsapp", "discord", "email"]] | None = None
+    providers: (
+        list[Literal["telegram", "signal", "whatsapp", "discord", "email", "mobile"]] | None
+    ) = None
     cooldown_seconds: int | None = Field(None, ge=0, le=86400)
     attach: Literal["none", "snapshot", "clip"] | None = None
 

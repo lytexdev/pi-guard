@@ -125,6 +125,7 @@ pi-guard logs -f
 | [Dashboard](docs/dashboard.md) | web dashboard, certificates, app and push |
 | [Discord](docs/discord.md) | commands and alerts through a Discord bot |
 | [Email](docs/email.md) | alerts and exports by email |
+| [Mobile app](docs/mobile.md) | Android app with VPN, alerts, finding phones and SOS |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
 | [Add-ons](docs/addons.md) | Service watcher, network analysis, smart home, remote commands, AI assistant |
 | [WhatsApp](docs/whatsapp.md) | Official Cloud API setup and its limits |

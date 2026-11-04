@@ -81,6 +81,41 @@ function resultPanel() {
 
 const TALK_LIMIT_SECONDS = 60;
 
+function callButton(camera, listen) {
+  // Like a phone call: the microphone streams to the speaker while the camera's sound plays here.
+  let socket = null, recorder = null, stream = null;
+  const label = h("span", {}, t("web.call_start"));
+  const button = h("button", { class: "big", type: "button", title: t("web.call_tip") }, icon("phone"), label);
+  const hangUp = () => {
+    if (recorder?.state === "recording") recorder.stop();
+    stream?.getTracks().forEach((track) => track.stop());
+    socket?.close();
+    socket = recorder = stream = null;
+    button.classList.remove("on");
+    label.textContent = t("web.call_start");
+    if (listen.classList.contains("on")) listen.click();
+  };
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { button.disabled = true; return button; }
+  button.addEventListener("click", async () => {
+    if (socket) { hangUp(); return; }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch { toast(t("web.call_failed"), true); return; }
+    socket = new WebSocket(`wss://${location.host}/api/live/${camera.id}/call`);
+    socket.addEventListener("open", () => {
+      recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+      recorder.addEventListener("dataavailable", (event) => { if (event.data.size && socket?.readyState === WebSocket.OPEN) socket.send(event.data); });
+      recorder.start(250);
+      button.classList.add("on");
+      label.textContent = t("web.call_stop");
+      if (!listen.classList.contains("on") && !listen.disabled) listen.click();
+    });
+    socket.addEventListener("error", () => toast(t("web.call_failed"), true));
+    socket.addEventListener("close", () => { if (socket) hangUp(); });
+  });
+  return button;
+}
+
 function talkButton(camera) {
   // Tap to start, tap again to send. Holding a button is unreliable on phones: after about
   // a second the browser takes the touch for a long-press and cancels it.
@@ -256,7 +291,7 @@ export async function render(main, params) {
       viewer ? null : h("section", { class: "panel stack" },
         h("h2", {}, t("web.talk_and_listen")),
         listen, audio,
-        features.audio_playback ? talkButton(camera) : h("p", { class: "muted" }, t("web.no_speaker")),
+        features.audio_playback ? [talkButton(camera), callButton(camera, listen)] : h("p", { class: "muted" }, t("web.no_speaker")),
         h("p", { class: "muted" }, h("small", {}, t("web.listen_note"))))),
     result.panel);
   const sounds = viewer ? null : await soundsPanel(features);

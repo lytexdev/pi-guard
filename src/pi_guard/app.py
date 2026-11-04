@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from pi_guard import CREDIT, __version__
 from pi_guard.addons import Addons
+from pi_guard.addons.mobile import MobileHub, MobileProvider
 from pi_guard.audio.service import AudioError, AudioService
 from pi_guard.audio.sounds import SoundLibrary
 from pi_guard.cameras import discovery
@@ -147,6 +148,10 @@ class App:
         self.addons = Addons(self)
         self.schedule = ScheduleRunner(self.db, self.modes, s.tz)
         self.scanner = SecurityScan(self)
+        self.mobile: MobileHub | None = None
+        if s.mobile_enabled:
+            self.mobile = MobileHub(self.db)
+            self.providers["mobile"] = MobileProvider(self.mobile)
         if s.presence_enabled:
             presence = config.file.presence
             self.presence = PresenceMonitor(

@@ -40,17 +40,20 @@ log = logging.getLogger(__name__)
 COOKIE = "pg_session"
 PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.crt",
           "/api/login/telegram", "/api/login/telegram/poll", "/api/login/webauthn/begin",
-          "/api/login/webauthn/finish", "/api/agent/ws"}  # fmt: skip
+          "/api/login/webauthn/finish", "/api/agent/ws", "/api/hello",
+          "/api/mobile/session", "/api/mobile/ws", "/api/mobile/report",
+          "/api/mobile/emergency", "/api/mobile/calendar", "/api/mobile/vpn",
+          "/api/mobile/app/latest", "/api/mobile/app/apk"}  # fmt: skip
 # Reachable while the default password has not been changed yet.
 SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",
                  "/api/account/totp/confirm", "/api/setup/status"}  # fmt: skip
 # What viewers may do: watch. Everything else is closed to them, also anything added later.
 VIEWER_GET = {"/api/overview", "/api/events", "/api/stats", "/api/alerts", "/api/connection",
               "/api/evidence", "/api/account"}  # fmt: skip
-VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check",
+VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check", "/api/mobile/pair",
                "/api/account/totp/begin", "/api/account/totp/confirm",
                "/api/account/totp/disable"}  # fmt: skip
-MODULES = ("discord", "whatsapp", "email")
+MODULES = ("discord", "whatsapp", "email", "mobile")
 SETUP_DONE_KEY = "web.setup_done"
 TOTP_LENGTH = 6
 STATIC = Path(str(resources.files("pi_guard.web").joinpath("static")))
@@ -151,6 +154,7 @@ class Dashboard:
             api_live,
             api_login,
             api_manage,
+            api_mobile,
             api_network,
             api_security,
             api_system,
@@ -177,7 +181,7 @@ class Dashboard:
         webapp.router.add_post("/api/logout", self._logout)
         for module in (api_account, api_addons, api_agents, api_core, api_export, api_login,
                        api_live, api_manage, api_network, api_security, api_system,
-                       api_tools, api_v1):  # fmt: skip
+                       api_mobile, api_tools, api_v1):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
             sub = web.Application()

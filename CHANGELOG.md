@@ -8,6 +8,9 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Android app PiGuard (`android/`) with the add-on `mobile`: dashboard, alerts without Google, WireGuard
+  client, find a phone, SOS, app lock, signed updates, calendar as away times.
+- Call a camera from the Live page, also in the browser.
 - Modules for Discord, WhatsApp and email that can be switched off, with a Verified badge.
 - Email add-on: alerts and data exports, off by default.
 - Plugins from a Git link can be checked and updated, also automatically if chosen, following

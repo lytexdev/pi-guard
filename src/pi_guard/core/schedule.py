@@ -7,7 +7,7 @@ ends, so whatever someone sets by hand in between stays until the next change.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
@@ -21,6 +21,8 @@ log = logging.getLogger(__name__)
 
 PLAN_KEY = "schedule.plan"
 STATE_KEY = "schedule.state"
+CALENDAR_KEY = "schedule.calendar"
+MAX_EVENTS = 500
 ACTOR = "schedule"
 DAY_MINUTES = 24 * 60
 MAX_BLOCKS = 100
@@ -46,6 +48,25 @@ def clean_plan(raw: Any) -> dict[str, Any]:
             "respect_presence": raw.get("respect_presence") is not False}  # fmt: skip
 
 
+def clean_calendar(raw: Any) -> list[dict[str, str]]:
+    """Busy times from a phone's calendar, as UTC times; nothing else is kept."""
+    if not isinstance(raw, list) or len(raw) > MAX_EVENTS:
+        raise ValueError("calendar")
+    events = []
+    for item in raw:
+        start = datetime.fromisoformat(str(item["start"])).astimezone(UTC)
+        end = datetime.fromisoformat(str(item["end"])).astimezone(UTC)
+        if end <= start:
+            raise ValueError("calendar")
+        events.append({"start": start.isoformat(), "end": end.isoformat()})
+    return events
+
+
+def busy_at(events: list[dict[str, str]], now: datetime) -> bool:
+    return any(datetime.fromisoformat(e["start"]) <= now < datetime.fromisoformat(e["end"])
+               for e in events)  # fmt: skip
+
+
 def block_at(plan: dict[str, Any], now: datetime) -> dict[str, Any] | None:
     minute = now.hour * 60 + now.minute
     for block in plan.get("blocks", []):
@@ -66,21 +87,25 @@ class ScheduleRunner:
     def tick(self, now: datetime | None = None) -> None:
         plan = self.plan()
         state = self._db.get(STATE_KEY) or {"active": False, "applied": None}
-        local = (now or utcnow()).astimezone(self._tz)
-        active = bool(plan["enabled"] and block_at(plan, local))
-        if active == state["active"]:
-            return
-        applied = None
-        if active:
-            applied = self._start(plan)
-        else:
+        moment = now or utcnow()
+        busy = busy_at(self._db.get(CALENDAR_KEY) or [], moment)
+        planned = bool(plan["enabled"] and block_at(plan, moment.astimezone(self._tz)))
+        active = planned or busy
+        applied = state["applied"]
+        if active and (not state["active"] or (busy and not state.get("busy"))):
+            applied = self._start(plan, force=busy) or applied
+        elif state["active"] and not active:
             self._end(state)
-        self._db.set(STATE_KEY, {"active": active, "applied": applied})
+            applied = None
+        elif active == state["active"] and busy == state.get("busy", False):
+            return
+        self._db.set(STATE_KEY, {"active": active, "busy": busy, "applied": applied})
 
-    def _start(self, plan: dict[str, Any]) -> str | None:
+    def _start(self, plan: dict[str, Any], force: bool = False) -> str | None:
+        """`force`: a calendar entry means away, whatever the phones in the Wi-Fi say."""
         mode = self._modes.state
         someone_home = self._modes.presence_enabled and mode.presence is Presence.HOME
-        if mode.effective is Mode.AWAY or (someone_home and plan["respect_presence"]):
+        if mode.effective is Mode.AWAY or (someone_home and plan["respect_presence"] and not force):
             return None
         changed = self._modes.set_manual(Mode.AWAY, actor=ACTOR).changed_at
         return changed.isoformat() if changed else None

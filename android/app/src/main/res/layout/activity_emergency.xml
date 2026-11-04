@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:padding="24dp" android:background="#7A1414">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/emergency_title" android:textColor="#FFFFFF" android:textSize="30sp" android:textStyle="bold" />
+    <TextView android:id="@+id/count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:gravity="center" android:textColor="#FFFFFF" android:textSize="20sp" />
+    <Button android:id="@+id/cancel" android:layout_width="match_parent" android:layout_height="160dp" android:layout_marginTop="32dp" android:text="@string/emergency_cancel" android:textSize="22sp" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/emergency_note" android:textColor="#FFFFFF" />
+</LinearLayout>

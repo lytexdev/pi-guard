@@ -14,8 +14,9 @@ import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
-from aiohttp import web
+from aiohttp import WSMsgType, web
 
 from pi_guard.audio.service import AudioError, sniff
 from pi_guard.cameras import imaging
@@ -36,6 +37,7 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/live/{camera}/video", live_video),
         web.get("/api/live/{camera}/audio", live_audio),
         web.post("/api/live/{camera}/snapshot", snapshot),
+        web.get("/api/live/{camera}/call", call),
         web.post("/api/talk", talk),
         web.post("/api/image/sharper", sharper),
         web.post("/api/image/zoom", zoom),
@@ -107,6 +109,41 @@ class MicrophoneStream:
             await process.wait()
             if self._task:
                 self._task.cancel()
+
+
+async def call(request: web.Request) -> web.WebSocketResponse:
+    """Talking like on the phone: speech comes in as a stream and goes straight to the speaker."""
+    d = dashboard(request)
+    audio = d.app.audio
+    if audio is None or not audio.playback_enabled or not audio.settings.speaker:
+        raise web.HTTPServiceUnavailable(text="no speaker configured")
+    origin = urlsplit(request.headers.get("Origin", "")).netloc
+    if origin != request.host:  # cookies alone must not open the speaker
+        raise web.HTTPForbidden(text="origin")
+    socket = web.WebSocketResponse(max_msg_size=1_000_000)
+    await socket.prepare(request)
+    d.app.db.audit(f"web:{current(request).username}", "audio.call", request.match_info["camera"])
+    process = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-fflags", "nobuffer",
+        "-i", "pipe:0", "-af", "dynaudnorm=f=150:g=7", "-f", "alsa", audio.settings.speaker,
+        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )  # fmt: skip
+    assert process.stdin is not None
+    ended = asyncio.get_running_loop().time() + LISTEN_LIMIT
+    try:
+        async for message in socket:
+            if message.type is not WSMsgType.BINARY or asyncio.get_running_loop().time() > ended:
+                break
+            process.stdin.write(message.data)
+            await process.stdin.drain()
+    except (ConnectionResetError, BrokenPipeError):
+        pass  # the speaker process ended the call
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            process.kill()
+        await process.wait()
+    return socket
 
 
 async def live_audio(request: web.Request) -> web.StreamResponse:

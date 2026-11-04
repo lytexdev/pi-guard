@@ -489,3 +489,10 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .donate-row .wrap { word-break: break-all; }
 .donate-row .qr { flex: 1 1 100%; max-width: 220px; margin: 8px auto; }
 .donate-row .clip, .donate-row .clip * { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* Phones */
+.phone-map { position: relative; width: 100%; max-width: 480px; aspect-ratio: 1; overflow: hidden; border-radius: var(--radius); background: var(--surface-2); }
+.phone-map img { position: absolute; width: 33.334%; height: 33.334%; }
+.phone-map .pin { position: absolute; width: 14px; height: 14px; margin: -7px; border-radius: 50%; background: var(--danger); border: 2px solid #fff; }
+.phone-map small { position: absolute; right: 4px; bottom: 2px; background: rgba(255, 255, 255, .8); color: #111; padding: 0 4px; }
+.phone-card { flex-wrap: wrap; }

@@ -503,6 +503,7 @@ export async function setEnabled(id, enabled, opts = {}) {
 export async function render(main, params = []) {
   const id = params[0];
   if (id === "plugin") { await pluginPage(main, params[1]); return; }
+  if (id === "mobile") { await (await import("./mobile.js")).render(main); return; }
   if (id in DETAILS) {
     const box = h("div", { class: "stack" });
     fill(main, h("div", { class: "topbar" }, h("h1", {}, t(`addons.${id}`)), h("a", { class: "button", href: "#/addons" }, t("web.back"))), box);
@@ -529,10 +530,10 @@ export async function render(main, params = []) {
       h("a", { class: "button", href: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")));
   }));
   const modules = await api("/api/modules");
-  const MODULE_ICONS = { discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail" };
+  const MODULE_ICONS = { discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", mobile: "device-mobile" };
   modules.forEach((module) => {
     const toggle = h("input", { type: "checkbox", checked: module.enabled, "aria-label": t(`web.addon_${module.id}`) });
-    const link = h("a", { class: `button${module.enabled ? "" : " hidden"}`, href: "#/settings/messaging" }, icon("settings"), t("web.addon_open"));
+    const link = h("a", { class: `button${module.enabled ? "" : " hidden"}`, href: module.id === "mobile" ? "#/addons/mobile" : "#/settings/messaging" }, icon("settings"), t("web.addon_open"));
     toggle.addEventListener("change", async () => {
       const done = await attempt(() => api(`/api/modules/${module.id}`, { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
       if (!done) { toggle.checked = !toggle.checked; return; }

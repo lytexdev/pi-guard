@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from pi_guard.addons.assistant import AssistantError
+from pi_guard.addons.mobile import map_link
 from pi_guard.addons.remote import ConfirmationError
 from pi_guard.addons.smarthome import SmartHomeError
 from pi_guard.core.permissions import Role
 from pi_guard.core.timeutil import utcnow
 from pi_guard.diagnostics.storage import analyse
-from pi_guard.messaging.base import Button, Reply
+from pi_guard.messaging.base import Button, ProviderUnavailableError, Reply
 from pi_guard.messaging.commands.context import CommandContext
 from pi_guard.messaging.commands.core import menu_row
 from pi_guard.messaging.commands.registry import Command, Registry, TextArg
@@ -290,8 +291,33 @@ async def plan(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     return Reply("\n".join(lines) if blocks else ctx.t("plan.none_today"), buttons=(menu_row(ctx),))
 
 
+async def find_phone(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    hub = ctx.app.mobile
+    if hub is None:
+        return _off(ctx, "mobile")
+    device = hub.find(args.get("text", ""))
+    if device is None:
+        names = ", ".join(d["name"] for d in hub.list()) or "–"
+        return Reply(ctx.t("mobile.which", names=names), buttons=(menu_row(ctx),))
+    lines = []
+    try:
+        await hub.send(device["id"], type="find", ring=True)
+        lines.append(ctx.t("mobile.ringing", name=device["name"]))
+    except ProviderUnavailableError:
+        lines.append(ctx.t("mobile.offline", name=device["name"]))
+    ctx.app.db.audit(ctx.user.key, "mobile.find", str(device["id"]))
+    link = map_link(device["info"])
+    if link:
+        lines.append(ctx.t("mobile.last_place", link=link))
+    if "battery" in device["info"]:
+        lines.append(ctx.t("mobile.battery", percent=device["info"]["battery"]))
+    return Reply("\n".join(lines), buttons=(menu_row(ctx),))
+
+
 def register(registry: Registry) -> None:
     text = (TextArg("text"),)
+    registry.add(Command("findphone", find_phone, ("finden", "handy", "findmyphone"), text,
+                         role=Role.ADMIN, help_key="help.findphone", menu=False))  # fmt: skip
     registry.add(Command("securityscan", security_scan, ("sicherheitscheck", "sicherheitsscan"),
                          role=Role.ADMIN, help_key="help.securityscan", menu=False))  # fmt: skip
     registry.add(Command("storage", storage, ("speicher", "festplatte"),

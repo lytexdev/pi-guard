@@ -138,3 +138,10 @@ state's data protection authority.
 If someone asks what pi-guard stored about them: recordings and snapshots are
 organised by time in `RECORDINGS_DIR` and `DATA_DIR/media`; enrolled people are
 listed with `pi-guard faces list`; users with `/users`.
+
+## Phones with the app
+
+The location of a phone is stored in `pi-guard.db` only if its owner switched on *Share location*, and it is
+replaced by each new report. Admins can see it, so ask before switching it on for someone else. An SOS sends the
+location to the emergency contacts, also through their messengers. Map tiles are loaded from OpenStreetMap when
+someone opens a map, which tells OpenStreetMap roughly where the phone is.

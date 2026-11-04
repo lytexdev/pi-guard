@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     discord_admin_user_ids: StrList = Field(default_factory=list)
     discord_viewer_user_ids: StrList = Field(default_factory=list)
 
+    # Phones with the pi-guard app (see docs/mobile.md)
+    mobile_enabled: bool = False
+
     # Email (optional, alerts and exports only; see docs/email.md)
     email_enabled: bool = False
     email_host: str = ""

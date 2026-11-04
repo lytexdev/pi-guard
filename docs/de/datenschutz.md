@@ -76,3 +76,14 @@ Ihnen weniger reicht, stellen Sie weniger ein
 (`PI_GUARD_RECORDING_RETENTION_DAYS`).
 
 Mehr Details (Englisch): [privacy.md](../privacy.md).
+
+## Handys mit der App
+
+Der Standort eines Handys wird in `pi-guard.db` nur gespeichert, wenn der Besitzer *Standort teilen* eingeschaltet hat, und
+jede neue Meldung ersetzt ihn. Admins können ihn sehen; frag also vorher, bevor du das für jemand anderen einschaltest. Ein
+SOS schickt den Standort an die Notfallkontakte, auch über ihre Messenger. Kartenkacheln kommen von OpenStreetMap, wenn
+jemand eine Karte öffnet; OpenStreetMap erfährt dadurch ungefähr, wo das Handy ist.
+
+## Vertraute Personen
+
+Pro Bild werden neben den 128 Zahlen auch Blickrichtung und Helligkeit gespeichert, nicht das Bild selbst.
