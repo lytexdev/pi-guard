@@ -36,6 +36,7 @@ from pi_guard.messaging.signal.provider import SignalProvider, parse_envelope
 from pi_guard.network.fritzbox import FritzBox, FritzError, Wlan
 from pi_guard.web import api_tools
 from pi_guard.web.api_tools import _wifi_text
+from pi_guard.web.settings_schema import BY_KEY, to_env
 
 from .test_web import PASSWORD, _client, _login
 
@@ -585,3 +586,13 @@ async def test_a_busy_device_says_so(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     with pytest.raises(AudioError) as caught:
         await check.record_from("hw:1", 1, tmp_path / "x.mp3")
     assert caught.value.key == "web.dev_test_busy"
+
+
+def test_login_methods_are_chosen_from_the_list() -> None:
+    field = BY_KEY["dashboard_auth"]
+    assert to_env(field, ["password", "webauthn"]) == "password,webauthn"
+    with pytest.raises(ValueError, match="choose from"):
+        to_env(field, ["password", "magic"])
+    with pytest.raises(ValueError, match="one of"):
+        to_env(BY_KEY["timezone"], "Mars/Olympus")
+    assert to_env(BY_KEY["timezone"], "Europe/Berlin") == "Europe/Berlin"

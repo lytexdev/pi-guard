@@ -92,8 +92,8 @@ error message.
 
 - **Tooltips** explain buttons and entries on hover and keyboard focus.
 - **Navigation:** *Appearance → Navigation* sets your own order by dragging, per account. The camera
-  room is a sub-entry of Live.
-- **Weekly plan** (*Settings*): drag in a day to mark when nobody is usually home. pi-guard switches
+  room is a switch at the top of Live.
+- **Weekly plan** (*Settings → Home & Away*): drag in a day to mark when nobody is usually home. pi-guard switches
   to Away and back at those times. What you set by hand stays until the next change in the plan. If
   presence detection is on, it stays at Home while someone is detected at home.
 - **Support** (*Settings*): optional name, phone, email and address, shown small on the overview, in

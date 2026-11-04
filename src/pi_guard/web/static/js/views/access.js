@@ -1,5 +1,6 @@
 // Who can use pi-guard: chat users, invitations, key files, sessions, bans.
 import { api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
+import { brandIcon } from "../widgets.js";
 import { createCredential, explainKeyError } from "../webauthn.js";
 
 function showCodes(codes) {
@@ -119,7 +120,7 @@ export async function render(main) {
         security,
         h("section", { class: "panel" }, h("h2", {}, t("web.chat_users")),
           h("ul", { class: "list" }, users.map((u) => h("li", {},
-            icon(u.role === "admin" ? "shield-check" : "user"),
+            brandIcon(u.provider),
             h("div", { class: "grow" }, h("div", {}, u.name || u.user_id), h("small", {}, `${u.provider} · ${u.role}${u.configured ? ` · ${t("web.configured")}` : ""}`)),
             u.configured ? null : h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
               if (await confirmDialog(t("web.remove_user_confirm"), t("web.delete"), true)) {

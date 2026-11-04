@@ -429,7 +429,6 @@ details ol a { display: block; }
 .list-edit { display: grid; gap: 6px; width: 100%; }
 .list-row { display: flex; gap: 6px; align-items: center; }
 .list-row input { flex: 1; min-width: 0; }
-.nav a.sub { margin-left: 22px; min-height: 36px; font-size: .92em; }
 .segmented a.button { border: 0; border-radius: 0; background: transparent; display: inline-flex; align-items: center; }
 .segmented a.button + a.button { border-left: 1px solid var(--line); }
 .segmented a.button.on { background: var(--surface-2); color: var(--accent); }
@@ -468,3 +467,7 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .storage-row { display: grid; gap: 4px; flex: 1; min-width: 0; }
 .device-test { display: grid; gap: 6px; justify-items: start; margin-bottom: 12px; }
 .device-test audio { width: min(320px, 100%); height: 36px; }
+.multi-choice { display: grid; gap: 4px; justify-items: start; }
+.provider-choice button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.flash { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.search-results h3 { display: flex; align-items: center; gap: 6px; }

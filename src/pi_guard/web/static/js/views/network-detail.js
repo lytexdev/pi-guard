@@ -5,14 +5,14 @@ import { meter } from "./overview.js";
 import { restartPrompt } from "./settings.js";
 
 function piholePanel(p, redraw) {
-  if (!p) return h("section", { class: "panel" }, h("h2", {}, "Pi-hole"), h("p", { class: "muted" }, t("web.pihole_off")));
-  if (p.error) return h("section", { class: "panel" }, h("h2", {}, "Pi-hole"), h("p", { class: "notice danger" }, p.error));
+  if (!p) return h("section", { class: "panel" }, h("h2", {}, icon("brand-pihole"), " Pi-hole"), h("p", { class: "muted" }, t("web.pihole_off")));
+  if (p.error) return h("section", { class: "panel" }, h("h2", {}, icon("brand-pihole"), " Pi-hole"), h("p", { class: "notice danger" }, p.error));
   const toggle = async (enabled, minutes) => {
     await attempt(() => api("/api/network/pihole/blocking", { method: "POST", body: { enabled, minutes } }), t("web.saved"));
     redraw();
   };
   return h("section", { class: "panel" },
-    h("div", { class: "row between" }, h("h2", {}, "Pi-hole"),
+    h("div", { class: "row between" }, h("h2", {}, icon("brand-pihole"), " Pi-hole"),
       h("span", { class: `badge ${p.blocking ? "ok" : "danger"}` }, p.blocking ? t("web.blocking_on") : t("web.blocking_off"))),
     h("div", { class: "stat" }, `${p.percent_blocked} %`),
     h("p", { class: "muted" }, t("web.pihole_blocked", { blocked: p.blocked.toLocaleString(), total: p.queries.toLocaleString() })),
@@ -87,7 +87,7 @@ function peerDialog(p) {
 
 function wireguardPanel(d, redraw) {
   const wg = d.wireguard;
-  const panel = h("section", { class: "panel wg" }, h("h2", {}, t("web.wg_title")));
+  const panel = h("section", { class: "panel wg" }, h("h2", {}, icon("brand-wireguard"), " ", t("web.wg_title")));
   if (!d.wireguard_enabled) { panel.append(h("p", { class: "muted" }, t("web.wireguard_off"))); return panel; }
   if (!wg) { panel.append(h("p", { class: "notice" }, t("web.wireguard_no_status"))); return panel; }
   const peers = wg.peers;

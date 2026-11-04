@@ -10,6 +10,25 @@ export async function restartPrompt() {
 }
 
 const tip = (key) => (t(key) === key ? null : t(key));
+const GROUP_ICONS = { messaging: "brand-telegram", discord: "brand-discord", signal: "brand-signal", whatsapp: "brand-whatsapp" };
+const FIELD_ICONS = [["mqtt_", "brand-mqtt"], ["pihole_", "brand-pihole"], ["wireguard_", "brand-wireguard"], ["assistant_deepl", "brand-deepl"],
+  ["assistant_paperless", "brand-paperless"], ["assistant_nextcloud", "brand-nextcloud"]];
+const fieldIcon = (key) => FIELD_ICONS.find(([prefix]) => key.startsWith(prefix))?.[1];
+
+function optionLabel(field, value) {
+  if (field.key === "language") return new Intl.DisplayNames([lang], { type: "language" }).of(value) || value;
+  const key = `web.opt_${field.key}_${value}`;
+  return t(key) === key ? value : t(key);
+}
+
+function multiChoice(field, values, id) {
+  // All possible options, ticked. "none" only shows up if it is in use: it switches off the login.
+  const options = field.options.filter((o) => o !== "none" || values.includes("none"));
+  const inputs = options.map((option) => h("input", { type: "checkbox", value: option, checked: values.includes(option) }));
+  const box = h("div", { id, class: "multi-choice" }, inputs.map((input, index) => h("label", { class: "check", title: tip(`web.tip_${field.key}_${options[index]}`) }, input, optionLabel(field, options[index]))));
+  box.values = () => inputs.filter((input) => input.checked).map((input) => input.value);
+  return box;
+}
 
 function listEditor(field, values, id) {
   // One value per line: numbers and IDs are easier to check and change than a comma list.
@@ -32,11 +51,12 @@ function listEditor(field, values, id) {
 function control(field, value) {
   const id = `s_${field.key}`;
   if (field.kind === "list") return listEditor(field, value, id);
+  if (field.kind === "multi") return multiChoice(field, value || [], id);
   if (field.kind === "bool") return h("input", { id, type: "checkbox", checked: Boolean(value) });
   if (field.kind === "secret") {
     return h("input", { id, type: "password", autocomplete: "off", placeholder: t("web.secret_placeholder") });
   }
-  if (field.kind === "choice") return h("select", { id }, field.options.map((o) => h("option", { value: o, selected: o === value }, o)));
+  if (field.kind === "choice") return h("select", { id }, field.options.map((o) => h("option", { value: o, selected: o === value }, optionLabel(field, o))));
   if (field.kind === "int") return h("input", { id, type: "number", min: field.min, max: field.max, value, inputmode: "numeric" });
   return h("input", { id, value: Array.isArray(value) ? value.join(", ") : value ?? "" });
 }
@@ -44,7 +64,7 @@ function control(field, value) {
 function read(field, el) {
   if (field.kind === "bool") return el.checked;
   if (field.kind === "int") return Number(el.value);
-  if (field.kind === "list") return el.values();
+  if (field.kind === "list" || field.kind === "multi") return el.values();
   return el.value;
 }
 
@@ -73,12 +93,12 @@ export async function render(main, params = [], opts = {}) {
     opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t("web.nav_settings")), save),
     data.overrides.length && !opts.embedded ? h("p", { class: "notice" }, t("web.overrides_note")) : null,
     h("div", { class: "grid wide" }, groups.map((group) => h("section", { class: "panel" },
-      h("h2", {}, t(`web.group_${group}`)),
+      h("h2", {}, GROUP_ICONS[group] ? [icon(GROUP_ICONS[group]), " "] : null, t(`web.group_${group}`)),
       fields.filter((f) => f.group === group).map((field) => {
         const el = control(field, data.values[field.key]);
         inputs.set(field.key, el);
         return h("div", { class: "switch-row" },
-          h("label", { for: el.id, title: tip(`web.tip_${field.key}`) }, t(`web.setting_${field.key}`)), h("div", { class: "control" }, el));
+          h("label", { for: el.id, title: tip(`web.tip_${field.key}`) }, fieldIcon(field.key) ? [icon(fieldIcon(field.key)), " "] : null, t(`web.setting_${field.key}`)), h("div", { class: "control" }, el));
       })))),
     opts.embedded ? null : h("section", { class: "panel" }, h("h2", {}, t("web.secrets")),
       h("p", { class: "muted" }, t("web.secrets_note")),

@@ -8,6 +8,9 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Brand icons for messengers and services, and a choice of AI providers with their icons.
+- Settings search looks through all tabs and jumps to the setting.
+- Login methods and time zone are chosen from lists instead of typed.
 - Discord: a bot with commands, buttons, photos, videos and alerts in direct messages.
 - Speakers and microphones can be tried out when choosing them.
 - Security scan with an optional report by messenger, and a storage analysis with clean-up. System
@@ -15,7 +18,7 @@ All notable changes are documented here. The format follows
 - Weekly plan: mark when nobody is usually home, in a calendar you can draw in.
 - Wi-Fi QR codes, internet block per device and a new Wi-Fi key through the FRITZ!Box.
 - "What others can see of you" on the network page.
-- Tooltips, navigation order by drag and drop, camera room as a sub-entry of Live.
+- Tooltips, navigation order by drag and drop, camera room as a switch on the Live page.
 - One field per contact instead of comma lists, search behind an icon, the map opens large.
 - Support contact in the overview, settings, logs and the assistant.
 - Signal: `scripts/signal.sh`, linking the phone by QR code, and Note to Self with your own number.

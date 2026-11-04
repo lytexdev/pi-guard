@@ -97,9 +97,9 @@ export async function topologyPanel(onDevice) {
     link(map, router, pi, "live", data.services.wireguard ? "UDP 51820" : "");
     let y = 6 + 3 * ROW - 48;
     const services = [
-      data.services.pihole ? { label: "Pi-hole", icon: "shield-check", sub: "DNS", state: "ok", detail: t("web.topo_pihole_text"), href: "#/network" } : null,
-      data.services.wireguard ? { label: "WireGuard", icon: "shield-lock", sub: t("web.topo_vpn_count", { count: data.vpn.filter((p) => p.active).length }), state: "ok", detail: t("web.topo_vpn_text"), href: "#/network" } : null,
-      data.services.mqtt ? { label: "MQTT", icon: "bulb", sub: "Smart Home", state: "ok", href: "#/addons/smarthome" } : null,
+      data.services.pihole ? { label: "Pi-hole", icon: "brand-pihole", sub: "DNS", state: "ok", detail: t("web.topo_pihole_text"), href: "#/network" } : null,
+      data.services.wireguard ? { label: "WireGuard", icon: "brand-wireguard", sub: t("web.topo_vpn_count", { count: data.vpn.filter((p) => p.active).length }), state: "ok", detail: t("web.topo_vpn_text"), href: "#/network" } : null,
+      data.services.mqtt ? { label: "MQTT", icon: "brand-mqtt", sub: "Smart Home", state: "ok", href: "#/addons/smarthome" } : null,
     ].filter(Boolean);
     if (services.length) {
       const r = row(map, services, y, width, select);

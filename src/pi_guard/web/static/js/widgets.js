@@ -26,6 +26,8 @@ export function supportNote() {
     s.address ? ` · ${s.address}` : null);
 }
 
+export const brandIcon = (provider) => icon({ telegram: "brand-telegram", signal: "brand-signal", whatsapp: "brand-whatsapp", discord: "brand-discord" }[provider] || "user");
+
 // Live and the camera room are one place with two views.
 export const liveSwitch = (current) => h("div", { class: "segmented" }, [["live", "web.nav_live"], ["monitor", "web.nav_monitor"]].map(([route, label]) =>
   h("a", { class: `button${route === current ? " on" : ""}`, href: `#/${route}` }, t(label))));

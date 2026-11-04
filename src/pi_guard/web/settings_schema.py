@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+from zoneinfo import available_timezones
 
 from pi_guard.i18n import LANGUAGES
 
@@ -16,15 +17,18 @@ from pi_guard.i18n import LANGUAGES
 class Field:
     key: str  # lower-case settings attribute
     group: str
-    kind: str  # bool | int | choice | text | list
+    kind: str  # bool | int | choice | multi | text | list
     minimum: int | None = None
     maximum: int | None = None
     options: tuple[str, ...] = field(default_factory=tuple)
 
 
+LOGIN_METHODS = ("password", "keyfile", "telegram", "webauthn", "none")
+TIMEZONES = tuple(sorted(z for z in available_timezones() if "/" in z or z == "UTC"))
+
 FIELDS = (
     Field("language", "general", "language"),
-    Field("timezone", "general", "text"),
+    Field("timezone", "general", "choice", options=TIMEZONES),
     Field("log_level", "general", "choice", options=("DEBUG", "INFO", "WARNING", "ERROR")),
     Field("recording_enabled", "recording", "bool"),
     Field("recording_continuous", "recording", "bool"),
@@ -83,7 +87,12 @@ FIELDS = (
     Field("whatsapp_admin_numbers", "whatsapp", "list"),
     Field("whatsapp_allowed_numbers", "whatsapp", "list"),
     Field("whatsapp_alert_template", "whatsapp", "text"),
-    Field("dashboard_auth", "dashboard", "list"),
+    Field(
+        "dashboard_auth",
+        "dashboard",
+        "multi",
+        options=("password", "keyfile", "telegram", "webauthn", "none"),
+    ),
     Field("dashboard_public_url", "dashboard", "text"),
     Field("dashboard_trusted_proxies", "dashboard", "list"),
     Field("webpush_enabled", "dashboard", "bool"),
@@ -119,6 +128,11 @@ def to_env(field_: Field, value: Any) -> str:
         if value not in field_.options:
             raise ValueError(f"{field_.key}: one of {', '.join(field_.options)}")
         return str(value)
+    if field_.kind == "multi":
+        items = value if isinstance(value, list) else str(value).split(",")
+        if not items or not set(items) <= set(field_.options):
+            raise ValueError(f"{field_.key}: choose from {', '.join(field_.options)}")
+        return ",".join(items)
     if field_.kind == "secret":
         text = str(value).strip()
         if not text or "\n" in text or len(text) > 200:

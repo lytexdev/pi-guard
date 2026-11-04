@@ -4,11 +4,28 @@ import { state } from "../app.js";
 import { searchToggle, supportNote } from "../widgets.js";
 import { restartPrompt } from "./settings.js";
 
+// Moved into other tabs; old links keep working.
+const MOVED = { plan: "modes", api: "access" };
+// What is on the pages without settings fields, so the search finds it too.
+const TOPICS = {
+  modes: ["web.set_plan"],
+  appearance: ["web.theme", "web.text_size", "web.ap_nav", "web.ap_color", "web.ap_font", "web.ap_animations", "web.ap_logo"],
+  devices: ["web.cameras", "web.speaker", "web.microphone", "web.trusted_devices", "web.quiet_hours_sound"],
+  access: ["web.users_title", "web.webauthn_title", "web.recovery_title", "web.codeword", "web.login_security", "web.account", "web.api_tokens", "web.api_docs"],
+  messaging: ["web.discord_status", "web.signal_status"],
+  security: ["web.scan_firewall", "web.scan_updates", "web.scan_rootkits", "web.scan_ports", "web.scan_ssh"],
+  storage: ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
+  data: ["web.ex_data", "web.ex_config", "web.ex_import"],
+  updates: ["web.up_title"],
+  support: ["web.support_phone", "web.support_email", "web.support_address"],
+};
+const fold = (text) => text.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+
 const SECTIONS = [
   ["general", "settings", ["general"]], ["recording", "video", ["recording"]], ["detection", "users", ["detection"]],
   ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "discord", "whatsapp", "signal"]],
   ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]], ["appearance", "palette", null],
-  ["plan", "calendar", null], ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null], ["api", "key", null],
+  ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null],
   ["security", "shield-check", null], ["storage", "database", null], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
 ];
 
@@ -71,7 +88,7 @@ async function updateSection(box) {
   const draw = async () => {
     const u = await api("/api/system/update");
     const state = u.state?.state;
-    fill(box, h("section", { class: "panel stack" }, h("h2", {}, t("web.up_title")),
+    fill(box, h("section", { class: "panel stack" }, h("h2", {}, icon("brand-github"), " ", t("web.up_title")),
       h("dl", { class: "kv" }, h("dt", {}, t("web.up_version")), h("dd", {}, `${u.version}${u.commit ? ` (${u.commit})` : ""}`),
         u.remote?.commit ? [h("dt", {}, t("web.up_latest")), h("dd", {}, `${u.remote.commit} · ${when(u.remote.date)}`)] : null),
       u.remote?.message ? h("p", { class: "muted" }, u.remote.message) : null,
@@ -100,29 +117,56 @@ function supportSection(box) {
     } }, icon("check"), t("web.save"))));
 }
 
+function searchIndex(fields) {
+  const section = (group) => SECTIONS.find(([, , groups]) => groups?.includes(group))?.[0];
+  const entry = (id, target, label, extra = "") => ({ id, target, label, text: fold(`${label} ${extra}`), name: fold(label) });
+  return [
+    ...SECTIONS.map(([id]) => entry(id, "", t(`web.set_${id}`))),
+    ...fields.filter((f) => section(f.group)).map((f) => entry(section(f.group), `s_${f.key}`, t(`web.setting_${f.key}`), `${t(`web.group_${f.group}`)} ${t(`web.tip_${f.key}`)} ${f.key.replace(/_/g, " ")}`)),
+    ...Object.entries(TOPICS).flatMap(([id, keys]) => keys.map((key) => entry(id, key, t(key), t(`${key.replace("_title", "")}_hint`)))),
+  ];
+}
+
+function jumpTo(target) {
+  // A field by its id, a topic by its heading.
+  const found = document.getElementById(target)?.closest(".switch-row, .field") || document.getElementById(target)
+    || [...document.querySelectorAll(".hub-body h2, .hub-body h3, .hub-extra h2, .hub-extra h3, .hub-body label")].find((el) => el.textContent.trim() === t(target));
+  if (!found) return;
+  found.scrollIntoView({ block: "center" });
+  found.classList.add("flash");
+  setTimeout(() => found.classList.remove("flash"), 2200);
+}
+
 export async function render(main, params = []) {
-  const current = SECTIONS.some(([id]) => id === params[0]) ? params[0] : "general";
+  const wanted = MOVED[params[0]] || params[0];
+  const current = SECTIONS.some(([id]) => id === wanted) ? wanted : "general";
   const body = h("div", { class: "hub-body stack" });
+  const extra = h("div", { class: "hub-extra stack" });
   const saveBar = h("div", { class: "save-bar hidden" });
   const tabs = h("nav", { class: "hub-nav", "aria-label": t("web.nav_settings") }, SECTIONS.map(([id, ic]) =>
     h("a", { href: `#/settings/${id}`, class: id === current ? "active" : "" }, icon(ic), h("span", {}, t(`web.set_${id}`)))));
-  const found = h("ul", { class: "list search-results hidden" });
+  const results = h("section", { class: "panel search-results hidden", "aria-live": "polite" });
+  const hub = h("div", { class: "hub" }, h("div", { class: "hub-side" }, tabs), h("div", {}, body, extra, saveBar, supportNote()));
   let index = null;
-  const search = searchToggle(t("web.set_search"), async (q) => {
-    body.querySelectorAll(".switch-row, .field").forEach((row) => row.classList.toggle("hidden", q && !row.textContent.toLowerCase().includes(q)));
-    index ||= (await api("/api/settings")).fields;
-    const section = (group) => SECTIONS.find(([, , groups]) => groups?.includes(group))?.[0];
-    const matches = !q ? [] : [
-      ...SECTIONS.filter(([id]) => t(`web.set_${id}`).toLowerCase().includes(q)).map(([id]) => [id, t(`web.set_${id}`)]),
-      ...index.filter((f) => t(`web.setting_${f.key}`).toLowerCase().includes(q)).map((f) => [section(f.group), t(`web.setting_${f.key}`)]),
-    ].filter(([id]) => id).slice(0, 8);
-    found.classList.toggle("hidden", !matches.length);
-    fill(found, matches.map(([id, label]) => h("li", {}, h("a", { class: "grow", href: `#/settings/${id}` }, label), h("small", {}, t(`web.set_${id}`)))));
+  const search = searchToggle(t("web.set_search"), async (query) => {
+    // Searches all tabs, not this one: results replace the page until the search is closed.
+    index ||= api("/api/settings").then((data) => searchIndex(data.fields));
+    const words = fold(query).split(/\s+/).filter(Boolean);
+    const rank = (item) => (item.name.startsWith(words[0]) ? 0 : item.name.includes(words[0]) ? 1 : 2);
+    const matches = words.length ? (await index).filter((item) => words.every((word) => item.text.includes(word))).sort((a, b) => rank(a) - rank(b)).slice(0, 30) : [];
+    hub.classList.toggle("hidden", words.length > 0);
+    results.classList.toggle("hidden", !words.length);
+    const groups = [...new Set(matches.map((item) => item.id))];
+    fill(results, matches.length ? groups.map((id) => [
+      h("h3", {}, icon(SECTIONS.find(([section]) => section === id)[1]), " ", t(`web.set_${id}`)),
+      h("ul", { class: "list" }, matches.filter((item) => item.id === id).map((item) => h("li", {},
+        h("a", { class: "grow", href: `#/settings/${id}${item.target ? `/${item.target}` : ""}` }, item.label), icon("chevron-right"))))])
+      : h("p", { class: "muted" }, t("web.set_no_results")));
   });
-  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search)), found,
-    h("div", { class: "hub" }, h("div", { class: "hub-side" }, tabs), h("div", {}, body, saveBar, supportNote())));
+  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search)), results, hub);
   tabs.querySelector(".active")?.scrollIntoView({ inline: "center", block: "nearest" });
   let save = null;
+  let stop = null;
   const showSave = () => {
     fill(saveBar, h("span", { class: "grow" }, t("web.set_unsaved")), h("button", { class: "primary", onclick: () => save?.() }, icon("check"), t("web.save")));
     saveBar.classList.remove("hidden");
@@ -136,8 +180,9 @@ export async function render(main, params = []) {
     body.addEventListener("change", showSave);
     if (current === "messaging") {
       const { discordPanel, signalPanel } = await import("./signal.js");
-      body.append(await discordPanel(), await signalPanel());
+      extra.append(await discordPanel(), await signalPanel());
     }
+    if (current === "modes") await (await import("./plan.js")).render(extra);
   } else if (current === "devices") {
     const view = await import("./devices.js");
     await view.render(body, [], { embedded: true, register: (fn) => { save = fn; }, onSaved: () => { saveBar.classList.add("hidden"); restartPrompt(); } });
@@ -148,21 +193,20 @@ export async function render(main, params = []) {
     await (await import("./notifications.js")).render(body);
   } else if (current === "appearance") {
     (await import("./appearance.js")).render(body);
-  } else if (current === "plan") {
-    return (await import("./plan.js")).render(body);
   } else if (current === "security") {
-    return (await import("./scan.js")).render(body);
+    stop = await (await import("./scan.js")).render(body);
   } else if (current === "storage") {
-    return (await import("./storage.js")).render(body);
+    await (await import("./storage.js")).render(body);
   } else if (current === "support") {
     supportSection(body);
   } else if (current === "access") {
     await (await import("./access.js")).render(body);
-  } else if (current === "api") {
-    await apiSection(body);
+    await apiSection(extra);
   } else if (current === "data") {
     dataSection(body);
   } else {
     await updateSection(body);
   }
+  if (params[1]) jumpTo(params[1]);
+  return stop;
 }

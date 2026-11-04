@@ -33,7 +33,6 @@ const SECONDARY = [
   ["logs", "list-details", "web.nav_logs"],
 ];
 
-const CHILDREN = { live: [["monitor", "camera", "web.nav_monitor"]] };
 const VIEWER_ROUTES = ["overview", "live", "monitor", "events", "account"];
 
 applyAccessibility();
@@ -43,8 +42,8 @@ installTooltips();
 export const state = { session: null, overview: null };
 let cleanup = null;
 
-function link(route, iconName, label, current, extra = "") {
-  return h("a", { href: `#/${route}`, title: t(`web.tip_nav_${route}`), class: `${current === route ? "active" : ""} ${extra}`.trim() },
+function link(route, iconName, label, current) {
+  return h("a", { href: `#/${route}`, title: t(`web.tip_nav_${route}`), class: current === route ? "active" : "" },
     icon(iconName), h("span", {}, t(label)));
 }
 
@@ -62,7 +61,8 @@ function shell(route) {
   const viewer = state.session?.role === "viewer";
   const items = navItems();
   const custom = (state.session?.nav || []).length > 0;
-  const entry = ([r, i, l]) => [link(r, i, l, route), (CHILDREN[r] || []).map(([cr, ci, cl]) => link(cr, ci, cl, route, "sub"))];
+  const tabs = route === "monitor" ? "live" : route;  // the camera room is a view of Live
+  const entry = ([r, i, l]) => link(r, i, l, tabs);
   const nav = h("nav", { class: "nav", "aria-label": "pi-guard" },
     h("div", { class: "brand" }, h("img", { src: logoUrl(), alt: "" }), "pi-guard"),
     custom || viewer ? items.map(entry) : [
@@ -74,7 +74,6 @@ function shell(route) {
     h("div", { class: "spacer" }),
     h("a", { href: "#/logout" }, icon("logout"), h("span", {}, t("web.logout"))),
     h("div", { class: "credit" }, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex")));
-  const tabs = route === "monitor" ? "live" : route;
   const tabbar = h("nav", { class: "tabbar", "aria-label": "pi-guard" },
     viewer ? items.map(([r, i, l]) => link(r, i, l, tabs)) : [
       ...items.slice(0, 4).map(([r, i, l]) => link(r, i, l, tabs)),

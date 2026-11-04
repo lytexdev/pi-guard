@@ -78,8 +78,8 @@ Dashboard die Fehlermeldung des Browsers.
 
 - **Tooltips** erklären Knöpfe und Einträge, wenn du mit der Maus darauf zeigst.
 - **Navigation:** Unter *Erscheinungsbild → Navigation* ziehst du die Einträge in deine Reihenfolge. Sie
-  gilt für dein Konto. Der Kameraraum ist ein Unterpunkt von Live.
-- **Wochenplan** (*Einstellungen*): Zieh in einem Tag, wann normalerweise niemand zu Hause ist. pi-guard
+  gilt für dein Konto. Der Kameraraum ist ein Schalter oben auf der Live-Seite.
+- **Wochenplan** (*Einstellungen → Zuhause & Abwesend*): Zieh in einem Tag, wann normalerweise niemand zu Hause ist. pi-guard
   wechselt dann auf Abwesend und zurück. Was du von Hand einstellst, bleibt bis zum nächsten Wechsel im
   Plan. Mit Anwesenheitserkennung bleibt es auf Zuhause, solange jemand erkannt wird.
 - **Support** (*Einstellungen*): Name, Telefon, E-Mail und Adresse, alles optional. Erscheint klein in der

@@ -324,10 +324,24 @@ async function knowledgePanel(info) {
   return panel;
 }
 
+const PROVIDERS = { mistral: "brand-mistral", openai: "brand-openai", anthropic: "brand-anthropic", gemini: "brand-gemini", grok: "brand-x", ollama: "brand-ollama", custom: "settings" };
+
+function providerChoice(selected) {
+  const box = h("div", { class: "choice provider-choice", role: "radiogroup" });
+  box.value = selected;
+  Object.entries(PROVIDERS).forEach(([id, name]) => box.append(h("button", { type: "button", role: "radio", class: id === selected ? "on" : "", "aria-checked": String(id === selected), dataset: { id }, onclick: (event) => {
+    box.value = id;
+    box.querySelectorAll("button").forEach((b) => { b.classList.toggle("on", b.dataset.id === id); b.setAttribute("aria-checked", String(b.dataset.id === id)); });
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+    event.preventDefault();
+  } }, icon(name), t(`web.as_provider_${id}`))));
+  return box;
+}
+
 async function assistant(box, data, opts) {
   const section = data.config.assistant;
   const info = await status("/api/addons/assistant/status");
-  const provider = h("select", {}, ["mistral", "openai", "anthropic", "gemini", "grok", "ollama", "custom"].map((p) => h("option", { value: p, selected: p === section.provider }, t(`web.as_provider_${p}`))));
+  const provider = providerChoice(section.provider);
   const model = h("input", { value: section.model, placeholder: t("web.as_model_placeholder") });
   const url = h("input", { value: section.base_url || "", placeholder: "https://…/v1" });
   const location = h("input", { value: section.location, placeholder: "Berlin" });
@@ -489,7 +503,7 @@ export async function render(main, params = []) {
       addon.enabled !== addon.running ? h("p", { class: "notice" }, t("web.addon_restart")) : null,
       h("a", { class: "button", href: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")));
   }));
-  cards.append(h("section", { class: "panel stack" }, h("h2", {}, icon("message"), " Discord"), h("p", { class: "muted" }, t("web.addon_discord_text")),
+  cards.append(h("section", { class: "panel stack" }, h("h2", {}, icon("brand-discord"), " Discord"), h("p", { class: "muted" }, t("web.addon_discord_text")),
     h("a", { class: "button", href: "#/settings/messaging" }, icon("settings"), t("web.addon_open"))));
   const ownPanel = h("section", { class: "panel stack" });
   const drawOwn = async () => {
@@ -515,7 +529,7 @@ export async function render(main, params = []) {
         form.append("file", zip.files[0], zip.files[0].name);
         if (await attempt(() => api("/api/plugin-manager", { method: "POST", body: form }), t("web.saved"))) drawOwn();
       } }, icon("upload"), t("web.upload"))),
-      h("h3", {}, t("web.pm_git")),
+      h("h3", {}, icon("brand-github"), " ", t("web.pm_git")),
       h("div", { class: "row" }, gitUrl, h("button", { onclick: async () => {
         const password = gitUrl.value && prompt(t("web.confirm_password"));
         if (password && await attempt(() => api("/api/plugin-manager/git", { method: "POST", body: { url: gitUrl.value.trim(), password } }), t("web.saved"))) drawOwn();
