@@ -1,6 +1,6 @@
 // Shell, navigation and hash router. Views live in ./views and render into <main>.
 import { accessibilityButton, applyAccessibility } from "./accessibility.js";
-import { assistantButton, scrollTopButton } from "./widgets.js";
+import { assistantButton, installLightbox, scrollTopButton } from "./widgets.js";
 import { api, h, icon, loadTexts, lang, setCsrf, t, fill } from "./api.js";
 import { applyDesign } from "./theme.js";
 
@@ -33,6 +33,7 @@ const SECONDARY = [
 ];
 
 applyAccessibility();
+installLightbox();
 
 export const state = { session: null, overview: null };
 let cleanup = null;
@@ -53,7 +54,7 @@ function shell(route) {
     (state.session?.pinned || []).map((id) => link(`addons/${id}`, "cpu", `addons.${id}`, route)),
     h("div", { class: "spacer" }),
     h("a", { href: "#/logout" }, icon("logout"), h("span", {}, t("web.logout"))),
-    h("div", { class: "credit" }, "pi-guard · made by lytex"));
+    h("div", { class: "credit" }, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex")));
   const tabbar = h("nav", { class: "tabbar", "aria-label": "pi-guard" },
     PRIMARY.filter(([r]) => r !== "monitor").map(([r, i, l]) => link(r, i, l, route)),
     link("more", "menu-2", "web.nav_more",

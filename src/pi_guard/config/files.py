@@ -358,8 +358,18 @@ class AssistantAddon(_Model):
     speech_output: bool = False
 
 
+class AgentsAddon(_Model):
+    enabled: bool = False
+
+
+class LanguagesAddon(_Model):
+    enabled: bool = False
+
+
 class AddonSettings(_Model):
     plugins: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    agents: AgentsAddon = Field(default_factory=AgentsAddon)
+    languages: LanguagesAddon = Field(default_factory=LanguagesAddon)
     heartbeat: HeartbeatAddon = Field(default_factory=HeartbeatAddon)
     analytics: AnalyticsAddon = Field(default_factory=AnalyticsAddon)
     smarthome: SmartHomeAddon = Field(default_factory=SmartHomeAddon)

@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from pi_guard.i18n import LANGUAGES
+
 
 @dataclass(frozen=True)
 class Field:
@@ -21,7 +23,7 @@ class Field:
 
 
 FIELDS = (
-    Field("language", "general", "choice", options=("de", "en")),
+    Field("language", "general", "language"),
     Field("timezone", "general", "text"),
     Field("log_level", "general", "choice", options=("DEBUG", "INFO", "WARNING", "ERROR")),
     Field("recording_enabled", "recording", "bool"),
@@ -99,6 +101,10 @@ def to_env(field_: Field, value: Any) -> str:
         ):
             raise ValueError(f"{field_.key}: {field_.minimum}-{field_.maximum}")
         return str(number)
+    if field_.kind == "language":
+        if value not in LANGUAGES:
+            raise ValueError(f"{field_.key}: not available")
+        return str(value)
     if field_.kind == "choice":
         if value not in field_.options:
             raise ValueError(f"{field_.key}: one of {', '.join(field_.options)}")

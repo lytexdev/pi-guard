@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from pi_guard.addons.agents import AgentError
 from pi_guard.addons.jobs import MAX_RECORD_MINUTES, next_time
 from pi_guard.audio.service import AudioError
 from pi_guard.core.modes import Mode
@@ -122,6 +123,16 @@ class Commander:
             return Proposal("photo", {"camera": self._camera(s)})
         if _has(s, "schau", "was siehst", "was ist zu sehen", "look at"):
             return Proposal("look", {"camera": self._camera(s), "question": text})
+        power_words = ("herunter", "runter", "ausschalten", "shut down", "neustart")
+        agents = self._app.addons.agents
+        if agents is not None and _has(s, *power_words):
+            known = agents.list()
+            agent = agents.find(s)
+            if agent is None and len(known) == 1 and _has(s, " pc ", "computer", "rechner"):
+                agent = known[0]["id"]
+            if agent is not None:
+                command = "reboot" if "neustart" in s else "shutdown"
+                return Proposal("agent_power", {"agent": agent, "command": command})
         remote = self._app.addons.remote
         if remote is not None and _has(
             s, "herunter", "runter", "ausschalten", "shut down", "neustart"
@@ -236,6 +247,9 @@ class Commander:
             values["name"] = remote.actions[a["name"]].name
         if p.action == "mode":
             values["mode"] = t(f"mode.{a['mode'].lower()}", lang)
+        if p.action == "agent_power" and self._app.addons.agents is not None:
+            values["name"] = self._app.addons.agents.name(a["agent"]) or "?"
+            values["command"] = t(f"web.ag_cmd_{a['command']}", lang)
         return t(f"cmd.{p.action}", lang, **values)
 
     def _state(self, p: Proposal, lang: str) -> str:
@@ -259,12 +273,12 @@ class Commander:
         if not yes:
             return Outcome(t("cmd.cancelled", lang))
         proposal = pending.proposal
-        if proposal.action == "remote" and not pending.second:
+        if proposal.action in ("remote", "agent_power") and not pending.second:
             return self._offer(proposal, lang, actor, second=True)
         self._app.db.audit(actor, "assistant.action", proposal.action)
         try:
             return await self._run(proposal, lang, actor, deliver, chat)
-        except (AudioError, OSError, ValueError, KeyError) as exc:
+        except (AudioError, AgentError, OSError, ValueError, KeyError, RuntimeError) as exc:
             log.warning("action %s failed: %s", proposal.action, type(exc).__name__)
             return Outcome(t("cmd.failed", lang))
 
@@ -295,6 +309,11 @@ class Commander:
             assert remote is not None
             result = await remote.run(remote.actions[a["name"]])
             return done if result.ok else Outcome(t("cmd.failed", lang))
+        if p.action == "agent_power":
+            agents = app.addons.agents
+            assert agents is not None
+            await agents.request(a["agent"], cmd=a["command"])
+            return done
         if p.action == "photo":
             path = await app.take_photo(a["camera"])
             return Outcome(t("cmd.done", lang), photo=path)

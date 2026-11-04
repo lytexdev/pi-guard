@@ -34,7 +34,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    language: Literal["en", "de"] = "en"
+    language: str = Field("en", pattern=r"^[a-z]{2}(-[a-z]{2})?$")
     timezone: str = "Europe/Berlin"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["text", "json"] = "text"

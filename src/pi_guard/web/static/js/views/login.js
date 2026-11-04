@@ -108,5 +108,5 @@ export async function render(root) {
       catch (error) { fail(error); }
     } }, icon("device-mobile"), t("web.tg_login_button")));
   }
-  panel.append(h("p", { class: "muted" }, h("small", {}, "pi-guard · made by lytex")));
+  panel.append(h("p", { class: "muted" }, h("small", {}, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex"))));
 }

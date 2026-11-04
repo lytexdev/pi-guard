@@ -17,10 +17,13 @@ from pydantic import ValidationError
 
 from pi_guard.addons.assistant import AssistantError
 from pi_guard.addons.knowledge import Knowledge, KnowledgeError
+from pi_guard.addons.languages import LANGUAGES as language_names
+from pi_guard.addons.languages import installed, translate_all
 from pi_guard.addons.remote import ConfirmationError
 from pi_guard.addons.smarthome import SmartHomeError
 from pi_guard.audio.service import AudioError
 from pi_guard.config.files import AddonSettings, FileConfig
+from pi_guard.i18n import remove_extra
 from pi_guard.messaging.commands.addons import known_names
 from pi_guard.network.pihole import PiholeError
 from pi_guard.network.wgpeers import SUBNET
@@ -30,7 +33,7 @@ from pi_guard.web.server import current, dashboard, read_json
 
 log = logging.getLogger(__name__)
 
-ADDONS = ("heartbeat", "analytics", "smarthome", "remote", "assistant")
+ADDONS = ("heartbeat", "analytics", "smarthome", "remote", "assistant", "agents", "languages")
 MAX_VOICE_BYTES = 5_000_000
 HOME_IP_SECONDS = 600
 TOR_LIST_SECONDS = 6 * 3600
@@ -67,6 +70,9 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/addons/assistant/knowledge", knowledge_add),
         web.delete("/api/addons/assistant/knowledge/{id:\\d+}", knowledge_delete),
         web.delete("/api/addons/assistant/answers", answers_forget),
+        web.get("/api/addons/languages/status", languages_status),
+        web.post("/api/addons/languages/{code}", language_add),
+        web.delete("/api/addons/languages/{code}", language_delete),
         web.get("/api/connection", connection),
         web.post("/api/connection/check", connection_check),
     ]
@@ -93,7 +99,7 @@ async def catalog(request: web.Request) -> web.Response:
     return web.json_response({
         "addons": [{
             "id": addon, "enabled": config[addon]["enabled"],
-            "running": getattr(app.addons, addon) is not None, "needs": needs.get(addon),
+            "running": bool(getattr(app.addons, addon)), "needs": needs.get(addon),
         } for addon in ADDONS],
         "config": config,
         "secrets": {
@@ -383,6 +389,59 @@ async def knowledge_delete(request: web.Request) -> web.Response:
 
 async def answers_forget(request: web.Request) -> web.Response:
     return web.json_response({"removed": _knowledge(request).forget_answers()})
+
+
+# --- languages ------------------------------------------------------------------------------
+
+_translating: dict[str, Any] = {}
+
+
+async def languages_status(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    return web.json_response({
+        "available": language_names, "installed": installed(d.settings.data_dir / "i18n"),
+        "running": _translating, "key": bool(d.settings.assistant_deepl_key),
+    })  # fmt: skip
+
+
+async def language_add(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    code = request.match_info["code"]
+    key = d.settings.assistant_deepl_key
+    if code not in language_names:
+        raise web.HTTPNotFound()
+    if key is None or not key.get_secret_value():
+        raise web.HTTPConflict(text="web.lg_no_key")
+    if _translating:
+        raise web.HTTPConflict(text="web.lg_busy")
+
+    def progress(done: int, total: int) -> None:
+        _translating.update(code=code, done=done, total=total)
+
+    async def work() -> None:
+        progress(0, 1)
+        try:
+            await translate_all(
+                code, key.get_secret_value(), d.settings.data_dir / "i18n", progress
+            )
+        except (httpx.HTTPError, KeyError, ValueError) as exc:
+            log.warning("translation failed: %s", type(exc).__name__)
+        finally:
+            _translating.clear()
+
+    d.background(work())
+    return web.json_response({"ok": True})
+
+
+async def language_delete(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    code = request.match_info["code"]
+    path = d.settings.data_dir / "i18n" / f"{code}.json"
+    if code not in language_names or not path.exists():
+        raise web.HTTPNotFound()
+    path.unlink()
+    remove_extra(code)
+    return web.json_response({"ok": True})
 
 
 # --- connection -----------------------------------------------------------------------------

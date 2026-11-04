@@ -26,7 +26,7 @@ from pi_guard.config.settings import Settings
 from pi_guard.core.permissions import Role
 from pi_guard.detection.enrollment import EnrollmentSession, video_frames
 from pi_guard.detection.faces import EnrollmentError, FaceRecognizer
-from pi_guard.i18n import t
+from pi_guard.i18n import LANGUAGES, t
 from pi_guard.notifications.rules import DEFAULTS, resolve
 from pi_guard.recording.evidence import MAX_MINUTES, evidence_files, record_evidence
 from pi_guard.recording.segments import ClipError
@@ -100,8 +100,11 @@ async def get_settings(request: web.Request) -> web.Response:
     s = dashboard(request).settings
     return web.json_response({
         "values": {f.key: "" if f.kind == "secret" else _plain(getattr(s, f.key)) for f in FIELDS},
-        "fields": [{"key": f.key, "group": f.group, "kind": f.kind, "min": f.minimum,
-                    "max": f.maximum, "options": list(f.options)} for f in FIELDS],
+        "fields": [{"key": f.key, "group": f.group,
+                    "kind": "choice" if f.kind == "language" else f.kind, "min": f.minimum,
+                    "max": f.maximum,
+                    "options": list(LANGUAGES) if f.kind == "language" else list(f.options)}
+                   for f in FIELDS],
         "secrets": {key: getattr(s, key) is not None for key in SECRETS},
         "overrides": sorted(read_overrides(s.data_dir)),
     })  # fmt: skip

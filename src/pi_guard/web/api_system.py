@@ -8,6 +8,7 @@ import io
 import json
 import re
 import shutil
+import tempfile
 import time
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -17,7 +18,14 @@ import httpx
 from aiohttp import web
 
 from pi_guard import __version__
-from pi_guard.addons.plugin import TEMPLATE, UPLOAD_DIR
+from pi_guard.addons.plugin import (
+    MANIFESTS,
+    TEMPLATE,
+    UPLOAD_DIR,
+    ManifestError,
+    check_manifest,
+    read_manifest,
+)
 from pi_guard.config.files import FileConfig
 from pi_guard.web.api_manage import saved_config, write_config
 from pi_guard.web.server import current, dashboard, read_json
@@ -28,7 +36,6 @@ MAX_ZIP = 2_000_000
 MAX_FILES = 100
 MAX_SOURCE = 200_000
 _ID_RE = re.compile(r"^[a-z0-9_]{2,32}$")
-RESERVED = {"heartbeat", "analytics", "smarthome", "remote", "assistant"}
 _latest: tuple[float, dict[str, Any]] = (0.0, {})
 
 
@@ -40,6 +47,10 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/plugin-manager", plugin_list),
         web.post("/api/plugin-manager", plugin_upload),
         web.post("/api/plugin-manager/create", plugin_create),
+        web.post("/api/plugin-manager/git", plugin_from_git),
+        web.get("/api/plugin-manager/{id}/panel", plugin_panel),
+        web.post("/api/plugin-manager/{id}/action/{name}", plugin_action),
+        web.put("/api/plugin-manager/{id}/settings", plugin_settings),
         web.put("/api/plugin-manager/{id}/enabled", plugin_toggle),
         web.get("/api/plugin-manager/{id}/source", plugin_source),
         web.put("/api/plugin-manager/{id}/source", plugin_save_source),
@@ -120,24 +131,16 @@ def _root(request: web.Request) -> Path:
 
 def _manifest(directory: Path) -> dict[str, Any] | None:
     try:
-        return json.loads((directory / "plugin.json").read_text())  # type: ignore[no-any-return]
+        return read_manifest(directory)
     except (OSError, ValueError):
         return None
 
 
-def check_manifest(data: Any) -> dict[str, Any]:
-    if not isinstance(data, dict):
-        raise web.HTTPBadRequest(text="web.pm_bad_manifest")
-    plugin_id = str(data.get("id", ""))
-    entry = str(data.get("entry", "plugin.py"))
-    if not _ID_RE.match(plugin_id) or plugin_id in RESERVED or not data.get("name"):
-        raise web.HTTPBadRequest(text="web.pm_bad_manifest")
-    if not re.match(r"^[A-Za-z0-9_]+\.py$", entry):
-        raise web.HTTPBadRequest(text="web.pm_bad_manifest")
-    return {"id": plugin_id, "name": str(data["name"])[:60], "entry": entry,
-            "version": str(data.get("version", "0"))[:20],
-            "author": str(data.get("author", ""))[:60],
-            "description": str(data.get("description", ""))[:300]}  # fmt: skip
+def _checked(data: Any) -> dict[str, Any]:
+    try:
+        return check_manifest(data)
+    except (ManifestError, ValueError, TypeError):
+        raise web.HTTPBadRequest(text="web.pm_bad_manifest") from None
 
 
 def unpack(archive: bytes, root: Path) -> dict[str, Any]:
@@ -156,9 +159,13 @@ def unpack(archive: bytes, root: Path) -> dict[str, Any]:
         is_link = (member.external_attr >> 16) & 0o170000 == 0o120000
         if path.is_absolute() or ".." in path.parts or "\\" in member.filename or is_link:
             raise web.HTTPBadRequest(text="web.pm_bad_zip")
+    names = bundle.namelist()
+    found = next((n for n in MANIFESTS if n in names), None)
+    if found is None:
+        raise web.HTTPBadRequest(text="web.pm_bad_manifest")
     try:
-        manifest = check_manifest(json.loads(bundle.read("plugin.json")))
-    except (KeyError, ValueError):
+        manifest = _checked(json.loads(bundle.read(found)))
+    except ValueError:
         raise web.HTTPBadRequest(text="web.pm_bad_manifest") from None
     if manifest["entry"] not in bundle.namelist():
         raise web.HTTPBadRequest(text="web.pm_bad_manifest")
@@ -195,7 +202,19 @@ async def plugin_list(request: web.Request) -> web.Response:
         manifest = _manifest(directory)
         if manifest:
             active = bool((enabled.get(directory.name) or {}).get("enabled"))
-            rows.append({**manifest, "enabled": active, "running": directory.name in running})
+            values = enabled.get(directory.name) or {}
+            rows.append(
+                {
+                    **manifest,
+                    "enabled": active,
+                    "running": directory.name in running,
+                    "values": {
+                        f["key"]: values.get(f["key"], f["default"])
+                        for f in manifest["settings"]
+                        if f["type"] != "secret"
+                    },
+                }
+            )
     return web.json_response(rows)
 
 
@@ -214,11 +233,79 @@ async def plugin_upload(request: web.Request) -> web.Response:
     return web.json_response(manifest)
 
 
+async def plugin_from_git(request: web.Request) -> web.Response:
+    """Install from a public Git repository with a plugin.json at its top."""
+    data = await read_json(request)
+    _confirmed(request, str(data.get("password", "")))
+    url = str(data.get("url", "")).strip()
+    if not re.match(r"^https://[A-Za-z0-9./_-]{4,200}$", url):
+        raise web.HTTPBadRequest(text="web.pm_bad_url")
+    root = _root(request)
+    root.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix=".git-", dir=root))
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "git", "-c", "protocol.allow=never", "-c", "protocol.https.allow=always", "clone",
+            "--depth", "1", "--no-recurse-submodules", "--", url, str(work / "repo"),
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+            env={"GIT_TERMINAL_PROMPT": "0", "PATH": "/usr/bin:/bin", "HOME": str(work)},
+        )  # fmt: skip
+        if await asyncio.wait_for(process.wait(), 60) != 0:
+            raise web.HTTPBadGateway(text="web.pm_git_failed")
+        repo = work / "repo"
+        shutil.rmtree(repo / ".git", ignore_errors=True)
+        try:
+            manifest = read_manifest(repo)
+        except (OSError, ValueError):
+            raise web.HTTPBadRequest(text="web.pm_bad_manifest") from None
+        if not (repo / manifest["entry"]).is_file() or any(p.is_symlink() for p in repo.rglob("*")):
+            raise web.HTTPBadRequest(text="web.pm_bad_manifest")
+        target = root / manifest["id"]
+        if target.exists():
+            shutil.rmtree(target)
+        repo.rename(target)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    dashboard(request).app.db.audit(f"web:{current(request).username}", "plugin.install", url[:120])
+    return web.json_response(manifest)
+
+
+def _running_plugin(request: web.Request) -> Any:
+    plugin_id = request.match_info["id"]
+    plugin = next((p for p in dashboard(request).app.addons.plugins if p.id == plugin_id), None)
+    if plugin is None:
+        raise web.HTTPConflict(text="web.addon_not_running")
+    return plugin
+
+
+async def plugin_panel(request: web.Request) -> web.Response:
+    return web.json_response(_running_plugin(request).panel())
+
+
+async def plugin_action(request: web.Request) -> web.Response:
+    plugin = _running_plugin(request)
+    dashboard(request).app.db.audit(f"web:{current(request).username}", "plugin.action", plugin.id)
+    return web.json_response({"message": await plugin.action(request.match_info["name"])})
+
+
+async def plugin_settings(request: web.Request) -> web.Response:
+    _, manifest = _plugin_dir(request)
+    data = await read_json(request)
+    known = {f["key"] for f in manifest["settings"]}
+    d = dashboard(request)
+    config = saved_config(d)
+    plugins = config.setdefault("addons", {}).setdefault("plugins", {})
+    current_values = plugins.get(manifest["id"]) or {}
+    plugins[manifest["id"]] = {**current_values, **{k: v for k, v in data.items() if k in known}}
+    await write_config(d, FileConfig.model_validate(config))
+    return web.json_response({"ok": True, "restart_required": True})
+
+
 async def plugin_create(request: web.Request) -> web.Response:
     data = await read_json(request)
     _confirmed(request, str(data.get("password", "")))
-    manifest = check_manifest({"id": data.get("id"), "name": data.get("name"), "version": "0.1.0",
-                               "entry": "plugin.py", "author": data.get("author", "")})  # fmt: skip
+    manifest = _checked({"id": data.get("id"), "name": data.get("name"), "version": "0.1.0",
+                         "entry": "plugin.py", "author": data.get("author", "")})  # fmt: skip
     directory = _root(request) / manifest["id"]
     if directory.exists():
         raise web.HTTPConflict(text="web.pm_exists")

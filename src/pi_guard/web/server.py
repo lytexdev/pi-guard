@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 COOKIE = "pg_session"
 PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.crt",
           "/api/login/telegram", "/api/login/telegram/poll", "/api/login/webauthn/begin",
-          "/api/login/webauthn/finish"}  # fmt: skip
+          "/api/login/webauthn/finish", "/api/agent/ws"}  # fmt: skip
 # Reachable while the default password has not been changed yet.
 SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",
                  "/api/account/totp/confirm", "/api/setup/status"}  # fmt: skip
@@ -138,7 +138,9 @@ class Dashboard:
         from pi_guard.web import (
             api_account,
             api_addons,
+            api_agents,
             api_core,
+            api_export,
             api_live,
             api_login,
             api_manage,
@@ -164,8 +166,9 @@ class Dashboard:
         webapp.router.add_post("/api/login", self._login)
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
-        for module in (api_account, api_addons, api_core, api_login, api_live, api_manage,
-                       api_network, api_security, api_system, api_v1):  # fmt: skip
+        for module in (api_account, api_addons, api_agents, api_core, api_export, api_login,
+                       api_live, api_manage, api_network, api_security, api_system,
+                       api_v1):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
             sub = web.Application()

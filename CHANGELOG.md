@@ -8,6 +8,20 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Connected computers: a small agent in Rust (`agent/`) connects out to pi-guard, with status,
+  safe shutdown confirmed twice, and Docker management. Shown on the map.
+- Add-on ecosystem: manifest with name, icon, version, source and authors; settings forms,
+  dashboard panels, events and storage for plugins; install from Git; `pi-guard plugin new`,
+  `check` and `pack`.
+- Export of all data as JSON, TXT and CSV; config.json to back up and read in settings.
+- More languages through DeepL.
+- Pictures open large on click; icons on the map; VPN form opens on demand and devices show
+  details; link in the credit.
+
+### Fixed
+
+- The lines of the network map were almost invisible.
+
 - Updater: from the dashboard or `scripts/update.sh`, fast-forward only, with health check and
   automatic return to the previous version.
 - Network management: Wi-Fi networks and device names from the FRITZ!Box, own device names,

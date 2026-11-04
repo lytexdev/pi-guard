@@ -286,8 +286,8 @@ pre.codes { background: var(--surface-2); padding: 12px; border-radius: 8px; col
 /* Topology */
 .topology { width: 100%; overflow-x: auto; }
 .tmap { display: block; width: 100%; }
-.tlink { fill: none; stroke: var(--line); stroke-width: 2; }
-.tlink.thin { stroke-width: 1; }
+.tlink { fill: none; stroke: var(--muted); stroke-opacity: .55; stroke-width: 2; }
+.tlink.thin { stroke-width: 1.4; }
 .tnode { cursor: pointer; outline: none; }
 .tnode rect { fill: var(--surface-2); stroke: var(--line); transition: stroke .12s, fill .12s; }
 .tnode:hover rect, .tnode:focus-visible rect, .tnode.on rect { stroke: var(--accent); }
@@ -386,6 +386,21 @@ textarea.code { width: 100%; background: var(--bg); color: var(--text); border: 
 .pin.on { color: var(--accent); border-color: var(--accent); }
 .tedge { fill: var(--accent); font-size: 11px; }
 .tarrow { fill: var(--muted); }
-.tlink.live { stroke: color-mix(in srgb, var(--accent) 60%, var(--line)); stroke-dasharray: 6 5; }
+.tlink.live { stroke: var(--accent); stroke-opacity: .9; stroke-dasharray: 6 5; }
 @media (prefers-reduced-motion: no-preference) { .tlink.live { animation: flow 1.4s linear infinite; } }
 @keyframes flow { to { stroke-dashoffset: -11; } }
+
+dialog.lightbox { width: auto; max-width: 96vw; max-height: 96dvh; padding: 10px; }
+dialog.lightbox img { display: block; max-width: 100%; max-height: 82dvh; margin: 0 auto 8px; border-radius: 8px; }
+img.thumb, .result img, .bubble img { cursor: zoom-in; }
+.nav .credit a { display: inline; padding: 0; min-height: 0; color: inherit; text-decoration: underline; background: none; }
+.ticon { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tnode image { pointer-events: none; }
+.clickable { cursor: pointer; }
+.clickable:hover > div:first-child { color: var(--accent); }
+.wg-actions { grid-column: 2; }
+.panel.wg > .wg-actions > .wg-add { padding: 14px; background: var(--surface-2); border-radius: var(--radius); }
+.wg-add h3 { margin-top: 0; }
+@media (max-width: 760px) { .wg-actions { grid-column: 1; } }
+.agent { flex-wrap: wrap; }
+pre.log { max-height: 50dvh; overflow-y: auto; }

@@ -63,6 +63,28 @@ function addForm(redraw) {
   return form;
 }
 
+function addBox(redraw) {
+  // The form stays out of the way until someone wants it.
+  const box = h("div", { class: "wg-add hidden" }, h("h3", {}, t("web.wg_add")), addForm(redraw));
+  const open = h("button", { class: "primary", onclick: () => { box.classList.remove("hidden"); open.classList.add("hidden"); box.querySelector("input")?.focus(); } }, icon("plus"), t("web.wg_add"));
+  return h("div", { class: "wg-actions" }, open, box);
+}
+
+function peerDialog(p) {
+  const row = (label, value) => (value ? [h("dt", {}, label), h("dd", {}, value)] : null);
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, p.name || p.public_key.slice(0, 10)),
+    h("p", {}, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline"))),
+    h("dl", { class: "kv" },
+      row(t("web.wg_address"), p.address || p.allowed_ips), row(t("web.wg_route"), p.id ? t(p.full_tunnel ? "web.wg_route_full" : "web.wg_home_only") : null),
+      row(t("web.wg_last"), p.latest_handshake ? when(p.latest_handshake) : t("web.never_connected")), row(t("web.wg_from"), p.endpoint),
+      row(t("web.wg_received"), `${((p.received || 0) / 1e6).toFixed(1)} MB`), row(t("web.wg_sent"), `${((p.sent || 0) / 1e6).toFixed(1)} MB`),
+      row(t("web.wg_created"), p.created ? when(p.created) : null), row(t("web.wg_key"), h("span", { class: "mono" }, `${p.public_key.slice(0, 16)}…`))),
+    h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 function wireguardPanel(d, redraw) {
   const wg = d.wireguard;
   const panel = h("section", { class: "panel wg" }, h("h2", {}, t("web.wg_title")));
@@ -76,7 +98,7 @@ function wireguardPanel(d, redraw) {
       : h("p", { class: "notice" }, t("web.wg_no_endpoint")),
     h("ul", { class: "list" }, peers.length ? peers.map((p) => h("li", {},
       h("span", { class: `dot ${p.active ? "ok" : ""}` }),
-      h("div", { class: "grow" },
+      h("div", { class: "grow clickable", role: "button", tabindex: "0", onclick: () => peerDialog(p), onkeydown: (e) => { if (e.key === "Enter") peerDialog(p); } },
         h("div", {}, p.name || p.public_key.slice(0, 10) + "…",
           p.id && !p.full_tunnel ? h("span", { class: "badge" }, t("web.wg_home_only")) : null),
         h("small", {}, p.pending ? t("web.wg_pending")
@@ -93,7 +115,7 @@ function wireguardPanel(d, redraw) {
         } }, icon("trash")),
       ] : null))
       : h("li", { class: "empty" }, t("web.no_peers"))),
-    h("div", { class: "wg-add" }, h("h3", {}, t("web.wg_add")), addForm(redraw)));
+    addBox(redraw));
   return panel;
 }
 

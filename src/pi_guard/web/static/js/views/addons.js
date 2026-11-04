@@ -4,7 +4,7 @@ import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../a
 import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
 
-export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone" };
+export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone", agents: "device-desktop", languages: "world" };
 
 const slug = (text) => text.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 28) || "item";
 const uniqueId = (name, items) => {
@@ -367,7 +367,88 @@ async function assistant(box, data, opts) {
   await view.render(keys, [], { embedded: true, groups: ["assistant"], register: (fn) => { saveKeys = fn; }, onSaved: () => {} });
 }
 
-const DETAILS = { heartbeat, analytics, smarthome, remote, assistant };
+function agentDialog(agent) {
+  const body = h("div", { class: "stack" });
+  const dialog = h("dialog", { class: "editor" }, h("div", { class: "row between" }, h("h2", {}, agent.name), h("button", { class: "icon-only", title: t("web.close"), onclick: () => dialog.close() }, icon("x"))), body);
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+  const draw = async () => {
+    const rows = await attempt(() => api(`/api/agents/${agent.id}/docker`));
+    if (!rows) { fill(body, h("p", { class: "muted" }, t("web.ag_no_docker"))); return; }
+    fill(body, h("div", { class: "table-wrap" }, h("table", {}, h("tbody", {}, rows.map((c) => h("tr", {},
+      h("td", {}, h("span", { class: `dot ${c.state === "running" ? "ok" : ""}` })),
+      h("td", {}, c.name, h("small", { class: "muted block" }, c.image)), h("td", {}, h("small", {}, c.status)),
+      h("td", { class: "actions" },
+        c.state === "running" ? [act("stop", "player-stop", c), act("restart", "refresh", c)] : act("start", "player-play", c),
+        h("button", { class: "icon-only", title: t("web.ag_logs"), onclick: () => logs(c) }, icon("file-text")))))))));
+  };
+  const act = (action, ic, c) => h("button", { class: "icon-only", title: t(`web.ag_docker_${action}`), onclick: async () => {
+    if (await attempt(() => api(`/api/agents/${agent.id}/docker`, { method: "POST", body: { action, container: c.name } }), t("web.saved"))) draw();
+  } }, icon(ic));
+  const logs = async (c) => {
+    const text = await attempt(() => api(`/api/agents/${agent.id}/docker/${encodeURIComponent(c.name)}/logs`));
+    if (text != null) fill(body, h("button", { onclick: draw }, t("web.back")), h("pre", { class: "log mono wrap" }, text));
+  };
+  draw();
+}
+
+async function agentPower(agent, command) {
+  const first = await attempt(() => api(`/api/agents/${agent.id}/power/begin`, { method: "POST", body: { command } }));
+  if (!first) return;
+  const started = Date.now();
+  const what = t(`web.ag_cmd_${command}`);
+  if (!await confirmDialog(t("web.ag_confirm", { name: agent.name, what }), t("remote.yes_1"), true)) return;
+  await sleep(Math.max(0, 1100 - (Date.now() - started)));
+  const second = await attempt(() => api("/api/agents/power/confirm", { method: "POST", body: { token: first.token } }));
+  if (!second) return;
+  const typed = await typedConfirm(second.name, what);
+  if (typed === null) { toast(t("remote.cancelled")); return; }
+  if (await attempt(() => api("/api/agents/power/confirm", { method: "POST", body: { token: second.token, typed } }))) toast(t("web.ag_sent", { what }));
+}
+
+async function agents(box, data, opts) {
+  const list = await status("/api/agents");
+  if (!list) { fill(box, h("p", { class: "notice" }, t("web.addon_restart"))); return; }
+  const redraw = () => renderDetail("agents", box, opts);
+  const name = h("input", { placeholder: t("web.ag_name_placeholder"), maxlength: 40, "aria-label": t("web.name") });
+  const out = h("div", { class: "stack" });
+  fill(box, h("section", { class: "panel stack" }, h("h2", {}, t("web.ag_title")), h("p", { class: "muted" }, t("web.ag_intro")),
+    h("ul", { class: "list" }, list.length ? list.map((a) => h("li", { class: "agent" }, h("span", { class: `dot ${a.online ? "ok" : ""}` }), icon("device-desktop"),
+      h("div", { class: "grow" }, h("div", {}, a.name), h("small", {}, a.online
+        ? `${a.info.os || ""} · ${a.info.memory_available_mb ?? "?"} MB frei · Last ${a.info.load ?? "?"}`
+        : a.last_seen ? t("web.last_used", { time: when(a.last_seen) }) : t("web.ag_waiting"))),
+      a.online && a.info.can_docker ? h("button", { onclick: () => agentDialog(a) }, "Docker") : null,
+      a.online && a.info.can_power ? ["suspend", "reboot", "shutdown"].map((c) => h("button", { class: c === "shutdown" ? "danger" : "", onclick: () => agentPower(a, c) }, t(`web.ag_cmd_${c}`))) : null,
+      h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+        if (await confirmDialog(t("web.ag_delete", { name: a.name }), t("web.delete"), true) && await attempt(() => api(`/api/agents/${a.id}`, { method: "DELETE" }))) redraw();
+      } }, icon("trash")))) : h("li", { class: "empty" }, t("web.ag_none")))),
+  h("section", { class: "panel stack" }, h("h2", {}, t("web.ag_add")),
+    h("div", { class: "row" }, name, h("button", { class: "primary", onclick: async () => {
+      const r = await attempt(() => api("/api/agents", { method: "POST", body: { name: name.value } }));
+      if (!r) return;
+      fill(out, h("p", { class: "notice" }, t("web.ag_token_once")), h("pre", { class: "mono wrap" }, `git clone https://github.com/lytexdev/pi-guard && cd pi-guard/agent\ncargo build --release\nsudo ./install.sh https://${location.host} ${r.token}`));
+    } }, icon("plus"), t("web.ag_create"))), out));
+}
+
+async function languages(box) {
+  const draw = async () => {
+    const s = await status("/api/addons/languages/status");
+    if (!s) return;
+    fill(box, h("section", { class: "panel stack" }, h("h2", {}, t("addons.languages")), h("p", { class: "muted" }, t("web.lg_intro")),
+      s.key ? null : h("p", { class: "notice" }, t("web.lg_no_key"), " ", h("a", { href: "#/addons/assistant" }, t("addons.assistant"))),
+      s.running.code ? h("p", { class: "notice" }, t("web.lg_progress", { name: s.available[s.running.code], done: s.running.done, total: s.running.total })) : null,
+      h("ul", { class: "list" }, Object.entries(s.available).map(([code, label]) => h("li", {}, h("span", { class: "grow" }, label),
+        s.installed.includes(code)
+          ? [h("span", { class: "badge ok" }, t("web.lg_installed")), h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { if (await attempt(() => api(`/api/addons/languages/${code}`, { method: "DELETE" }))) draw(); } }, icon("trash"))]
+          : h("button", { disabled: !s.key || Boolean(s.running.code), onclick: async () => { if (await attempt(() => api(`/api/addons/languages/${code}`, { method: "POST" }))) setTimeout(draw, 1500); } }, icon("plus"), t("web.add"))))),
+      h("p", { class: "muted" }, h("small", {}, t("web.lg_hint")))));
+    if (s.running.code) setTimeout(draw, 3000);
+  };
+  await draw();
+}
+
+const DETAILS = { heartbeat, analytics, smarthome, remote, assistant, agents, languages };
 
 export async function renderDetail(id, box, opts = {}) {
   const data = await api("/api/addons");
@@ -381,6 +462,7 @@ export async function setEnabled(id, enabled, opts = {}) {
 
 export async function render(main, params = []) {
   const id = params[0];
+  if (id === "plugin") { await pluginPage(main, params[1]); return; }
   if (id in DETAILS) {
     const box = h("div", { class: "stack" });
     fill(main, h("div", { class: "topbar" }, h("h1", {}, t(`addons.${id}`)), h("a", { class: "button", href: "#/addons" }, t("web.back"))), box);
@@ -412,11 +494,12 @@ export async function render(main, params = []) {
     const list = await api("/api/plugin-manager");
     const zip = h("input", { type: "file", accept: ".zip", "aria-label": t("web.pm_upload") });
     const name = h("input", { placeholder: t("web.pm_new_name"), "aria-label": t("web.pm_new_name") });
+    const gitUrl = h("input", { type: "url", placeholder: "https://github.com/…", "aria-label": t("web.pm_git") });
     fill(ownPanel, h("h2", {}, t("web.pm_title")), h("p", { class: "notice" }, t("web.pm_warning")),
       h("ul", { class: "list" }, list.length ? list.map((p) => {
         const on = h("input", { type: "checkbox", checked: p.enabled, "aria-label": p.name });
         on.addEventListener("change", async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}/enabled`, { method: "PUT", body: { enabled: on.checked } }), t("web.saved"))) restartPrompt(); });
-        return h("li", {}, on, h("div", { class: "grow clip" }, h("div", {}, p.name, " ", h("small", { class: "muted" }, `v${p.version}${p.author ? ` · ${p.author}` : ""}`)), h("small", {}, p.description || p.id)),
+        return h("li", {}, on, icon(p.icon), h("div", { class: "grow clip" }, h("div", {}, h("a", { href: `#/addons/plugin/${p.id}` }, p.name), " ", h("small", { class: "muted" }, `v${p.version}${p.authors.length ? ` · ${p.authors.join(", ")}` : ""}`)), h("small", {}, p.description || p.id)),
           h("button", { class: "icon-only", title: t("web.pm_edit"), onclick: () => editSource(p) }, icon("pencil")),
           h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}`, { method: "DELETE" }), t("web.saved"))) drawOwn(); } }, icon("trash")));
       }) : h("li", { class: "empty" }, t("web.nothing"))),
@@ -430,6 +513,11 @@ export async function render(main, params = []) {
         form.append("file", zip.files[0], zip.files[0].name);
         if (await attempt(() => api("/api/plugin-manager", { method: "POST", body: form }), t("web.saved"))) drawOwn();
       } }, icon("upload"), t("web.upload"))),
+      h("h3", {}, t("web.pm_git")),
+      h("div", { class: "row" }, gitUrl, h("button", { onclick: async () => {
+        const password = gitUrl.value && prompt(t("web.confirm_password"));
+        if (password && await attempt(() => api("/api/plugin-manager/git", { method: "POST", body: { url: gitUrl.value.trim(), password } }), t("web.saved"))) drawOwn();
+      } }, icon("download"), t("web.pm_install"))),
       h("h3", {}, t("web.pm_create")),
       h("div", { class: "row" }, name, h("button", { onclick: async () => {
         const id = slug(name.value);
@@ -443,6 +531,41 @@ export async function render(main, params = []) {
   });
   fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_addons")), search), cards, ownPanel);
   await drawOwn();
+}
+
+async function pluginPage(main, id) {
+  const list = await api("/api/plugin-manager");
+  const plugin = list.find((p) => p.id === id);
+  if (!plugin) { location.hash = "#/addons"; return; }
+  const widgets = await status(`/api/plugin-manager/${id}/panel`) || [];
+  const widget = (w) => {
+    if (w.type === "stat") return h("div", { class: "tile" }, h("div", {}, h("div", { class: "tile-value" }, String(w.value ?? "")), h("small", {}, String(w.label ?? ""))));
+    if (w.type === "list") return h("ul", { class: "list" }, (w.items || []).map((x) => h("li", {}, String(x))));
+    if (w.type === "button") return h("button", { onclick: async () => {
+      const r = await attempt(() => api(`/api/plugin-manager/${id}/action/${encodeURIComponent(w.action)}`, { method: "POST" }));
+      if (r?.message) toast(r.message);
+    } }, String(w.label ?? w.action));
+    return h("p", {}, String(w.text ?? ""));
+  };
+  const inputs = plugin.settings.map((f) => {
+    const input = f.type === "bool" ? h("input", { type: "checkbox", checked: Boolean(plugin.values[f.key]) })
+      : h("input", { type: f.type === "secret" ? "password" : f.type === "number" ? "number" : "text", value: plugin.values[f.key] ?? "" });
+    return [f, input];
+  });
+  fill(main, h("div", { class: "topbar" }, h("h1", {}, icon(plugin.icon), " ", plugin.name), h("a", { class: "button", href: "#/addons" }, t("web.back"))),
+    h("section", { class: "panel stack" }, h("p", { class: "muted" }, plugin.description),
+      h("dl", { class: "kv" }, h("dt", {}, "Version"), h("dd", {}, plugin.version),
+        plugin.authors.length ? [h("dt", {}, t("web.pm_authors")), h("dd", {}, plugin.authors.join(", "))] : null,
+        plugin.license ? [h("dt", {}, t("web.pm_license")), h("dd", {}, plugin.license)] : null,
+        plugin.source ? [h("dt", {}, t("web.pm_source")), h("dd", {}, h("a", { href: plugin.source, target: "_blank", rel: "noopener" }, plugin.source))] : null),
+      plugin.permissions.length ? h("p", { class: "notice" }, t("web.pm_permissions"), " ", plugin.permissions.join(", ")) : null),
+    widgets.length ? h("section", { class: "panel stack" }, widgets.map(widget)) : null,
+    inputs.length ? h("section", { class: "panel stack" }, h("h2", {}, t("web.nav_settings")),
+      inputs.map(([f, input]) => field(f.label, input)),
+      h("button", { class: "primary", onclick: async () => {
+        const body = Object.fromEntries(inputs.map(([f, input]) => [f.key, f.type === "bool" ? input.checked : f.type === "number" ? Number(input.value) : input.value]));
+        if (await attempt(() => api(`/api/plugin-manager/${id}/settings`, { method: "PUT", body }), t("web.saved"))) restartPrompt();
+      } }, icon("check"), t("web.save"))) : null);
 }
 
 async function editSource(plugin) {

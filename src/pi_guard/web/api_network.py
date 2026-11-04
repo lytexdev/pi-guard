@@ -381,8 +381,15 @@ async def topology(request: web.Request) -> web.Response:
             cameras.append({"id": camera.id, "name": camera.name, "room": camera.room,
                             "source": camera.source, "state": state})  # fmt: skip
     active = ("REACHABLE", "DELAY", "PROBE")
+    _, hosts = await _router(app)
+
+    def shown_name(x: Any) -> str:
+        label = (app.db.get(LABEL_PREFIX + x.mac) or {}).get("name")
+        router = (hosts.get(x.mac) or {}).get("name")
+        return str(label or x.trusted or router or x.name or (x.ips[0] if x.ips else x.mac))
+
     devices = [{
-        "name": x.trusted or x.name or (x.ips[0] if x.ips else x.mac),
+        "name": shown_name(x),
         "ip": x.ips[0] if x.ips else None, "mac": x.mac, "vendor": x.vendor,
         "active": x.state in active, "trusted": bool(x.trusted),
         "kind": (app.db.get(DETAILS_PREFIX + x.mac) or {}).get("kind"),
@@ -391,6 +398,9 @@ async def topology(request: web.Request) -> web.Response:
         "services": {"pihole": app.pihole is not None, "wireguard": s.wireguard_enabled,
                      "mqtt": bool(s.mqtt_host)},
         "cameras": cameras,
+        "agents": [{"id": a["id"], "name": a["name"], "online": a["online"],
+                    "os": a["info"].get("os", "")}
+                   for a in (app.addons.agents.list() if app.addons.agents else [])],
         "vpn": [{"name": p.get("name") or p["public_key"][:8], "active": p.get("active", False),
                  "address": p.get("allowed_ips", "").split("/")[0]} for p in peers],
         "lan": devices,

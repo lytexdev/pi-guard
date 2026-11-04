@@ -69,3 +69,20 @@ export function assistantButton() {
     dialog.showModal();
   } }, icon("speakerphone"));
 }
+
+// Any picture marked .thumb or .zoomable opens large on click; Escape or a click closes it.
+export function installLightbox() {
+  document.addEventListener("click", (event) => {
+    const picture = event.target.closest?.("img.thumb, img.zoomable, .bubble img, .result img");
+    if (!picture || picture.closest("dialog.lightbox")) return;
+    event.preventDefault();
+    const dialog = h("dialog", { class: "lightbox", "aria-label": picture.alt || t("web.picture") },
+      h("img", { src: picture.src, alt: picture.alt || "" }),
+      h("div", { class: "row end" }, h("a", { class: "button", href: picture.src, download: "" }, icon("download"), t("web.download")),
+        h("button", { class: "primary", onclick: () => dialog.close() }, t("web.close"))));
+    dialog.addEventListener("close", () => dialog.remove());
+    dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}

@@ -1,0 +1,19 @@
+[Unit]
+Description=pi-guard agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/pi-guard-agent /etc/pi-guard-agent/agent.conf
+Restart=always
+RestartSec=5
+# Needs root for shutdown and Docker, but nothing else of the system.
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+[Install]
+WantedBy=multi-user.target

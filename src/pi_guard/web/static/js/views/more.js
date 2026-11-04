@@ -69,5 +69,5 @@ export async function render(main) {
         h("button", { class: lang === code ? "on" : "", onclick: () => switchLanguage(code) }, name)))),
     designPanel(),
     await pushPanel(),
-    h("p", { class: "muted" }, h("small", {}, "pi-guard · made by lytex")));
+    h("p", { class: "muted" }, h("small", {}, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex"))));
 }

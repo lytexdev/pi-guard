@@ -63,7 +63,7 @@ function resultPanel() {
       } }, ARROWS[i])));
     fill(panel,
       h("h2", {}, caption),
-      h("a", { href: data.url, target: "_blank", rel: "noopener" }, h("img", { src: data.url, alt: caption })),
+      h("a", { href: data.url, target: "_blank", rel: "noopener" }, h("img", { class: "zoomable", src: data.url, alt: caption })),
       h("div", { class: "row between" },
         h("div", {}, h("h3", {}, t("image.zoom_choose")), grid),
         h("div", { class: "row" },

@@ -6,7 +6,7 @@ const SECTIONS = [
   ["general", "settings", ["general"]], ["recording", "video", ["recording"]], ["detection", "users", ["detection"]],
   ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "whatsapp"]],
   ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]],
-  ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null], ["api", "key", null], ["updates", "refresh", null],
+  ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null], ["api", "key", null], ["data", "database", null], ["updates", "refresh", null],
 ];
 
 async function apiSection(box) {
@@ -32,6 +32,36 @@ async function apiSection(box) {
       h("p", {}, h("a", { href: "/api/v1/openapi.json", target: "_blank", rel: "noopener" }, "OpenAPI (JSON)"))));
   };
   await draw();
+}
+
+async function download(path, body) {
+  const password = prompt(t("web.confirm_password"));
+  if (!password) return;
+  const response = await attempt(() => api(path, { method: "POST", body: { ...body, password }, raw: true }));
+  if (!response) return;
+  const name = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") || "")?.[1] || "pi-guard-export";
+  const url = URL.createObjectURL(await response.blob());
+  h("a", { href: url, download: name }).click();
+  URL.revokeObjectURL(url);
+}
+
+function dataSection(box) {
+  const secrets = h("input", { type: "checkbox" });
+  const file = h("input", { type: "file", accept: ".json,application/json", "aria-label": t("web.ex_file") });
+  fill(box,
+    h("section", { class: "panel stack" }, h("h2", {}, t("web.ex_data")), h("p", { class: "muted" }, t("web.ex_data_hint")),
+      h("div", { class: "row" }, ["json", "txt", "csv"].map((format) => h("button", { onclick: () => download("/api/export/data", { format }) }, icon("download"), format.toUpperCase())))),
+    h("section", { class: "panel stack" }, h("h2", {}, t("web.ex_config")), h("p", { class: "muted" }, t("web.ex_config_hint")),
+      h("label", { class: "check" }, secrets, t("web.ex_secrets")),
+      h("button", { onclick: () => download("/api/export/config", { secrets: secrets.checked }) }, icon("download"), "config.json"),
+      h("h3", {}, t("web.ex_import")),
+      h("div", { class: "row" }, file, h("button", { onclick: async () => {
+        if (!file.files.length) return;
+        let config;
+        try { config = JSON.parse(await file.files[0].text()); } catch { toast(t("web.ex_bad_file"), true); return; }
+        const password = prompt(t("web.confirm_password"));
+        if (password && await attempt(() => api("/api/import/config", { method: "POST", body: { config, password } }), t("web.saved"))) restartPrompt();
+      } }, icon("upload"), t("web.ex_import_button")))));
 }
 
 async function updateSection(box) {
@@ -91,6 +121,8 @@ export async function render(main, params = []) {
     await (await import("./access.js")).render(body);
   } else if (current === "api") {
     await apiSection(body);
+  } else if (current === "data") {
+    dataSection(body);
   } else {
     await updateSection(body);
   }

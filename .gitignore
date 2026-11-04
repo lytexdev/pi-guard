@@ -44,3 +44,4 @@ config/config.yaml
 *.jpg
 !docs/**/*.jpg
 /data/
+agent/target/

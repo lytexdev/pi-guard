@@ -26,12 +26,14 @@ import asyncio
 import importlib.util
 import json
 import logging
+import re
 import stat
 from collections.abc import Awaitable, Callable, Iterable
 from importlib.metadata import entry_points
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from pi_guard.core.events import Event
 from pi_guard.core.permissions import Role
 from pi_guard.messaging.base import Button, Reply
 from pi_guard.messaging.commands.registry import Command, TextArg
@@ -45,6 +47,60 @@ log = logging.getLogger(__name__)
 
 PLUGIN_DIR = Path("/etc/pi-guard/plugins")
 UPLOAD_DIR = "plugins"  # inside the data directory
+MANIFESTS = ("plugin.json", "plugins.json")
+API_VERSION = 1
+_PLUGIN_ID = re.compile(r"^[a-z0-9_]{2,32}$")
+RESERVED = {"heartbeat", "analytics", "smarthome", "remote", "assistant", "agents", "languages"}
+
+
+class ManifestError(ValueError):
+    pass
+
+
+def read_manifest(directory: Path) -> dict[str, Any]:
+    for name in MANIFESTS:
+        path = directory / name
+        if path.exists():
+            return check_manifest(json.loads(path.read_text()))
+    raise ManifestError("no plugin.json")
+
+
+def check_manifest(data: Any) -> dict[str, Any]:
+    """The shape of a plugin.json; anything else is left out."""
+    if not isinstance(data, dict):
+        raise ManifestError("not an object")
+    plugin_id = str(data.get("id", ""))
+    entry = str(data.get("entry", "plugin.py"))
+    if not _PLUGIN_ID.match(plugin_id) or plugin_id in RESERVED:
+        raise ManifestError("id: 2-32 of a-z, 0-9, _ (and not a built-in add-on)")
+    if not data.get("name"):
+        raise ManifestError("name is required")
+    if not re.match(r"^[A-Za-z0-9_]+\.py$", entry):
+        raise ManifestError("entry must be a Python file in the plugin folder")
+    if int(data.get("api", API_VERSION)) > API_VERSION:
+        raise ManifestError("needs a newer pi-guard")
+    authors = data.get("authors") or data.get("author") or []
+    authors = [authors] if isinstance(authors, str) else list(authors)
+    source = str(data.get("source", ""))
+    if source and not source.startswith("https://"):
+        raise ManifestError("source must be an https:// link")
+    fields = []
+    for item in data.get("settings") or []:
+        if isinstance(item, dict) and re.match(r"^[a-z0-9_]{1,32}$", str(item.get("key", ""))):
+            fields.append({"key": item["key"], "label": str(item.get("label", item["key"]))[:80],
+                           "type": item.get("type") if item.get("type") in (
+                               "text", "number", "bool", "secret") else "text",
+                           "default": item.get("default")})  # fmt: skip
+    return {
+        "id": plugin_id, "name": str(data["name"])[:60], "entry": entry,
+        "version": str(data.get("version", "0"))[:20], "icon": str(data.get("icon", "cpu"))[:40],
+        "authors": [str(a)[:60] for a in authors if a][:10], "source": source[:300],
+        "description": str(data.get("description", ""))[:300],
+        "license": str(data.get("license", ""))[:40], "settings": fields,
+        "permissions": [str(p)[:40] for p in data.get("permissions") or []][:20],
+    }  # fmt: skip
+
+
 TEMPLATE = '''"""{name}: an own pi-guard add-on."""
 
 from pi_guard.addons.plugin import Plugin
@@ -86,6 +142,25 @@ class Plugin:
         """Background work; restarted with a growing pause if it raises."""
         await asyncio.Event().wait()
 
+    def events(self) -> Iterable[str]:
+        """Names of events to receive in on_event, e.g. "motion_detected"."""
+        return ()
+
+    async def on_event(self, event: Event) -> None:
+        """Called for each event named in events()."""
+
+    def panel(self) -> list[dict[str, Any]]:
+        """What the add-on page shows; no HTML, so a plugin cannot reach the dashboard's session.
+
+        Widgets: {"type": "text", "text": ...}, {"type": "stat", "label": ..., "value": ...},
+        {"type": "list", "items": [...]}, {"type": "button", "label": ..., "action": ...}.
+        """
+        return []
+
+    async def action(self, name: str) -> str | None:
+        """A button of the panel was pressed; the text is shown as a message."""
+        return None
+
     # Helpers.
 
     def command(
@@ -103,9 +178,23 @@ class Plugin:
         """`buttons`: (label, command) pairs."""
         return Reply(text, buttons=tuple((Button(a, b),) for a, b in buttons))
 
-    def notify(self, text: str) -> None:
-        """Log an entry in the event list of the dashboard."""
+    def log(self, text: str) -> None:
+        """An entry in the audit log."""
         self.app.db.audit(f"plugin:{self.id}", "plugin.message", text[:200])
+
+    async def notify(self, text: str) -> None:
+        """Send a message to all admins, in every connected messenger."""
+        for user in self.app.users.all():
+            if user.role is Role.ADMIN and user.provider in self.app.providers:
+                await self.app.messenger.send(user.provider, user.user_id, Reply(text[:2000]))
+
+    def load(self, key: str, default: Any = None) -> Any:
+        """Stored values of this plugin survive restarts."""
+        value = self.app.db.get(f"plugin.{self.id}.{key}")
+        return default if value is None else value
+
+    def save(self, key: str, value: Any) -> None:
+        self.app.db.set(f"plugin.{self.id}.{key}", value)
 
 
 def _trusted(path: Path) -> bool:
@@ -127,12 +216,11 @@ def _from_file(path: Path) -> list[type[Plugin]]:
 
 def _uploaded(root: Path) -> list[type[Plugin]]:
     found: list[type[Plugin]] = []
-    for manifest in sorted(root.glob("*/plugin.json")):
+    for directory in sorted(p for p in root.glob("*") if p.is_dir()):
         try:
-            entry = str(json.loads(manifest.read_text()).get("entry", "plugin.py"))
-            found += _from_file(manifest.parent / Path(entry).name)
+            found += _from_file(directory / read_manifest(directory)["entry"])
         except Exception:
-            log.exception("add-on %s could not be loaded", manifest.parent.name)
+            log.exception("add-on %s could not be loaded", directory.name)
     return found
 
 

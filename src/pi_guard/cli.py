@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import os
 import shutil
 import signal
 import sys
 import time
+import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
@@ -109,6 +111,56 @@ def run() -> None:
             await task
 
     asyncio.run(main())
+
+
+plugin_app = typer.Typer(no_args_is_help=True, help="Develop your own add-ons.")
+app.add_typer(plugin_app, name="plugin")
+
+
+@plugin_app.command("new")
+def plugin_new(plugin_id: str, directory: Path = Path()) -> None:
+    """Create a folder with a working example add-on."""
+    from pi_guard.addons.plugin import TEMPLATE, check_manifest
+
+    manifest = {"id": plugin_id, "name": plugin_id.replace("_", " ").title(), "version": "0.1.0",
+                "api": 1, "entry": "plugin.py", "icon": "cpu", "authors": [], "source": "",
+                "description": "", "settings": []}  # fmt: skip
+    check_manifest(manifest)
+    target = directory / plugin_id
+    target.mkdir(parents=True)
+    (target / "plugin.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    name = "".join(p.title() for p in plugin_id.split("_"))
+    (target / "plugin.py").write_text(
+        TEMPLATE.format(cls=name, id=plugin_id, name=manifest["name"])
+    )
+    typer.echo(f"created {target}. Next: pi-guard plugin check {target}")
+
+
+@plugin_app.command("check")
+def plugin_check(directory: Path) -> None:
+    """Check a plugin folder before you share it."""
+    from pi_guard.addons.plugin import Plugin, _from_file, read_manifest
+
+    manifest = read_manifest(directory)
+    classes: list[type[Plugin]] = _from_file(directory / manifest["entry"])
+    if not any(c.id == manifest["id"] for c in classes):
+        typer.secho(f"no Plugin class with id = {manifest['id']!r}", fg="red", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"{manifest['name']} {manifest['version']}: OK")
+
+
+@plugin_app.command("pack")
+def plugin_pack(directory: Path) -> None:
+    """Make the ZIP to upload in the dashboard."""
+    from pi_guard.addons.plugin import read_manifest
+
+    manifest = read_manifest(directory)
+    out = Path(f"{manifest['id']}-{manifest['version']}.zip")
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as bundle:
+        for path in sorted(directory.rglob("*")):
+            if path.is_file() and "__pycache__" not in path.parts:
+                bundle.write(path, path.relative_to(directory))
+    typer.echo(f"wrote {out}")
 
 
 @app.command()

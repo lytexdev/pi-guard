@@ -7,11 +7,14 @@ chat providers (messaging/commands/addons.py) use the classes in this package.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
-from pi_guard.addons.plugin import load_plugins
+from pi_guard.addons.plugin import Plugin, load_plugins
+from pi_guard.core.events import Event
 
 if TYPE_CHECKING:
+    from pi_guard.addons.agents import AgentHub
     from pi_guard.addons.analytics import NetworkAnalytics
     from pi_guard.addons.assistant import Assistant
     from pi_guard.addons.blocking import Blocks
@@ -29,6 +32,7 @@ class Addons:
     """The add-ons that are switched on; attributes stay None otherwise."""
 
     def __init__(self, app: App) -> None:
+        self._app = app
         settings = app.config.file.addons
         s = app.settings
         self.heartbeat: HeartbeatWatcher | None = None
@@ -65,6 +69,12 @@ class Addons:
                 settings.assistant, app.db, s.tz, api_key or None, deepl or None, app.media_dir,
                 Knowledge(s.data_dir / "knowledge.db"), _searchers(settings.assistant, s),
             )  # fmt: skip
+        self.agents: AgentHub | None = None
+        if settings.agents.enabled:
+            from pi_guard.addons.agents import AgentHub
+
+            self.agents = AgentHub(app.db)
+        self.languages = settings.languages.enabled
         self.jobs: Jobs | None = None
         self.commander: Commander | None = None
         if self.assistant is not None:
@@ -87,6 +97,19 @@ class Addons:
             parts["addon:jobs"] = self.jobs.run
         for plugin in self.plugins:
             parts[f"plugin:{plugin.id}"] = plugin.run
+            wanted = set(plugin.events())
+            if wanted:
+                queue = self._app.bus.subscribe(f"plugin:{plugin.id}", 100)
+
+                async def deliver(
+                    event: Event, plugin: Plugin = plugin, wanted: set[str] = wanted
+                ) -> None:
+                    if event.type.value in wanted:
+                        await plugin.on_event(event)
+
+                parts[f"plugin-events:{plugin.id}"] = partial(
+                    self._app.bus.consume, queue, f"plugin:{plugin.id}", deliver
+                )
         return parts
 
 

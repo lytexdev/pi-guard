@@ -1,6 +1,66 @@
 # Writing plugins
 
-A plugin adds chat commands, dashboard API routes and background work.
+A plugin adds chat commands, dashboard pages, API routes, background work and reactions to
+events. Start with:
+
+```bash
+pi-guard plugin new my_addon      # folder with a working example
+pi-guard plugin check my_addon    # checks the manifest and the code
+pi-guard plugin pack my_addon     # ZIP for the dashboard
+```
+
+## plugin.json
+
+`plugins.json` works as well.
+
+```json
+{
+  "id": "doorbell",
+  "name": "Doorbell",
+  "version": "1.0.0",
+  "api": 1,
+  "entry": "plugin.py",
+  "icon": "bell",
+  "authors": ["Your Name"],
+  "source": "https://github.com/you/pi-guard-doorbell",
+  "license": "MIT",
+  "description": "Rings the speaker",
+  "permissions": ["audio"],
+  "settings": [
+    {"key": "volume", "label": "Volume", "type": "number", "default": 40},
+    {"key": "token", "label": "API token", "type": "secret"}
+  ]
+}
+```
+
+`id` and `name` are required. `icon` is a name from the dashboard's icon set, `settings` become
+a form on the add-on's page and arrive in `self.settings`, with types `text`, `number`, `bool`
+and `secret`. `permissions` are shown to the person installing it. They are a declaration, not
+a barrier: a plugin can do everything pi-guard can.
+
+## The Plugin class
+
+| Override | Purpose |
+| --- | --- |
+| `commands()` | Chat commands, for every messenger |
+| `routes()` | API below `/api/plugins/<id>/`, after login or with an API token |
+| `run()` | Background work; restarted if it fails |
+| `events()`, `on_event(event)` | React to events such as `motion_detected` |
+| `panel()` | Widgets on the add-on's page: `text`, `stat`, `list`, `button` |
+| `action(name)` | A panel button was pressed |
+
+| Helper | Purpose |
+| --- | --- |
+| `self.app` | Cameras, audio, database, everything else |
+| `self.settings` | The plugin's settings |
+| `self.load(key)`, `self.save(key, value)` | Values that survive restarts |
+| `await self.notify(text)` | Message to all admins |
+| `self.log(text)` | Audit log entry |
+| `self.reply(text, ("Label", "command"))` | Answer with buttons |
+
+Panels are data, not HTML, on purpose: a plugin cannot put scripts into the dashboard.
+
+## Example
 
 ```python
 from aiohttp import web
@@ -45,8 +105,8 @@ there. The ZIP needs a `plugin.json`:
 ```
 
 The dashboard asks for your password first, because this installs program code. Paths in the
-ZIP are checked before anything is written. There is no public add-on directory yet; the search
-covers what is installed.
+ZIP are checked before anything is written. A public Git repository with a `plugin.json` at its top can be
+installed by link. There is no public add-on directory yet; the search covers what is installed.
 
 Or as a Python package with an entry point:
 

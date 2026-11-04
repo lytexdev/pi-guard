@@ -30,7 +30,7 @@ from pi_guard.detection.enrollment import EnrollmentSession
 from pi_guard.detection.faces import BiometricStore, FaceRecognizer
 from pi_guard.detection.motion import MotionDetector
 from pi_guard.detection.persons import PersonDetector
-from pi_guard.i18n import LANGUAGES, t
+from pi_guard.i18n import LANGUAGES, load_extra, t
 from pi_guard.integrations.mqtt.bridge import MqttBridge
 from pi_guard.messaging.base import Provider
 from pi_guard.messaging.commands import build_registry
@@ -132,6 +132,7 @@ class App:
         if s.pihole_enabled:
             password = s.pihole_password.get_secret_value() if s.pihole_password else None
             self.pihole = Pihole(s.pihole_url, password)
+        load_extra(s.data_dir / "i18n")
         self.fritz: FritzBox | None = None
         if s.fritzbox_password and s.fritzbox_password.get_secret_value():
             box = config.file.presence.fritzbox

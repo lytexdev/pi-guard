@@ -126,6 +126,7 @@ pi-guard logs -f
 | [Public access](docs/public-access.md) | Domain, reverse proxy and safe login |
 | [Plugins](docs/plugins.md) | Write your own add-ons |
 | [API](docs/api.md) | Tokens and endpoints for your own scripts |
+| [Computers](docs/agent.md) | Connect PCs: status, safe shutdown, Docker |
 | [Architecture](docs/architecture.md) | how the parts fit together |
 | [Performance](docs/performance.md) | measurements and limits |
 | [Troubleshooting](docs/troubleshooting.md) | common problems |
