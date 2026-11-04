@@ -63,7 +63,7 @@ export function applyAccessibility() {
   const root = document.documentElement;
   root.style.setProperty("--scale", state.scale / 100);
   root.style.setProperty("--letter", `${state.letter / 100}em`);
-  root.style.setProperty("--line", state.line / 100);
+  root.style.setProperty("--leading", state.line / 100);
   const parts = [];
   if (state.invert) parts.push("invert(1) hue-rotate(180deg)");
   if (state.gray) parts.push("grayscale(1)");

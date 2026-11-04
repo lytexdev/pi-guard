@@ -33,6 +33,8 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
   zählen nicht.
 - **App-Sperre:** PIN und Fingerabdruck oder Gesicht, nach 30 Sekunden im Hintergrund.
 
+Auf dem Handy sind die Einstellungen des Dashboards eine Liste: Abschnitt antippen, der Pfeil oben führt zurück.
+
 ## Bauen und signieren
 
 ```bash

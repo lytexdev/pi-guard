@@ -46,3 +46,22 @@ def test_every_icon_used_is_in_the_sprite() -> None:
     for script in (static / "js").rglob("*.js"):
         used |= set(re.findall(r'\bicon\("([a-z0-9-]+)"', script.read_text()))
     assert used <= known, sorted(used - known)
+
+
+def test_nothing_forces_a_phone_to_scroll_sideways() -> None:
+    css = (STATIC / "css" / "app.css").read_text()
+    # A plain 1fr column grows with its content; a fixed minimum is wider than small phones.
+    assert re.search(r"\.shell \{[^}]*var\(--nav\) minmax\(0, 1fr\)", css)
+    assert "minmax(280px" not in css and "minmax(380px" not in css
+    assert "overflow-x: clip" in css
+
+
+def test_line_height_does_not_overwrite_the_border_colour() -> None:
+    # --line is the colour of all borders; the reading setting has its own variable.
+    assert '"--line"' not in (STATIC / "js" / "accessibility.js").read_text()
+    assert "var(--line, " not in (STATIC / "css" / "app.css").read_text()
+
+
+def test_icons_do_not_depend_on_a_request_per_use() -> None:
+    for script in STATIC.rglob("*.js"):
+        assert "sprite.svg#" not in script.read_text(), script.name

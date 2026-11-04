@@ -25,7 +25,7 @@ function node(map, item, x, y, select) {
   if (item.logo) {
     group.append(svg("image", { href: logoUrl(), x: x + 7, y: y + 9, width: 28, height: 28 }));
   } else {
-    const use = svg("use", { href: `/static/icons/sprite.svg#${item.icon || "router"}`, x: x + 10, y: y + 13, width: 20, height: 20, class: "ticon" });
+    const use = svg("use", { href: `#${item.icon || "router"}`, x: x + 10, y: y + 13, width: 20, height: 20, class: "ticon" });
     group.append(use);
   }
   group.append(svg("circle", { cx: x + NODE_W - 12, cy: y + 12, r: 4, class: `tdot ${item.state || ""}` }));

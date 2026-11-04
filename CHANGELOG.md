@@ -54,6 +54,11 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Phones no longer scroll sideways: pages were wider than the screen, the network pages on every phone.
+- Borders were missing everywhere, because the line spacing setting overwrote their colour.
+- Settings are a list on a phone, tables stack, and tabs wrap, so there is no sideways strip left.
+- Icons are part of the page instead of one request per use.
+- App: Tabler icons, Material design and an adaptive launcher icon on all native screens.
 - Signal no longer crashes in a loop while signal-cli is not running.
 - `scripts/signal.sh` installs the native library signal-cli needs on a Raspberry Pi.
 - A refused Discord token is shown in the dashboard instead of restarting in a loop.

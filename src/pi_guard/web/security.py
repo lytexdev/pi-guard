@@ -155,5 +155,6 @@ class Guard:
         h["Cross-Origin-Resource-Policy"] = "same-origin"
         if self._tls:
             h["Strict-Transport-Security"] = "max-age=31536000"
-        if not request.path.startswith("/static/"):
-            h.setdefault("Cache-Control", "no-store")
+        # Static files are revalidated, so a fix reaches phones at once instead of after a while.
+        static = request.path.startswith("/static/")
+        h.setdefault("Cache-Control", "no-cache" if static else "no-store")

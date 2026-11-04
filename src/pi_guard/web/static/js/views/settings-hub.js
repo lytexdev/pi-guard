@@ -162,7 +162,9 @@ export async function render(main, params = []) {
   const tabs = h("nav", { class: "hub-nav", "aria-label": t("web.nav_settings") }, SECTIONS.map(([id, ic]) =>
     h("a", { href: `#/settings/${id}`, class: id === current ? "active" : "" }, icon(ic), h("span", {}, t(`web.set_${id}`)))));
   const results = h("section", { class: "panel search-results hidden", "aria-live": "polite" });
-  const hub = h("div", { class: "hub" }, h("div", { class: "hub-side" }, tabs), h("div", {}, body, extra, saveBar, supportNote()));
+  const back = h("a", { class: "hub-back", href: "#/settings" }, icon("chevron-left"), t(`web.set_${current}`));
+  const hub = h("div", { class: params[0] ? "hub" : "hub menu" }, h("div", { class: "hub-side" }, tabs),
+    h("div", { class: "hub-main" }, back, body, extra, saveBar, supportNote()));
   let index = null;
   const search = searchToggle(t("web.set_search"), async (query) => {
     // Searches all tabs, not this one: results replace the page until the search is closed.
@@ -180,7 +182,6 @@ export async function render(main, params = []) {
       : h("p", { class: "muted" }, t("web.set_no_results")));
   });
   fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search)), results, hub);
-  tabs.querySelector(".active")?.scrollIntoView({ inline: "center", block: "nearest" });
   installFolds(hub);
   let save = null;
   let stop = null;

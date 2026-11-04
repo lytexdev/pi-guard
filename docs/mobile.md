@@ -32,6 +32,8 @@ app* and its token stops working at once.
   a phone is at home. Only start and end go to pi-guard; titles stay on the phone. All-day entries are left out.
 - **App lock:** PIN and fingerprint or face, after 30 seconds in the background.
 
+On a phone the dashboard's settings are a list: tap a section to open it, and the arrow at the top leads back.
+
 ## Building and signing
 
 ```bash

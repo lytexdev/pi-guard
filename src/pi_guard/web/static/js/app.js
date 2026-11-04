@@ -2,7 +2,7 @@
 import { accessibilityButton, applyAccessibility } from "./accessibility.js";
 import { installTooltips } from "./tooltip.js";
 import { assistantButton, installLightbox, scrollTopButton } from "./widgets.js";
-import { api, h, icon, loadTexts, lang, setCsrf, t, fill } from "./api.js";
+import { api, h, icon, loadIcons, loadTexts, lang, setCsrf, t, fill } from "./api.js";
 import { applyAppearance, applyDesign, logoUrl } from "./theme.js";
 
 const VIEWS = {
@@ -136,6 +136,7 @@ async function show() {
 
 async function start() {
   applyDesign();
+  loadIcons().catch(() => {});
   const session = await api("/api/session");
   applyAppearance(session.appearance);
   await loadTexts(localStorage.getItem("lang") || session.language || lang);

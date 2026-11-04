@@ -67,9 +67,18 @@ export function icon(name, cls = "") {
   svg.setAttribute("class", `icon ${cls}`.trim());
   svg.setAttribute("aria-hidden", "true");
   const use = document.createElementNS(SVG, "use");
-  use.setAttribute("href", `/static/icons/sprite.svg#${name}`);
+  use.setAttribute("href", `#${name}`);
   svg.append(use);
   return svg;
+}
+
+// The icons live in the page itself, so they appear wherever the page does: an external <use>
+// is one more request, and a WebView or an old cache must not be able to lose every icon at once.
+export async function loadIcons() {
+  const sprite = new DOMParser().parseFromString(await (await fetch("/static/icons/sprite.svg")).text(), "image/svg+xml").documentElement;
+  sprite.setAttribute("class", "sprite");
+  sprite.setAttribute("aria-hidden", "true");
+  document.body.prepend(document.importNode(sprite, true));
 }
 
 export function svg(tag, attrs = {}) {
