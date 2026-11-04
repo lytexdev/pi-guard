@@ -7,6 +7,7 @@ Pi-hole v5's old api.php is not supported.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 from dataclasses import dataclass
@@ -38,6 +39,16 @@ class Pihole:
         self._client = httpx.AsyncClient(base_url=url.rstrip("/"), timeout=10, verify=verify)
         self._password = password or ""
         self._sid: str | None = None
+        self._logged_in = False
+        # Requests run in parallel, but Pi-hole answers parallel logins with 429.
+        self._login_lock = asyncio.Lock()
+
+    async def _ensure_login(self, renew: bool = False, used: str | None = None) -> None:
+        """`renew`: the session `used` was refused, unless another request already replaced it."""
+        async with self._login_lock:
+            if not self._logged_in or (renew and self._sid == used):
+                await self._login()
+                self._logged_in = True
 
     async def _login(self) -> None:
         try:
@@ -55,16 +66,16 @@ class Pihole:
 
     async def request(self, method: str, path: str, **kwargs: Any) -> Any:
         for attempt in range(2):
-            if self._sid is None and attempt == 0:
-                await self._login()
-            headers = {"X-FTL-SID": self._sid} if self._sid else {}
+            if attempt == 0:
+                await self._ensure_login()
+            sid = self._sid
+            headers = {"X-FTL-SID": sid} if sid else {}
             try:
                 response = await self._client.request(method, path, headers=headers, **kwargs)
             except httpx.HTTPError as exc:
                 raise PiholeError(f"Pi-hole not reachable: {type(exc).__name__}") from exc
             if response.status_code == 401 and attempt == 0:
-                self._sid = None
-                await self._login()
+                await self._ensure_login(renew=True, used=sid)
                 continue
             if response.status_code >= 400:
                 raise PiholeError(f"Pi-hole answered {response.status_code}")

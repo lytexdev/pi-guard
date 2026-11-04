@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -116,6 +117,16 @@ async def test_pihole_logs_in_again_after_expiry(pihole) -> None:  # type: ignor
     await client.summary()
     fake.sids.clear()  # session expired on the Pi-hole side
     await client.summary()
+    assert fake.logins == 2
+
+
+async def test_parallel_requests_share_one_login(pihole) -> None:  # type: ignore[no-untyped-def]
+    # Pi-hole answers parallel logins with 429.
+    fake, client = pihole
+    await asyncio.gather(*(client.summary() for _ in range(6)))
+    assert fake.logins == 1
+    fake.sids.clear()
+    await asyncio.gather(*(client.summary() for _ in range(6)))
     assert fake.logins == 2
 
 
