@@ -108,7 +108,12 @@ async def more(ctx: CommandContext, args: dict[str, Any]) -> Reply:
             rows.append((ctx.button("more.listen", "listen"),))
         if ctx.app.faces is not None:
             rows.append((ctx.button("more.people", "faces"),))
+        from pi_guard.messaging.commands.addons import more_rows
+
+        rows += more_rows(ctx)
         rows.append((ctx.button("more.users", "users"), ctx.button("more.invite", "invite")))
+    if ctx.app.addons.assistant is not None:
+        rows.append((ctx.button("more.ask", "ask"), ctx.button("more.weather", "weather")))
     rows.append((ctx.button("more.settings", "settings"),))
     rows.append(menu_row(ctx))
     return Reply(ctx.t("more.title"), buttons=tuple(rows))

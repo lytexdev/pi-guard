@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pi_guard import CREDIT, __version__
+from pi_guard.addons import Addons
 from pi_guard.audio.service import AudioError, AudioService
 from pi_guard.audio.sounds import SoundLibrary
 from pi_guard.cameras import discovery
@@ -88,6 +89,8 @@ class App:
                 | {str(uid): Role.ADMIN for uid in s.telegram_admin_user_ids},
                 "signal": {n: Role.VIEWER for n in s.signal_allowed_numbers}
                 | {n: Role.ADMIN for n in s.signal_admin_numbers},
+                "whatsapp": {n.lstrip("+"): Role.VIEWER for n in s.whatsapp_allowed_numbers}
+                | {n.lstrip("+"): Role.ADMIN for n in s.whatsapp_admin_numbers},
             },
         )
         self.modes = mode_controller(self.db, self.bus, config)
@@ -128,6 +131,7 @@ class App:
         if s.pihole_enabled:
             password = s.pihole_password.get_secret_value() if s.pihole_password else None
             self.pihole = Pihole(s.pihole_url, password)
+        self.addons = Addons(self)
         if s.presence_enabled:
             presence = config.file.presence
             self.presence = PresenceMonitor(
@@ -280,6 +284,7 @@ class App:
             parts["mqtt"] = self.mqtt.run
         if self.dashboard is not None:
             parts["dashboard"] = self.dashboard.run
+        parts.update(self.addons.components())
         if (
             self.audio is not None
             and self.audio.playback_enabled
@@ -342,6 +347,14 @@ def build_app(config: Config) -> App:
         from pi_guard.messaging.signal.provider import SignalProvider
 
         app.providers["signal"] = SignalProvider(s.signal_phone_number, s.signal_cli_address)
+    if s.whatsapp_enabled and s.whatsapp_phone_number_id and s.whatsapp_access_token:
+        from pi_guard.messaging.whatsapp.provider import WhatsAppProvider
+
+        app.providers["whatsapp"] = WhatsAppProvider(
+            s.whatsapp_phone_number_id,
+            s.whatsapp_access_token.get_secret_value(),
+            s.whatsapp_alert_template,
+        )
     if s.dashboard_enabled:
         try:
             from pi_guard.web.server import Dashboard as WebDashboard

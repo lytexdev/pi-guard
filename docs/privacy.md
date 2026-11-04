@@ -30,6 +30,11 @@ runs with `UMask=0077`; databases are `0600`).
 | Alert summary and up to three photos | **emergency contacts** via Telegram/Signal | only if alerts stay unconfirmed and contacts are configured |
 | Alert text (no photos, no names) | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |
 | Live picture and sound, files you upload | your own browser, over HTTPS | only while you use the dashboard |
+| Your browser's public IP address | `api.ipify.org`, and the Pi asks `ipwho.is` about unknown addresses | when the overview is open (connection panel) |
+| Questions to the AI assistant, voice messages sent to it | the provider you chose (OpenAI, Mistral, your own) | add-on on, only what you ask |
+| Town for the weather | Open-Meteo | add-on on, when you ask for the weather |
+| Text to translate | DeepL | add-on on and a DeepL key set |
+| Messages and pictures | Meta, if you use WhatsApp | WhatsApp set up |
 | Model files (download) | from GitHub | only when you run `pi-guard models download` |
 
 Telegram bot chats are **not end-to-end encrypted**: photos and videos sent by

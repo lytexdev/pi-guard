@@ -55,7 +55,7 @@ say "$PRETTY_NAME on $ARCH, ${MEM_MB} MB RAM"
 (( MEM_MB < 900 )) && warn "less than 1 GB RAM: use one camera at 720p or lower"
 
 # 3: packages ----------------------------------------------------------------------
-PACKAGES=(python3 python3-venv python3-pip ffmpeg v4l-utils alsa-utils iproute2)
+PACKAGES=(python3 python3-venv python3-pip ffmpeg v4l-utils alsa-utils iproute2 iputils-ping openssh-client)
 (( SYSTEM_OPENCV )) && PACKAGES+=(python3-opencv python3-numpy)
 MISSING=()
 for pkg in "${PACKAGES[@]}"; do

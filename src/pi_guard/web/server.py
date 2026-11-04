@@ -7,6 +7,7 @@ every state-changing request also needs the session's CSRF token.
 
 from __future__ import annotations
 
+import json
 import logging
 import secrets
 from collections.abc import Awaitable, Callable
@@ -100,7 +101,14 @@ class Dashboard:
         return path.read_bytes().strip()
 
     def _build(self) -> web.Application:
-        from pi_guard.web import api_account, api_core, api_live, api_manage, api_network
+        from pi_guard.web import (
+            api_account,
+            api_addons,
+            api_core,
+            api_live,
+            api_manage,
+            api_network,
+        )
 
         webapp = web.Application(
             middlewares=[self.guard.middleware, self._auth_middleware],
@@ -118,9 +126,33 @@ class Dashboard:
         webapp.router.add_post("/api/login", self._login)
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
-        for module in (api_account, api_core, api_manage, api_live, api_network):
+        for module in (api_account, api_addons, api_core, api_manage, api_live, api_network):
             webapp.add_routes(module.routes())
+        if self.settings.whatsapp_enabled:
+            webapp.router.add_get("/webhook/whatsapp", self._whatsapp_verify)
+            webapp.router.add_post("/webhook/whatsapp", self._whatsapp_message)
         return webapp
+
+    async def _whatsapp_verify(self, request: web.Request) -> web.Response:
+        """Meta's one-time check of the webhook address."""
+        token = self.settings.whatsapp_verify_token
+        offered = request.query.get("hub.verify_token", "")
+        if token is None or not secrets.compare_digest(offered, token.get_secret_value()):
+            raise web.HTTPForbidden()
+        return web.Response(text=request.query.get("hub.challenge", ""))
+
+    async def _whatsapp_message(self, request: web.Request) -> web.Response:
+        from pi_guard.messaging.whatsapp.provider import WhatsAppProvider, valid_signature
+
+        secret = self.settings.whatsapp_app_secret
+        body = await request.content.read(1_000_000)
+        signature = request.headers.get("X-Hub-Signature-256", "")
+        if secret is None or not valid_signature(secret.get_secret_value(), body, signature):
+            raise web.HTTPForbidden()
+        provider = self.app.providers.get("whatsapp")
+        if isinstance(provider, WhatsAppProvider):
+            provider.received(json.loads(body))
+        return web.Response(text="ok")
 
     async def run(self) -> None:
         ssl_context = None

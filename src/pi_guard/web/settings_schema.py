@@ -58,14 +58,25 @@ FIELDS = (
     Field("pihole_url", "network", "text"),
     Field("wireguard_enabled", "network", "bool"),
     Field("wireguard_endpoint", "network", "text"),
+    Field("assistant_api_key", "assistant", "secret"),
+    Field("assistant_deepl_key", "assistant", "secret"),
+    Field("whatsapp_enabled", "whatsapp", "bool"),
+    Field("whatsapp_phone_number_id", "whatsapp", "text"),
+    Field("whatsapp_access_token", "whatsapp", "secret"),
+    Field("whatsapp_app_secret", "whatsapp", "secret"),
+    Field("whatsapp_verify_token", "whatsapp", "secret"),
+    Field("whatsapp_admin_numbers", "whatsapp", "list"),
+    Field("whatsapp_allowed_numbers", "whatsapp", "list"),
+    Field("whatsapp_alert_template", "whatsapp", "text"),
     Field("webpush_enabled", "dashboard", "bool"),
     Field("dashboard_honeypot", "dashboard", "bool"),
     Field("dashboard_ban_minutes", "dashboard", "int", 1, 10080),
     Field("dashboard_rate_limit_per_minute", "dashboard", "int", 30, 10000),
 )
 BY_KEY = {f.key: f for f in FIELDS}
-SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password",
-           "dashboard_secret_key")  # fmt: skip
+SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password", "dashboard_secret_key",
+           "assistant_api_key", "assistant_deepl_key", "whatsapp_access_token",
+           "whatsapp_app_secret", "whatsapp_verify_token")  # fmt: skip
 
 
 def to_env(field_: Field, value: Any) -> str:

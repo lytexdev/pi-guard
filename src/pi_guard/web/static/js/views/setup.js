@@ -6,7 +6,7 @@ import { api, attempt, fill, h, icon, lang, t, toast } from "../api.js";
 import { state, switchLanguage } from "../app.js";
 import { setDesign, SIZES, THEMES } from "../theme.js";
 
-const STEPS = ["welcome", "account", "devices", "telegram", "alerts", "emergency", "people", "design", "finish"];
+const STEPS = ["welcome", "account", "devices", "telegram", "alerts", "emergency", "people", "addons", "design", "finish"];
 const restartNeeded = () => sessionStorage.getItem("pg.restart") === "1";
 let status = {};  // what the installer already set up (GET /api/setup/status)
 const needRestart = () => sessionStorage.setItem("pg.restart", "1");
@@ -22,7 +22,7 @@ function frame(root, step, body, { canSkip = true, nextLabel = null, onNext = nu
     canSkip && step !== "finish" ? h("button", { class: "ghost", onclick: () => next(step) }, t("web.skip")) : null,
     onNext ? h("button", { class: "primary big", onclick: onNext }, nextLabel || t("web.next"), icon("chevron-right")) : null);
   fill(root, h("div", { class: "wizard" },
-    h("div", { class: "brand" }, h("img", { src: "/static/img/icon-192.png", alt: "" }), "pi-guard",
+    h("div", { class: "brand" }, h("img", { src: "/static/img/logo.svg", alt: "" }), "pi-guard",
       h("span", { class: "badge" }, t("web.setup_step", { n: index + 1, total: STEPS.length }))),
     h("div", { class: "steps", "aria-hidden": "true" }, STEPS.map((s, i) =>
       h("span", { class: i < index ? "done" : i === index ? "now" : "" }))),
@@ -208,6 +208,29 @@ async function people(root) {
       h("div", {}, enable))), { onNext: () => next("people") });
 }
 
+async function addons(root) {
+  // Choose add-ons; a chosen add-on opens its settings right here.
+  const view = await import("./addons.js");
+  const data = await api("/api/addons");
+  frame(root, "addons", h("div", { class: "stack" }, data.addons.map((addon) => {
+    const box = h("div", { class: "stack" });
+    const toggle = h("input", { id: `ad_${addon.id}`, type: "checkbox", checked: addon.enabled });
+    const open = async () => {
+      fill(box);
+      if (toggle.checked && addon.id !== "analytics") await view.renderDetail(addon.id, box, { embedded: true, onSaved: needRestart });
+    };
+    toggle.addEventListener("change", async () => {
+      await view.setEnabled(addon.id, toggle.checked, { embedded: true, onSaved: needRestart });
+      await open();
+    });
+    open();
+    return h("section", { class: "panel stack" },
+      h("label", { class: "check", for: toggle.id }, toggle, h("span", {}, h("strong", {}, t(`addons.${addon.id}`)), h("br"),
+        h("small", { class: "muted" }, t(`web.addon_${addon.id}_text`)))),
+      addon.needs ? h("p", { class: "notice" }, t(addon.needs)) : null, box);
+  })), { onNext: () => next("addons") });
+}
+
 function design(root) {
   const draw = () => frame(root, "design", h("div", { class: "stack" },
     h("section", { class: "panel" }, h("h2", {}, t("web.theme")),
@@ -266,10 +289,11 @@ export async function render(root, params) {
       t("web.setup_have_telegram", { bot: status.telegram.bot ? `@${status.telegram.bot}` : "Telegram", admins: status.telegram.admins }),
     ], () => go("telegram/change"));
   }
-  else if (step === "telegram") await embedded(root, "telegram", () => import("./settings.js"), { groups: ["messaging"] });
+  else if (step === "telegram") await embedded(root, "telegram", () => import("./settings.js"), { groups: ["messaging", "whatsapp"] });
   else if (step === "alerts") await alerts(root);
   else if (step === "emergency") await embedded(root, "emergency", () => import("./settings.js"), { groups: ["emergency"] });
   else if (step === "people") await people(root);
+  else if (step === "addons") await addons(root);
   else if (step === "design") design(root);
   else finish(root);
 }

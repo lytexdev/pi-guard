@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/logo.svg" alt="" width="140"></p>
+
 # pi-guard
 
 Home monitoring for a Raspberry Pi and a USB camera, operated through Telegram
@@ -117,6 +119,8 @@ pi-guard logs -f
 | [Docker](docs/docker.md) | optional container deployment |
 | [Dashboard](docs/dashboard.md) | web dashboard, certificates, app and push |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
+| [Add-ons](docs/addons.md) | Service watcher, network analysis, smart home, remote commands, AI assistant |
+| [WhatsApp](docs/whatsapp.md) | Official Cloud API setup and its limits |
 | [Architecture](docs/architecture.md) | how the parts fit together |
 | [Performance](docs/performance.md) | measurements and limits |
 | [Troubleshooting](docs/troubleshooting.md) | common problems |

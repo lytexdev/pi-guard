@@ -2,7 +2,7 @@
 FROM python:3.11-slim-bookworm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg iproute2 openssl \
+    && apt-get install -y --no-install-recommends ffmpeg iproute2 openssl iputils-ping openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src

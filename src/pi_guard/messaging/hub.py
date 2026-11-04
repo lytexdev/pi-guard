@@ -98,6 +98,14 @@ class Messenger:
                 parsed = app.registry.parse("enroll add")
             elif msg.is_group and not msg.from_button:
                 return
+            elif (
+                app.addons.assistant is not None
+                and msg.text.strip()
+                and not msg.text.lstrip().startswith("/")
+                and not msg.is_group
+            ):
+                # Anything that is no command is a question for the assistant.
+                parsed = app.registry.parse(f"ask {msg.text}")
         if parsed is None:
             await self._reply(
                 msg,

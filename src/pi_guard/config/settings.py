@@ -111,6 +111,21 @@ class Settings(BaseSettings):
     # The home network, reachable for VPN devices set to "home network only".
     wireguard_home_network: str | None = None
 
+    # WhatsApp (optional, official Cloud API; see docs/whatsapp.md)
+    whatsapp_enabled: bool = False
+    whatsapp_phone_number_id: str | None = None
+    whatsapp_access_token: SecretStr | None = None
+    whatsapp_app_secret: SecretStr | None = None
+    whatsapp_verify_token: SecretStr | None = None
+    whatsapp_admin_numbers: StrList = Field(default_factory=list)
+    whatsapp_allowed_numbers: StrList = Field(default_factory=list)
+    # Approved template for alerts outside WhatsApp's 24-hour reply window.
+    whatsapp_alert_template: str | None = None
+
+    # AI assistant add-on: keys stay here; everything else is in config.yaml (addons.assistant)
+    assistant_api_key: SecretStr | None = None
+    assistant_deepl_key: SecretStr | None = None
+
     # Web dashboard (optional)
     dashboard_enabled: bool = False
     dashboard_host: str = "0.0.0.0"  # noqa: S104 - the dashboard is meant for the LAN
@@ -144,6 +159,8 @@ class Settings(BaseSettings):
         "telegram_viewer_user_ids",
         "telegram_allowed_chat_ids",
         "signal_admin_numbers",
+        "whatsapp_admin_numbers",
+        "whatsapp_allowed_numbers",
         "signal_allowed_numbers",
         "dashboard_auth",
         "dashboard_trusted_proxies",
@@ -281,6 +298,14 @@ class Settings(BaseSettings):
                 raise ValueError("PI_GUARD_SIGNAL_PHONE_NUMBER is required when Signal is enabled")
             if not self.signal_admin_numbers:
                 raise ValueError("PI_GUARD_SIGNAL_ADMIN_NUMBERS needs at least one number")
+        if self.whatsapp_enabled:
+            access = self.whatsapp_access_token
+            if not self.whatsapp_phone_number_id or not (access and access.get_secret_value()):
+                raise ValueError(
+                    "WhatsApp needs PI_GUARD_WHATSAPP_PHONE_NUMBER_ID and _ACCESS_TOKEN"
+                )
+            if not self.whatsapp_admin_numbers:
+                raise ValueError("PI_GUARD_WHATSAPP_ADMIN_NUMBERS needs at least one number")
         if self.dashboard_enabled:
             self._check_dashboard()
         if self.webpush_enabled and not self.dashboard_enabled:

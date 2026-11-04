@@ -36,6 +36,8 @@ class EventType(StrEnum):
     EMERGENCY_ESCALATED = "emergency_escalated"
     MODE_CHANGED = "mode_changed"
     SYSTEM_STARTED = "system_started"
+    SERVICE_DOWN = "service_down"  # heartbeat add-on
+    SERVICE_UP = "service_up"
 
 
 @dataclass(frozen=True)

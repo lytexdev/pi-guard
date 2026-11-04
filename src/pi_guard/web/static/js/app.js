@@ -9,6 +9,7 @@ const VIEWS = {
   people: () => import("./views/people.js"),
   more: () => import("./views/more.js"),
   network: () => import("./views/network.js"),
+  addons: () => import("./views/addons.js"),
   settings: () => import("./views/settings.js"),
   devices: () => import("./views/devices.js"),
   access: () => import("./views/access.js"),
@@ -24,6 +25,7 @@ const PRIMARY = [
 ];
 const SECONDARY = [
   ["network", "network", "web.nav_network"],
+  ["addons", "cpu", "web.nav_addons"],
   ["devices", "camera", "web.nav_devices"],
   ["settings", "settings", "web.nav_settings"],
   ["access", "shield-lock", "web.nav_access"],
@@ -41,7 +43,7 @@ function link(route, iconName, label, current) {
 function shell(route) {
   const main = h("main", { id: "main" });
   const nav = h("nav", { class: "nav", "aria-label": "pi-guard" },
-    h("div", { class: "brand" }, h("img", { src: "/static/img/icon-192.png", alt: "" }), "pi-guard"),
+    h("div", { class: "brand" }, h("img", { src: "/static/img/logo.svg", alt: "" }), "pi-guard"),
     PRIMARY.map(([r, i, l]) => link(r, i, l, route)),
     h("h3", {}, t("web.nav_system")),
     SECONDARY.map(([r, i, l]) => link(r, i, l, route)),

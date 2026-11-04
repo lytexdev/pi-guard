@@ -14,6 +14,8 @@ from pi_guard.core.timeutil import TimeWindow
 _ID_RE = re.compile(r"^[a-z0-9_]{1,32}$")
 _MAC_RE = re.compile(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$")
 _BITRATE_RE = re.compile(r"^\d+(\.\d+)?[kM]?$")
+# Starts with a letter or digit, so a host can never be read as a command-line option.
+_HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.:-]{0,252}$")
 
 
 class _Model(BaseModel):
@@ -162,6 +164,8 @@ EventName = Literal[
     "emergency_escalated",
     "mode_changed",
     "system_started",
+    "service_down",
+    "service_up",
 ]
 
 
@@ -170,7 +174,7 @@ class NotificationRule(_Model):
     priority: Literal["low", "normal", "high", "critical"] | None = None
     modes: list[Literal["HOME", "AWAY"]] | None = None
     recipients: Literal["all", "admins"] | None = None
-    providers: list[Literal["telegram", "signal"]] | None = None
+    providers: list[Literal["telegram", "signal", "whatsapp"]] | None = None
     cooldown_seconds: int | None = Field(None, ge=0, le=86400)
     attach: Literal["none", "snapshot", "clip"] | None = None
 
@@ -214,12 +218,132 @@ class FaceSettings(_Model):
     max_samples_per_person: int = Field(40, ge=1, le=80)
 
 
+class HeartbeatTarget(_Model):
+    id: str
+    name: str
+    kind: Literal["http", "tcp", "ping"] = "http"
+    address: str  # URL for http, host:port for tcp, host for ping
+    interval_seconds: int = Field(60, ge=10, le=86400)
+    timeout_seconds: int = Field(10, ge=1, le=60)
+    failures_before_alert: int = Field(3, ge=1, le=20)
+    verify_tls: bool = True
+    expected_text: str | None = None  # http: must appear in the answer
+    enabled: bool = True
+
+    _id = field_validator("id")(_check_id)
+
+    @model_validator(mode="after")
+    def _check_address(self) -> HeartbeatTarget:
+        if self.kind == "http" and not self.address.startswith(("http://", "https://")):
+            raise ValueError(f"{self.id}: address must start with http:// or https://")
+        if self.kind == "tcp":
+            host, sep, port = self.address.rpartition(":")
+            if not sep or not host or not port.isdigit() or not 0 < int(port) < 65536:
+                raise ValueError(f"{self.id}: address must look like host:port")
+        if self.kind == "ping" and not _HOST_RE.match(self.address):
+            raise ValueError(f"{self.id}: address must be a host name or IP address")
+        return self
+
+
+class HeartbeatAddon(_Model):
+    enabled: bool = False
+    targets: list[HeartbeatTarget] = Field(default_factory=list)
+
+
+class AnalyticsAddon(_Model):
+    enabled: bool = False
+
+
+class SmartDevice(_Model):
+    id: str
+    name: str
+    kind: Literal["switch", "light", "sensor"] = "switch"
+    state_topic: str | None = None
+    command_topic: str | None = None
+    payload_on: str = "ON"
+    payload_off: str = "OFF"
+    # For JSON state messages: the key holding the value, e.g. "state" or "temperature".
+    value_key: str | None = None
+    unit: str = ""
+
+    _id = field_validator("id")(_check_id)
+
+    @field_validator("command_topic")
+    @classmethod
+    def _plain_topic(cls, value: str | None) -> str | None:
+        if value and any(c in value for c in "+#"):
+            raise ValueError("a command topic cannot contain + or #")
+        return value
+
+
+class SmartHomeAddon(_Model):
+    enabled: bool = False
+    # Also list what Zigbee2MQTT, Tasmota, ESPHome & co announce via Home Assistant discovery.
+    discovery: bool = True
+    devices: list[SmartDevice] = Field(default_factory=list)
+
+
+class RemoteAction(_Model):
+    id: str
+    name: str
+    host: str
+    port: int = Field(22, ge=1, le=65535)
+    user: str
+    command: str = Field(min_length=1, max_length=500)
+    enabled: bool = True
+
+    _id = field_validator("id")(_check_id)
+
+    @field_validator("host")
+    @classmethod
+    def _check_host(cls, value: str) -> str:
+        if not _HOST_RE.match(value):
+            raise ValueError("host must be a host name or IP address")
+        return value
+
+    @field_validator("user")
+    @classmethod
+    def _check_user(cls, value: str) -> str:
+        if not re.match(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$", value):
+            raise ValueError("not a user name")
+        return value
+
+
+class RemoteAddon(_Model):
+    enabled: bool = False
+    actions: list[RemoteAction] = Field(default_factory=list)
+
+
+class AssistantAddon(_Model):
+    enabled: bool = False
+    provider: Literal["openai", "mistral", "custom"] = "mistral"
+    model: str = ""  # empty: the provider's small default
+    base_url: str | None = None  # for "custom": any OpenAI-compatible API
+    # Spending limit: answers stop for the day when this many tokens are used.
+    daily_token_limit: int = Field(50000, ge=1000, le=10_000_000)
+    max_answer_tokens: int = Field(300, ge=50, le=2000)
+    history_turns: int = Field(3, ge=0, le=10)
+    # Weather without any AI tokens (Open-Meteo, no key).
+    location: str = ""
+    # Answer spoken questions aloud (costs extra; OpenAI only).
+    speech_output: bool = False
+
+
+class AddonSettings(_Model):
+    heartbeat: HeartbeatAddon = Field(default_factory=HeartbeatAddon)
+    analytics: AnalyticsAddon = Field(default_factory=AnalyticsAddon)
+    smarthome: SmartHomeAddon = Field(default_factory=SmartHomeAddon)
+    remote: RemoteAddon = Field(default_factory=RemoteAddon)
+    assistant: AssistantAddon = Field(default_factory=AssistantAddon)
+
+
 class FileConfig(_Model):
     cameras: list[CameraConfig] = Field(default_factory=list)
     presence: PresenceSettings = Field(default_factory=PresenceSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)
     audio: AudioSettings = Field(default_factory=AudioSettings)
     faces: FaceSettings = Field(default_factory=FaceSettings)
+    addons: AddonSettings = Field(default_factory=AddonSettings)
 
     @model_validator(mode="after")
     def _unique_ids(self) -> FileConfig:
@@ -228,6 +352,9 @@ class FileConfig(_Model):
             ("camera device", [c.device for c in self.cameras]),
             ("presence device", [d.id for d in self.presence.devices]),
             ("presence MAC", [d.mac_address for d in self.presence.devices]),
+            ("heartbeat target", [t.id for t in self.addons.heartbeat.targets]),
+            ("smart home device", [d.id for d in self.addons.smarthome.devices]),
+            ("remote action", [a.id for a in self.addons.remote.actions]),
         ):
             duplicates = {i for i in ids if ids.count(i) > 1}
             if duplicates:

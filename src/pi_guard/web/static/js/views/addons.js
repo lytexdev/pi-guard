@@ -1,0 +1,355 @@
+// Add-ons: overview with on/off switches, and one detail page per add-on.
+// renderDetail() is also used by the setup assistant.
+import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { restartPrompt } from "./settings.js";
+
+export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone" };
+
+const slug = (text) => text.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 28) || "item";
+const uniqueId = (name, items) => {
+  const base = slug(name);
+  let id = base;
+  for (let n = 2; items.some((i) => i.id === id); n += 1) id = `${base}_${n}`;
+  return id;
+};
+const field = (label, input, hint) => h("div", { class: "field" }, h("label", {}, label, input), hint ? h("div", { class: "hint" }, hint) : null);
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+async function save(id, section, opts) {
+  const done = await attempt(() => api(`/api/addons/${id}`, { method: "PUT", body: section }), t("web.saved"));
+  if (done && !opts.embedded) restartPrompt();
+  if (done) opts.onSaved?.();
+  return Boolean(done);
+}
+
+async function status(path) {
+  try { return await api(path); } catch { return null; }  // not running until the next restart
+}
+
+// --- service watcher ---------------------------------------------------------------------
+
+async function heartbeat(box, data, opts) {
+  const section = data.config.heartbeat;
+  const live = await status("/api/addons/heartbeat/status");
+  const state = Object.fromEntries((live || []).map((r) => [r.id, r]));
+  const redraw = () => renderDetail("heartbeat", box, opts);
+  const name = h("input", { required: true, maxlength: 60, placeholder: t("web.hb_name_placeholder") });
+  const kind = h("select", {}, ["http", "tcp", "ping"].map((k) => h("option", { value: k }, t(`web.hb_kind_${k}`))));
+  const address = h("input", { required: true, placeholder: "https://example.org" });
+  const interval = h("input", { type: "number", min: 10, max: 86400, value: 60 });
+  const failures = h("input", { type: "number", min: 1, max: 20, value: 3 });
+  const text = h("input", { placeholder: t("web.hb_text_placeholder") });
+  const tls = h("input", { type: "checkbox", checked: true });
+  kind.addEventListener("change", () => { address.placeholder = { http: "https://example.org", tcp: "192.168.178.20:22", ping: "192.168.178.1" }[kind.value]; });
+  const form = h("form", { class: "stack" },
+    field(t("web.name"), name), field(t("web.hb_kind"), kind), field(t("web.hb_address"), address),
+    field(t("web.hb_interval"), interval), field(t("web.hb_failures"), failures, t("web.hb_failures_hint")),
+    field(t("web.hb_text"), text),
+    h("label", { class: "check" }, tls, t("web.hb_tls")),
+    h("button", { class: "primary", type: "submit" }, icon("plus"), t("web.add")));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const target = { id: uniqueId(name.value, section.targets), name: name.value.trim(), kind: kind.value, address: address.value.trim(),
+      interval_seconds: Number(interval.value), failures_before_alert: Number(failures.value), verify_tls: tls.checked, expected_text: text.value.trim() || null };
+    if (await save("heartbeat", { ...section, targets: [...section.targets, target] }, opts)) redraw();
+  });
+  fill(box,
+    h("section", { class: "panel" }, h("h2", {}, t("web.hb_targets")),
+      h("ul", { class: "list" }, section.targets.length ? section.targets.map((target) => {
+        const s = state[target.id];
+        const dot = !s || s.up === null ? "" : s.up ? "ok" : "danger";
+        return h("li", {}, h("span", { class: `dot ${dot}` }),
+          h("div", { class: "grow" }, h("div", {}, target.name),
+            h("small", {}, s?.up === false ? `${t("web.hb_down")}: ${s.reason || ""}` : s?.up ? `${s.latency_ms} ms · ${when(s.last_check)}` : t(`web.hb_kind_${target.kind}`))),
+          h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+            if (await save("heartbeat", { ...section, targets: section.targets.filter((x) => x.id !== target.id) }, opts)) redraw();
+          } }, icon("trash")));
+      }) : h("li", { class: "empty" }, t("web.hb_none")))),
+    h("section", { class: "panel" }, h("h2", {}, t("web.add")), form));
+}
+
+// --- network analysis --------------------------------------------------------------------
+
+function ranked(rows, label, onPick) {
+  // Ranked list: one hue, the number always next to the bar.
+  const top = Math.max(1, ...rows.map((r) => r.count));
+  return h("ul", { class: "ranked" }, rows.map((row) => {
+    const bar = h("i");
+    bar.style.width = `${(row.count / top) * 100}%`;
+    const name = label(row);
+    return h("li", {},
+      h("div", { class: "row between" }, onPick ? h("a", { href: "#", onclick: (e) => { e.preventDefault(); onPick(row); } }, name) : h("span", {}, name),
+        h("span", { class: "mono" }, row.count.toLocaleString())),
+      h("div", { class: "rank-bar" }, bar));
+  }));
+}
+
+function history(points) {
+  // Queries over the last 24 hours: one series, so the title names it and no legend is needed.
+  const wrap = h("div", { class: "history", role: "img", "aria-label": t("web.an_history") });
+  const top = Math.max(1, ...points.map((p) => p.total));
+  points.forEach((point) => {
+    const bar = h("i", { title: `${new Date(point.time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: ${point.total} (${point.blocked} ${t("web.an_blocked_short")})` });
+    bar.style.height = `${Math.max(2, (point.total / top) * 100)}%`;
+    wrap.append(bar);
+  });
+  return wrap;
+}
+
+async function analytics(box, data, opts) {
+  const o = await status("/api/addons/analytics/overview");
+  if (!o) { fill(box, h("section", { class: "panel" }, h("p", { class: "muted" }, t("web.an_after_restart")))); return; }
+  const detail = h("section", { class: "panel hidden" });
+  const pick = async (row) => {
+    const d = await attempt(() => api(`/api/addons/analytics/device/${encodeURIComponent(row.ip)}`));
+    if (!d) return;
+    detail.classList.remove("hidden");
+    fill(detail, h("h2", {}, row.name || row.ip),
+      h("p", { class: "muted" }, `${row.ip}${row.vendor ? ` · ${row.vendor}` : ""} · ${t("web.an_last_queries", { count: d.queries })}`),
+      h("div", { class: "grid wide" },
+        h("div", {}, h("h3", {}, t("web.an_top_domains")), ranked(d.top_domains, (r) => r.domain)),
+        h("div", {}, h("h3", {}, t("web.an_top_blocked")), ranked(d.top_blocked, (r) => r.domain))));
+    detail.scrollIntoView({ behavior: "smooth" });
+  };
+  fill(box,
+    h("div", { class: "grid" },
+      h("section", { class: "panel" }, h("h2", {}, t("web.an_queries")), h("div", { class: "stat" }, o.summary.queries.toLocaleString())),
+      h("section", { class: "panel" }, h("h2", {}, t("web.an_blocked")), h("div", { class: "stat" }, `${o.summary.percent_blocked} %`)),
+      h("section", { class: "panel" }, h("h2", {}, t("web.an_devices")), h("div", { class: "stat" }, o.summary.clients))),
+    h("section", { class: "panel" }, h("h2", {}, t("web.an_history")), history(o.history)),
+    h("div", { class: "grid wide" },
+      h("section", { class: "panel" }, h("h2", {}, t("web.an_by_device")), ranked(o.devices, (r) => r.name || r.ip, pick)),
+      h("section", { class: "panel" }, h("h2", {}, t("web.an_top_domains")), ranked(o.top_domains, (r) => r.domain)),
+      h("section", { class: "panel" }, h("h2", {}, t("web.an_top_blocked")), ranked(o.top_blocked, (r) => r.domain)),
+      h("section", { class: "panel" }, h("h2", {}, t("web.an_upstreams")), ranked(o.upstreams, (r) => r.name),
+        h("h3", {}, t("web.an_types")), ranked(Object.entries(o.query_types).map(([k, v]) => ({ type: k, count: v })).sort((a, b) => b.count - a.count), (r) => r.type))),
+    detail,
+    h("p", { class: "muted" }, h("small", {}, t("web.an_note"))));
+}
+
+// --- smart home --------------------------------------------------------------------------
+
+async function smarthome(box, data, opts) {
+  const section = data.config.smarthome;
+  const live = await status("/api/addons/smarthome/status");
+  const redraw = () => renderDetail("smarthome", box, opts);
+  const name = h("input", { required: true, maxlength: 60, placeholder: t("web.sh_name_placeholder") });
+  const kind = h("select", {}, ["switch", "light", "sensor"].map((k) => h("option", { value: k }, t(`web.sh_kind_${k}`))));
+  const state = h("input", { placeholder: "tasmota/stat/plug1/POWER" });
+  const command = h("input", { placeholder: "tasmota/cmnd/plug1/POWER" });
+  const key = h("input", { placeholder: "temperature" });
+  const unit = h("input", { maxlength: 10, placeholder: "°C" });
+  const discovery = h("input", { type: "checkbox", checked: section.discovery });
+  discovery.addEventListener("change", () => save("smarthome", { ...section, discovery: discovery.checked }, opts));
+  const form = h("form", { class: "stack" },
+    field(t("web.name"), name), field(t("web.sh_kind"), kind), field(t("web.sh_state_topic"), state), field(t("web.sh_command_topic"), command),
+    field(t("web.sh_value_key"), key, t("web.sh_value_key_hint")), field(t("web.sh_unit"), unit),
+    h("button", { class: "primary", type: "submit" }, icon("plus"), t("web.add")));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const device = { id: uniqueId(name.value, section.devices), name: name.value.trim(), kind: kind.value, state_topic: state.value.trim() || null,
+      command_topic: command.value.trim() || null, value_key: key.value.trim() || null, unit: unit.value.trim() };
+    if (await save("smarthome", { ...section, devices: [...section.devices, device] }, opts)) redraw();
+  });
+  const rows = live?.devices || section.devices.map((d) => ({ ...d, on: null, value: null, switchable: false }));
+  fill(box,
+    live && !live.connected ? h("p", { class: "notice" }, t("smarthome.offline"), " ", h("a", { href: "#/settings" }, t("web.nav_settings"))) : null,
+    h("section", { class: "panel" }, h("h2", {}, t("web.sh_devices")),
+      h("ul", { class: "list" }, rows.length ? rows.map((d) => h("li", {},
+        h("span", { class: `dot ${d.on ? "ok" : ""}` }),
+        h("div", { class: "grow" }, h("div", {}, d.name),
+          h("small", {}, d.kind === "sensor" ? `${d.value ?? "–"} ${d.unit || ""}` : d.on === null ? t("smarthome.unknown") : t(d.on ? "smarthome.on" : "smarthome.off"),
+            d.discovered ? ` · ${t("web.sh_discovered")}` : "")),
+        d.switchable ? h("button", { onclick: async () => {
+          if (await attempt(() => api(`/api/addons/smarthome/${d.id}`, { method: "POST", body: {} }))) { await sleep(600); redraw(); }
+        } }, icon("power"), t("web.sh_toggle")) : null,
+        section.devices.some((x) => x.id === d.id) ? h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+          if (await save("smarthome", { ...section, devices: section.devices.filter((x) => x.id !== d.id) }, opts)) redraw();
+        } }, icon("trash")) : null))
+        : h("li", { class: "empty" }, t("web.sh_none")))),
+    h("section", { class: "panel" }, h("label", { class: "check" }, discovery, t("web.sh_discovery")),
+      h("p", { class: "muted" }, h("small", {}, t("web.sh_discovery_hint")))),
+    h("section", { class: "panel" }, h("h2", {}, t("web.add")), form));
+}
+
+// --- remote commands ---------------------------------------------------------------------
+
+function typedConfirm(name, host) {
+  // Second confirmation: the name has to be typed, so it cannot happen by accident.
+  return new Promise((resolve) => {
+    const input = h("input", { autocomplete: "off", "aria-label": name });
+    const go = h("button", { class: "danger solid", disabled: true, onclick: () => { dialog.close(); resolve(input.value); } }, t("web.rc_run_now"));
+    input.addEventListener("input", () => { go.disabled = input.value.trim().toLowerCase() !== name.toLowerCase(); });
+    const dialog = h("dialog", {},
+      h("p", {}, t("remote.confirm_2", { name, host })),
+      h("p", { class: "muted" }, t("web.rc_type_name", { name })), input,
+      h("div", { class: "row end" }, h("button", { onclick: () => { dialog.close(); resolve(null); } }, t("web.cancel")), go));
+    dialog.addEventListener("close", () => dialog.remove());
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
+
+async function runAction(action) {
+  const first = await attempt(() => api("/api/addons/remote/begin", { method: "POST", body: { id: action.id } }));
+  if (!first) return;
+  const started = Date.now();
+  if (!await confirmDialog(t("remote.confirm_1", { name: action.name }), t("remote.yes_1"), true)) {
+    await api("/api/addons/remote/cancel", { method: "POST", body: { token: first.token } });
+    return;
+  }
+  await sleep(Math.max(0, 1100 - (Date.now() - started)));
+  const second = await attempt(() => api("/api/addons/remote/confirm", { method: "POST", body: { token: first.token } }));
+  if (!second) return;
+  const typed = await typedConfirm(second.name, second.host);
+  if (typed === null) {
+    await api("/api/addons/remote/cancel", { method: "POST", body: { token: second.token } });
+    toast(t("remote.cancelled"));
+    return;
+  }
+  toast(t("remote.running", { name: action.name }));
+  const result = await attempt(() => api("/api/addons/remote/confirm", { method: "POST", body: { token: second.token, typed } }));
+  if (result) toast(t(result.ok ? "remote.done" : "remote.failed", { name: action.name, output: result.output || "–" }), !result.ok);
+}
+
+async function remote(box, data, opts) {
+  const section = data.config.remote;
+  const live = await status("/api/addons/remote/status");
+  const redraw = () => renderDetail("remote", box, opts);
+  const name = h("input", { required: true, maxlength: 60, placeholder: t("web.rc_name_placeholder") });
+  const host = h("input", { required: true, placeholder: "192.168.178.20" });
+  const user = h("input", { required: true, placeholder: "immanuel" });
+  const port = h("input", { type: "number", min: 1, max: 65535, value: 22 });
+  const command = h("input", { required: true, maxlength: 500, placeholder: "sudo systemctl poweroff" });
+  const preset = (label, value) => h("button", { type: "button", onclick: () => { command.value = value; } }, label);
+  const form = h("form", { class: "stack" },
+    field(t("web.name"), name), field(t("web.rc_host"), host), field(t("web.rc_user"), user), field(t("web.rc_port"), port), field(t("web.rc_command"), command),
+    h("div", { class: "row" }, preset("Linux: poweroff", "sudo systemctl poweroff"), preset("Windows: shutdown", "shutdown /s /t 0"), preset("macOS: shutdown", "sudo shutdown -h now")),
+    h("button", { class: "primary", type: "submit" }, icon("plus"), t("web.add")));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const action = { id: uniqueId(name.value, section.actions), name: name.value.trim(), host: host.value.trim(), user: user.value.trim(), port: Number(port.value), command: command.value.trim() };
+    if (await save("remote", { ...section, actions: [...section.actions, action] }, opts)) redraw();
+  });
+  fill(box,
+    h("section", { class: "panel" }, h("h2", {}, t("web.rc_actions")),
+      h("ul", { class: "list" }, section.actions.length ? section.actions.map((action) => h("li", {},
+        icon("power"),
+        h("div", { class: "grow" }, h("div", {}, action.name), h("small", { class: "mono" }, `${action.user}@${action.host}: ${action.command}`)),
+        live?.actions.some((a) => a.id === action.id) ? h("button", { class: "danger", onclick: () => runAction(action) }, t("web.rc_run")) : null,
+        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+          if (await save("remote", { ...section, actions: section.actions.filter((x) => x.id !== action.id) }, opts)) redraw();
+        } }, icon("trash")))) : h("li", { class: "empty" }, t("web.rc_none")))),
+    live ? h("section", { class: "panel" }, h("h2", {}, t("web.rc_key")), h("p", { class: "muted" }, t("web.rc_key_hint")),
+      h("pre", { class: "mono wrap" }, live.public_key)) : null,
+    h("section", { class: "panel" }, h("h2", {}, t("web.add")), form));
+}
+
+// --- assistant ---------------------------------------------------------------------------
+
+function askPanel(info) {
+  const question = h("input", { placeholder: t("web.as_placeholder"), maxlength: 1000, "aria-label": t("web.as_placeholder") });
+  const speak = h("input", { type: "checkbox" });
+  const out = h("div", { "aria-live": "polite" });
+  const usage = h("small", { class: "muted" }, t("web.as_usage", { used: info.tokens_today, limit: info.daily_limit }));
+  const show = (r) => {
+    fill(out, h("p", { class: "muted" }, r.question), h("p", {}, r.answer), h("small", { class: "muted" }, t(`web.as_source_${r.source}`)));
+    fill(usage, t("web.as_usage", { used: r.tokens_today, limit: info.daily_limit }));
+  };
+  const form = h("form", { class: "row" }, question, h("button", { class: "primary", type: "submit" }, t("web.as_ask")));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!question.value.trim()) return;
+    const result = await attempt(() => api("/api/addons/assistant/ask", { method: "POST", body: { question: question.value, speak: speak.checked } }));
+    if (result) { show(result); question.value = ""; }
+  });
+  let recorder = null;
+  const mic = h("button", { type: "button", class: "talk" }, icon("microphone"), t("web.talk_start"));
+  mic.addEventListener("click", async () => {
+    if (recorder) { recorder.stop(); return; }
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { toast(t("web.mic_denied"), true); return; }
+    const chunks = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((track) => track.stop());
+      const blob = new Blob(chunks, { type: recorder.mimeType });
+      recorder = null;
+      mic.classList.remove("active");
+      const result = await attempt(() => api(`/api/addons/assistant/voice?speak=${speak.checked ? 1 : 0}`, { method: "POST", body: blob }));
+      if (result) show(result);
+    };
+    recorder.start(250);
+    mic.classList.add("active");
+  });
+  return h("section", { class: "panel stack" }, h("h2", {}, t("web.as_ask_title")), form,
+    h("div", { class: "row" }, info.speech_input && window.isSecureContext && window.MediaRecorder ? mic : null,
+      info.speech_output ? h("label", { class: "check" }, speak, t("web.as_speak")) : null),
+    out, usage);
+}
+
+async function assistant(box, data, opts) {
+  const section = data.config.assistant;
+  const info = await status("/api/addons/assistant/status");
+  const provider = h("select", {}, ["mistral", "openai", "custom"].map((p) => h("option", { value: p, selected: p === section.provider }, t(`web.as_provider_${p}`))));
+  const model = h("input", { value: section.model, placeholder: t("web.as_model_placeholder") });
+  const url = h("input", { value: section.base_url || "", placeholder: "https://…/v1" });
+  const location = h("input", { value: section.location, placeholder: "Berlin" });
+  const limit = h("input", { type: "number", min: 1000, max: 10000000, value: section.daily_token_limit });
+  const length = h("input", { type: "number", min: 50, max: 2000, value: section.max_answer_tokens });
+  const turns = h("input", { type: "number", min: 0, max: 10, value: section.history_turns });
+  const speech = h("input", { type: "checkbox", checked: section.speech_output });
+  const keys = h("div");
+  let saveKeys = null;
+  const button = h("button", { class: "primary", onclick: async () => {
+    if (saveKeys) saveKeys();
+    await save("assistant", { ...section, provider: provider.value, model: model.value.trim(), base_url: url.value.trim() || null, location: location.value.trim(),
+      daily_token_limit: Number(limit.value), max_answer_tokens: Number(length.value), history_turns: Number(turns.value), speech_output: speech.checked }, opts);
+  } }, icon("check"), t("web.save"));
+  fill(box,
+    info ? askPanel(info) : null,
+    h("section", { class: "panel stack" }, h("h2", {}, t("web.nav_settings")),
+      field(t("web.as_provider"), provider), field(t("web.as_model"), model, t("web.as_model_hint")), field(t("web.as_base_url"), url),
+      field(t("web.as_location"), location, t("web.as_location_hint")), field(t("web.as_limit"), limit, t("web.as_limit_hint")),
+      field(t("web.as_length"), length), field(t("web.as_turns"), turns),
+      h("label", { class: "check" }, speech, t("web.as_speech_output")), keys, button),
+    h("p", { class: "muted" }, h("small", {}, t("web.as_privacy"))));
+  const view = await import("./settings.js");
+  await view.render(keys, [], { embedded: true, groups: ["assistant"], register: (fn) => { saveKeys = fn; }, onSaved: () => {} });
+}
+
+const DETAILS = { heartbeat, analytics, smarthome, remote, assistant };
+
+export async function renderDetail(id, box, opts = {}) {
+  const data = await api("/api/addons");
+  await DETAILS[id](box, data, opts);
+}
+
+export async function setEnabled(id, enabled, opts = {}) {
+  const data = await api("/api/addons");
+  return save(id, { ...data.config[id], enabled }, opts);
+}
+
+export async function render(main, params = []) {
+  const id = params[0];
+  if (id in DETAILS) {
+    const box = h("div", { class: "stack" });
+    fill(main, h("div", { class: "topbar" }, h("h1", {}, t(`addons.${id}`)), h("a", { class: "button", href: "#/addons" }, t("web.back"))), box);
+    await renderDetail(id, box);
+    return;
+  }
+  const data = await api("/api/addons");
+  fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_addons"))),
+    h("div", { class: "grid wide" }, data.addons.map((addon) => {
+      const toggle = h("input", { type: "checkbox", checked: addon.enabled, "aria-label": t(`addons.${addon.id}`) });
+      toggle.addEventListener("change", () => setEnabled(addon.id, toggle.checked));
+      return h("section", { class: "panel stack" },
+        h("div", { class: "row between" }, h("h2", {}, icon(ADDONS[addon.id]), " ", t(`addons.${addon.id}`)), toggle),
+        h("p", { class: "muted" }, t(`web.addon_${addon.id}_text`)),
+        addon.needs ? h("p", { class: "notice" }, t(addon.needs)) : null,
+        addon.enabled !== addon.running ? h("p", { class: "notice" }, t("web.addon_restart")) : null,
+        h("a", { class: "button", href: `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")));
+    })));
+}

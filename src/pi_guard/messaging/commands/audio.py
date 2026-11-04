@@ -11,6 +11,7 @@ import secrets
 from pathlib import Path
 from typing import Any
 
+from pi_guard.addons.assistant import AssistantError
 from pi_guard.audio.service import AudioError, AudioService
 from pi_guard.audio.sounds import valid_name
 from pi_guard.core.permissions import Role
@@ -129,16 +130,33 @@ def _pending(ctx: CommandContext, token: str) -> Path | None:
     return matches[0] if matches else None
 
 
+async def _ask_by_voice(ctx: CommandContext, path: Path) -> Reply:
+    assistant = ctx.app.addons.assistant
+    if assistant is None:
+        return Reply(ctx.t("audio.upload_expired"), buttons=(menu_row(ctx),))
+    try:
+        question = await assistant.transcribe(path)
+        result = await assistant.ask(question, ctx.lang, ctx.chat_key)
+        spoken = await assistant.speak(result.text)
+    except AssistantError as exc:
+        return Reply(ctx.t(exc.key), buttons=(menu_row(ctx),))
+    finally:
+        path.unlink(missing_ok=True)
+    return Reply(f"„{question}“\n\n{result.text}", audio=spoken, buttons=(menu_row(ctx),))
+
+
 async def upload(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     """Handles audio files sent by an admin, and the buttons offered afterwards."""
     audio = _audio(ctx)
     action, _, rest = args.get("text", "").partition(" ")
-    if action in ("play", "save", "alarm", "discard"):
+    if action in ("play", "save", "alarm", "discard", "ask"):
         token, _, name = rest.partition(" ")
         path = _pending(ctx, token)
         if path is None:
             return Reply(ctx.t("audio.upload_expired"), buttons=(menu_row(ctx),))
         try:
+            if action == "ask":
+                return await _ask_by_voice(ctx, path)
             if action == "play":
                 await audio.play(path)
                 ctx.app.db.audit(ctx.user.key, "audio.play_upload")
@@ -178,7 +196,10 @@ async def upload(ctx: CommandContext, args: dict[str, Any]) -> Reply:
 
 
 def _upload_buttons(ctx: CommandContext, token: str) -> tuple[tuple[Button, ...], ...]:
+    assistant = ctx.app.addons.assistant
+    ask = ((ctx.button("audio.ask_assistant", f"upload ask {token}"),),) if assistant else ()
     return (
+        *ask,
         (ctx.button("audio.play_now", f"upload play {token}"),),
         (ctx.button("audio.save_as_sound", f"upload save {token}"),),
         (ctx.button("audio.use_as_alarm", f"upload alarm {token}"),),

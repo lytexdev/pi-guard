@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="pi-guard"><defs>
+  <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc4ff"/><stop offset="1" stop-color="#1f6fd6"/></linearGradient>
+  <linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17365f"/><stop offset="1" stop-color="#0b1f3a"/></linearGradient>
+  <radialGradient id="berry" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#9fd6ff"/><stop offset="1" stop-color="#2f86e8"/></radialGradient>
+</defs><g transform="">
+  <path d="M256 28 L438 92 V246 C438 362 362 442 256 486 C150 442 74 362 74 246 V92 Z" fill="url(#rim)"/>
+  <path d="M256 56 L412 111 V246 C412 348 346 418 256 458 C166 418 100 348 100 246 V111 Z" fill="url(#body)"/>
+  <path d="M256 150 C232 104 188 100 160 112 C172 150 214 164 256 150 Z" fill="#7fe3c4"/>
+  <path d="M256 150 C280 104 324 100 352 112 C340 150 298 164 256 150 Z" fill="#54cfa8"/>
+  <circle cx="200" cy="186" r="31" fill="url(#berry)"/><circle cx="191" cy="176" r="7" fill="#fff" fill-opacity=".38"/><circle cx="256" cy="186" r="31" fill="url(#berry)"/><circle cx="247" cy="176" r="7" fill="#fff" fill-opacity=".38"/><circle cx="312" cy="186" r="31" fill="url(#berry)"/><circle cx="303" cy="176" r="7" fill="#fff" fill-opacity=".38"/><circle cx="172" cy="234" r="31" fill="url(#berry)"/><circle cx="163" cy="224" r="7" fill="#fff" fill-opacity=".38"/><circle cx="228" cy="234" r="31" fill="url(#berry)"/><circle cx="219" cy="224" r="7" fill="#fff" fill-opacity=".38"/><circle cx="284" cy="234" r="31" fill="url(#berry)"/><circle cx="275" cy="224" r="7" fill="#fff" fill-opacity=".38"/><circle cx="340" cy="234" r="31" fill="url(#berry)"/><circle cx="331" cy="224" r="7" fill="#fff" fill-opacity=".38"/><circle cx="200" cy="282" r="31" fill="url(#berry)"/><circle cx="191" cy="272" r="7" fill="#fff" fill-opacity=".38"/><circle cx="256" cy="282" r="31" fill="url(#berry)"/><circle cx="247" cy="272" r="7" fill="#fff" fill-opacity=".38"/><circle cx="312" cy="282" r="31" fill="url(#berry)"/><circle cx="303" cy="272" r="7" fill="#fff" fill-opacity=".38"/><circle cx="228" cy="326" r="31" fill="url(#berry)"/><circle cx="219" cy="316" r="7" fill="#fff" fill-opacity=".38"/><circle cx="284" cy="326" r="31" fill="url(#berry)"/><circle cx="275" cy="316" r="7" fill="#fff" fill-opacity=".38"/><circle cx="256" cy="366" r="31" fill="url(#berry)"/><circle cx="247" cy="356" r="7" fill="#fff" fill-opacity=".38"/>
+  <circle cx="256" cy="250" r="27" fill="#0b1f3a"/>
+  <path d="M243 262 L233 316 H279 L269 262 Z" fill="#0b1f3a"/>
+</g></svg>

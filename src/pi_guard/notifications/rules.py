@@ -22,7 +22,7 @@ class Rule:
     recipients: Literal["all", "admins"]
     cooldown_seconds: int
     attach: Literal["none", "snapshot", "clip"] = "none"
-    providers: tuple[str, ...] = ("telegram", "signal")
+    providers: tuple[str, ...] = ("telegram", "signal", "whatsapp")
 
     @property
     def bypasses_quiet_hours(self) -> bool:
@@ -45,6 +45,8 @@ DEFAULTS: dict[EventType, Rule] = {
     EventType.MODE_CHANGED: Rule(True, "low", BOTH, "all", 0),
     EventType.SYSTEM_STARTED: Rule(True, "low", BOTH, "admins", 0),
     EventType.MOTION_ENDED: Rule(False, "low", BOTH, "admins", 0),
+    EventType.SERVICE_DOWN: Rule(True, "high", BOTH, "admins", 0),
+    EventType.SERVICE_UP: Rule(True, "normal", BOTH, "admins", 0),
 }
 
 

@@ -8,6 +8,16 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Add-ons, chosen in the setup assistant and managed in the dashboard, with commands
+  in every messenger: service watcher, network analysis (from Pi-hole), smart home
+  over MQTT with Home Assistant discovery, remote commands over SSH with two
+  confirmations, and an AI assistant (OpenAI, Mistral or any compatible API, DeepL,
+  Open-Meteo) with cache, short prompts and a daily token limit.
+- WhatsApp through the official Cloud API.
+- Overview shows how you are connected: home network, home VPN (with the device's
+  name), Tor, another VPN, and the public addresses involved.
+- A logo.
+
 - WireGuard VPN managed in the dashboard: `scripts/wireguard.sh setup` prepares
   the server once; devices (family phones, laptops) are added with a name and
   a QR code for the WireGuard app, shown again or removed later. A root path

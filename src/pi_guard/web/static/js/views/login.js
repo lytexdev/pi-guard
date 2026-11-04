@@ -5,7 +5,7 @@ import { state } from "../app.js";
 export async function render(root) {
   const methods = state.session.methods;
   const panel = h("div", { class: "panel" },
-    h("div", { class: "brand" }, h("img", { src: "/static/img/icon-192.png", alt: "" }), "pi-guard"));
+    h("div", { class: "brand" }, h("img", { src: "/static/img/logo.svg", alt: "" }), "pi-guard"));
   root.append(h("div", { class: "login" }, panel));
 
   const done = async (result) => {

@@ -24,6 +24,26 @@ export function eventRow(event, cameras = {}) {
       h("small", {}, [when(event.ts), event.camera ? ` · ${cameras[event.camera] || event.camera}` : ""])));
 }
 
+let publicCheck = null;  // once per page load: the browser asks for its own public address
+
+async function connectionPanel() {
+  const c = await api("/api/connection").catch(() => null);
+  if (!c) return null;
+  const line = h("p", { class: "muted" }, t("web.conn_checking"));
+  const panel = h("section", { class: "panel" }, h("h2", {}, icon("shield-lock"), " ", t("web.conn_title")),
+    h("div", { class: "stat" }, c.peer ? t("web.conn_wireguard_peer", { name: c.peer }) : t(`web.conn_${c.kind}`)),
+    h("dl", { class: "kv" }, h("dt", {}, t("web.conn_address")), h("dd", { class: "mono" }, c.ip),
+      c.home_ip ? [h("dt", {}, t("web.conn_home_ip")), h("dd", { class: "mono" }, c.home_ip)] : null,
+      c.vpn_clients ? [h("dt", {}, t("web.conn_vpn_clients")), h("dd", {}, c.vpn_clients)] : null),
+    line);
+  publicCheck ||= fetch("https://api.ipify.org", { cache: "no-store" }).then((r) => r.text())
+    .then((ip) => api("/api/connection/check", { method: "POST", body: { ip: ip.trim() } }));
+  publicCheck.then((r) => {
+    fill(line, t(`web.conn_public_${r.kind}`, { ip: r.ip, organisation: r.organisation || "" }));
+  }).catch(() => { fill(line, t("web.conn_public_unknown")); });
+  return panel;
+}
+
 export async function render(main) {
   const draw = async () => {
     const [o, events, open] = await Promise.all([api("/api/overview"), api("/api/events?limit=8"), api("/api/alerts")]);
@@ -51,6 +71,7 @@ export async function render(main) {
         o.emergency_contacts ? h("p", { class: "muted" }, h("small", {}, t("web.open_alerts_note",
           { count: o.emergency_after_alerts ?? "", minutes: o.emergency_after_minutes ?? "" }))) : null) : null,
       h("div", { class: "grid" },
+        await connectionPanel(),
         h("section", { class: "panel" },
           h("h2", {}, t("web.mode")),
           h("div", { class: "stat" }, t(`mode.${mode.effective.toLowerCase()}`)),
