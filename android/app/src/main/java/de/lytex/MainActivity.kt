@@ -3,6 +3,7 @@ package de.lytex
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
@@ -38,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private var pairing = false
     private var pairFailed = false
     private var chosen: ValueCallback<Array<Uri>>? = null
+    private var asked: Pair<PermissionRequest, Array<String>>? = null
 
     private val pickFile = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) {
         chosen?.onReceiveValue(it.toTypedArray())
@@ -45,6 +47,10 @@ class MainActivity : AppCompatActivity() {
     }
     private val askVpn = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (it.resultCode == RESULT_OK) connectVpn()
+    }
+    private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        asked?.let { (request, wanted) -> if (granted) request.grant(wanted) else request.deny() }
+        asked = null
     }
     private val askPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
 
@@ -108,8 +114,13 @@ class MainActivity : AppCompatActivity() {
         }
         web.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
-                val wanted = request.resources.filter { it == PermissionRequest.RESOURCE_AUDIO_CAPTURE }
-                if (request.origin.toString().trimEnd('/') == store.url && wanted.isNotEmpty()) request.grant(wanted.toTypedArray()) else request.deny()
+                val usable = setOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE, PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                val wanted = request.resources.filter { it in usable }.toTypedArray()
+                if (request.origin.toString().trimEnd('/') != store.url || wanted.isEmpty()) return request.deny()
+                val needsCamera = PermissionRequest.RESOURCE_VIDEO_CAPTURE in wanted && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
+                if (!needsCamera) return request.grant(wanted)
+                asked = request to wanted // only when the dashboard wants a picture, not at the first start
+                askCamera.launch(Manifest.permission.CAMERA)
             }
 
             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
