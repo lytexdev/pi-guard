@@ -9,6 +9,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
 
 [Deutsche Version](README.de.md)
 
+<p align="center"><img src="docs/assets/topology.svg" alt="Topology: phones reach the Raspberry Pi through WireGuard; the Pi runs Pi-hole, WireGuard, Mosquitto, recording, the dashboard and add-ons, and connects cameras, the home network and smart home devices."></p>
+
 ## What it does
 
 - **Records 24/7** to five-minute MP4 segments, using the camera's own H.264
@@ -121,6 +123,8 @@ pi-guard logs -f
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
 | [Add-ons](docs/addons.md) | Service watcher, network analysis, smart home, remote commands, AI assistant |
 | [WhatsApp](docs/whatsapp.md) | Official Cloud API setup and its limits |
+| [Public access](docs/public-access.md) | Domain, reverse proxy and safe login |
+| [Plugins](docs/plugins.md) | Write your own add-ons |
 | [Architecture](docs/architecture.md) | how the parts fit together |
 | [Performance](docs/performance.md) | measurements and limits |
 | [Troubleshooting](docs/troubleshooting.md) | common problems |

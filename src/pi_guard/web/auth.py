@@ -33,6 +33,10 @@ KEYFILE_PREFIX = "pi-guard-key-v1:"
 DEFAULT_USERNAME = "admin"
 DEFAULT_PASSWORD = "admin123"  # noqa: S105 - documented first-login default, must be changed
 MIN_PASSWORD = 10
+RECOVERY_CODES = 10
+MIN_CODEWORD = 4
+# web_sessions.pending: what is still missing before a session counts.
+PENDING_NONE, PENDING_ALL, PENDING_CODEWORD = 0, 1, 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS web_sessions (
@@ -44,6 +48,11 @@ CREATE TABLE IF NOT EXISTS web_keyfiles (
 CREATE TABLE IF NOT EXISTS web_account (
     id INTEGER PRIMARY KEY CHECK (id = 1), username TEXT NOT NULL, password_hash TEXT NOT NULL,
     must_change INTEGER NOT NULL, totp TEXT, totp_pending TEXT, updated TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS web_recovery (hash TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS web_factors (name TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS web_credentials (
+    id TEXT PRIMARY KEY, public_key TEXT NOT NULL, sign_count INTEGER NOT NULL,
+    name TEXT NOT NULL, created TEXT NOT NULL, last_used TEXT);
 """
 
 
@@ -136,6 +145,7 @@ class Session:
     username: str
     csrf: str
     pending: bool
+    level: int = PENDING_NONE
 
 
 class AuthStore:
@@ -176,7 +186,7 @@ class AuthStore:
 
     # sessions
 
-    def create_session(self, username: str, ip: str, agent: str, pending: bool = False) -> str:
+    def create_session(self, username: str, ip: str, agent: str, pending: int = 0) -> str:
         token = secrets.token_urlsafe(32)
         now = utcnow().isoformat()
         self._db.execute(
@@ -207,7 +217,7 @@ class AuthStore:
         if now - seen > timedelta(minutes=1):
             self._db.execute("UPDATE web_sessions SET last_seen = ? WHERE id_hash = ?",
                              (now.isoformat(), _digest(token)))  # fmt: skip
-        return Session(row["username"], row["csrf"], bool(row["pending"]))
+        return Session(row["username"], row["csrf"], bool(row["pending"]), int(row["pending"]))
 
     def promote(self, token: str) -> str:
         """Replace a half-authenticated (TOTP pending) session with a full one."""
@@ -257,12 +267,16 @@ class AuthStore:
             "totp_pending, updated) VALUES (1, ?, ?, 1, NULL, NULL, ?)",
             (DEFAULT_USERNAME, hash_password(DEFAULT_PASSWORD, self._pepper), utcnow().isoformat()),
         )
+        self._db.executescript(
+            "DELETE FROM web_recovery; DELETE FROM web_factors; DELETE FROM web_credentials;"
+        )
         self.end_all()
 
     def account(self) -> dict[str, Any]:
         row = self._db.execute("SELECT * FROM web_account WHERE id = 1").fetchone()
         return {"username": row["username"], "must_change": bool(row["must_change"]),
-                "totp": row["totp"] is not None}  # fmt: skip
+                "totp": row["totp"] is not None, "codeword": self.has_codeword,
+                "recovery_left": self.recovery_left}  # fmt: skip
 
     def check_password(self, username: str, password: str) -> str | None:
         row = self._db.execute("SELECT * FROM web_account WHERE id = 1").fetchone()
@@ -340,4 +354,82 @@ class AuthStore:
         if self.check_password(account["username"], password) is None:
             return False
         self._db.execute("UPDATE web_account SET totp = NULL, totp_pending = NULL WHERE id = 1")
+        self._db.execute("DELETE FROM web_recovery")
         return True
+
+    # Recovery codes replace a lost phone once each. 80 random bits, so a keyed hash is enough.
+
+    def _recovery_hash(self, code: str) -> str:
+        cleaned = code.replace("-", "").replace(" ", "").upper()
+        return hmac.new(self._pepper, cleaned.encode(), hashlib.sha256).hexdigest()
+
+    def new_recovery_codes(self) -> list[str]:
+        codes = []
+        self._db.execute("DELETE FROM web_recovery")
+        for _ in range(RECOVERY_CODES):
+            raw = base64.b32encode(secrets.token_bytes(10)).decode()
+            code = "-".join(raw[i : i + 4] for i in range(0, 16, 4))
+            self._db.execute("INSERT INTO web_recovery (hash) VALUES (?)",
+                             (self._recovery_hash(code),))  # fmt: skip
+            codes.append(code)
+        return codes
+
+    @property
+    def recovery_left(self) -> int:
+        return int(self._db.execute("SELECT COUNT(*) FROM web_recovery").fetchone()[0])
+
+    def use_recovery_code(self, code: str) -> bool:
+        cursor = self._db.execute("DELETE FROM web_recovery WHERE hash = ?",
+                                  (self._recovery_hash(code),))  # fmt: skip
+        return cursor.rowcount > 0
+
+    # The code word is asked in addition to everything else at every login.
+
+    @property
+    def has_codeword(self) -> bool:
+        return (
+            self._db.execute("SELECT 1 FROM web_factors WHERE name = 'codeword'").fetchone()
+            is not None
+        )
+
+    def set_codeword(self, password: str, codeword: str) -> None:
+        """Empty `codeword` removes it."""
+        if self.check_password(self.account()["username"], password) is None:
+            raise CredentialError("web.wrong_password")
+        word = codeword.strip().casefold()
+        if not word:
+            self._db.execute("DELETE FROM web_factors WHERE name = 'codeword'")
+            return
+        if len(word) < MIN_CODEWORD:
+            raise CredentialError("web.codeword_too_short")
+        self._db.execute(
+            "INSERT OR REPLACE INTO web_factors (name, value) VALUES ('codeword', ?)",
+            (hash_password(word, self._pepper),),
+        )
+
+    def check_codeword(self, word: str) -> bool:
+        row = self._db.execute("SELECT value FROM web_factors WHERE name = 'codeword'").fetchone()
+        if row is None:
+            return True
+        return verify_password(word.strip().casefold()[:200], row["value"], self._pepper)
+
+    # Passkeys and hardware keys (WebAuthn).
+
+    def credentials(self) -> list[dict[str, Any]]:
+        rows = self._db.execute("SELECT * FROM web_credentials ORDER BY created").fetchall()
+        return [dict(r) for r in rows]
+
+    def add_credential(self, credential_id: str, public_key: str, count: int, name: str) -> None:
+        self._db.execute(
+            "INSERT INTO web_credentials (id, public_key, sign_count, name, created) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (credential_id, public_key, count, name[:40], utcnow().isoformat()),
+        )
+
+    def credential_used(self, credential_id: str, count: int) -> None:
+        self._db.execute("UPDATE web_credentials SET sign_count = ?, last_used = ? WHERE id = ?",
+                         (count, utcnow().isoformat(), credential_id))  # fmt: skip
+
+    def delete_credential(self, credential_id: str) -> bool:
+        cursor = self._db.execute("DELETE FROM web_credentials WHERE id = ?", (credential_id,))
+        return cursor.rowcount > 0

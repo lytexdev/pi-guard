@@ -68,7 +68,7 @@ async def totp_confirm(request: web.Request) -> web.Response:
     if not d.auth.confirm_totp(code):
         raise web.HTTPBadRequest(text="web.totp_wrong")
     d.app.db.audit(_actor(request), "account.totp_on")
-    return web.json_response({"ok": True})
+    return web.json_response({"ok": True, "recovery": d.auth.new_recovery_codes()})
 
 
 async def totp_disable(request: web.Request) -> web.Response:

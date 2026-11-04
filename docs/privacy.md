@@ -32,6 +32,7 @@ runs with `UMask=0077`; databases are `0600`).
 | Live picture and sound, files you upload | your own browser, over HTTPS | only while you use the dashboard |
 | Your browser's public IP address | `api.ipify.org`, and the Pi asks `ipwho.is` about unknown addresses | when the overview is open (connection panel) |
 | Questions to the AI assistant, voice messages sent to it | the provider you chose (OpenAI, Mistral, your own) | add-on on, only what you ask |
+| Excerpts from your files, Paperless-ngx and Nextcloud | the AI provider | only if you allow it; never with Ollama |
 | Town for the weather | Open-Meteo | add-on on, when you ask for the weather |
 | Text to translate | DeepL | add-on on and a DeepL key set |
 | Messages and pictures | Meta, if you use WhatsApp | WhatsApp set up |
@@ -102,6 +103,10 @@ table) and, if connected, Pi-hole's client list. Pi-hole itself records every
 DNS query of every device in the home; that is a separate product with its
 own privacy settings (query logging, anonymisation) which you should review.
 pi-guard does not scan the network.
+
+Evidence videos are kept for 90 days, longer than normal footage. They record sound only if
+the microphone is switched on, and the microphone is announced with a chime. The checksum
+shows whether a file was changed later; it does not replace legal advice on using footage.
 
 ## Legal notes for Germany
 

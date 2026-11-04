@@ -125,6 +125,8 @@ class Settings(BaseSettings):
     # AI assistant add-on: keys stay here; everything else is in config.yaml (addons.assistant)
     assistant_api_key: SecretStr | None = None
     assistant_deepl_key: SecretStr | None = None
+    assistant_paperless_token: SecretStr | None = None
+    assistant_nextcloud_password: SecretStr | None = None
 
     # Web dashboard (optional)
     dashboard_enabled: bool = False
@@ -140,6 +142,9 @@ class Settings(BaseSettings):
     # Pepper for the dashboard password hash and key for the stored TOTP secret.
     # Generated in DATA_DIR if empty; keeping it in the env file separates it from the database.
     dashboard_secret_key: SecretStr | None = None
+    # How the dashboard is reached from outside, e.g. https://guard.example.org behind a
+    # reverse proxy. Only this name and addresses of the home network are accepted then.
+    dashboard_public_url: str | None = None
     dashboard_allow_unauthenticated: bool = False
     dashboard_rate_limit_per_minute: int = Field(240, ge=30, le=10000)
     dashboard_honeypot: bool = True
@@ -220,6 +225,16 @@ class Settings(BaseSettings):
     def _check_interface(cls, value: str) -> str:
         if not re.match(r"^[a-zA-Z0-9_.-]{1,15}$", value):
             raise ValueError("not a network interface name")
+        return value
+
+    @field_validator("dashboard_public_url")
+    @classmethod
+    def _check_public_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip().rstrip("/")
+        if not re.match(r"^https://[A-Za-z0-9.-]{1,253}(:\d{1,5})?$", value):
+            raise ValueError("expected a URL like https://guard.example.org")
         return value
 
     @field_validator("wireguard_endpoint")
@@ -321,8 +336,10 @@ class Settings(BaseSettings):
 
     def _check_dashboard(self) -> None:
         methods = {m.lower() for m in self.dashboard_auth}
-        if not methods or not methods <= {"password", "keyfile", "none"}:
-            raise ValueError("PI_GUARD_DASHBOARD_AUTH: use password, keyfile or none")
+        if not methods or not methods <= {"password", "keyfile", "telegram", "webauthn", "none"}:
+            raise ValueError(
+                "PI_GUARD_DASHBOARD_AUTH: use password, keyfile, telegram, webauthn or none"
+            )
         if "none" in methods:
             if len(methods) > 1:
                 raise ValueError("PI_GUARD_DASHBOARD_AUTH=none cannot be combined")

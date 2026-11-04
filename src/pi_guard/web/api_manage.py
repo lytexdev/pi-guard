@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import shutil
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 import yaml
 from aiohttp import web
@@ -20,12 +21,15 @@ from pi_guard.audio.sounds import valid_name
 from pi_guard.cameras import discovery
 from pi_guard.cameras.pipeline import SnapshotUnavailableError
 from pi_guard.config import OVERRIDE_ENV, OVERRIDE_YAML, read_overrides
-from pi_guard.config.files import FileConfig
+from pi_guard.config.files import EventName, FileConfig
 from pi_guard.config.settings import Settings
 from pi_guard.core.permissions import Role
 from pi_guard.detection.enrollment import EnrollmentSession, video_frames
 from pi_guard.detection.faces import EnrollmentError, FaceRecognizer
 from pi_guard.i18n import t
+from pi_guard.notifications.rules import DEFAULTS, resolve
+from pi_guard.recording.evidence import MAX_MINUTES, evidence_files, record_evidence
+from pi_guard.recording.segments import ClipError
 from pi_guard.security.files import atomic_write
 from pi_guard.web.server import current, dashboard, read_json
 from pi_guard.web.settings_schema import BY_KEY, FIELDS, SECRETS, to_env
@@ -35,23 +39,33 @@ IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
 MAX_UPLOAD = 50 * 1024 * 1024
 
 
+log = logging.getLogger(__name__)
+EVENT_NAMES = set(get_args(EventName))
+
+
 def routes() -> list[web.RouteDef]:
     return [
         web.get("/api/settings", get_settings),
         web.put("/api/settings", put_settings),
         web.get("/api/config", get_config),
         web.put("/api/config", put_config),
+        web.get("/api/notifications", notification_rules),
+        web.put("/api/notifications/{event}", save_notification_rule),
         web.get("/api/devices", devices),
         web.post("/api/system/restart", restart),
         web.get("/api/people", people),
         web.post("/api/people/{name}/samples", add_samples),
         web.post("/api/people/{name}/camera", add_from_camera),
         web.post("/api/people-test", test_recognition),
+        web.get("/api/evidence", evidence_list),
+        web.post("/api/evidence", evidence_start),
         web.patch("/api/people/{name}", rename_person),
         web.delete("/api/people/{name}", delete_person),
         web.get("/api/sounds", sounds),
         web.post("/api/sounds", upload_sound),
         web.delete("/api/sounds/{name}", delete_sound),
+        web.patch("/api/sounds/{name}", rename_sound),
+        web.post("/api/sounds-restore", restore_sounds),
         web.post("/api/sounds/{name}/play", play_sound),
         web.put("/api/sounds/alarm", set_alarm_sound),
         web.put("/api/volume", set_volume),
@@ -133,6 +147,60 @@ def _base_values(settings: Settings) -> dict[str, Any]:
             if v is not None and k != "telegram_bot_id"}  # fmt: skip
 
 
+def saved_config(d: Any) -> dict[str, Any]:
+    """What is written, which can be newer than what runs until the next restart."""
+    path = d.settings.data_dir / OVERRIDE_YAML
+    if path.exists():
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return data
+    return d.app.config.file.model_dump(mode="json")  # type: ignore[no-any-return]
+
+
+async def write_config(d: Any, config: FileConfig) -> None:
+    text = "# Written by the pi-guard dashboard; replaces config.yaml while it exists.\n"
+    text += yaml.safe_dump(config.model_dump(mode="json"), sort_keys=False, allow_unicode=True)
+    await asyncio.to_thread(atomic_write, d.settings.data_dir / OVERRIDE_YAML, text.encode())
+
+
+async def notification_rules(request: web.Request) -> web.Response:
+    """Every kind of message with its current rule, for the on/off page."""
+    d = dashboard(request)
+    file = FileConfig.model_validate(saved_config(d))
+    rows = []
+    for event in sorted(DEFAULTS, key=lambda e: e.value):
+        if event.value not in EVENT_NAMES:
+            continue
+        rule = resolve(event, {str(k): v for k, v in file.notifications.rules.items()})
+        rows.append({
+            "event": event.value, "enabled": rule.enabled, "priority": rule.priority,
+            "modes": [m.value for m in rule.modes], "recipients": rule.recipients,
+            "cooldown": rule.cooldown_seconds, "attach": rule.attach,
+        })  # fmt: skip
+    return web.json_response(rows)
+
+
+async def save_notification_rule(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    event = request.match_info["event"]
+    if event not in EVENT_NAMES:
+        raise web.HTTPNotFound()
+    data = await read_json(request)
+    config = saved_config(d)
+    rules = config.setdefault("notifications", {}).setdefault("rules", {})
+    rules[event] = {**(rules.get(event) or {}), **data}
+    try:
+        validated = FileConfig.model_validate(config)
+    except ValidationError as exc:
+        raise web.HTTPBadRequest(text=exc.errors()[0]["msg"]) from None
+    await write_config(d, validated)
+    d.app.db.audit(_actor(request), "notification.rule", event)
+    # Takes effect at once as well, without a restart.
+    object.__setattr__(d.app.config, "file", d.app.config.file.model_copy(
+        update={"notifications": validated.notifications}))  # fmt: skip
+    return web.json_response({"ok": True})
+
+
 async def get_config(request: web.Request) -> web.Response:
     return web.json_response(dashboard(request).app.config.file.model_dump(mode="json"))
 
@@ -145,9 +213,7 @@ async def put_config(request: web.Request) -> web.Response:
     except ValidationError as exc:
         errors = [f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in exc.errors()[:10]]
         raise web.HTTPBadRequest(text="\n".join(errors)) from None
-    text = "# Written by the pi-guard dashboard; replaces config.yaml while it exists.\n"
-    text += yaml.safe_dump(config.model_dump(mode="json"), sort_keys=False, allow_unicode=True)
-    await asyncio.to_thread(atomic_write, d.settings.data_dir / OVERRIDE_YAML, text.encode())
+    await write_config(d, config)
     d.app.db.audit(_actor(request), "config")
     return web.json_response({"ok": True, "restart_required": True})
 
@@ -343,6 +409,36 @@ async def add_from_camera(request: web.Request) -> web.Response:
     return web.json_response({"stored": 1, "total": count})
 
 
+async def evidence_list(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    rows = await asyncio.to_thread(evidence_files, d.app.media_dir)
+    return web.json_response({"files": rows, "running": sorted(d.evidence_running)})
+
+
+async def evidence_start(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await read_json(request)
+    camera = str(data.get("camera") or next(iter(d.app.cameras), ""))
+    minutes = int(data.get("minutes") or 5)
+    if camera not in d.app.cameras or not 1 <= minutes <= MAX_MINUTES:
+        raise web.HTTPBadRequest(text="web.ev_bad_request")
+    if camera in d.evidence_running:
+        raise web.HTTPConflict(text="web.ev_running")
+    actor = _actor(request)
+
+    async def run() -> None:
+        d.evidence_running.add(camera)
+        try:
+            await record_evidence(d.app, camera, minutes, actor)
+        except (OSError, ValueError, ClipError) as exc:
+            log.warning("evidence video failed: %s", exc)
+        finally:
+            d.evidence_running.discard(camera)
+
+    d.background(run())
+    return web.json_response({"ok": True, "minutes": minutes})
+
+
 async def rename_person(request: web.Request) -> web.Response:
     faces = _faces(request)
     data = await read_json(request)
@@ -418,6 +514,18 @@ async def upload_sound(request: web.Request) -> web.Response:
 async def delete_sound(request: web.Request) -> web.Response:
     if not _audio(request).sounds.delete(request.match_info["name"]):
         raise web.HTTPNotFound()
+    return web.json_response({"ok": True})
+
+
+async def rename_sound(request: web.Request) -> web.Response:
+    new = str((await read_json(request)).get("name", "")).strip().casefold()
+    if not _audio(request).sounds.rename(request.match_info["name"], new):
+        raise web.HTTPBadRequest(text="web.sound_bad_name")
+    return web.json_response({"ok": True, "name": new})
+
+
+async def restore_sounds(request: web.Request) -> web.Response:
+    _audio(request).sounds.restore_builtin()
     return web.json_response({"ok": True})
 
 
@@ -502,7 +610,7 @@ async def access(request: web.Request) -> web.Response:
         "keyfiles": d.auth.keyfiles(),
         "sessions": d.auth.sessions(),
         "bans": d.guard.bans(),
-        "methods": sorted(d.settings.dashboard_methods),
+        "methods": d.login_methods(),
         "totp": d.auth.account()["totp"],
     })  # fmt: skip
 

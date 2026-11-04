@@ -1,5 +1,5 @@
 // Events with filters, plus statistics drawn as plain SVG.
-import { api, h, svg, t, fill } from "../api.js";
+import { api, h, svg, t, when, fill } from "../api.js";
 import { eventRow } from "./overview.js";
 
 const TYPES = ["motion_detected", "person_detected", "unknown_person", "known_person",
@@ -27,6 +27,18 @@ function barChart(values, labels, alt = false) {
   });
   const top = svg("text", { x: 2, y: pad }); top.textContent = String(max); chart.append(top);
   return chart;
+}
+
+async function evidencePanel() {
+  const data = await api("/api/evidence").catch(() => null);
+  if (!data || (!data.files.length && !data.running.length)) return null;
+  return h("section", { class: "panel" }, h("h2", {}, t("web.ev_title")),
+    data.running.length ? h("p", { class: "notice" }, t("web.ev_recording")) : null,
+    h("ul", { class: "list" }, data.files.map((f) => h("li", {},
+      h("div", { class: "grow clip" }, h("div", {}, `${f.camera} · ${when(f.start_utc)}`),
+        h("small", { class: "mono" }, `SHA-256 ${f.sha256.slice(0, 24)}… · ${Math.round(f.duration_seconds / 60)} min · ${(f.size / 1e6).toFixed(1)} MB`)),
+      h("a", { class: "button", href: `/api/media/evidence/${encodeURIComponent(f.file)}`, download: "" }, "MP4"),
+      h("a", { class: "button", href: `/api/media/evidence/${encodeURIComponent(f.metadata)}`, download: "" }, "JSON")))));
 }
 
 export async function render(main) {
@@ -62,8 +74,10 @@ export async function render(main) {
   const offset = -new Date().getTimezoneOffset() / 60;
   const hours = [...Array(24)].map((_, local) => stats.motion_by_hour_utc[((local - offset) % 24 + 24) % 24] || 0);
 
+  const evidence = await evidencePanel();
   fill(main,
     h("div", { class: "topbar" }, h("h1", {}, t("web.nav_events"))),
+    evidence,
     h("div", { class: "grid wide" },
       h("section", { class: "panel" }, h("h2", {}, t("web.motion_per_day")), barChart(motion, days.map((d) => d.slice(8)))),
       h("section", { class: "panel" }, h("h2", {}, t("web.people_per_day")), barChart(people, days.map((d) => d.slice(8)), true)),

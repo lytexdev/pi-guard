@@ -190,9 +190,12 @@ async def answer(ctx: CommandContext, question: str) -> Reply:
     if assistant is None:
         return _off(ctx, "assistant")
     try:
-        result = await assistant.ask(question, ctx.lang, ctx.chat_key)
+        private = ctx.user.role is Role.ADMIN and not ctx.is_group
+        result = await assistant.ask(question, ctx.lang, ctx.chat_key, private)
     except AssistantError as exc:
         return Reply(ctx.t(exc.key), buttons=(menu_row(ctx),))
+    if result.documents:
+        return Reply(f"{result.text}\n\n📄 {', '.join(result.documents)}")
     return Reply(result.text)
 
 

@@ -86,6 +86,9 @@ def check_cameras(config: Config) -> list[Check]:
         if not camera.enabled:
             checks.append(Check(name, Level.SKIP, "disabled"))
             continue
+        if not camera.is_local_device:
+            checks.append(Check(name, Level.OK, f"{camera.source} camera"))
+            continue
         if not Path(camera.device).exists():
             checks.append(Check(name, Level.FAIL, f"{camera.device} does not exist"))
             continue

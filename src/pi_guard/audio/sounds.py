@@ -49,9 +49,31 @@ def write_wav(path: Path, samples: np.ndarray) -> None:
 
 
 class SoundLibrary:
+    """Own sounds of the same name replace a built-in one; built-ins can also be hidden."""
+
     def __init__(self, directory: Path) -> None:
         self.builtin_dir = directory / "builtin"
         self.custom_dir = directory / "custom"
+        self._hidden_file = directory / "hidden.txt"
+
+    @property
+    def hidden(self) -> set[str]:
+        try:
+            return set(self._hidden_file.read_text().split())
+        except OSError:
+            return set()
+
+    def _set_hidden(self, names: set[str]) -> None:
+        self._hidden_file.parent.mkdir(parents=True, exist_ok=True)
+        self._hidden_file.write_text("\n".join(sorted(names)))
+
+    def restore_builtin(self) -> None:
+        """Bring back deleted built-in sounds and undo replacements."""
+        self._set_hidden(set())
+        if self.custom_dir.is_dir():
+            for name in BUILTIN:
+                for path in self.custom_dir.glob(f"{name}.*"):
+                    path.unlink()
 
     def ensure_builtin(self) -> None:
         self.builtin_dir.mkdir(parents=True, exist_ok=True)
@@ -66,21 +88,32 @@ class SoundLibrary:
             if self.custom_dir.is_dir()
             else []
         )
-        return [*BUILTIN, *(n for n in custom if n not in BUILTIN)]
+        hidden = self.hidden
+        return [*(n for n in BUILTIN if n not in hidden), *(n for n in custom if n not in BUILTIN
+                                                            or n in hidden)]  # fmt: skip
 
-    def path(self, name: str) -> Path | None:
-        if not valid_name(name):
-            return None
-        if name in BUILTIN:
-            self.ensure_builtin()
-            return self.builtin_dir / f"{name}.wav"
+    def _custom(self, name: str) -> Path | None:
         if self.custom_dir.is_dir():
             for candidate in self.custom_dir.glob(f"{name}.*"):
                 return candidate
         return None
 
+    def path(self, name: str) -> Path | None:
+        if not valid_name(name):
+            return None
+        own = self._custom(name)
+        if own is not None:
+            return own
+        if name in BUILTIN and name not in self.hidden:
+            self.ensure_builtin()
+            return self.builtin_dir / f"{name}.wav"
+        return None
+
+    def is_replaced(self, name: str) -> bool:
+        return name in BUILTIN and self._custom(name) is not None
+
     def save(self, name: str, source: Path) -> Path:
-        if not valid_name(name) or name in BUILTIN:
+        if not valid_name(name):
             raise ValueError(name)
         self.custom_dir.mkdir(parents=True, exist_ok=True)
         for old in self.custom_dir.glob(f"{name}.*"):
@@ -89,9 +122,26 @@ class SoundLibrary:
         source.replace(dest)
         return dest
 
-    def delete(self, name: str) -> bool:
-        path = self.path(name)
-        if path is None or name in BUILTIN:
+    def rename(self, old: str, new: str) -> bool:
+        """Own sounds move; a built-in one is copied and the original hidden."""
+        source = self.path(old)
+        if source is None or not valid_name(new) or self.path(new) is not None:
             return False
-        path.unlink()
+        self.custom_dir.mkdir(parents=True, exist_ok=True)
+        dest = self.custom_dir / f"{new}{source.suffix}"
+        if source.parent == self.custom_dir:
+            source.replace(dest)
+        else:
+            dest.write_bytes(source.read_bytes())
+        if old in BUILTIN:
+            self._set_hidden(self.hidden | {old})
         return True
+
+    def delete(self, name: str) -> bool:
+        own = self._custom(name) if valid_name(name) else None
+        if own is not None:
+            own.unlink()
+        if name in BUILTIN:
+            self._set_hidden(self.hidden | {name})
+            return True
+        return own is not None

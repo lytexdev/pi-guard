@@ -9,6 +9,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 
 [English version](README.md)
 
+<p align="center"><img src="docs/assets/topology.de.svg" alt="Topologie von Pi-Guard"></p>
+
 ## Was pi-guard kann
 
 - **Zeichnet rund um die Uhr auf**, in Abschnitten von fünf Minuten. Alte

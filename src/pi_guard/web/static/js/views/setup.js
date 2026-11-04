@@ -71,7 +71,11 @@ async function account(root) {
       if (!setup) return;
       const code = h("input", { id: "totpcode", inputmode: "numeric", autocomplete: "one-time-code", maxlength: 7 });
       const confirm = h("button", { class: "primary", onclick: async () => {
-        if (await attempt(() => api("/api/account/totp/confirm", { method: "POST", body: { code: code.value } }), t("web.totp_enabled"))) drawTotp();
+        const done = await attempt(() => api("/api/account/totp/confirm", { method: "POST", body: { code: code.value } }), t("web.totp_enabled"));
+        if (done) {
+          await drawTotp();
+          if (done.recovery) totpPanel.append(h("h3", {}, t("web.recovery_title")), h("p", {}, t("web.recovery_save")), h("pre", { class: "mono codes" }, done.recovery.join("\n")));
+        }
       } }, icon("check"), t("web.totp_confirm"));
       fill(totpPanel, h("h2", {}, t("web.totp_title")),
         h("p", {}, t("web.totp_scan")),

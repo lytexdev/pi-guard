@@ -31,7 +31,7 @@ dependencies = [
 # OpenCV is optional so 32-bit boards can use the distribution's python3-opencv.
 vision = ["opencv-python-headless>=4.9,<5"]
 mqtt = ["aiomqtt>=2.0"]
-web = ["aiohttp>=3.13", "pywebpush>=2.0", "qrcode>=7.4"]
+web = ["aiohttp>=3.13", "pywebpush>=2.0", "qrcode>=7.4", "webauthn>=2.5", "pypdf>=5"]
 all = ["pi-guard[vision,mqtt,web]"]
 dev = ["pi-guard[all]", "pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5", "mypy>=1.10", "types-PyYAML"]
 

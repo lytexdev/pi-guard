@@ -1,9 +1,64 @@
 // Who can use pi-guard: chat users, invitations, key files, sessions, bans.
-import { api, attempt, confirmDialog, h, icon, t, when, fill } from "../api.js";
+import { api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
+import { createCredential } from "../webauthn.js";
+
+function showCodes(codes) {
+  const dialog = h("dialog", {}, h("h2", {}, t("web.recovery_title")), h("p", {}, t("web.recovery_save")),
+    h("pre", { class: "mono codes" }, codes.join("\n")),
+    h("div", { class: "row end" },
+      h("button", { onclick: () => navigator.clipboard?.writeText(codes.join("\n")).then(() => toast(t("web.copied"))) }, t("web.copy")),
+      h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+async function loginPanel(account, draw) {
+  // Second factors and passkeys.
+  const keys = await api("/api/account/webauthn");
+  const name = h("input", { placeholder: t("web.webauthn_name"), maxlength: 40, "aria-label": t("web.webauthn_name") });
+  return h("section", { class: "panel stack" }, h("h2", {}, icon("shield-lock"), " ", t("web.login_security")),
+    h("h3", {}, t("web.webauthn_title")), h("p", { class: "muted" }, t("web.webauthn_hint")),
+    keys.usable_here ? null : h("p", { class: "notice" }, t("web.webauthn_needs_name")),
+    h("ul", { class: "list" }, keys.keys.length ? keys.keys.map((k) => h("li", {}, icon("key"),
+      h("div", { class: "grow" }, h("div", {}, k.name), h("small", {}, k.last_used ? t("web.last_used", { time: when(k.last_used) }) : t("web.never_used"))),
+      h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+        if (await confirmDialog(t("web.webauthn_delete", { name: k.name }), t("web.delete"), true)
+            && await attempt(() => api(`/api/account/webauthn/${k.id}`, { method: "DELETE" }))) draw();
+      } }, icon("trash")))) : h("li", { class: "empty" }, t("web.nothing"))),
+    keys.usable_here ? h("div", { class: "row" }, name, h("button", { onclick: async () => {
+      const start = await attempt(() => api("/api/account/webauthn/begin", { method: "POST", body: {} }));
+      if (!start) return;
+      try {
+        const credential = await createCredential(start.options);
+        if (await attempt(() => api("/api/account/webauthn/finish", { method: "POST", body: { flow: start.flow, credential, name: name.value } }), t("web.saved"))) draw();
+      } catch { toast(t("web.webauthn_cancelled"), true); }
+    } }, icon("plus"), t("web.webauthn_add"))) : null,
+    h("h3", {}, t("web.recovery_title")),
+    account.totp ? h("p", { class: "muted" }, t("web.recovery_left", { count: account.recovery_left })) : h("p", { class: "muted" }, t("web.recovery_needs_totp")),
+    account.totp ? h("button", { onclick: async () => {
+      const password = prompt(t("web.confirm_password"));
+      if (!password) return;
+      const result = await attempt(() => api("/api/account/recovery", { method: "POST", body: { password } }));
+      if (result) { showCodes(result.codes); draw(); }
+    } }, icon("refresh"), t("web.recovery_new")) : null,
+    h("h3", {}, t("web.codeword")), h("p", { class: "muted" }, t("web.codeword_hint")),
+    h("div", { class: "row" }, h("button", { onclick: async () => {
+      const codeword = prompt(t("web.codeword_new"));
+      if (!codeword) return;
+      const password = prompt(t("web.confirm_password"));
+      if (password && await attempt(() => api("/api/account/codeword", { method: "POST", body: { password, codeword } }), t("web.saved"))) draw();
+    } }, icon("key"), account.codeword ? t("web.codeword_change") : t("web.codeword_set")),
+    account.codeword ? h("button", { class: "danger", onclick: async () => {
+      const password = prompt(t("web.confirm_password"));
+      if (password && await attempt(() => api("/api/account/codeword", { method: "POST", body: { password, codeword: "" } }), t("web.saved"))) draw();
+    } }, t("web.codeword_remove")) : null));
+}
 
 export async function render(main) {
   const draw = async () => {
     const [users, access, account] = await Promise.all([api("/api/users"), api("/api/access"), api("/api/account")]);
+    const security = await loginPanel(account, draw);
     const keyName = h("input", { id: "kname", placeholder: "laptop", pattern: "[A-Za-z0-9_-]{1,40}" });
     const inviteOut = h("div", { class: "stack" });
     fill(main,
@@ -18,6 +73,7 @@ export async function render(main) {
               const password = prompt(t("web.totp_disable_confirm"));
               if (password && await attempt(() => api("/api/account/totp/disable", { method: "POST", body: { password } }), t("web.saved"))) draw();
             } }, t("web.totp_disable")) : null)),
+        security,
         h("section", { class: "panel" }, h("h2", {}, t("web.chat_users")),
           h("ul", { class: "list" }, users.map((u) => h("li", {},
             icon(u.role === "admin" ? "shield-check" : "user"),

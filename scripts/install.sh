@@ -263,6 +263,11 @@ if grep -q '^PI_GUARD_DASHBOARD_ENABLED=true' "$ENV_FILE" \
     fi
 fi
 
+if ! command -v mosquitto >/dev/null \
+    && yes_no "Install an MQTT broker for smart home devices (Mosquitto, with a password)?" n; then
+    "$REPO/scripts/mqtt.sh" setup || warn "MQTT not set up; see docs/addons.md"
+fi
+
 if command -v nmcli >/dev/null && [[ "$(nmcli -g ipv4.method connection show "$(nmcli -t -f NAME connection show --active | head -1)" 2>/dev/null)" == "auto" ]] \
     && yes_no "Give this device a fixed IP address (recommended with Pi-hole)?" n; then
     "$REPO/scripts/network.sh" static || warn "fixed address not set; see docs/network.md"

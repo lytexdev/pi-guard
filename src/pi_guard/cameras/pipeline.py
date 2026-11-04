@@ -30,6 +30,8 @@ from pi_guard.cameras.ffmpeg import (
     build_command,
     choose_capture,
     detection_size,
+    mask_credentials,
+    picamera_command,
     supports_atomic_snapshots,
 )
 from pi_guard.cameras.live import AudioFanout, LiveFrames, open_reader, read_chunks, read_mpjpeg
@@ -107,6 +109,7 @@ class CameraPipeline:
         self._bus = bus
         self._handlers: list[FrameHandler] = []
         self._stderr: deque[str] = deque(maxlen=20)
+        self._helper: asyncio.subprocess.Process | None = None
         self._failing_since: float | None = None
         self._announced_offline = False
 
@@ -128,7 +131,7 @@ class CameraPipeline:
         self.snapshot_path.parent.mkdir(parents=True, exist_ok=True)
         while True:
             started = time.monotonic()
-            if not Path(self.camera.device).exists():
+            if self.camera.is_local_device and not Path(self.camera.device).exists():
                 self._failed(f"device {self.camera.device} not found")
             else:
                 await self._run_once()
@@ -140,7 +143,9 @@ class CameraPipeline:
             self._check_offline()
 
     async def _run_once(self) -> None:
-        device = await asyncio.to_thread(discovery.find, self.camera.device)
+        device = None
+        if self.camera.is_local_device:
+            device = await asyncio.to_thread(discovery.find, self.camera.device)
         try:
             choice = await asyncio.to_thread(choose_capture, self.camera, device)
         except ValueError as exc:
@@ -202,11 +207,21 @@ class CameraPipeline:
             choice.input_format,
             choice.encoder if self.segment_dir else "no recording",
         )
-        log.debug("camera %s: %s", self.camera.id, " ".join(args))
+        log.debug("camera %s: %s", self.camera.id, mask_credentials(" ".join(args)))
         self._set_state(CameraState.STARTING)
+        stdin: int = asyncio.subprocess.DEVNULL
+        if self.camera.source == "picamera":
+            # rpicam-vid owns the camera and hands JPEG frames to FFmpeg through a pipe.
+            read_end, write_end = os.pipe()
+            self._helper = await asyncio.create_subprocess_exec(
+                *picamera_command(self.camera), stdout=write_end,
+                stderr=asyncio.subprocess.DEVNULL,
+            )  # fmt: skip
+            os.close(write_end)
+            stdin = read_end
         return await asyncio.create_subprocess_exec(
             *args,
-            stdin=asyncio.subprocess.DEVNULL,
+            stdin=stdin,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             # Segment names come from strftime; UTC keeps them unambiguous across DST.
@@ -265,6 +280,10 @@ class CameraPipeline:
         return age < RECORDING_STALL_SECONDS
 
     async def _stop(self, process: asyncio.subprocess.Process) -> None:
+        helper, self._helper = self._helper, None
+        if helper is not None:
+            with contextlib.suppress(ProcessLookupError):
+                helper.kill()
         # wait() only returns once stdout reaches EOF, so keep draining the frame pipe;
         # otherwise a full pipe buffer blocks shutdown forever.
         drain = asyncio.create_task(_discard(process.stdout))
@@ -284,7 +303,7 @@ class CameraPipeline:
     async def _drain_stderr(self, process: asyncio.subprocess.Process) -> None:
         assert process.stderr is not None
         async for raw in process.stderr:
-            line = raw.decode(errors="replace").strip()
+            line = mask_credentials(raw.decode(errors="replace").strip())
             if line and "deprecated pixel format" not in line:
                 self._stderr.append(line)
                 log.debug("camera %s ffmpeg: %s", self.camera.id, line)

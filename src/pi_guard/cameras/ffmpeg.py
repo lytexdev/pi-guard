@@ -10,6 +10,7 @@ This avoids several processes fighting over an exclusive V4L2 device.
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 from dataclasses import dataclass
 from functools import cache
@@ -103,6 +104,8 @@ class CaptureChoice:
 
 def choose_capture(camera: CameraConfig, device: VideoDevice | None) -> CaptureChoice:
     """Pick input format and encoder: camera H.264 > MJPEG > raw YUYV."""
+    if camera.source != "usb":
+        return _network_capture(camera)
     size = camera.size
     warning = None
     if camera.input_format != "auto":
@@ -138,6 +141,46 @@ def choose_capture(camera: CameraConfig, device: VideoDevice | None) -> CaptureC
     return CaptureChoice(input_format, encoder, warning)
 
 
+def _network_capture(camera: CameraConfig) -> CaptureChoice:
+    """RTSP cameras usually send H.264, which is kept as it is; ESP32 and Pi cameras send JPEG."""
+    if camera.source == "rtsp" and camera.codec in ("auto", "copy"):
+        return CaptureChoice("rtsp", "copy")
+    if camera.codec not in ("auto", "copy"):
+        return CaptureChoice(camera.source, camera.codec)
+    encoder = HARDWARE_ENCODER if encoder_works(HARDWARE_ENCODER) else SOFTWARE_ENCODER
+    return CaptureChoice(camera.source, encoder)
+
+
+def input_args(camera: CameraConfig, choice: CaptureChoice) -> list[str]:
+    width, height = camera.size
+    # fmt: off
+    if camera.source == "rtsp":
+        return ["-rtsp_transport", "tcp", "-timeout", "10000000", "-thread_queue_size", "64",
+                "-i", camera.device]
+    if camera.source == "http":  # e.g. ESP32-CAM: http://192.168.178.50:81/stream
+        return ["-use_wallclock_as_timestamps", "1", "-rw_timeout", "10000000",
+                "-thread_queue_size", "64", "-i", camera.device]
+    if camera.source == "picamera":  # JPEG from rpicam-vid on stdin
+        return ["-f", "mjpeg", "-use_wallclock_as_timestamps", "1",
+                "-thread_queue_size", "64", "-i", "pipe:0"]
+    return ["-f", "v4l2", "-thread_queue_size", "64", "-input_format", choice.input_format,
+            "-video_size", f"{width}x{height}", "-framerate", str(camera.fps),
+            "-i", camera.device]
+    # fmt: on
+
+
+def picamera_command(camera: CameraConfig) -> list[str]:
+    width, height = camera.size
+    return ["rpicam-vid", "-t", "0", "-n", "--camera", camera.device, "--codec", "mjpeg",
+            "--width", str(width), "--height", str(height), "--framerate", str(camera.fps),
+            "-o", "-"]  # fmt: skip
+
+
+def mask_credentials(text: str) -> str:
+    """rtsp://user:secret@host -> rtsp://***@host, for logs and error messages."""
+    return re.sub(r"://[^/@\s]+@", "://***@", text)
+
+
 def detection_size(camera: CameraConfig) -> tuple[int, int]:
     width, height = camera.size
     out_w = camera.motion.analysis_width
@@ -162,17 +205,13 @@ def build_command(
     atomic_snapshots: bool = False,
     live: LiveOutputs | None = None,
 ) -> list[str]:
-    width, height = camera.size
     det_w, det_h = detection_size(camera)
     # fmt: off
     args = [
         "ffmpeg", "-hide_banner", "-nostdin", "-nostats", "-loglevel", "warning",
         # Thread pools scale with the core count; a capture pipeline does not need that many.
         "-filter_complex_threads", "2",
-        "-threads", "2", "-f", "v4l2", "-thread_queue_size", "64",
-        "-input_format", choice.input_format,
-        "-video_size", f"{width}x{height}", "-framerate", str(camera.fps),
-        "-i", camera.device,
+        "-threads", "2", *input_args(camera, choice),
     ]
     if microphone and segment_dir:
         args += ["-f", "alsa", "-thread_queue_size", "1024", "-ac", "1", "-i", microphone]

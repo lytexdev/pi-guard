@@ -18,7 +18,7 @@ from pi_guard.logs import RECENT
 from pi_guard.security.files import is_within
 from pi_guard.web.server import current, dashboard, read_json
 
-MEDIA_KINDS = ("snapshots", "clips", "audio")
+MEDIA_KINDS = ("snapshots", "clips", "audio", "evidence")
 
 
 def routes() -> list[web.RouteDef]:
@@ -43,7 +43,7 @@ async def i18n(request: web.Request) -> web.Response:
     texts = {k: v for k, v in catalog(lang).items()
              if k.startswith(("web.", "menu.", "mode.", "event.", "camera.state.", "presence.",
                               "image.", "faces.", "status.", "addons.", "remote.", "smarthome.",
-                              "assistant.", "analytics."))}  # fmt: skip
+                              "assistant.", "analytics.", "knowledge."))}  # fmt: skip
     return web.json_response(texts, headers={"Cache-Control": "max-age=300"})
 
 
@@ -53,6 +53,8 @@ def camera_info(pipeline: Any) -> dict[str, Any]:
     return {
         "id": pipeline.camera.id,
         "name": pipeline.camera.name,
+        "room": pipeline.camera.room,
+        "source": pipeline.camera.source,
         "state": status.state.value,
         "recording": pipeline.segment_dir is not None,
         "resolution": pipeline.camera.resolution,

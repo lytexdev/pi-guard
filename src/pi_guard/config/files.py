@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -65,7 +65,9 @@ class MotionSettings(_Model):
 class CameraConfig(_Model):
     id: str
     name: str
-    device: str
+    device: str  # usb: /dev path; rtsp/http: URL; picamera: camera number
+    source: Literal["usb", "rtsp", "http", "picamera"] = "usb"
+    room: str = ""
     enabled: bool = True
     resolution: str = "1280x720"
     fps: int = Field(15, ge=1, le=60)
@@ -98,6 +100,20 @@ class CameraConfig(_Model):
         if not _BITRATE_RE.match(value):
             raise ValueError("bitrate must look like 2M or 1500k")
         return value
+
+    @model_validator(mode="after")
+    def _check_device(self) -> CameraConfig:
+        schemes = {"rtsp": ("rtsp://", "rtsps://"), "http": ("http://", "https://")}
+        wanted = schemes.get(self.source)
+        if wanted and not self.device.startswith(wanted):
+            raise ValueError(f"{self.id}: address must start with {' or '.join(wanted)}")
+        if self.source == "picamera" and not self.device.isdigit():
+            raise ValueError(f"{self.id}: the camera number must be 0, 1, ...")
+        return self
+
+    @property
+    def is_local_device(self) -> bool:
+        return self.source == "usb"
 
     @property
     def size(self) -> tuple[int, int]:
@@ -316,9 +332,17 @@ class RemoteAddon(_Model):
 
 class AssistantAddon(_Model):
     enabled: bool = False
-    provider: Literal["openai", "mistral", "custom"] = "mistral"
+    provider: Literal["openai", "mistral", "anthropic", "gemini", "grok", "ollama", "custom"] = (
+        "mistral"
+    )
     model: str = ""  # empty: the provider's small default
-    base_url: str | None = None  # for "custom": any OpenAI-compatible API
+    base_url: str | None = None  # own server: Ollama elsewhere, or any OpenAI-compatible API
+    # Passages from your files and documents may be sent to a cloud provider.
+    # Local models (Ollama) always may use them; nothing leaves the network then.
+    share_documents: bool = False
+    paperless_url: str | None = None
+    nextcloud_url: str | None = None
+    nextcloud_user: str = ""
     # Spending limit: answers stop for the day when this many tokens are used.
     daily_token_limit: int = Field(50000, ge=1000, le=10_000_000)
     max_answer_tokens: int = Field(300, ge=50, le=2000)
@@ -330,6 +354,7 @@ class AssistantAddon(_Model):
 
 
 class AddonSettings(_Model):
+    plugins: dict[str, dict[str, Any]] = Field(default_factory=dict)
     heartbeat: HeartbeatAddon = Field(default_factory=HeartbeatAddon)
     analytics: AnalyticsAddon = Field(default_factory=AnalyticsAddon)
     smarthome: SmartHomeAddon = Field(default_factory=SmartHomeAddon)

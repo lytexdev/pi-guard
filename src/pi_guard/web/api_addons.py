@@ -12,21 +12,20 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-import yaml
 from aiohttp import web
 from pydantic import ValidationError
 
 from pi_guard.addons.assistant import AssistantError
+from pi_guard.addons.knowledge import Knowledge, KnowledgeError
 from pi_guard.addons.remote import ConfirmationError
 from pi_guard.addons.smarthome import SmartHomeError
 from pi_guard.audio.service import AudioError
-from pi_guard.config import OVERRIDE_YAML
 from pi_guard.config.files import AddonSettings, FileConfig
 from pi_guard.messaging.commands.addons import known_names
 from pi_guard.network.pihole import PiholeError
 from pi_guard.network.wgpeers import SUBNET
 from pi_guard.network.wireguard import read_status
-from pi_guard.security.files import atomic_write
+from pi_guard.web.api_manage import saved_config, write_config
 from pi_guard.web.server import current, dashboard, read_json
 
 log = logging.getLogger(__name__)
@@ -59,6 +58,10 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/addons/assistant/status", assistant_status),
         web.post("/api/addons/assistant/ask", assistant_ask),
         web.post("/api/addons/assistant/voice", assistant_voice),
+        web.get("/api/addons/assistant/knowledge", knowledge_list),
+        web.post("/api/addons/assistant/knowledge", knowledge_add),
+        web.delete("/api/addons/assistant/knowledge/{id:\\d+}", knowledge_delete),
+        web.delete("/api/addons/assistant/answers", answers_forget),
         web.get("/api/connection", connection),
         web.post("/api/connection/check", connection_check),
     ]
@@ -69,14 +72,7 @@ def _actor(request: web.Request) -> str:
 
 
 def _saved_config(request: web.Request) -> dict[str, Any]:
-    """What is written, which can be newer than what runs until the next restart."""
-    d = dashboard(request)
-    path = d.settings.data_dir / OVERRIDE_YAML
-    if path.exists():
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        if isinstance(data, dict):
-            return data
-    return d.app.config.file.model_dump(mode="json")
+    return saved_config(dashboard(request))
 
 
 async def catalog(request: web.Request) -> web.Response:
@@ -99,6 +95,8 @@ async def catalog(request: web.Request) -> web.Response:
             "assistant_api_key": bool(s.assistant_api_key),
             "assistant_deepl_key": bool(s.assistant_deepl_key),
         },
+        "plugins": [{"id": p.id, "title": p.title, "description": p.description}
+                    for p in app.addons.plugins],
     })  # fmt: skip
 
 
@@ -115,9 +113,7 @@ async def save_addon(request: web.Request) -> web.Response:
         errors = [f"{'.'.join(map(str, e['loc'][2:]))}: {e['msg']}" for e in exc.errors()[:5]]
         raise web.HTTPBadRequest(text="\n".join(errors)) from None
     d = dashboard(request)
-    text = "# Written by the pi-guard dashboard; replaces config.yaml while it exists.\n"
-    text += yaml.safe_dump(validated.model_dump(mode="json"), sort_keys=False, allow_unicode=True)
-    await asyncio.to_thread(atomic_write, d.settings.data_dir / OVERRIDE_YAML, text.encode())
+    await write_config(d, validated)
     d.app.db.audit(_actor(request), "addon.config", addon)
     return web.json_response({"ok": True, "restart_required": True})
 
@@ -229,13 +225,13 @@ async def _reply(request: web.Request, question: str, speak: bool) -> web.Respon
     d = dashboard(request)
     assistant = _running(request, "assistant")
     lang = d.settings.language
-    answer = await assistant.ask(question, lang, _actor(request))
+    answer = await assistant.ask(question, lang, _actor(request), private=True)
     spoken = False
     if speak and d.app.audio is not None:
         path = await assistant.speak(answer.text)
         if path is not None:
             try:
-                await d.app.audio.play(path, ignore_quiet_hours=True)
+                await d.app.audio.play(path, ignore_quiet_hours=True, speech=True)
                 spoken = True
             except AudioError:
                 pass
@@ -243,6 +239,7 @@ async def _reply(request: web.Request, question: str, speak: bool) -> web.Respon
                 path.unlink(missing_ok=True)
     return web.json_response({"question": question, "answer": answer.text, "source": answer.source,
                               "tokens": answer.tokens, "spoken": spoken,
+                              "documents": list(answer.documents),
                               "tokens_today": assistant.tokens_today})  # fmt: skip
 
 
@@ -268,6 +265,46 @@ async def assistant_voice(request: web.Request) -> web.Response:
         raise web.HTTPConflict(text=exc.key) from None
     finally:
         path.unlink(missing_ok=True)
+
+
+def _knowledge(request: web.Request) -> Knowledge:
+    knowledge = _running(request, "assistant").knowledge
+    if knowledge is None:
+        raise web.HTTPConflict(text="web.addon_not_running")
+    return knowledge  # type: ignore[no-any-return]
+
+
+async def knowledge_list(request: web.Request) -> web.Response:
+    return web.json_response(_knowledge(request).files())
+
+
+async def knowledge_add(request: web.Request) -> web.Response:
+    """Files are checked one by one; a bad file does not stop the others."""
+    knowledge = _knowledge(request)
+    reader = await request.multipart()
+    results = []
+    async for part in reader:
+        if not getattr(part, "filename", None):
+            continue
+        name = str(part.filename)  # type: ignore[union-attr]
+        data = await part.read(decode=False)  # type: ignore[union-attr]
+        try:
+            info = await asyncio.to_thread(knowledge.add, name, bytes(data))
+            results.append({**info, "ok": True})
+        except KnowledgeError as exc:
+            results.append({"name": name, "ok": False, "error": exc.key})
+    dashboard(request).app.db.audit(_actor(request), "assistant.knowledge", str(len(results)))
+    return web.json_response(results)
+
+
+async def knowledge_delete(request: web.Request) -> web.Response:
+    if not _knowledge(request).delete(int(request.match_info["id"])):
+        raise web.HTTPNotFound()
+    return web.json_response({"ok": True})
+
+
+async def answers_forget(request: web.Request) -> web.Response:
+    return web.json_response({"removed": _knowledge(request).forget_answers()})
 
 
 # --- connection -----------------------------------------------------------------------------

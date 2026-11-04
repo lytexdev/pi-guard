@@ -12,6 +12,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -25,6 +26,8 @@ from pi_guard.storage.db import Database
 
 log = logging.getLogger(__name__)
 
+MIXER_CONTROLS = {"Speaker", "PCM", "Master", "Headphone", "Headset"}
+SPEECH_FILTER = "dynaudnorm=f=150:g=7:p=0.95:m=40,"
 ALLOWED_FORMATS = {"ogg", "mp3", "wav", "flac", "mov,mp4,m4a,3gp,3g2,mj2", "matroska,webm"}
 ALLOWED_CODECS = {"opus", "vorbis", "mp3", "aac", "flac", "pcm_s16le", "pcm_s24le", "pcm_u8"}
 DEFAULT_VOLUME = 60
@@ -126,6 +129,7 @@ class AudioService:
         self._tz = tz
         self._quiet = TimeWindow.parse(settings.quiet_hours) if settings.quiet_hours else None
         self._playing = False
+        self._mixer_open = False
         self._alarm: asyncio.Task[None] | None = None
 
     @property
@@ -151,8 +155,29 @@ class AudioService:
             raise AudioError("audio.too_long", seconds=self.settings.max_upload_seconds)
         return info
 
+    async def _open_mixer(self) -> None:
+        """Hardware controls fully open, once: loudness is set by the software volume.
+
+        USB speakers often start at about -24 dB, which makes speech inaudible.
+        """
+        match = re.search(r"CARD=([^,]+)", self.settings.speaker or "")
+        if self._mixer_open or match is None:
+            return
+        self._mixer_open = True
+        card = match.group(1)
+        with contextlib.suppress(OSError, TimeoutError):
+            _, out, _ = await _run(["amixer", "-c", card, "scontrols"], 5)
+            for name in re.findall(r"'([^']+)'", out.decode(errors="replace")):
+                if name in MIXER_CONTROLS:
+                    await _run(["amixer", "-q", "-c", card, "sset", name, "100%", "unmute"], 5)
+
     async def play(
-        self, path: Path, *, ignore_quiet_hours: bool = False, volume: int | None = None
+        self,
+        path: Path,
+        *,
+        ignore_quiet_hours: bool = False,
+        volume: int | None = None,
+        speech: bool = False,
     ) -> None:
         if not self.playback_enabled or self.settings.speaker is None:
             raise AudioError("audio.playback_disabled")
@@ -162,8 +187,13 @@ class AudioService:
             raise AudioError("audio.busy")
         self._playing = True  # claimed before the first await, so requests cannot overlap
         try:
+            await self._open_mixer()
             info = await probe(path)
             gain = min(volume if volume is not None else self.volume, self.max_volume) / 100
+            # Recorded voices are far quieter than the built-in tones.
+            level = SPEECH_FILTER if speech else ""
+            longest = self.settings.max_upload_seconds
+            limit = min(info.duration or longest, longest) + 10
             code, _, err = await _run(
                 [
                     "ffmpeg",
@@ -178,12 +208,13 @@ class AudioService:
                     "-t",
                     str(self.settings.max_upload_seconds),
                     "-af",
-                    f"volume={gain:.2f}",
+                    f"{level}volume={gain:.2f}",
                     "-f",
                     "alsa",
                     self.settings.speaker,
                 ],
-                limit=min(info.duration, self.settings.max_upload_seconds) + 10,
+                # Browser recordings have no duration in their header.
+                limit=limit,
             )
         finally:
             self._playing = False
@@ -191,11 +222,13 @@ class AudioService:
             log.warning("playback failed: %s", err.decode(errors="replace").strip()[-200:])
             raise AudioError("audio.playback_failed")
 
-    async def record(self, device: str, seconds: int, output: Path) -> Path:
+    async def record(
+        self, device: str, seconds: int, output: Path, limit: int | None = None
+    ) -> Path:
         """Record a bounded clip from a microphone that no camera pipeline is using."""
         if not self.recording_enabled:
             raise AudioError("audio.recording_disabled")
-        seconds = min(seconds, self.settings.max_clip_seconds)
+        seconds = min(seconds, limit or self.settings.max_clip_seconds)
         output.parent.mkdir(parents=True, exist_ok=True)
         code, _, err = await _run(
             [

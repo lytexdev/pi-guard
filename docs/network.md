@@ -83,6 +83,20 @@ names and manufacturers. **Nothing is scanned.** Devices with an `R` use a
 private (random) MAC address. *Use as trusted device* adds a device to
 `presence.devices`.
 
+## Block lists
+
+Dashboard › Network › Block lists manages Pi-hole's lists: recommended ones with a click,
+any list by link, or your own `.txt` file (hosts format, one domain per line, or `||domain^`).
+Links are downloaded by Pi-hole when you press *Update lists*; the domains of a file are
+blocked individually, up to 50,000.
+
+## Device details
+
+The magnifier next to a device pings it, tries common ports once and reads the title of a web
+page, and estimates kind and operating system. This only works for private addresses and
+only when you ask for it. It is an estimate: firewalls hide ports, and phones with a private
+Wi-Fi address change their MAC.
+
 ## WireGuard (home VPN)
 
 With the VPN, phones and laptops reach home from anywhere — dashboard, cameras,

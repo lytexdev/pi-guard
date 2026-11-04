@@ -1,4 +1,5 @@
 // Shell, navigation and hash router. Views live in ./views and render into <main>.
+import { accessibilityButton, applyAccessibility } from "./accessibility.js";
 import { api, h, icon, loadTexts, lang, setCsrf, t, fill } from "./api.js";
 import { applyDesign } from "./theme.js";
 
@@ -10,6 +11,7 @@ const VIEWS = {
   more: () => import("./views/more.js"),
   network: () => import("./views/network.js"),
   addons: () => import("./views/addons.js"),
+  notifications: () => import("./views/notifications.js"),
   settings: () => import("./views/settings.js"),
   devices: () => import("./views/devices.js"),
   access: () => import("./views/access.js"),
@@ -28,9 +30,12 @@ const SECONDARY = [
   ["addons", "cpu", "web.nav_addons"],
   ["devices", "camera", "web.nav_devices"],
   ["settings", "settings", "web.nav_settings"],
+  ["notifications", "bell-ringing", "web.nav_notifications"],
   ["access", "shield-lock", "web.nav_access"],
   ["logs", "list-details", "web.nav_logs"],
 ];
+
+applyAccessibility();
 
 export const state = { session: null, overview: null };
 let cleanup = null;
@@ -54,7 +59,7 @@ function shell(route) {
     PRIMARY.map(([r, i, l]) => link(r, i, l, route)),
     link("more", "menu-2", "web.nav_more",
       SECONDARY.some(([r]) => r === route) || route === "more" ? "more" : route));
-  return h("div", { class: "shell" }, nav, main, tabbar);
+  return h("div", { class: "shell" }, nav, main, tabbar, accessibilityButton());
 }
 
 async function refreshSession() {

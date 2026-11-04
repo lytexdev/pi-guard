@@ -61,7 +61,21 @@ async def remove_user(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     return Reply(ctx.t("users.removed"), buttons=(menu_row(ctx),))
 
 
+async def weblogin(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    """Answer to a dashboard login that waits for confirmation."""
+    choice, _, request_id = args.get("text", "").partition(" ")
+    board = ctx.app.dashboard
+    if board is None or ctx.user.provider != "telegram" or choice not in ("yes", "no"):
+        return Reply(ctx.t("web.tg_login_expired"), buttons=(menu_row(ctx),))
+    pending = board.logins.answer(request_id, choice == "yes")
+    if pending is None:
+        return Reply(ctx.t("web.tg_login_expired"), buttons=(menu_row(ctx),))
+    ctx.app.db.audit(ctx.user.key, "login.telegram_answer", f"{choice} {pending.ip}")
+    return Reply(ctx.t("web.tg_login_done" if choice == "yes" else "web.tg_login_refused"))
+
+
 def register(registry: Registry) -> None:
+    registry.add(Command("weblogin", weblogin, (), (TextArg("text"),), role=Role.ADMIN, menu=False))
     roles = {"viewer": "viewer", "betrachter": "viewer", "admin": "admin"}
     registry.add(
         Command(

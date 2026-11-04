@@ -58,6 +58,8 @@ class Guard:
         self._proxies = [ipaddress.ip_network(p, strict=False) for p in trusted_proxies]
         self._tls = tls
         self._bans: dict[str, float] = {}
+        self.on_event: Callable[[str, str], None] = lambda action, detail: None
+        self.allowed_hosts: set[str] = set()  # empty: any Host header
         self._failures: dict[str, deque[float]] = defaultdict(deque)
 
     def client_ip(self, request: web.Request) -> str:
@@ -83,6 +85,7 @@ class Guard:
     def ban(self, ip: str, reason: str) -> None:
         self._bans[ip] = time.monotonic() + self._ban_seconds
         log.warning("dashboard: banned %s for %d min (%s)", ip, self._ban_seconds // 60, reason)
+        self.on_event("security.ban", f"{ip}: {reason}")
 
     def bans(self) -> dict[str, int]:
         now = time.monotonic()
@@ -90,6 +93,16 @@ class Guard:
 
     def unban(self, ip: str) -> None:
         self._bans.pop(ip, None)
+
+    def _host_allowed(self, host: str) -> bool:
+        name = host.rsplit(":", 1)[0].strip("[]").casefold() if host.count(":") <= 1 else host
+        if name in self.allowed_hosts:
+            return True
+        try:
+            address = ipaddress.ip_address(name.strip("[]").split("]")[0])
+        except ValueError:
+            return False
+        return address.is_private or address.is_loopback  # direct access in the home network
 
     def login_allowed(self, ip: str) -> bool:
         return self._login_limiter.allow(ip)
@@ -106,6 +119,7 @@ class Guard:
 
     def honeypot_hit(self, ip: str, what: str) -> None:
         if self._honeypot:
+            self.on_event("security.honeypot", f"{ip}: {what}")
             self.ban(ip, f"honeypot {what}")
 
     @web.middleware
@@ -113,6 +127,10 @@ class Guard:
         ip = self.client_ip(request)
         if self.banned(ip):
             raise web.HTTPForbidden(text="Forbidden")
+        if self.allowed_hosts and not self._host_allowed(request.host):
+            # Unknown names: scanners and DNS rebinding.
+            self.on_event("security.bad_host", f"{ip}: {request.host[:80]}")
+            raise web.HTTPMisdirectedRequest(text="Unknown host")
         path = request.path.lower()
         if self._honeypot and path.startswith(HONEYPOT_PATHS):
             self.honeypot_hit(ip, request.path[:80])

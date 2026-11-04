@@ -34,7 +34,9 @@ admins only, but tell the people in your network that it exists.
 
 ## Smart home
 
-Needs an MQTT broker (Settings › Integrations). Devices are found through Home Assistant
+Needs an MQTT broker. `sudo ./scripts/mqtt.sh setup` installs Mosquitto with a password and
+connects pi-guard; `sudo ./scripts/mqtt.sh user NAME` adds a login per device. An existing
+broker goes under Settings › Integrations. Devices are found through Home Assistant
 discovery, which Zigbee2MQTT, Tasmota and ESPHome offer, or added by hand with their
 state and command topics. Anyone who can write to your broker can change what is shown
 here, so protect it with a password.
@@ -72,11 +74,18 @@ refused. Shutting down protects a disk only if it is encrypted and locks on shut
 With the add-on on, anything you write that is no command is a question; voice messages
 get an extra button, and the dashboard has a text box and a microphone.
 
-| Provider | Text | Voice in | Voice out |
+| Provider | Default model | Voice in | Voice out |
 | --- | --- | --- | --- |
 | Mistral | `mistral-small-latest` | yes | no |
 | OpenAI | `gpt-4o-mini` | yes | yes |
+| Claude (Anthropic) | `claude-haiku-5-5` | no | no |
+| Gemini (Google) | `gemini-2.5-flash` | no | no |
+| Grok (xAI) | `grok-3-mini` | no | no |
+| Ollama (local) | `llama3.2`, no key needed | no | no |
 | Own service | any OpenAI-compatible API | if offered | no |
+
+Ollama can run on a stronger computer in your network: enter its address, e.g.
+`http://192.168.178.20:11434/v1`. A Raspberry Pi itself is slow for language models.
 
 Set your own model name if the default is outdated. API keys are entered on the add-on
 page. A DeepL key is optional and handles requests like "Übersetze Guten Morgen ins
@@ -90,6 +99,23 @@ reached the AI pauses until the next day; weather and time keep working.
 Privacy: questions go to the chosen provider. The assistant receives no camera pictures,
 no names, no device or presence data and no secrets, and it cannot switch anything or
 run commands.
+
+### Your own files and documents
+
+Upload TXT, MD, JSON or PDF on the add-on page. Each file is checked (type, size, valid
+JSON, readable PDF), turned into plain text and split into small passages. A question only
+carries the three or so passages that match. Scanned PDFs without a text layer cannot be
+read.
+
+Paperless-ngx (URL and API token) and Nextcloud (URL, user and app password) can be
+connected too, so "What is my tax ID?" can be answered from a document. Answers name
+their source. Repeated questions come from a store until files change, at no cost.
+
+Only admins get answers from documents, in private chats and the dashboard. A cloud
+provider receives excerpts only if you tick "Excerpts may go to the cloud provider": a tax ID
+then leaves your home. With Ollama nothing leaves the network, so that is the right
+choice for sensitive documents. Language models can be wrong: check important numbers
+in the source document.
 
 ## Your connection
 

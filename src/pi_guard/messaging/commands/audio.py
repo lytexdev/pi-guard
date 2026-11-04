@@ -136,7 +136,7 @@ async def _ask_by_voice(ctx: CommandContext, path: Path) -> Reply:
         return Reply(ctx.t("audio.upload_expired"), buttons=(menu_row(ctx),))
     try:
         question = await assistant.transcribe(path)
-        result = await assistant.ask(question, ctx.lang, ctx.chat_key)
+        result = await assistant.ask(question, ctx.lang, ctx.chat_key, ctx.user.role is Role.ADMIN)
         spoken = await assistant.speak(result.text)
     except AssistantError as exc:
         return Reply(ctx.t(exc.key), buttons=(menu_row(ctx),))
@@ -158,7 +158,7 @@ async def upload(ctx: CommandContext, args: dict[str, Any]) -> Reply:
             if action == "ask":
                 return await _ask_by_voice(ctx, path)
             if action == "play":
-                await audio.play(path)
+                await audio.play(path, speech=True)
                 ctx.app.db.audit(ctx.user.key, "audio.play_upload")
                 return Reply(ctx.t("audio.played_upload"), buttons=_upload_buttons(ctx, token))
             if action == "save":

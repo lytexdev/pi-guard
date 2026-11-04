@@ -131,7 +131,7 @@ async def test_german_recipient_gets_german_text(tmp_path: Path) -> None:
     app = make_app(tmp_path, language="de")
     await app.notifier.handle(Event(EventType.SYSTEM_STARTED, data={"version": "1.0"}))
     await flush(app)
-    assert app.providers["telegram"].last().text == "pi-guard wurde gestartet (Version 1.0)."
+    assert app.providers["telegram"].last().text == "Pi-Guard gestartet"
     app.db.close()
 
 
@@ -194,4 +194,4 @@ async def test_startup_event_reaches_consumers(tmp_path: Path) -> None:
             break
     task.cancel()
     await asyncio.gather(task, return_exceptions=True)
-    assert "pi-guard has started" in app.providers["telegram"].texts()[0]
+    assert "Pi-Guard started" in app.providers["telegram"].texts()[0]

@@ -37,4 +37,12 @@ kosten keine Tokens, gleiche Fragen kommen eine Stunde lang aus dem Zwischenspei
 ein Tageslimit begrenzt die Kosten. Fragen gehen an den gewählten Anbieter. Der Assistent
 bekommt keine Bilder, Namen oder Daten aus Ihrem Zuhause und kann nichts schalten.
 
+**Eigene Dateien und Dokumente:** Der Assistent kann TXT, MD, JSON und PDF sowie
+Paperless-ngx und Nextcloud durchsuchen, etwa nach Ihrer Steuer-ID. Das gilt nur für Admins.
+Ausschnitte gehen nur dann an einen Cloud-Anbieter, wenn Sie das ausdrücklich erlauben; die
+Steuer-ID verlässt dann Ihr Zuhause. Mit Ollama bleibt alles im Heimnetz. Sprachmodelle
+können sich irren: Prüfen Sie wichtige Zahlen im Dokument.
+
+**MQTT selbst bereitstellen:** `sudo ./scripts/mqtt.sh setup` installiert Mosquitto mit Passwort.
+
 Details: [addons.md](../addons.md).

@@ -3,20 +3,28 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import ipaddress
+import logging
 import re
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 from aiohttp import web
 
 from pi_guard.config import OVERRIDE_YAML
 from pi_guard.config.files import FileConfig, TrustedDevice
+from pi_guard.network.blocklists import MAX_FILE_BYTES, PRESETS, parse_domains, valid_list_address
+from pi_guard.network.inspect import inspect_device
 from pi_guard.network.lan import merge, neighbour_table, reverse_names
 from pi_guard.network.pihole import PiholeError
 from pi_guard.network.wgpeers import SERVER_ADDRESS, PeerError, PeerStore, Server
 from pi_guard.network.wireguard import read_status
 from pi_guard.security.files import atomic_write
 from pi_guard.web.server import current, dashboard, read_json
+
+log = logging.getLogger(__name__)
 
 _MAC_RE = re.compile(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$")
 
@@ -26,11 +34,35 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/network", overview),
         web.post("/api/network/pihole/blocking", blocking),
         web.post("/api/network/trust", trust_device),
+        web.get("/api/network/device/{ip}", device_details),
+        web.get("/api/network/blocklists", blocklists),
+        web.post("/api/network/blocklists", blocklist_add),
+        web.put("/api/network/blocklists", blocklist_toggle),
+        web.delete("/api/network/blocklists", blocklist_delete),
+        web.post("/api/network/blocklists/upload", blocklist_upload),
+        web.post("/api/network/blocklists/update", blocklist_update),
+        web.get("/api/topology", topology),
         web.post("/api/network/wireguard/peers", wg_add),
         web.get("/api/network/wireguard/peers/{id:\\d+}", wg_show),
         web.get("/api/network/wireguard/peers/{id:\\d+}/file", wg_file),
         web.delete("/api/network/wireguard/peers/{id:\\d+}", wg_remove),
     ]
+
+
+def _internal(ips: list[str]) -> bool:
+    """Containers on this Pi (Docker uses 172.16.0.0/12) are no devices of the home network."""
+    docker = ipaddress.ip_network("172.16.0.0/12")
+    return bool(ips) and all(ipaddress.ip_address(ip) in docker for ip in ips if ":" not in ip)
+
+
+def _browser_url(request: web.Request, url: str) -> str:
+    """Pi-hole's address as the browser reaches it: 127.0.0.1 means this Pi, not the phone."""
+    parts = urlsplit(url)
+    if parts.hostname not in ("127.0.0.1", "localhost", "::1"):
+        return url
+    port = f":{parts.port}" if parts.port else ""
+    host = urlsplit(f"//{request.host}").hostname or "localhost"
+    return f"{parts.scheme}://{host}{port}{parts.path}"
 
 
 async def overview(request: web.Request) -> web.Response:
@@ -43,9 +75,9 @@ async def overview(request: web.Request) -> web.Response:
             summary, top, pihole_devices = await asyncio.gather(
                 app.pihole.summary(), app.pihole.top_blocked(8), app.pihole.devices()
             )
-            pihole = {**summary, "top_blocked": top, "url": s.pihole_url}
+            pihole = {**summary, "top_blocked": top, "url": _browser_url(request, s.pihole_url)}
         except PiholeError as exc:
-            pihole = {"error": str(exc), "url": s.pihole_url}
+            pihole = {"error": str(exc), "url": _browser_url(request, s.pihole_url)}
     try:
         neighbours = await neighbour_table(app.config.file.presence.interface)
     except (OSError, TimeoutError):
@@ -75,7 +107,174 @@ async def overview(request: web.Request) -> web.Response:
         "wireguard": wireguard,
         "wireguard_endpoint": s.wireguard_endpoint,
         "wireguard_home_network": s.wireguard_home_network,
-        "devices": [d.as_dict() for d in devices],
+        "devices": [_with_details(app, d.as_dict()) for d in devices],
+    })  # fmt: skip
+
+
+DETAILS_PREFIX = "lan.details."
+
+
+def _with_details(app: Any, device: dict[str, Any]) -> dict[str, Any]:
+    known = app.db.get(DETAILS_PREFIX + device["mac"])
+    return {**device, "details": known} if known else device
+
+
+async def device_details(request: web.Request) -> web.Response:
+    """Look closer at one device (ping, common ports, web page). Only on request."""
+    d = dashboard(request)
+    ip = request.match_info["ip"]
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        raise web.HTTPBadRequest(text="analytics.bad_ip") from None
+    if not address.is_private:  # the home network only, nothing on the internet
+        raise web.HTTPBadRequest(text="analytics.bad_ip")
+    mac = request.query.get("mac", "").lower()
+    report = await inspect_device(ip, mac if _MAC_RE.match(mac) else None,
+                                  request.query.get("vendor"))  # fmt: skip
+    if _MAC_RE.match(mac):
+        d.app.db.set(DETAILS_PREFIX + mac, report)
+    d.app.db.audit(f"web:{current(request).username}", "network.inspect", ip)
+    return web.json_response(report)
+
+
+# --- block lists --------------------------------------------------------------------------
+
+
+def _pihole(request: web.Request) -> Any:
+    pihole = dashboard(request).app.pihole
+    if pihole is None:
+        raise web.HTTPConflict(text="web.pihole_off")
+    return pihole
+
+
+async def blocklists(request: web.Request) -> web.Response:
+    try:
+        lists = await _pihole(request).block_lists()
+    except PiholeError as exc:
+        raise web.HTTPBadGateway(text=str(exc)) from None
+    gravity = dashboard(request).gravity_state
+    return web.json_response({"lists": lists, "presets": PRESETS, "updating": gravity})
+
+
+async def _list_call(request: web.Request, action: str, call: Any) -> web.Response:
+    try:
+        await call
+    except PiholeError as exc:
+        raise web.HTTPBadGateway(text=str(exc)) from None
+    dashboard(request).app.db.audit(f"web:{current(request).username}", action)
+    return web.json_response({"ok": True})
+
+
+async def blocklist_add(request: web.Request) -> web.Response:
+    data = await read_json(request)
+    address, comment = str(data.get("address", "")).strip(), str(data.get("comment", ""))[:100]
+    if not valid_list_address(address):
+        raise web.HTTPBadRequest(text="web.bl_bad_address")
+    return await _list_call(request, "pihole.list_add",
+                            _pihole(request).add_block_list(address, comment))  # fmt: skip
+
+
+async def blocklist_toggle(request: web.Request) -> web.Response:
+    data = await read_json(request)
+    address, comment = str(data.get("address", "")), str(data.get("comment", ""))[:100]
+    enabled = data.get("enabled") is True
+    return await _list_call(request, "pihole.list_toggle",
+                            _pihole(request).set_block_list(address, enabled, comment))  # fmt: skip
+
+
+async def blocklist_delete(request: web.Request) -> web.Response:
+    address = str((await read_json(request)).get("address", ""))
+    return await _list_call(request, "pihole.list_delete",
+                            _pihole(request).delete_block_list(address))  # fmt: skip
+
+
+async def blocklist_upload(request: web.Request) -> web.Response:
+    """A .txt file: its domains are blocked one by one, there is no list to download."""
+    pihole = _pihole(request)
+    reader = await request.multipart()
+    text = ""
+    name = "upload"
+    async for part in reader:
+        if getattr(part, "filename", None):
+            name = str(part.filename)[:60]  # type: ignore[union-attr]
+            data = await part.read(decode=False)  # type: ignore[union-attr]
+            if len(data) > MAX_FILE_BYTES:
+                raise web.HTTPRequestEntityTooLarge(max_size=MAX_FILE_BYTES, actual_size=len(data))
+            text = data.decode("utf-8", errors="replace")
+    domains, bad = parse_domains(text)
+    if not domains:
+        raise web.HTTPBadRequest(text="web.bl_no_domains")
+    try:
+        added = await pihole.deny_domains(domains, f"pi-guard: {name}")
+    except PiholeError as exc:
+        raise web.HTTPBadGateway(text=str(exc)) from None
+    dashboard(request).app.db.audit(
+        f"web:{current(request).username}", "pihole.domains", str(added)
+    )
+    return web.json_response({"added": added, "skipped": bad})
+
+
+async def blocklist_update(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    pihole = _pihole(request)
+    if d.gravity_state:
+        return web.json_response({"ok": True, "running": True})
+
+    async def run() -> None:
+        d.gravity_state = True
+        try:
+            await pihole.update_gravity()
+        except PiholeError as exc:
+            log.warning("block list update failed: %s", exc)
+        finally:
+            d.gravity_state = False
+
+    d.background(run())
+    return web.json_response({"ok": True, "running": True})
+
+
+async def topology(request: web.Request) -> web.Response:
+    """What the interactive map shows: Pi, services, VPN devices, cameras and the LAN."""
+    d = dashboard(request)
+    app, s = d.app, d.settings
+    try:
+        neighbours = await neighbour_table(app.config.file.presence.interface)
+    except (OSError, TimeoutError):
+        neighbours = {}
+    pihole_devices = []
+    if app.pihole is not None:
+        with contextlib.suppress(PiholeError):
+            pihole_devices = await app.pihole.devices()
+    trusted = {x.mac_address: x.name for x in app.config.file.presence.devices}
+    lan = [d for d in merge(neighbours, pihole_devices, trusted, {}) if not _internal(d.ips)]
+    status = read_status(s.runtime_dir / "wireguard.status") if s.wireguard_enabled else None
+    peers = list((status or {}).get("peers", []))
+    store = d.wg_peers
+    if store is not None:
+        names = {p["public_key"]: p["name"] for p in store.list()}
+        peers = [{**p, "name": names.get(p["public_key"], p.get("name"))} for p in peers]
+    cameras = []
+    for camera in app.config.file.cameras:
+        pipeline = app.cameras.get(camera.id)
+        if camera.enabled:
+            state = pipeline.status.state.value if pipeline else "offline"
+            cameras.append({"id": camera.id, "name": camera.name, "room": camera.room,
+                            "source": camera.source, "state": state})  # fmt: skip
+    active = ("REACHABLE", "DELAY", "PROBE")
+    devices = [{
+        "name": x.trusted or x.name or (x.ips[0] if x.ips else x.mac),
+        "ip": x.ips[0] if x.ips else None, "mac": x.mac, "vendor": x.vendor,
+        "active": x.state in active, "trusted": bool(x.trusted),
+        "kind": (app.db.get(DETAILS_PREFIX + x.mac) or {}).get("kind"),
+    } for x in lan[:40]]  # fmt: skip
+    return web.json_response({
+        "services": {"pihole": app.pihole is not None, "wireguard": s.wireguard_enabled,
+                     "mqtt": bool(s.mqtt_host)},
+        "cameras": cameras,
+        "vpn": [{"name": p.get("name") or p["public_key"][:8], "active": p.get("active", False),
+                 "address": p.get("allowed_ips", "").split("/")[0]} for p in peers],
+        "lan": devices,
     })  # fmt: skip
 
 

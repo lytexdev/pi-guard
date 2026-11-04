@@ -7,18 +7,28 @@ every state-changing request also needs the session's CSRF token.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import secrets
-from collections.abc import Awaitable, Callable
+import socket
+from collections.abc import Awaitable, Callable, Coroutine
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 from aiohttp import web
 
 from pi_guard.security.files import atomic_write
-from pi_guard.web.auth import AuthStore, Session, totp_match
+from pi_guard.web.auth import (
+    PENDING_ALL,
+    PENDING_CODEWORD,
+    PENDING_NONE,
+    AuthStore,
+    Session,
+    totp_match,
+)
 from pi_guard.web.security import Guard
 from pi_guard.web.tls import ensure_certificates, server_context
 
@@ -28,11 +38,14 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 COOKIE = "pg_session"
-PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.crt"}
+PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.crt",
+          "/api/login/telegram", "/api/login/telegram/poll", "/api/login/webauthn/begin",
+          "/api/login/webauthn/finish"}  # fmt: skip
 # Reachable while the default password has not been changed yet.
 SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",
                  "/api/account/totp/confirm", "/api/setup/status"}  # fmt: skip
 SETUP_DONE_KEY = "web.setup_done"
+TOTP_LENGTH = 6
 STATIC = Path(str(resources.files("pi_guard.web").joinpath("static")))
 
 DASHBOARD_KEY: web.AppKey[Dashboard] = web.AppKey("dashboard")
@@ -80,8 +93,23 @@ class Dashboard:
             s.dashboard_trusted_proxies,
             s.dashboard_tls,
         )
+        self.guard.on_event = lambda action, detail: app.db.audit("guard", action, detail)
+        if s.dashboard_public_url:
+            names = {
+                urlsplit(s.dashboard_public_url).hostname or "",
+                "localhost",
+                socket.gethostname().casefold(),
+                f"{socket.gethostname().casefold()}.local",
+            }
+            self.guard.allowed_hosts = names | {n.casefold() for n in s.dashboard_tls_names}
+        from pi_guard.web.api_login import LoginFlows
+
+        self.logins = LoginFlows()
         self.tls_dir = s.data_dir / "tls"
         self.microphones: dict[str, Any] = {}  # device -> api_live.MicrophoneStream
+        self.gravity_state = False
+        self.evidence_running: set[str] = set()
+        self._tasks: set[asyncio.Task[None]] = set()
         self.wg_peers = None
         if s.wireguard_enabled:
             from pi_guard.network.wgpeers import PeerStore
@@ -89,6 +117,12 @@ class Dashboard:
             self.wg_peers = PeerStore(app.db, s.data_dir, self._secret_key())
             self.wg_peers.write_file()
         self.web = self._build()
+
+    def background(self, work: Coroutine[Any, Any, None]) -> None:
+        """Run something longer than a request; a reference keeps the task alive."""
+        task = asyncio.create_task(work)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     def _secret_key(self) -> bytes:
         """PI_GUARD_DASHBOARD_SECRET_KEY, or a key generated once in the data directory."""
@@ -106,8 +140,10 @@ class Dashboard:
             api_addons,
             api_core,
             api_live,
+            api_login,
             api_manage,
             api_network,
+            api_security,
         )
 
         webapp = web.Application(
@@ -126,8 +162,13 @@ class Dashboard:
         webapp.router.add_post("/api/login", self._login)
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
-        for module in (api_account, api_addons, api_core, api_manage, api_live, api_network):
+        for module in (api_account, api_addons, api_core, api_login, api_live, api_manage,
+                       api_network, api_security):  # fmt: skip
             webapp.add_routes(module.routes())
+        for plugin in self.app.addons.plugins:
+            sub = web.Application()
+            sub.add_routes(plugin.routes())
+            webapp.add_subapp(f"/api/plugins/{plugin.id}/", sub)
         if self.settings.whatsapp_enabled:
             webapp.router.add_get("/webhook/whatsapp", self._whatsapp_verify)
             webapp.router.add_post("/webhook/whatsapp", self._whatsapp_message)
@@ -171,8 +212,6 @@ class Dashboard:
         log.info("dashboard on %s://%s:%d", scheme, self.settings.dashboard_host,
                  self.settings.dashboard_port)  # fmt: skip
         try:
-            import asyncio
-
             await asyncio.Event().wait()
         finally:
             await runner.cleanup()
@@ -199,7 +238,8 @@ class Dashboard:
             if not secrets.compare_digest(token, session.csrf):
                 raise web.HTTPForbidden(text="invalid CSRF token")
             origin = request.headers.get("Origin")
-            if origin and origin.split("://", 1)[-1] != request.host:
+            public = self.settings.dashboard_public_url
+            if origin and origin.split("://", 1)[-1] != request.host and origin != public:
                 raise web.HTTPForbidden(text="cross-origin request")
         request[SESSION_KEY] = session
         return await handler(request)
@@ -252,15 +292,32 @@ class Dashboard:
             "totp_pending": bool(session and session.pending),
             "username": session.username if session else None,
             "csrf": session.csrf if session and not session.pending else None,
-            "methods": sorted(self.settings.dashboard_methods),
+            "methods": self.login_methods(),
+            "pending_level": session.level if session else 0,
+            "codeword": self.auth.has_codeword,
+            "totp": self.auth.totp_secret() is not None,
             "setup_required": bool(active and session and self._setup_required(session)),
             "setup_done": bool(self.app.db.get(SETUP_DONE_KEY)),
             "language": self.settings.language,
         })  # fmt: skip
 
-    def _set_cookie(self, response: web.Response, token: str) -> None:
-        response.set_cookie(COOKIE, token, httponly=True, secure=self.settings.dashboard_tls,
+    def login_methods(self) -> list[str]:
+        methods = set(self.settings.dashboard_methods)
+        if self.auth.credentials():
+            methods.add("webauthn")  # a registered key is meant to be used
+        if not self.settings.telegram_ready:
+            methods.discard("telegram")
+        return sorted(methods)
+
+    def set_cookie(self, response: web.Response, token: str) -> None:
+        secure = self.settings.dashboard_tls or bool(self.settings.dashboard_public_url)
+        response.set_cookie(COOKIE, token, httponly=True, secure=secure,
                             samesite="Strict", path="/", max_age=7 * 86400)  # fmt: skip
+
+    def _second_step(self) -> int:
+        if self.auth.totp_secret() is not None:
+            return PENDING_ALL
+        return PENDING_CODEWORD if self.auth.has_codeword else PENDING_NONE
 
     async def _login(self, request: web.Request) -> web.Response:
         ip = self.guard.client_ip(request)
@@ -275,13 +332,13 @@ class Dashboard:
             self.guard.login_failed(ip)
             self.app.db.audit(f"web:{ip}", "login.failed")
             raise web.HTTPUnauthorized(text="login failed")
-        pending = self.auth.totp_secret() is not None
+        pending = self._second_step()
         token = self.auth.create_session(username, ip, request.headers.get("User-Agent", ""),
                                          pending=pending)  # fmt: skip
         if not pending:
             self.app.db.audit(f"web:{username}", "login", ip)
-        response = web.json_response({"ok": True, "totp_required": pending})
-        self._set_cookie(response, token)
+        response = web.json_response({"ok": True, "totp_required": bool(pending)})
+        self.set_cookie(response, token)
         return response
 
     def _check_credentials(self, data: dict[str, Any]) -> str | None:
@@ -298,25 +355,39 @@ class Dashboard:
             return None
         return self.auth.check_password(username, password)
 
+    def _second_factor(self, code: str) -> tuple[bool, bool]:
+        """(accepted, it was a recovery code). Codes are checked only after the code word."""
+        secret = self.auth.totp_secret()
+        if secret is None:
+            return True, False
+        if len(code.replace(" ", "")) > TOTP_LENGTH:
+            return self.auth.use_recovery_code(code), True
+        step = totp_match(secret, code)
+        return step is not None and self.auth.totp_step_unused("account", step), False
+
     async def _login_totp(self, request: web.Request) -> web.Response:
         ip = self.guard.client_ip(request)
         if not self.guard.login_allowed(ip):
             raise web.HTTPTooManyRequests(text="Too many login attempts")
         token = request.cookies.get(COOKIE)
         session = self.auth.session(token)
-        secret = self.auth.totp_secret()
-        if token is None or session is None or not session.pending or secret is None:
+        if token is None or session is None or not session.pending:
             raise web.HTTPUnauthorized(text="login required")
         data = await read_json(request)
-        step = totp_match(secret, str(data.get("code", "")))
-        if step is None or not self.auth.totp_step_unused("account", step):
+        used_recovery = False
+        passed = self.auth.check_codeword(str(data.get("codeword", "")))
+        if passed and session.level == PENDING_ALL:
+            passed, used_recovery = self._second_factor(str(data.get("code", "")))
+        if not passed:
             self.guard.login_failed(ip)
             self.app.db.audit(f"web:{ip}", "login.totp_failed")
             raise web.HTTPUnauthorized(text="wrong code")
+        if used_recovery:
+            self.app.db.audit(f"web:{session.username}", "login.recovery_code", ip)
         full = self.auth.promote(token)
         self.app.db.audit(f"web:{session.username}", "login", ip)
         response = web.json_response({"ok": True})
-        self._set_cookie(response, full)
+        self.set_cookie(response, full)
         return response
 
     async def _logout(self, request: web.Request) -> web.Response:

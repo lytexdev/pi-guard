@@ -30,6 +30,7 @@ log = logging.getLogger(__name__)
 EVENT_PADDING = timedelta(seconds=60)
 SWEEP_INTERVAL_SECONDS = 300
 CLIP_RETENTION = timedelta(days=1)
+EVIDENCE_RETENTION_DAYS = 90  # kept longer than normal footage, deleted like everything else
 
 
 @dataclass
@@ -162,6 +163,7 @@ class Retention:
             ("snapshots", keep_snapshots),
             ("clips", CLIP_RETENTION),
             ("audio", CLIP_RETENTION),
+            ("evidence", timedelta(days=EVIDENCE_RETENTION_DAYS)),
         ):
             directory = self.media / kind
             if not directory.is_dir():

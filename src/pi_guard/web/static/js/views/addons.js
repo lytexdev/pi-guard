@@ -253,7 +253,8 @@ function askPanel(info) {
   const out = h("div", { "aria-live": "polite" });
   const usage = h("small", { class: "muted" }, t("web.as_usage", { used: info.tokens_today, limit: info.daily_limit }));
   const show = (r) => {
-    fill(out, h("p", { class: "muted" }, r.question), h("p", {}, r.answer), h("small", { class: "muted" }, t(`web.as_source_${r.source}`)));
+    fill(out, h("p", { class: "muted" }, r.question), h("p", {}, r.answer), h("small", { class: "muted" }, t(`web.as_source_${r.source}`),
+      r.documents?.length ? ` · ${r.documents.join(", ")}` : ""));
     fill(usage, t("web.as_usage", { used: r.tokens_today, limit: info.daily_limit }));
   };
   const form = h("form", { class: "row" }, question, h("button", { class: "primary", type: "submit" }, t("web.as_ask")));
@@ -290,10 +291,41 @@ function askPanel(info) {
     out, usage);
 }
 
+async function knowledgePanel(info) {
+  const panel = h("section", { class: "panel stack" });
+  const draw = async () => {
+    const files = await status("/api/addons/assistant/knowledge");
+    const input = h("input", { type: "file", multiple: true, accept: ".txt,.md,.json,.pdf", "aria-label": t("web.kn_choose") });
+    const out = h("div", { "aria-live": "polite" });
+    fill(panel, h("h2", {}, t("web.kn_title")), h("p", { class: "muted" }, t("web.kn_hint")),
+      info.documents_allowed ? null : h("p", { class: "notice" }, t("web.kn_not_shared")),
+      h("ul", { class: "list" }, files?.length ? files.map((f) => h("li", {}, icon("file-text"),
+        h("div", { class: "grow clip" }, h("div", {}, f.name), h("small", {}, t("web.kn_info", { passages: f.passages, size: (f.size / 1024).toFixed(0) }))),
+        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+          if (await attempt(() => api(`/api/addons/assistant/knowledge/${f.id}`, { method: "DELETE" }))) draw();
+        } }, icon("trash")))) : h("li", { class: "empty" }, t("web.nothing"))),
+      h("div", { class: "row" }, input, h("button", { onclick: async () => {
+        if (!input.files.length) return;
+        const form = new FormData();
+        [...input.files].forEach((file) => form.append("files", file, file.name));
+        const results = await attempt(() => api("/api/addons/assistant/knowledge", { method: "POST", body: form }));
+        if (!results) return;
+        await draw();
+        const bad = results.filter((r) => !r.ok);
+        toast(t("web.kn_done", { count: results.length - bad.length }), bad.length > 0);
+        bad.forEach((r) => toast(`${r.name}: ${t(r.error)}`, true));
+      } }, icon("upload"), t("web.upload"))), out,
+      h("p", { class: "muted" }, h("small", {}, t("web.kn_cached", { count: info.answers_stored }))),
+      h("button", { class: "ghost", onclick: () => attempt(() => api("/api/addons/assistant/answers", { method: "DELETE" }), t("web.saved")) }, t("web.kn_forget")));
+  };
+  await draw();
+  return panel;
+}
+
 async function assistant(box, data, opts) {
   const section = data.config.assistant;
   const info = await status("/api/addons/assistant/status");
-  const provider = h("select", {}, ["mistral", "openai", "custom"].map((p) => h("option", { value: p, selected: p === section.provider }, t(`web.as_provider_${p}`))));
+  const provider = h("select", {}, ["mistral", "openai", "anthropic", "gemini", "grok", "ollama", "custom"].map((p) => h("option", { value: p, selected: p === section.provider }, t(`web.as_provider_${p}`))));
   const model = h("input", { value: section.model, placeholder: t("web.as_model_placeholder") });
   const url = h("input", { value: section.base_url || "", placeholder: "https://…/v1" });
   const location = h("input", { value: section.location, placeholder: "Berlin" });
@@ -301,12 +333,17 @@ async function assistant(box, data, opts) {
   const length = h("input", { type: "number", min: 50, max: 2000, value: section.max_answer_tokens });
   const turns = h("input", { type: "number", min: 0, max: 10, value: section.history_turns });
   const speech = h("input", { type: "checkbox", checked: section.speech_output });
+  const share = h("input", { type: "checkbox", checked: section.share_documents });
+  const paperless = h("input", { type: "url", value: section.paperless_url || "", placeholder: "http://192.168.178.20:8000" });
+  const nextcloud = h("input", { type: "url", value: section.nextcloud_url || "", placeholder: "https://cloud.example.org" });
+  const nextUser = h("input", { value: section.nextcloud_user || "" });
   const keys = h("div");
   let saveKeys = null;
   const button = h("button", { class: "primary", onclick: async () => {
     if (saveKeys) saveKeys();
     await save("assistant", { ...section, provider: provider.value, model: model.value.trim(), base_url: url.value.trim() || null, location: location.value.trim(),
-      daily_token_limit: Number(limit.value), max_answer_tokens: Number(length.value), history_turns: Number(turns.value), speech_output: speech.checked }, opts);
+      daily_token_limit: Number(limit.value), max_answer_tokens: Number(length.value), history_turns: Number(turns.value), speech_output: speech.checked,
+      share_documents: share.checked, paperless_url: paperless.value.trim() || null, nextcloud_url: nextcloud.value.trim() || null, nextcloud_user: nextUser.value.trim() }, opts);
   } }, icon("check"), t("web.save"));
   fill(box,
     info ? askPanel(info) : null,
@@ -314,7 +351,12 @@ async function assistant(box, data, opts) {
       field(t("web.as_provider"), provider), field(t("web.as_model"), model, t("web.as_model_hint")), field(t("web.as_base_url"), url),
       field(t("web.as_location"), location, t("web.as_location_hint")), field(t("web.as_limit"), limit, t("web.as_limit_hint")),
       field(t("web.as_length"), length), field(t("web.as_turns"), turns),
-      h("label", { class: "check" }, speech, t("web.as_speech_output")), keys, button),
+      h("label", { class: "check" }, speech, t("web.as_speech_output")),
+      h("h3", {}, t("web.as_documents")), h("p", { class: "muted" }, t("web.as_documents_hint")),
+      h("label", { class: "check" }, share, t("web.as_share")),
+      field("Paperless-ngx", paperless), field("Nextcloud", nextcloud), field(t("web.as_nextcloud_user"), nextUser),
+      keys, button),
+    info ? await knowledgePanel(info) : null,
     h("p", { class: "muted" }, h("small", {}, t("web.as_privacy"))));
   const view = await import("./settings.js");
   await view.render(keys, [], { embedded: true, groups: ["assistant"], register: (fn) => { saveKeys = fn; }, onSaved: () => {} });

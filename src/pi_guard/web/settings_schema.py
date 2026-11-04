@@ -60,6 +60,8 @@ FIELDS = (
     Field("wireguard_endpoint", "network", "text"),
     Field("assistant_api_key", "assistant", "secret"),
     Field("assistant_deepl_key", "assistant", "secret"),
+    Field("assistant_paperless_token", "assistant", "secret"),
+    Field("assistant_nextcloud_password", "assistant", "secret"),
     Field("whatsapp_enabled", "whatsapp", "bool"),
     Field("whatsapp_phone_number_id", "whatsapp", "text"),
     Field("whatsapp_access_token", "whatsapp", "secret"),
@@ -68,6 +70,9 @@ FIELDS = (
     Field("whatsapp_admin_numbers", "whatsapp", "list"),
     Field("whatsapp_allowed_numbers", "whatsapp", "list"),
     Field("whatsapp_alert_template", "whatsapp", "text"),
+    Field("dashboard_auth", "dashboard", "list"),
+    Field("dashboard_public_url", "dashboard", "text"),
+    Field("dashboard_trusted_proxies", "dashboard", "list"),
     Field("webpush_enabled", "dashboard", "bool"),
     Field("dashboard_honeypot", "dashboard", "bool"),
     Field("dashboard_ban_minutes", "dashboard", "int", 1, 10080),
@@ -75,7 +80,8 @@ FIELDS = (
 )
 BY_KEY = {f.key: f for f in FIELDS}
 SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password", "dashboard_secret_key",
-           "assistant_api_key", "assistant_deepl_key", "whatsapp_access_token",
+           "assistant_api_key", "assistant_deepl_key", "assistant_paperless_token",
+           "assistant_nextcloud_password", "whatsapp_access_token",
            "whatsapp_app_secret", "whatsapp_verify_token")  # fmt: skip
 
 

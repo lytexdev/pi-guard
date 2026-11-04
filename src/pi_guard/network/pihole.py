@@ -13,10 +13,15 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
 log = logging.getLogger(__name__)
+
+
+DOMAIN_BATCH = 500
+GRAVITY_TIMEOUT = 300
 
 
 class PiholeError(Exception):
@@ -123,6 +128,53 @@ class Pihole:
                 datetime.fromtimestamp(last, UTC) if last else None, int(d.get("numQueries", 0)),
             ))  # fmt: skip
         return devices
+
+    # --- block lists --------------------------------------------------------------------
+
+    async def block_lists(self) -> list[dict[str, Any]]:
+        data = await self.request("GET", "/api/lists", params={"type": "block"})
+        return [
+            {"address": x["address"], "comment": x.get("comment") or "",
+             "enabled": bool(x.get("enabled")), "domains": x.get("number", 0),
+             "updated": x.get("date_updated")}
+            for x in data.get("lists", [])
+        ]  # fmt: skip
+
+    async def add_block_list(self, address: str, comment: str) -> None:
+        await self.request("POST", "/api/lists", params={"type": "block"}, json={
+            "address": address, "comment": comment, "groups": [0], "enabled": True})  # fmt: skip
+
+    async def set_block_list(self, address: str, enabled: bool, comment: str) -> None:
+        await self.request("PUT", f"/api/lists/{quote(address, safe='')}", params={"type": "block"},
+                           json={"enabled": enabled, "comment": comment, "groups": [0],
+                                 "type": "block"})  # fmt: skip
+
+    async def delete_block_list(self, address: str) -> None:
+        await self.request("DELETE", f"/api/lists/{quote(address, safe='')}",
+                           params={"type": "block"})  # fmt: skip
+
+    async def deny_domains(self, domains: list[str], comment: str) -> int:
+        """Add domains from an uploaded file; returns how many Pi-hole took."""
+        added = 0
+        for start in range(0, len(domains), DOMAIN_BATCH):
+            part = domains[start : start + DOMAIN_BATCH]
+            data = await self.request("POST", "/api/domains/deny/exact", json={
+                "domain": part, "comment": comment, "groups": [0], "enabled": True})  # fmt: skip
+            added += len((data.get("processed") or {}).get("success") or part)
+        return added
+
+    async def update_gravity(self) -> bool:
+        """Download all lists again. Takes a while; True if Pi-hole finished without error."""
+        try:
+            response = await self._client.post(
+                "/api/action/gravity", timeout=GRAVITY_TIMEOUT,
+                headers={"X-FTL-SID": self._sid} if self._sid else {},
+            )  # fmt: skip
+        except httpx.HTTPError as exc:
+            raise PiholeError(f"Pi-hole not reachable: {type(exc).__name__}") from exc
+        if response.status_code >= 400:
+            raise PiholeError(f"Pi-hole answered {response.status_code}")
+        return "Done" in response.text or "done" in response.text
 
     async def close(self) -> None:
         if self._sid:

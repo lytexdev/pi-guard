@@ -1,5 +1,6 @@
 // Pi-hole statistics and blocking, WireGuard peers, devices in the LAN.
-import { api, attempt, confirmDialog, fill, h, icon, t, when } from "../api.js";
+import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { topologyPanel } from "./topology.js";
 import { meter } from "./overview.js";
 import { restartPrompt } from "./settings.js";
 
@@ -97,19 +98,85 @@ function wireguardPanel(d, redraw) {
   return panel;
 }
 
+function deviceDialog(device) {
+  const body = h("div", { class: "stack" }, h("p", { class: "muted" }, t("web.dev_scanning")));
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, device.trusted || device.name || device.ip || device.ips?.[0] || device.mac), body,
+    h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+  const ip = device.ip || device.ips?.[0];
+  if (!ip) { fill(body, h("p", { class: "muted" }, t("web.nothing"))); return; }
+  const query = new URLSearchParams({ mac: device.mac || "", vendor: device.vendor || "" });
+  attempt(() => api(`/api/network/device/${encodeURIComponent(ip)}?${query}`)).then((r) => {
+    if (!r) { fill(body, h("p", { class: "notice danger" }, t("web.error"))); return; }
+    const row = (label, value) => (value ? [h("dt", {}, label), h("dd", {}, value)] : null);
+    fill(body, h("dl", { class: "kv" },
+      row(t("web.dev_kind"), t(`web.dev_kind_${r.kind}`)), row(t("web.dev_system"), t(`web.dev_system_${r.system}`)),
+      row(t("web.dev_maker"), r.maker || device.vendor), row(t("web.address"), ip), row("MAC", device.mac),
+      row(t("web.dev_hostname"), r.name), row(t("web.dev_latency"), r.latency_ms != null ? `${r.latency_ms} ms` : null), row("TTL", r.ttl),
+      row(t("web.dev_web"), [r.web_title, r.web_server].filter(Boolean).join(" · ")),
+      row(t("web.dev_private"), r.private_mac ? t("web.yes") : null)),
+      h("h3", {}, t("web.dev_ports")),
+      r.ports.length ? h("div", { class: "row wrap" }, r.ports.map((p) => h("span", { class: "badge" }, `${p.port} ${p.service}`))) : h("p", { class: "muted" }, t("web.dev_no_ports")),
+      h("p", { class: "muted" }, h("small", {}, t("web.dev_estimate"))));
+  });
+}
+
+async function blockPanel(enabled) {
+  if (!enabled) return null;
+  const panel = h("section", { class: "panel stack" });
+  const draw = async () => {
+    const data = await api("/api/network/blocklists").catch(() => null);
+    if (!data) { fill(panel, h("h2", {}, t("web.bl_title")), h("p", { class: "muted" }, t("web.error"))); return; }
+    const refresh = async () => { await attempt(() => api("/api/network/blocklists/update", { method: "POST" }), t("web.bl_updating")); draw(); };
+    const add = async (address, comment) => { if (await attempt(() => api("/api/network/blocklists", { method: "POST", body: { address, comment } }), t("web.bl_added"))) draw(); };
+    const url = h("input", { type: "url", placeholder: "https://…/hosts.txt", "aria-label": t("web.bl_url") });
+    const file = h("input", { type: "file", accept: ".txt,text/plain", "aria-label": t("web.bl_file") });
+    const known = new Set(data.lists.map((l) => l.address));
+    fill(panel, h("div", { class: "row between" }, h("h2", {}, icon("shield-lock"), " ", t("web.bl_title")),
+      h("button", { disabled: data.updating, onclick: refresh }, icon("refresh"), data.updating ? t("web.bl_updating") : t("web.bl_update"))),
+      h("p", { class: "muted" }, t("web.bl_intro")),
+      h("ul", { class: "list" }, data.lists.map((l) => {
+        const on = h("input", { type: "checkbox", checked: l.enabled, "aria-label": l.address });
+        on.addEventListener("change", () => attempt(() => api("/api/network/blocklists", { method: "PUT", body: { address: l.address, enabled: on.checked, comment: l.comment } }), t("web.saved")));
+        return h("li", {}, on, h("div", { class: "grow clip" }, h("div", { class: "mono" }, l.address), h("small", {}, `${l.domains.toLocaleString()} ${t("web.bl_domains")}${l.comment ? ` · ${l.comment}` : ""}`)),
+          h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+            if (await confirmDialog(t("web.bl_delete"), t("web.delete"), true) && await attempt(() => api("/api/network/blocklists", { method: "DELETE", body: { address: l.address } }))) draw();
+          } }, icon("trash")));
+      })),
+      h("h3", {}, t("web.bl_presets")),
+      h("div", { class: "row wrap" }, data.presets.filter((p) => !known.has(p.address)).map((p) => h("button", { onclick: () => add(p.address, p.name) }, icon("plus"), `${p.name} (${t(`web.bl_kind_${p.kind}`)})`))),
+      h("h3", {}, t("web.bl_add")),
+      h("div", { class: "row" }, url, h("button", { onclick: () => url.value && add(url.value.trim(), "pi-guard") }, icon("plus"), t("web.add"))),
+      h("h3", {}, t("web.bl_file")), h("p", { class: "muted" }, h("small", {}, t("web.bl_file_hint"))),
+      h("div", { class: "row" }, file, h("button", { onclick: async () => {
+        if (!file.files.length) return;
+        const form = new FormData();
+        form.append("file", file.files[0], file.files[0].name);
+        const r = await attempt(() => api("/api/network/blocklists/upload", { method: "POST", body: form }));
+        if (r) { toast(t("web.bl_uploaded", { added: r.added, skipped: r.skipped })); file.value = ""; }
+      } }, icon("upload"), t("web.upload"))));
+  };
+  await draw();
+  return panel;
+}
+
 function devicesPanel(devices, redraw) {
-  return h("section", { class: "panel" },
+  return h("section", { class: "panel devices" },
     h("h2", {}, t("web.lan_devices"), ` (${devices.length})`),
     h("p", { class: "muted" }, h("small", {}, t("web.lan_hint"))),
     h("div", { class: "table-wrap" }, h("table", {},
-      h("thead", {}, h("tr", {}, ["web.device_name", "web.address", "MAC", "web.vendor", "web.last_seen", ""].map((k) => h("th", {}, k.startsWith("web.") ? t(k) : k)))),
+      h("thead", {}, h("tr", {}, ["web.device_name", "web.dev_kind", "web.address", "MAC", "web.vendor", "web.last_seen", ""].map((k) => h("th", {}, k.startsWith("web.") ? t(k) : k)))),
       h("tbody", {}, devices.map((d) => h("tr", {},
         h("td", {}, d.trusted ? [icon("shield-check"), " "] : null, d.trusted || d.name || "–"),
+        h("td", {}, d.details ? `${t(`web.dev_kind_${d.details.kind}`)} · ${t(`web.dev_system_${d.details.system}`)}` : "–"),
         h("td", { class: "mono" }, d.ips.join(", ")),
         h("td", { class: "mono" }, d.mac, d.randomized ? h("span", { class: "badge", title: t("web.random_mac") }, "R") : null),
         h("td", {}, d.vendor || "–"),
         h("td", {}, d.last_query ? when(d.last_query) : d.state ? d.state.toLowerCase() : "–"),
-        h("td", {}, d.trusted ? null : h("button", { class: "icon-only", title: t("web.trust_device"), onclick: async () => {
+        h("td", { class: "actions" }, h("button", { class: "icon-only", title: t("web.dev_details"), onclick: () => deviceDialog(d) }, icon("zoom-in")),
+          d.trusted ? null : h("button", { class: "icon-only", title: t("web.trust_device"), onclick: async () => {
           const name = prompt(t("web.trust_device_name"), d.name || "");
           if (!name) return;
           if (await attempt(() => api("/api/network/trust", { method: "POST", body: { mac: d.mac, name } }), t("web.saved"))) restartPrompt();
@@ -119,11 +186,15 @@ function devicesPanel(devices, redraw) {
 export async function render(main, data) {
   const redraw = async () => {
     const fresh = await api("/api/network");
-    fill(main, main.firstChild, build(fresh));
+    const old = [...main.querySelectorAll(":scope > .grid.wide, :scope > section.devices")];
+    const [grid, devices] = build(fresh);
+    old[0]?.replaceWith(grid);
+    old[1]?.replaceWith(devices);
   };
   const build = (d) => [
     h("div", { class: "grid wide" }, piholePanel(d.pihole, redraw), wireguardPanel(d, redraw)),
     devicesPanel(d.devices, redraw),
   ];
-  main.append(...build(data));
+  const [map, block] = await Promise.all([topologyPanel(deviceDialog), blockPanel(data.pihole_enabled)]);
+  main.append(...[map, ...build(data), block].filter(Boolean));
 }

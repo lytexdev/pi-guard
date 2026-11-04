@@ -61,12 +61,26 @@ def test_custom_sound_names_are_restricted(tmp_path: Path) -> None:
     upload = tmp_path / "x.ogg"
     upload.write_bytes(b"x")
     with pytest.raises(ValueError):
-        library.save("doorbell", upload)  # cannot shadow a built-in
-    with pytest.raises(ValueError):
         library.save("Bad Name", upload)
     saved = library.save("hallo", upload)
     assert library.path("hallo") == saved and "hallo" in library.names()
     assert library.delete("hallo") and not saved.exists()
+
+
+def test_built_in_sounds_can_be_replaced_renamed_and_restored(tmp_path: Path) -> None:
+    library = SoundLibrary(tmp_path)
+    upload = tmp_path / "x.ogg"
+    upload.write_bytes(b"x")
+    own = library.save("doorbell", upload)
+    assert library.path("doorbell") == own and library.is_replaced("doorbell")
+    assert library.delete("doorbell") and library.path("doorbell") is None
+    assert "doorbell" not in library.names()
+    assert library.rename("chime", "klingel")
+    assert "chime" not in library.names() and "klingel" in library.names()
+    assert not library.rename("klingel", "warning")  # taken
+    library.restore_builtin()
+    assert {"doorbell", "chime", "warning"} <= set(library.names())
+    assert library.path("doorbell") is not None
 
 
 def service(tmp_path: Path, db: Any, **kw: Any) -> AudioService:

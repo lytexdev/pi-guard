@@ -2,6 +2,9 @@
 import { api, attempt, h, icon, t, fill } from "../api.js";
 import { restartPrompt } from "./settings.js";
 
+const NEW_CAMERA = { source: "usb", room: "", enabled: true, resolution: "1280x720", fps: 15, input_format: "auto", codec: "auto", bitrate: "2M",
+  recording: true, retention_days: null, motion_detection: true, motion: { sensitivity: null, min_area_percent: 0.4, min_duration_seconds: 1,
+    analysis_fps: 4, analysis_width: 320, zones: [], schedule: [] }, snapshot_interval_seconds: 1, microphone: null, speaker: null };
 const field = (label, el) => h("div", { class: "field" }, h("label", { for: el.id }, label), el);
 let uid = 0;
 const id = () => `d${++uid}`;
@@ -13,13 +16,16 @@ function select(options, value, allowNone) {
 }
 
 function cameraEditor(camera, devices, mics, remove) {
-  const dev = select(devices.cameras.map((c) => [c.path, `${c.name} – ${c.path.split("/").pop()}`]), camera.device);
+  const usb = (camera.source || "usb") === "usb";
+  const dev = usb ? select(devices.cameras.map((c) => [c.path, `${c.name} – ${c.path.split("/").pop()}`]), camera.device)
+    : h("input", { id: id(), value: camera.device, placeholder: { rtsp: "rtsp://user:password@192.168.178.50:554/stream1", http: "http://192.168.178.50:81/stream", picamera: "0" }[camera.source] });
   const sizes = () => {
     const found = devices.cameras.find((c) => c.path === dev.value);
     return [...new Set((found?.formats || []).flatMap((f) => f.sizes))];
   };
-  const res = select(sizes().map((s) => [s, s]), camera.resolution);
-  dev.addEventListener("change", () => fill(res, ...sizes().map((s) => h("option", { value: s }, s))));
+  const res = usb ? select(sizes().map((s) => [s, s]), camera.resolution) : h("input", { id: id(), value: camera.resolution, pattern: "[0-9]+x[0-9]+" });
+  if (usb) dev.addEventListener("change", () => fill(res, ...sizes().map((s) => h("option", { value: s }, s))));
+  const room = h("input", { id: id(), value: camera.room || "", maxlength: 40, placeholder: t("web.room_placeholder"), list: "rooms" });
   const name = h("input", { id: id(), value: camera.name, maxlength: 40 });
   const fps = h("input", { id: id(), type: "number", min: 1, max: 60, value: camera.fps });
   const enabled = h("input", { id: id(), type: "checkbox", checked: camera.enabled });
@@ -30,13 +36,17 @@ function cameraEditor(camera, devices, mics, remove) {
   const panel = h("section", { class: "panel" },
     h("div", { class: "row between" }, h("h2", {}, camera.name || camera.id),
       h("button", { class: "icon-only danger", title: t("web.delete"), onclick: remove }, icon("trash"))),
-    field(t("web.name"), name), field(t("web.device"), dev), field(t("web.resolution"), res), field(t("web.fps"), fps),
+    field(t("web.name"), name), field(t("web.room"), room),
+    h("p", {}, h("span", { class: "badge" }, t(`web.source_${camera.source || "usb"}`))),
+    field(usb ? t("web.device") : t("web.source_address"), dev),
+    usb ? null : h("div", { class: "hint" }, t(`web.source_${camera.source}_hint`)),
+    field(t("web.resolution"), res), field(t("web.fps"), fps),
     h("label", { class: "check" }, enabled, t("web.enabled")),
     h("label", { class: "check" }, recording, t("web.recording")),
     h("label", { class: "check" }, motion, t("web.motion_detection")),
     field(t("web.sensitivity"), sens), field(t("web.microphone_in_video"), mic));
   panel.read = () => ({
-    ...camera, name: name.value, device: dev.value, resolution: res.value, fps: Number(fps.value),
+    ...camera, name: name.value, room: room.value.trim(), device: dev.value.trim(), resolution: res.value, fps: Number(fps.value),
     enabled: enabled.checked, recording: recording.checked, motion_detection: motion.checked,
     motion: { ...camera.motion, sensitivity: Number(sens.value) }, microphone: mic.value || null,
   });
@@ -81,12 +91,10 @@ export async function render(main, params = [], opts = {}) {
   opts.register?.(() => save.click());
   fill(main,
     opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t("web.nav_devices")), save),
-    h("h3", {}, t("web.cameras")), cameraPanels,
+    h("h3", {}, t("web.cameras")), h("datalist", { id: "rooms" }, [...new Set(config.cameras.map((c) => c.room).filter(Boolean))].map((r) => h("option", { value: r }))), cameraPanels,
+    h("div", { class: "row wrap" }, ["rtsp", "http", "picamera"].map((source) => h("button", { onclick: () => addCamera({ ...NEW_CAMERA, id: `${source}_${Date.now() % 100000}`, name: t(`web.source_${source}`), source, device: source === "picamera" ? "0" : "" }) }, icon("plus"), t(`web.source_add_${source}`)))),
     h("div", { class: "row" }, devices.cameras.filter((c) => !config.cameras.some((x) => x.device === c.path)).map((c) =>
-      h("button", { onclick: () => addCamera({ id: c.slug, name: c.name, device: c.path, enabled: true, resolution: "1280x720",
-        fps: 15, input_format: "auto", codec: "auto", bitrate: "2M", recording: true, retention_days: null,
-        motion_detection: true, motion: { sensitivity: null, min_area_percent: 0.4, min_duration_seconds: 1, analysis_fps: 4,
-        analysis_width: 320, zones: [], schedule: [] }, snapshot_interval_seconds: 1, microphone: null, speaker: null }) },
+      h("button", { onclick: () => addCamera({ ...NEW_CAMERA, id: c.slug, name: c.name, device: c.path }) },
         icon("plus"), `${t("web.add")}: ${c.name}`))),
     h("div", { class: "grid wide" },
       h("section", { class: "panel" }, h("h2", {}, t("web.audio")),

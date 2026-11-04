@@ -166,9 +166,16 @@ async function soundsPanel(features) {
         h("span", { class: "grow" }, name, s.alarm_sound === name ? h("span", { class: "badge danger" }, t("web.alarm_sound")) : null),
         h("button", { class: "icon-only", title: t("web.play"), onclick: () => attempt(() => api(`/api/sounds/${name}/play`, { method: "POST" })) }, icon("player-play")),
         h("button", { class: "icon-only", title: t("web.use_as_alarm"), onclick: async () => { await attempt(() => api("/api/sounds/alarm", { method: "PUT", body: { name } }), t("web.saved")); draw(); } }, icon("alarm")),
-        ["doorbell", "chime", "warning"].includes(name) ? null
-          : h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { await attempt(() => api(`/api/sounds/${name}`, { method: "DELETE" })); draw(); } }, icon("trash"))))),
-      h("h3", {}, t("web.sound_upload")), upload);
+        h("button", { class: "icon-only", title: t("web.rename"), onclick: async () => {
+          const next = prompt(t("web.new_name"), name);
+          if (next && next !== name && await attempt(() => api(`/api/sounds/${name}`, { method: "PATCH", body: { name: next } }), t("web.saved"))) draw();
+        } }, icon("pencil")),
+        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+          if (await confirmDialog(t("web.sound_delete_confirm", { name }), t("web.delete"), true)
+              && await attempt(() => api(`/api/sounds/${name}`, { method: "DELETE" }))) draw();
+        } }, icon("trash"))))),
+      h("h3", {}, t("web.sound_upload")), h("p", { class: "muted" }, h("small", {}, t("web.sound_replace_hint"))), upload,
+      h("button", { class: "ghost", onclick: async () => { await attempt(() => api("/api/sounds-restore", { method: "POST" }), t("web.saved")); draw(); } }, icon("refresh"), t("web.sounds_restore")));
   };
   await draw();
   return panel;
@@ -238,6 +245,10 @@ export async function render(main, params) {
           h("button", { onclick: () => pan.zoom(1 / 1.5) }, icon("zoom-out"), t("web.zoom_out")),
           h("button", { onclick: () => stage.requestFullscreen?.() }, icon("maximize"), t("web.fullscreen")),
           h("button", { onclick: photo }, icon("photo"), t("web.photo")),
+          h("button", { onclick: async () => {
+            const minutes = Number(prompt(t("web.ev_minutes"), "5"));
+            if (minutes && await attempt(() => api("/api/evidence", { method: "POST", body: { camera: camera.id, minutes } }))) toast(t("web.ev_started", { minutes }));
+          } }, icon("video"), t("web.ev_button")),
           sharperButton)),
       h("section", { class: "panel stack" },
         h("h2", {}, t("web.talk_and_listen")),

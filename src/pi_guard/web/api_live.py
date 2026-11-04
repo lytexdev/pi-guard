@@ -170,7 +170,7 @@ async def talk(request: web.Request) -> web.Response:
     try:
         if not sniff(path):
             raise web.HTTPBadRequest(text="unsupported audio")
-        await audio.play(path, ignore_quiet_hours=True)
+        await audio.play(path, ignore_quiet_hours=True, speech=True)
     except AudioError as exc:
         raise web.HTTPConflict(text=exc.key) from None
     finally:

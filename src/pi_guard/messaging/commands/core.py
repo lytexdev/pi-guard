@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from typing import Any
 
@@ -21,6 +22,7 @@ from pi_guard.messaging.commands.registry import (
 )
 from pi_guard.recording.segments import ClipError
 
+_running: set[asyncio.Task[None]] = set()  # evidence recordings under way
 MAX_VIDEO_SECONDS = 120
 DEFAULT_VIDEO_SECONDS = 15
 EVENT_TYPES_SHOWN = [
@@ -380,7 +382,45 @@ async def thanks(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     return Reply(ctx.t("intent.thanks"), buttons=(menu_row(ctx),))
 
 
+async def evidence(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    """Record for some minutes with sound and metadata; the result follows by itself."""
+    from pi_guard.recording.evidence import MAX_MINUTES, SEND_LIMIT_BYTES, record_evidence
+
+    minutes = args.get("minutes", 5)
+    pipeline = ctx.camera(args)
+    if pipeline is None:
+        return Reply(ctx.t("evidence.which"), buttons=(
+            *ctx.camera_choice("evidence", str(minutes)), menu_row(ctx)))  # fmt: skip
+    if pipeline.segment_dir is None:
+        return Reply(ctx.t("video.disabled"), buttons=(menu_row(ctx),))
+
+    async def run() -> None:
+        try:
+            result = await record_evidence(ctx.app, pipeline.camera.id, minutes, ctx.user.key)
+        except (OSError, ValueError, ClipError):
+            await ctx.send(Reply(ctx.t("evidence.failed"), buttons=(menu_row(ctx),)))
+            return
+        text = ctx.t("evidence.done", name=pipeline.camera.name, minutes=minutes,
+                     sha=result.sha256[:16], sound=ctx.t("evidence.sound_yes" if result.has_sound
+                                                         else "evidence.sound_no"))  # fmt: skip
+        if result.size > SEND_LIMIT_BYTES:
+            await ctx.send(
+                Reply(text + "\n\n" + ctx.t("evidence.too_big"), buttons=(menu_row(ctx),))
+            )
+        else:
+            await ctx.send(Reply(text, video=result.video, buttons=(menu_row(ctx),)))
+
+    task = asyncio.create_task(run())
+    _running.add(task)
+    task.add_done_callback(_running.discard)
+    return Reply(ctx.t("evidence.started", name=pipeline.camera.name, minutes=minutes,
+                       limit=MAX_MINUTES), buttons=(menu_row(ctx),))  # fmt: skip
+
+
 def register(registry: Registry) -> None:
+    registry.add(Command("evidence", evidence, ("beweis", "beweisvideo"),
+                         (CameraArg(), IntArg("minutes", 1, 30)), role=Role.ADMIN,
+                         help_key="help.evidence", menu=False))  # fmt: skip
     registry.add(Command("thanks", thanks, ("danke",), menu=False))
     registry.add(
         Command("menu", menu, ("start", "m", "menü", "menue", "hauptmenü"), help_key="help.menu")

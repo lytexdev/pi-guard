@@ -7,7 +7,9 @@ chat providers (messaging/commands/addons.py) use the classes in this package.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from pi_guard.addons.plugin import load_plugins
 
 if TYPE_CHECKING:
     from pi_guard.addons.analytics import NetworkAnalytics
@@ -16,6 +18,8 @@ if TYPE_CHECKING:
     from pi_guard.addons.remote import RemoteActions
     from pi_guard.addons.smarthome import SmartHome
     from pi_guard.app import App
+    from pi_guard.config.files import AssistantAddon
+    from pi_guard.config.settings import Settings
 
 
 class Addons:
@@ -47,12 +51,15 @@ class Addons:
             self.remote = RemoteActions(settings.remote.actions, s.data_dir)
         if settings.assistant.enabled:
             from pi_guard.addons.assistant import Assistant
+            from pi_guard.addons.knowledge import Knowledge
 
             api_key = s.assistant_api_key.get_secret_value() if s.assistant_api_key else None
             deepl = s.assistant_deepl_key.get_secret_value() if s.assistant_deepl_key else None
             self.assistant = Assistant(
-                settings.assistant, app.db, s.tz, api_key or None, deepl or None, app.media_dir
-            )
+                settings.assistant, app.db, s.tz, api_key or None, deepl or None, app.media_dir,
+                Knowledge(s.data_dir / "knowledge.db"), _searchers(settings.assistant, s),
+            )  # fmt: skip
+        self.plugins = load_plugins(app, settings.plugins)
 
     def components(self) -> dict[str, Callable[[], Awaitable[None]]]:
         parts: dict[str, Callable[[], Awaitable[None]]] = {}
@@ -60,4 +67,20 @@ class Addons:
             parts["addon:heartbeat"] = self.heartbeat.run
         if self.smarthome is not None:
             parts["addon:smarthome"] = self.smarthome.run
+        for plugin in self.plugins:
+            parts[f"plugin:{plugin.id}"] = plugin.run
         return parts
+
+
+def _searchers(config: AssistantAddon, s: Settings) -> tuple[Any, ...]:
+    from pi_guard.addons.documents import Nextcloud, Paperless
+
+    found: list[Any] = []
+    token = s.assistant_paperless_token
+    if config.paperless_url and token:
+        found.append(Paperless(config.paperless_url, token.get_secret_value()))
+    password = s.assistant_nextcloud_password
+    if config.nextcloud_url and config.nextcloud_user and password:
+        found.append(Nextcloud(config.nextcloud_url, config.nextcloud_user,
+                               password.get_secret_value()))  # fmt: skip
+    return tuple(found)

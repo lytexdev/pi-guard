@@ -8,6 +8,26 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Login with Telegram (number comparison), passkeys and hardware keys (WebAuthn), TOTP
+  recovery codes and an optional code word.
+- Dashboard behind a domain and reverse proxy: public URL, host name check, secure cookies.
+- Security analysis under Logs; interactive network map; redesigned overview.
+- Accessibility panel: text size and spacing, colours, colour blindness filters, reading
+  aloud, large pointer, reading ruler, magnifier, tutorial.
+- Notification switches per kind of message, effective at once.
+- Cameras by RTSP, HTTP/MJPEG (ESP32-CAM) and the Raspberry Pi camera module; rooms.
+- Evidence videos with sound, metadata and SHA-256 (`/beweis`).
+- Device details (kind, system, open services) and Pi-hole block lists in the dashboard.
+- Built-in sounds can be replaced, renamed, deleted and restored.
+- AI assistant: Claude, Gemini, Grok and Ollama; knowledge from TXT, MD, JSON and PDF;
+  Paperless-ngx and Nextcloud; stored answers to frequent questions.
+- Plugin API; `scripts/mqtt.sh` provides a broker.
+
+### Fixed
+
+- Speech through the speaker was inaudible: hardware mixer at -24 dB and quiet recordings.
+- The link to Pi-hole used 127.0.0.1 instead of the address of the Pi.
+
 - Add-ons, chosen in the setup assistant and managed in the dashboard, with commands
   in every messenger: service watcher, network analysis (from Pi-hole), smart home
   over MQTT with Home Assistant discovery, remote commands over SSH with two
