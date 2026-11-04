@@ -37,7 +37,7 @@ export async function render(main, params = [], opts = {}) {
       if (!check()) return;
       const result = await attempt(() => api(`/api/people/${encodeURIComponent(name.value.trim())}/camera`,
         { method: "POST", body: { camera: camSel.value, consent: true } }));
-      if (result) { status.textContent = t("web.enroll_camera_ok", { total: result.total }); drawList(); }
+      if (result) { fill(status, t("web.enroll_camera_ok", { total: result.total }), qualityView(result.quality)); drawList(); }
     } }, icon("camera"), t("faces.camera_button"));
     fill(formPanel,
       h("h2", {}, preset ? t("faces.more_button", { name: preset }) : t("faces.add_button")),
@@ -53,11 +53,11 @@ export async function render(main, params = [], opts = {}) {
   const drawList = async () => {
     const people = await api("/api/people");
     fill(listPanel, h("h2", {}, t("faces.list_button")),
-      h("ul", { class: "list" }, people.length ? people.map((p) => h("li", {},
+      h("ul", { class: "list" }, people.length ? people.map((p) => h("li", { class: "person-row" },
         icon("user-check", "lg"),
         h("div", { class: "grow" }, h("div", {}, p.name), h("small", {}, t("web.samples_since", { samples: p.samples, date: when(p.enrolled) })),
           p.similar_to ? h("small", { class: "warn-text" }, h("br"), t("web.similar_warning", { other: p.similar_to })) : null,
-          !p.similar_to && p.few_samples ? h("small", { class: "muted" }, h("br"), t("web.few_samples")) : null),
+        ),
         h("button", { class: "icon-only", title: t("faces.more_button", { name: p.name }), onclick: () => { enrollForm(p.name); formPanel.scrollIntoView({ behavior: "smooth" }); } }, icon("plus")),
         h("button", { class: "icon-only", title: t("web.pp_details"), onclick: () => detailsDialog(p, drawList) }, icon("list-details")),
         h("button", { class: "icon-only", title: t("web.rename"), onclick: async () => {
@@ -67,7 +67,7 @@ export async function render(main, params = [], opts = {}) {
         h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
           if (await confirmDialog(t("web.delete_person_confirm", { name: p.name }), t("web.delete"), true)
               && await attempt(() => api(`/api/people/${encodeURIComponent(p.name)}`, { method: "DELETE" }), t("web.deleted"))) drawList();
-        } }, icon("trash"))))
+        } }, icon("trash")), qualityView(p.quality)))
         : h("li", { class: "empty" }, t("faces.none"))),
       h("p", { class: "muted" }, h("small", {}, t("web.faces_privacy"))));
   };
@@ -87,7 +87,20 @@ function enrollSummary(result) {
     reasons.length ? h("small", { class: "muted" }, h("br"), t("web.enroll_reasons"), " ",
       reasons.map(([key, count]) => `${t(key)} (${count}×)`).join(" · ")) : null,
     notes.map((note) => h("small", { class: "warn-text" }, h("br"), note)),
+    result.total ? qualityView(result.quality) : null,
   ];
+}
+
+// How well someone is learned and what would help most. An estimate, the test below is the proof.
+function qualityView(q) {
+  if (!q) return null;
+  const bar = h("i");
+  bar.style.width = `${q.score}%`;
+  const meter = h("div", { class: `meter${{ weak: " danger", ok: " warn", good: "" }[q.level]}`, role: "img", "aria-label": t("web.pq_score", { score: q.score }) }, bar);
+  return h("div", { class: "quality", title: t("web.pq_tip") },
+    h("div", { class: "row between" }, h("small", {}, t(`web.pq_${q.level}`)), h("small", {}, t("web.pq_score", { score: q.score }))), meter,
+    h("small", { class: "muted" }, t("web.pq_views", q.views)),
+    q.tips.length ? h("ul", { class: "quality-tips" }, q.tips.map((tip) => h("li", {}, h("small", {}, t(tip.key, tip))))) : null);
 }
 
 function testPanel() {
@@ -124,6 +137,7 @@ async function detailsDialog(person, redraw) {
   const list = h("ul", { class: "list" });
   const draw = (items) => fill(list, items.map((r) => h("li", {}, icon("photo"),
     h("div", { class: "grow" }, h("div", {}, when(r.created)), h("small", {}, t("web.pp_sample", { numbers: r.numbers, bytes: r.bytes, match: Math.round(r.match * 100) }))),
+    r.pose ? h("span", { class: "badge" }, t(`web.pq_view_${r.pose}`)) : null,
     r.match < 0.45 ? h("span", { class: "badge danger" }, t("web.pp_odd")) : null,
     h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
       if (await attempt(() => api(`/api/people-samples/${r.id}`, { method: "DELETE" }))) { items = items.filter((x) => x.id !== r.id); draw(items); redraw(); }

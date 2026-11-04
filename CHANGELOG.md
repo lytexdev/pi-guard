@@ -8,6 +8,9 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- A bar shows how well a trusted person is learned and which pictures would help; slightly turned
+  faces are accepted now. Viewing direction and brightness are stored with each sample.
+- FRITZ!Box user name in the settings.
 - Brand icons for messengers and services, and a choice of AI providers with their icons.
 - Settings search looks through all tabs and jumps to the setting.
 - Login methods and time zone are chosen from lists instead of typed.

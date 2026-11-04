@@ -44,9 +44,10 @@ def build_sources(
             sources.append(PiholeSource(pihole))
         else:
             password = settings.fritzbox_password
-            sources.append(
-                FritzBoxSource(presence.fritzbox, password.get_secret_value() if password else None)
-            )
+            box = presence.fritzbox
+            if settings.fritzbox_username:
+                box = box.model_copy(update={"username": settings.fritzbox_username})
+            sources.append(FritzBoxSource(box, password.get_secret_value() if password else None))
     return sources
 
 

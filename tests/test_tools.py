@@ -596,3 +596,10 @@ def test_login_methods_are_chosen_from_the_list() -> None:
     with pytest.raises(ValueError, match="one of"):
         to_env(BY_KEY["timezone"], "Mars/Olympus")
     assert to_env(BY_KEY["timezone"], "Europe/Berlin") == "Europe/Berlin"
+
+
+def test_fritzbox_user_from_the_settings_is_used(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, data_dir=tmp_path, fritzbox_username="lytex",  # type: ignore[call-arg]
+                        fritzbox_password="x", telegram_enabled=False)  # fmt: skip
+    assert to_env(BY_KEY["fritzbox_username"], " lytex ") == "lytex"
+    assert settings.fritzbox_username == "lytex"

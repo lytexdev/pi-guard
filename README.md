@@ -30,7 +30,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   work on the last photo or alert.
 - **Trusted people (optional).** Enroll family members with a name and photos,
   videos or a picture taken by the camera — or straight from an alert about an
-  unknown person. Unknown people are reported with a photo.
+  unknown person. A bar shows how well each person is learned and which pictures
+  are missing. Unknown people are reported with a photo.
 - **Alarm.** Sound the alarm (or your own uploaded sound) on a speaker, and stop
   it, from the chat.
 - **Emergency contacts.** If alerts stay unconfirmed, backup contacts get a

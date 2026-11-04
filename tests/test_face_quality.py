@@ -14,7 +14,10 @@ from pi_guard.detection.faces import (
     FaceRecognizer,
     Verdict,
     consistent,
+    enrollment_quality,
     person_scores,
+    pose_of,
+    with_context,
 )
 
 RNG = np.random.default_rng(7)
@@ -138,3 +141,74 @@ def test_poor_faces_are_never_known(tmp_path: Path) -> None:
     assert rec.problem(sharp, face(100, nose_offset=0.45), enrolling=True)[0] == "faces.turned"
     assert rec.problem(flat, face(100), enrolling=True)[0] == "faces.blurry"
     assert rec.problem(sharp, face(100, score=0.6), enrolling=True)[0] == "faces.unclear"
+
+
+def rows(front: int, left: int = 0, right: int = 0, match: float = 0.6) -> list[dict[str, Any]]:
+    poses = ["front"] * front + ["left"] * left + ["right"] * right
+    return [{"pose": p, "light": 60.0 + i * 10, "match": match} for i, p in enumerate(poses)]
+
+
+def test_quality_grows_with_number_and_variety() -> None:
+    assert enrollment_quality([], None)["score"] == 0
+    few = enrollment_quality(rows(3), None)
+    assert few["level"] == "weak" and few["views"] == {"front": 3, "left": 0, "right": 0}
+    only_front = enrollment_quality(rows(20), None)
+    varied = enrollment_quality(rows(10, 5, 5), None)
+    assert varied["score"] > only_front["score"] and varied["level"] == "good"
+    assert varied["tips"] == []
+    keys = [t["key"] for t in only_front["tips"]]
+    assert keys == ["faces.tip_left", "faces.tip_right"]
+    assert only_front["tips"][0]["count"] == 3
+
+
+def test_quality_warns_about_look_alikes_and_mixed_pictures() -> None:
+    similar = enrollment_quality(rows(10, 5, 5), "Oma")
+    assert similar["score"] <= 70 and similar["tips"][0] == {
+        "key": "faces.tip_similar",
+        "other": "Oma",
+    }
+    assert (
+        enrollment_quality(rows(10, 5, 5, match=0.3), None)["tips"][0]["key"] == "faces.tip_mixed"
+    )
+
+
+def test_samples_from_before_poses_count_as_front() -> None:
+    old = [{"pose": None, "light": None, "match": 0.6}] * 8
+    assert enrollment_quality(old, None)["views"]["front"] == 8
+
+
+def test_pose_comes_from_the_nose_between_the_eyes() -> None:
+    def face(nose_x: float) -> np.ndarray:
+        row = np.zeros(15, np.float32)
+        row[4:10] = (40, 50, 80, 50, nose_x, 70)
+        return row
+
+    assert pose_of(face(61)) == "front"
+    assert pose_of(face(70)) == "right" and pose_of(face(50)) == "left"
+
+
+def test_pose_and_light_are_stored_and_old_databases_are_upgraded(tmp_path: Path) -> None:
+    import sqlite3
+
+    path = tmp_path / "bio.db"
+    conn = sqlite3.connect(path)
+    conn.executescript("""
+        CREATE TABLE people (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
+            enrolled_at TEXT NOT NULL, enrolled_by TEXT NOT NULL);
+        CREATE TABLE samples (id INTEGER PRIMARY KEY, person_id INTEGER NOT NULL,
+            embedding BLOB NOT NULL, created_at TEXT NOT NULL);
+    """)
+    conn.close()
+    store = BiometricStore(path)
+    store.add("Ben", with_context(identity(), "left", 80.0), "test", 10)
+    store.add("Ben", identity(), "test", 10)  # plain embeddings still work
+    first, second = store.details("Ben")
+    assert (first["pose"], first["light"]) == ("left", 80.0) and second["pose"] is None
+    store.close()
+
+
+def test_context_survives_the_upload_checks() -> None:
+    base = identity()
+    samples = [with_context(v, "right", 100.0) for v in views(base, 4)]
+    kept, _ = consistent(samples)
+    assert all(getattr(s, "pose", None) == "right" for s in kept)

@@ -73,6 +73,7 @@ async def faces(ctx: CommandContext, args: dict[str, Any]) -> Reply:
             datetime.fromisoformat(enrolled), ctx.app.settings.tz, ctx.lang, with_date=True
         )
         lines.append(ctx.t("faces.entry", name=person, samples=samples, date=when))
+        lines.append(ctx.t("faces.quality_line", score=recognizer.quality(person)["score"]))
         rows.append(
             (
                 Button(ctx.t("faces.more_button", name=person), f"enroll name {person}"),
@@ -209,6 +210,14 @@ def _ask_consent(ctx: CommandContext) -> Reply:
     )
 
 
+def _quality_lines(ctx: CommandContext, quality: dict[str, Any]) -> list[str]:
+    lines = [ctx.t("faces.quality_line", score=quality["score"])]
+    for tip in quality["tips"][:1]:
+        values = {k: v for k, v in tip.items() if k != "key"}
+        lines.append(ctx.t("faces.quality_tip", tip=ctx.t(tip["key"], **values)))
+    return lines
+
+
 def _store(ctx: CommandContext, recognizer: FaceRecognizer) -> Reply:
     session = ctx.app.enrollments.pop(ctx.user.key, None)
     if session is None or session.expired or not session.name or not session.samples:
@@ -228,6 +237,8 @@ def _store(ctx: CommandContext, recognizer: FaceRecognizer) -> Reply:
     ]
     if not report.stored:
         lines.append(ctx.t("faces.nothing_stored"))
+    else:
+        lines += _quality_lines(ctx, recognizer.quality(session.name))
     return Reply(
         "\n".join(lines),
         buttons=((ctx.button("faces.list_button", "faces"),), menu_row(ctx)),

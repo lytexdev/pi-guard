@@ -471,3 +471,8 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .provider-choice button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .flash { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
 .search-results h3 { display: flex; align-items: center; gap: 6px; }
+.quality { display: grid; gap: 3px; margin-top: 6px; max-width: 420px; }
+.quality-tips { margin: 2px 0 0; padding-left: 18px; }
+.person-row { flex-wrap: wrap; }
+.person-row .quality { flex: 1 1 100%; max-width: none; }
+.quality-tips li { display: list-item; padding: 0; border: 0; min-height: 0; }

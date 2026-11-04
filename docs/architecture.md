@@ -97,3 +97,14 @@ an SD card: about 250 durable single inserts per second, and 0.2 ms to read the 
   machines share one database. Full-text search also relies on SQLite FTS5.
 - **Celery and Redis** solve work spread over many processes or machines. Here asyncio tasks
   already run the background work; a broker would add two services and another way to fail.
+
+## Where Rust is used
+
+Rust is for small programs that run on their own: the agent on connected computers (`agent/`) has no
+runtime to install and handles untrusted network input.
+
+Pi-guard's own work is not limited by Python. Measured on a Raspberry Pi with one camera: FFmpeg, written
+in C, used about 130 % of a core, the Python service 3 to 8 %. Motion analysis and face models already run in
+native code through OpenCV. Rewriting the service would change little and would need a Rust toolchain or
+prebuilt programs on every Pi. A new service is worth writing in Rust if it is small and stands alone, or if
+it processes every frame or packet itself.

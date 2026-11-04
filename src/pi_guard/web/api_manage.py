@@ -271,9 +271,8 @@ async def people(request: web.Request) -> web.Response:
         other, score = similar.get(name, (None, 0.0))
         rows.append({
             "name": name, "samples": count, "enrolled": enrolled,
-            # Advice: below 10 varied pictures recognition is shaky.
-            "few_samples": count < 10,
             "similar_to": other if other and score >= warn_at else None,
+            "quality": faces.quality(name, similar),
         })  # fmt: skip
     return web.json_response(rows)
 
@@ -324,6 +323,7 @@ async def add_samples(request: web.Request) -> web.Response:
         return web.json_response({
             **result, "stored": report.stored, "total": report.total or _sample_count(faces, name),
             "outliers": report.outliers, "conflicts": report.conflicts,
+            "quality": await asyncio.to_thread(faces.quality, name),
         })  # fmt: skip
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
@@ -411,7 +411,8 @@ async def add_from_camera(request: web.Request) -> web.Response:
     finally:
         photo.unlink(missing_ok=True)
     app.db.audit(_actor(request), "faces.enroll", f"samples={count}")
-    return web.json_response({"stored": 1, "total": count})
+    quality = await asyncio.to_thread(faces.quality, name)
+    return web.json_response({"stored": 1, "total": count, "quality": quality})
 
 
 async def evidence_list(request: web.Request) -> web.Response:

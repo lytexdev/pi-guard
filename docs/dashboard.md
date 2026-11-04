@@ -84,6 +84,15 @@ Browsers only offer a YubiKey or passkey when both of these are true:
 *Access → Set up a hardware key* shows these steps, and a failed attempt shows the browser's own
 error message.
 
+## Trusted people
+
+A bar shows how well each person is learned, with the pictures per viewing direction and the next
+useful step. The score is an estimate from the number of pictures, front and turned views, light and how
+well the pictures agree; look-alikes in the family lower it. *Test with a photo* shows the real result.
+
+Faces turned a little to each side help, because people rarely look into a camera. Both eyes must stay
+visible: the face models cannot use a pure side profile. Pictures enrolled earlier count as front views.
+
 ## Everyday tools
 
 - **Trying out devices:** under *Devices & cameras*, **Test speaker** plays three tones on the chosen

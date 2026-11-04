@@ -140,7 +140,8 @@ class App:
         self.fritz: FritzBox | None = None
         if s.fritzbox_password and s.fritzbox_password.get_secret_value():
             box = config.file.presence.fritzbox
-            self.fritz = FritzBox(box.host, box.username, s.fritzbox_password.get_secret_value())
+            username = s.fritzbox_username or box.username
+            self.fritz = FritzBox(box.host, username, s.fritzbox_password.get_secret_value())
         self.addons = Addons(self)
         self.schedule = ScheduleRunner(self.db, self.modes, s.tz)
         self.scanner = SecurityScan(self)

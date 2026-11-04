@@ -98,6 +98,7 @@ class Settings(BaseSettings):
     mqtt_home_assistant_discovery: bool = False
     mqtt_commands_enabled: bool = False
 
+    fritzbox_username: str = ""  # empty: the file setting, or the user the box names
     fritzbox_password: SecretStr | None = None
 
     # Emergency contacts: written to when alerts stay unacknowledged.

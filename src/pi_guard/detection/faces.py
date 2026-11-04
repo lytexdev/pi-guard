@@ -9,7 +9,7 @@ Results are deliberately three-valued: a match must clear the threshold by a
 margin, a near miss is reported as "uncertain", everything else is "unknown".
 
 How mistakes are kept out (family members often look alike):
-- enrollment takes only clear faces: big enough, sharp, roughly frontal, one per picture
+- enrollment takes only clear faces: big enough, sharp, both eyes visible, one per picture
 - an upload is checked for consistency; pictures of somebody else in a video are dropped
 - a sample that looks more like another enrolled person than like this one is refused
 - a person's score is the mean of their best few samples, not one lucky sample
@@ -69,12 +69,82 @@ MIN_FACE_PX = (64, 36)
 MIN_DETECTION_SCORE = (0.88, 0.0)
 # Horizontal offset of the nose from the middle between the eyes, relative to the eye
 # distance: 0 looks straight at the camera, ~0.5 is a half profile.
-MAX_TURN = (0.30, 0.55)
+MAX_TURN = (0.42, 0.55)
+FRONT_TURN = 0.12  # up to here a face counts as looking at the camera
 MIN_SHARPNESS = (25.0, 8.0)  # variance of the Laplacian on the aligned 112x112 face
 TOP_K = 3
 PERSON_MARGIN = 0.06  # lead over the next most similar person needed for "known"
 SAME_PERSON_MIN = 0.30  # samples of one upload must be at least this similar to each other
 DOMINANT_FACE = 2.5  # a face this many times bigger than the others is the subject
+
+
+# How well a person is learned: an estimate from what was stored, for advice to the user.
+GOOD_SAMPLES = 15
+GOOD_VIEWS = {"front": 6, "left": 3, "right": 3}
+GOOD_LIGHT_SPREAD = 50.0  # between the darkest and brightest picture, of 255
+GOOD_MATCH, POOR_MATCH = 0.55, 0.30  # similarity of a sample to the person's average
+LOOK_ALIKE_LIMIT = 70
+WEAK_BELOW, GOOD_FROM = 40, 75
+
+
+class FaceSample(np.ndarray):
+    """An embedding that remembers how the picture looked; the picture itself is not kept."""
+
+    pose: str | None = None
+    light: float | None = None
+
+
+def with_context(embedding: Embedding, pose: str, light: float) -> FaceSample:
+    sample = embedding.view(FaceSample)
+    sample.pose, sample.light = pose, light
+    return sample
+
+
+def pose_of(face: npt.NDArray[np.float32]) -> str:
+    """Which way a face looks in the picture, from the nose between the eyes."""
+    right_eye, left_eye, nose = face[4:6], face[6:8], face[8:10]
+    eye_distance = float(np.linalg.norm(left_eye - right_eye)) or 1.0
+    offset = (float(nose[0]) - float(right_eye[0] + left_eye[0]) / 2) / eye_distance
+    if abs(offset) <= FRONT_TURN:
+        return "front"
+    return "right" if offset > 0 else "left"
+
+
+def enrollment_quality(rows: list[dict[str, Any]], look_alike: str | None) -> dict[str, Any]:
+    """Score from 0 to 100 and what would help most. Samples from before poses were recorded
+    were all taken roughly from the front, so they count as such."""
+    count = len(rows)
+    views = {"front": 0, "left": 0, "right": 0}
+    for row in rows:
+        views[row.get("pose") or "front"] += 1
+    lights = [r["light"] for r in rows if r.get("light") is not None]
+    spread = max(lights) - min(lights) if lights else 0.0
+    match = float(np.mean([r["match"] for r in rows])) if rows else 0.0
+    agreement = min(1.0, max(0.0, (match - POOR_MATCH) / (GOOD_MATCH - POOR_MATCH)))
+    score = (
+        40 * min(count, GOOD_SAMPLES) / GOOD_SAMPLES
+        + 20 * min(views["front"], GOOD_VIEWS["front"]) / GOOD_VIEWS["front"]
+        + 10 * min(views["left"], GOOD_VIEWS["left"]) / GOOD_VIEWS["left"]
+        + 10 * min(views["right"], GOOD_VIEWS["right"]) / GOOD_VIEWS["right"]
+        + 10 * min(spread, GOOD_LIGHT_SPREAD) / GOOD_LIGHT_SPREAD
+        + 10 * agreement
+    )
+    tips: list[dict[str, Any]] = []
+    if look_alike:
+        score = min(score, LOOK_ALIKE_LIMIT)
+        tips.append({"key": "faces.tip_similar", "other": look_alike})
+    if count and agreement < 0.5:
+        tips.append({"key": "faces.tip_mixed"})
+    for view, wanted in GOOD_VIEWS.items():
+        if views[view] < wanted:
+            tips.append({"key": f"faces.tip_{view}", "count": wanted - views[view]})
+    if count < GOOD_SAMPLES:
+        tips.append({"key": "faces.tip_more", "count": GOOD_SAMPLES - count})
+    if spread < GOOD_LIGHT_SPREAD:
+        tips.append({"key": "faces.tip_light"})
+    points = round(score)
+    level = "weak" if points < WEAK_BELOW else "good" if points >= GOOD_FROM else "ok"
+    return {"score": points, "level": level, "views": views, "tips": tips[:3]}
 
 
 @dataclass
@@ -130,6 +200,10 @@ class BiometricStore:
                 embedding BLOB NOT NULL, created_at TEXT NOT NULL);
             PRAGMA foreign_keys=ON;
         """)
+        columns = {row[1] for row in self._conn.execute("PRAGMA table_info(samples)")}
+        for column, kind in (("pose", "TEXT"), ("light", "REAL")):
+            if column not in columns:
+                self._conn.execute(f"ALTER TABLE samples ADD COLUMN {column} {kind}")
 
     def add(self, name: str, embedding: Embedding, actor: str, max_samples: int) -> int:
         now = utcnow().isoformat()
@@ -142,8 +216,15 @@ class BiometricStore:
             0
         ]
         self._conn.execute(
-            "INSERT INTO samples (person_id, embedding, created_at) VALUES (?, ?, ?)",
-            (person_id, embedding.astype(np.float32).tobytes(), now),
+            "INSERT INTO samples (person_id, embedding, created_at, pose, light) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (
+                person_id,
+                np.asarray(embedding, dtype=np.float32).tobytes(),
+                now,
+                getattr(embedding, "pose", None),
+                getattr(embedding, "light", None),
+            ),
         )
         self._conn.execute(
             "DELETE FROM samples WHERE person_id = ? AND id NOT IN "
@@ -173,7 +254,7 @@ class BiometricStore:
     def details(self, name: str) -> list[dict[str, Any]]:
         """One row per stored sample; pictures are not kept, only these numbers."""
         rows = self._conn.execute(
-            "SELECT s.id, s.created_at, s.embedding, p.enrolled_by FROM samples s "
+            "SELECT s.id, s.created_at, s.embedding, p.enrolled_by, s.pose, s.light FROM samples s "
             "JOIN people p ON p.id = s.person_id WHERE p.name = ? COLLATE NOCASE ORDER BY s.id",
             (name,),
         ).fetchall()
@@ -182,7 +263,8 @@ class BiometricStore:
         mean = np.mean(vectors, axis=0) if vectors else np.zeros(1, dtype=np.float32)
         return [
             {"id": r[0], "created": r[1], "by": r[3], "bytes": len(r[2]), "numbers": len(v),
-             "match": round(float(np.dot(v, mean / (np.linalg.norm(mean) or 1.0))), 2)}
+             "match": round(float(np.dot(v, mean / (np.linalg.norm(mean) or 1.0))), 2),
+             "pose": r[4], "light": r[5]}
             for r, v in zip(rows, vectors, strict=True)
         ]  # fmt: skip
 
@@ -265,7 +347,7 @@ class FaceRecognizer:
             return "faces.blurry", aligned
         return None, aligned
 
-    def prepare(self, photo: Path) -> Embedding:
+    def prepare(self, photo: Path) -> FaceSample:
         """Embedding of the person in `photo` (one clear face); the photo is not kept."""
         image = self._detector.load(photo, FULL_WIDTH)
         faces = self._detector.faces_full(image, 1280)
@@ -279,7 +361,8 @@ class FaceRecognizer:
         problem, aligned = self.problem(image, face, enrolling=True)
         if problem:
             raise EnrollmentError(problem)
-        return self._embed(aligned)
+        light = float(self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY).mean())
+        return with_context(self._embed(aligned), pose_of(face), light)
 
     # --- enrollment ---------------------------------------------------------------------
 
@@ -335,6 +418,15 @@ class FaceRecognizer:
 
     def forget_cache(self) -> None:
         self._cache = None
+
+    def quality(
+        self, name: str, similar: dict[str, tuple[str, float]] | None = None
+    ) -> dict[str, Any]:
+        """How well this person is learned; see `enrollment_quality`."""
+        known = self.similar_people() if similar is None else similar
+        other, score = known.get(name, (None, 0.0))
+        warn_at = self.settings.match_threshold - self.settings.uncertain_margin
+        return enrollment_quality(self.store.details(name), other if score >= warn_at else None)
 
     def similar_people(self) -> dict[str, tuple[str, float]]:
         """For each person, the most similar other person and how similar (for warnings)."""

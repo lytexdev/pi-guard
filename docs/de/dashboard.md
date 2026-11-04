@@ -70,6 +70,17 @@ Der Browser bietet einen Schlüssel nur an, wenn beides stimmt:
 Die Schritte stehen auch unter *Zugang → Hardware-Schlüssel einrichten*. Klappt es nicht, zeigt das
 Dashboard die Fehlermeldung des Browsers.
 
+## Vertraute Personen
+
+Ein Balken zeigt, wie gut jede Person eingeprägt ist, mit den Bildern je Blickrichtung und dem nächsten
+sinnvollen Schritt. Der Wert ist eine Schätzung aus Anzahl der Bilder, Blick von vorne und zur Seite, Licht und
+wie gut die Bilder zusammenpassen; Ähnlichkeit in der Familie senkt ihn. Den echten Eindruck gibt der Test mit
+einem Foto.
+
+Leicht zur Seite gedrehte Gesichter helfen, weil kaum jemand in die Kamera schaut. Beide Augen müssen zu sehen
+bleiben: Ein reines Seitenprofil können die Erkennungsmodelle nicht nutzen. Früher eingelernte Bilder zählen als
+Blick von vorne.
+
 ## Werkzeuge im Alltag
 
 - **Geräte ausprobieren:** Unter *Geräte & Kameras* spielt **Lautsprecher testen** drei Töne auf dem gewählten
