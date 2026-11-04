@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 
 DOMAIN_BATCH = 500
 GRAVITY_TIMEOUT = 300
+WRITE_TIMEOUT = 60
 
 
 class PiholeError(Exception):
@@ -70,6 +71,8 @@ class Pihole:
         self._sid = session.get("sid")  # None when Pi-hole has no password
 
     async def request(self, method: str, path: str, **kwargs: Any) -> Any:
+        if method != "GET":
+            kwargs.setdefault("timeout", WRITE_TIMEOUT)  # Pi-hole reloads its rules on changes
         for attempt in range(2):
             if attempt == 0:
                 await self._ensure_login()
