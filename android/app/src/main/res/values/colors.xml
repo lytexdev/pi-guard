@@ -3,8 +3,12 @@
     <color name="bg">#121418</color>
     <color name="surface">#1A1D23</color>
     <color name="surface2">#22262E</color>
+    <color name="line">#2C313A</color>
     <color name="text">#E7E9EC</color>
     <color name="muted">#98A1AD</color>
     <color name="accent">#5CB3FF</color>
+    <color name="accent_ink">#0B1A29</color>
     <color name="danger">#FF6B6B</color>
+    <color name="sos">#D32F2F</color>
+    <color name="emergency">#7A1414</color>
 </resources>

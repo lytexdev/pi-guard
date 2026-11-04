@@ -1,12 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.PiGuard" parent="Theme.AppCompat.NoActionBar">
+    <!-- The dashboard's colours, so the native screens and the dashboard read as one app. -->
+    <style name="Theme.PiGuard" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
-        <item name="colorAccent">@color/accent</item>
+        <item name="colorOnPrimary">@color/accent_ink</item>
+        <item name="colorSecondaryContainer">@color/surface2</item>
+        <item name="colorOnSecondaryContainer">@color/text</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorSurfaceContainerHigh">@color/surface2</item>
+        <item name="colorOnSurface">@color/text</item>
+        <item name="colorOnSurfaceVariant">@color/muted</item>
+        <item name="colorOutline">@color/muted</item>
+        <item name="colorOutlineVariant">@color/line</item>
+        <item name="colorError">@color/danger</item>
+        <item name="android:colorBackground">@color/bg</item>
         <item name="android:windowBackground">@color/bg</item>
         <item name="android:statusBarColor">@color/bg</item>
         <item name="android:navigationBarColor">@color/bg</item>
-        <item name="android:textColor">@color/text</item>
-        <item name="android:textColorHint">@color/muted</item>
+        <item name="materialButtonStyle">@style/Button</item>
     </style>
 </resources>

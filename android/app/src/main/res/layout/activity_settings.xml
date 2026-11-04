@@ -1,25 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fitsSystemWindows="true">
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-    <TextView style="@style/Heading" android:text="@string/settings_title" android:textSize="22sp" />
-    <TextView style="@style/Heading" android:text="@string/vpn_title" />
-    <TextView android:id="@+id/vpn_state" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-    <Button android:id="@+id/vpn_toggle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/connect_vpn" />
-    <TextView style="@style/Heading" android:text="@string/location_section" />
-    <CheckBox android:id="@+id/location" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/location_use" />
-    <TextView style="@style/Hint" android:text="@string/location_hint" />
-    <TextView style="@style/Heading" android:text="@string/calendar_section" />
-    <CheckBox android:id="@+id/calendar" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/calendar_use" />
-    <TextView style="@style/Hint" android:text="@string/calendar_hint" />
-    <TextView style="@style/Heading" android:text="@string/lock_section" />
-    <Button android:id="@+id/pin_set" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pin_set" />
-    <Button android:id="@+id/pin_remove" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/pin_remove" />
-    <CheckBox android:id="@+id/biometric" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/bio_use" />
-    <TextView style="@style/Heading" android:text="@string/address_section" />
-    <EditText android:id="@+id/address" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textUri" android:importantForAutofill="no" android:hint="@string/setup_url" />
-    <Button android:id="@+id/address_save" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/address_save" />
-    <TextView style="@style/Heading" android:text="@string/update_section" />
-    <Button android:id="@+id/update" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/update_check" />
-    <Button android:id="@+id/unpair" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="@string/unpair" android:textColor="@color/danger" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/bg" android:fitsSystemWindows="true">
+<com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="56dp" android:background="@color/surface" app:title="@string/settings_title" app:navigationIcon="@drawable/ic_chevron_left" app:navigationContentDescription="@string/back" />
+<View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/line" />
+<ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="14dp" android:paddingBottom="24dp">
+    <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_shield_lock" app:tint="@color/accent" android:importantForAccessibility="no" />
+                <TextView style="@style/Heading" android:text="@string/vpn_title" />
+            </LinearLayout>
+            <TextView android:id="@+id/vpn_state" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:textColor="@color/muted" />
+            <Button android:id="@+id/vpn_toggle" style="@style/Button" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/connect_vpn" app:icon="@drawable/ic_shield_lock" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_map_pin" app:tint="@color/accent" android:importantForAccessibility="no" />
+                <TextView style="@style/Heading" android:text="@string/location_section" />
+            </LinearLayout>
+            <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/location" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/location_use" />
+            <TextView style="@style/Hint" android:text="@string/location_hint" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_calendar" app:tint="@color/accent" android:importantForAccessibility="no" />
+                <TextView style="@style/Heading" android:text="@string/calendar_section" />
+            </LinearLayout>
+            <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/calendar" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/calendar_use" />
+            <TextView style="@style/Hint" android:text="@string/calendar_hint" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_lock" app:tint="@color/accent" android:importantForAccessibility="no" />
+                <TextView style="@style/Heading" android:text="@string/lock_section" />
+            </LinearLayout>
+            <Button android:id="@+id/pin_set" style="@style/Button.Tonal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/pin_set" app:icon="@drawable/ic_key" />
+            <Button android:id="@+id/pin_remove" style="@style/Button.Tonal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/pin_remove" app:icon="@drawable/ic_trash" />
+            <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/biometric" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/bio_use" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_world" app:tint="@color/accent" android:importantForAccessibility="no" />
+                <TextView style="@style/Heading" android:text="@string/address_section" />
+            </LinearLayout>
+            <com.google.android.material.textfield.TextInputLayout style="@style/Field" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="@string/setup_url">
+                <com.google.android.material.textfield.TextInputEditText android:id="@+id/address" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textUri" android:importantForAutofill="no" />
+            </com.google.android.material.textfield.TextInputLayout>
+            <Button android:id="@+id/address_save" style="@style/Button.Tonal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/address_save" app:icon="@drawable/ic_check" android:layout_marginTop="8dp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_download" app:tint="@color/accent" android:importantForAccessibility="no" />
+                <TextView style="@style/Heading" android:text="@string/update_section" />
+            </LinearLayout>
+            <Button android:id="@+id/update" style="@style/Button.Tonal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/update_check" app:icon="@drawable/ic_refresh" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <Button android:id="@+id/unpair" style="@style/Button.Outlined" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="@string/unpair" app:icon="@drawable/ic_logout" />
 </LinearLayout>
 </ScrollView>
+</LinearLayout>

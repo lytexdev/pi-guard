@@ -67,4 +67,5 @@
     <string name="find_title">Jemand sucht dieses Handy</string>
     <string name="find_stop">Stoppen</string>
     <string name="alert_title">pi-guard-Alarm</string>
+    <string name="back">Zurück</string>
 </resources>

@@ -72,6 +72,9 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun prepareWeb() {
+        web.setBackgroundColor(getColor(R.color.bg)) // no white flash before the dashboard paints
+        web.overScrollMode = View.OVER_SCROLL_NEVER
+        web.isHorizontalScrollBarEnabled = false
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.settings.mediaPlaybackRequiresUserGesture = false

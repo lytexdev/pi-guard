@@ -5,8 +5,8 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlin.concurrent.thread
 
 /** First start: find pi-guard in the home network, or type its address. */
@@ -53,7 +53,7 @@ class SetupActivity : AppCompatActivity() {
 
     private fun confirm(url: String, authority: String) {
         val fingerprint = Net.fingerprint(Net.parseCertificate(authority))
-        AlertDialog.Builder(this).setTitle(R.string.trust_title).setMessage(getString(R.string.trust_text, fingerprint))
+        MaterialAlertDialogBuilder(this).setTitle(R.string.trust_title).setMessage(getString(R.string.trust_text, fingerprint))
             .setPositiveButton(R.string.trust_yes) { _, _ ->
                 val store = Store(this)
                 store.url = url

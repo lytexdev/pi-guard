@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:padding="32dp">
-    <ImageView android:layout_width="48dp" android:layout_height="48dp" android:src="@drawable/ic_lock" android:importantForAccessibility="no" />
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/lock_title" android:textSize="20sp" />
-    <EditText android:id="@+id/pin" android:layout_width="200dp" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:gravity="center" android:hint="@string/lock_pin" android:inputType="numberPassword" android:importantForAutofill="no" />
-    <Button android:id="@+id/open" android:layout_width="200dp" android:layout_height="wrap_content" android:text="@string/lock_open" />
-    <Button android:id="@+id/biometric" android:layout_width="200dp" android:layout_height="wrap_content" android:text="@string/lock_biometric" />
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/bg" android:fitsSystemWindows="true">
+<LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:padding="32dp">
+    <ImageView android:layout_width="72dp" android:layout_height="72dp" android:src="@mipmap/ic_brand" android:importantForAccessibility="no" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/lock_title" android:textSize="22sp" android:textStyle="bold" />
+    <com.google.android.material.textfield.TextInputLayout style="@style/Field" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:hint="@string/lock_pin" app:startIconDrawable="@drawable/ic_key">
+        <com.google.android.material.textfield.TextInputEditText android:id="@+id/pin" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberPassword" android:importantForAutofill="no" />
+    </com.google.android.material.textfield.TextInputLayout>
+    <Button android:id="@+id/open" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/lock_open" app:icon="@drawable/ic_lock" />
+    <Button android:id="@+id/biometric" style="@style/Button.Tonal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/lock_biometric" app:icon="@drawable/ic_fingerprint" />
 </LinearLayout>
+</FrameLayout>

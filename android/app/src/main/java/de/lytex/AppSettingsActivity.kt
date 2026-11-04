@@ -6,14 +6,15 @@ import android.net.VpnService
 import android.os.Bundle
 import android.webkit.CookieManager
 import android.widget.Button
-import android.widget.CheckBox
+import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.appbar.MaterialToolbar
 import kotlin.concurrent.thread
 
 /** What belongs to this phone. Everything about pi-guard itself is in the dashboard. */
@@ -22,11 +23,11 @@ class AppSettingsActivity : AppCompatActivity() {
     private lateinit var vpnState: TextView
     private val askCalendar = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         store.useCalendar = it
-        findViewById<CheckBox>(R.id.calendar).isChecked = it
+        findViewById<CompoundButton>(R.id.calendar).isChecked = it
     }
     private val askLocation = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         store.shareLocation = it[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        findViewById<CheckBox>(R.id.location).isChecked = store.shareLocation
+        findViewById<CompoundButton>(R.id.location).isChecked = store.shareLocation
         if (store.shareLocation) askBackground.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
     }
     private val askVpn = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -38,6 +39,7 @@ class AppSettingsActivity : AppCompatActivity() {
         super.onCreate(state)
         setContentView(R.layout.activity_settings)
         store = Store(this)
+        findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         vpnState = findViewById(R.id.vpn_state)
         showVpn()
         findViewById<Button>(R.id.vpn_toggle).setOnClickListener { toggleVpn() }
@@ -48,7 +50,7 @@ class AppSettingsActivity : AppCompatActivity() {
             if (it) askCalendar.launch(Manifest.permission.READ_CALENDAR) else store.useCalendar = false
         }
         val strong = BiometricManager.from(this).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
-        findViewById<CheckBox>(R.id.biometric).isEnabled = strong
+        findViewById<CompoundButton>(R.id.biometric).isEnabled = strong
         check(R.id.biometric, store.useBiometric) { store.useBiometric = it }
         findViewById<Button>(R.id.pin_set).setOnClickListener { setPin() }
         findViewById<Button>(R.id.pin_remove).setOnClickListener { store.setPin(null) }
@@ -65,7 +67,7 @@ class AppSettingsActivity : AppCompatActivity() {
     }
 
     private fun check(id: Int, value: Boolean, changed: (Boolean) -> Unit) {
-        val box = findViewById<CheckBox>(id)
+        val box = findViewById<CompoundButton>(id)
         box.isChecked = value
         box.setOnCheckedChangeListener { _, on -> changed(on) }
     }
@@ -89,9 +91,12 @@ class AppSettingsActivity : AppCompatActivity() {
     private fun setPin() {
         val input = EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            typeface = android.graphics.Typeface.DEFAULT // a password field would turn monospace
             setHint(R.string.pin_hint)
         }
-        AlertDialog.Builder(this).setTitle(R.string.pin_set).setView(input)
+        val side = (24 * resources.displayMetrics.density).toInt()
+        val box = android.widget.FrameLayout(this).apply { setPadding(side, side / 3, side, 0); addView(input) }
+        MaterialAlertDialogBuilder(this).setTitle(R.string.pin_set).setView(box)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 if (input.text.length >= 4) store.setPin(input.text.toString())
             }.setNegativeButton(R.string.cancel, null).show()
@@ -104,7 +109,7 @@ class AppSettingsActivity : AppCompatActivity() {
                 if (meta == null || !Updater.isNewer(this, meta)) {
                     Toast.makeText(this, R.string.update_none, Toast.LENGTH_LONG).show()
                 } else {
-                    AlertDialog.Builder(this).setMessage(getString(R.string.update_found, meta.getString("version_name")))
+                    MaterialAlertDialogBuilder(this).setMessage(getString(R.string.update_found, meta.getString("version_name")))
                         .setPositiveButton(R.string.update_install) { _, _ ->
                             thread {
                                 val fine = runCatching { Updater.install(this, store, meta) }.getOrDefault(false)
