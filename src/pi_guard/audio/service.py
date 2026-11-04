@@ -66,6 +66,22 @@ async def _run(args: list[str], limit: float) -> tuple[int, bytes, bytes]:
     return process.returncode or 0, stdout, stderr
 
 
+async def open_mixer(device: str) -> None:
+    """Hardware controls fully open: loudness is set by the software volume.
+
+    USB speakers often start at about -24 dB, which makes speech inaudible.
+    """
+    match = re.search(r"CARD=([^,]+)", device)
+    if match is None:
+        return
+    card = match.group(1)
+    with contextlib.suppress(OSError, TimeoutError):
+        _, out, _ = await _run(["amixer", "-c", card, "scontrols"], 5)
+        for name in re.findall(r"'([^']+)'", out.decode(errors="replace")):
+            if name in MIXER_CONTROLS:
+                await _run(["amixer", "-q", "-c", card, "sset", name, "100%", "unmute"], 5)
+
+
 _MAGIC = (b"OggS", b"ID3", b"\xff\xfb", b"\xff\xf3", b"\xff\xf2", b"RIFF", b"fLaC",
           b"\x1a\x45\xdf\xa3")  # fmt: skip
 
@@ -156,20 +172,10 @@ class AudioService:
         return info
 
     async def _open_mixer(self) -> None:
-        """Hardware controls fully open, once: loudness is set by the software volume.
-
-        USB speakers often start at about -24 dB, which makes speech inaudible.
-        """
-        match = re.search(r"CARD=([^,]+)", self.settings.speaker or "")
-        if self._mixer_open or match is None:
+        if self._mixer_open or self.settings.speaker is None:
             return
         self._mixer_open = True
-        card = match.group(1)
-        with contextlib.suppress(OSError, TimeoutError):
-            _, out, _ = await _run(["amixer", "-c", card, "scontrols"], 5)
-            for name in re.findall(r"'([^']+)'", out.decode(errors="replace")):
-                if name in MIXER_CONTROLS:
-                    await _run(["amixer", "-q", "-c", card, "sset", name, "100%", "unmute"], 5)
+        await open_mixer(self.settings.speaker)
 
     async def play(
         self,

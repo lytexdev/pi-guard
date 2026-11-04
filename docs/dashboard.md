@@ -86,6 +86,10 @@ error message.
 
 ## Everyday tools
 
+- **Trying out devices:** under *Devices & cameras*, **Test speaker** plays three tones on the chosen
+  speaker. **Test microphone** records 3 seconds for you to hear and shows how loud it was. The sample is
+  not kept; the test is logged and announced with the chime, like listening in.
+
 - **Tooltips** explain buttons and entries on hover and keyboard focus.
 - **Navigation:** *Appearance → Navigation* sets your own order by dragging, per account. The camera
   room is a sub-entry of Live.

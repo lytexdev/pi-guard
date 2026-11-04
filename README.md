@@ -122,6 +122,7 @@ pi-guard logs -f
 | [Hardware](docs/hardware.md) | cameras, audio, storage |
 | [Docker](docs/docker.md) | optional container deployment |
 | [Dashboard](docs/dashboard.md) | web dashboard, certificates, app and push |
+| [Discord](docs/discord.md) | commands and alerts through a Discord bot |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
 | [Add-ons](docs/addons.md) | Service watcher, network analysis, smart home, remote commands, AI assistant |
 | [WhatsApp](docs/whatsapp.md) | Official Cloud API setup and its limits |

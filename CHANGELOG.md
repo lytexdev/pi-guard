@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Discord: a bot with commands, buttons, photos, videos and alerts in direct messages.
+- Speakers and microphones can be tried out when choosing them.
 - Security scan with an optional report by messenger, and a storage analysis with clean-up. System
   checks run in a new root job, `pi-guard-maint`.
 - Weekly plan: mark when nobody is usually home, in a calendar you can draw in.

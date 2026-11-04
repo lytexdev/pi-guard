@@ -489,6 +489,8 @@ export async function render(main, params = []) {
       addon.enabled !== addon.running ? h("p", { class: "notice" }, t("web.addon_restart")) : null,
       h("a", { class: "button", href: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")));
   }));
+  cards.append(h("section", { class: "panel stack" }, h("h2", {}, icon("message"), " Discord"), h("p", { class: "muted" }, t("web.addon_discord_text")),
+    h("a", { class: "button", href: "#/settings/messaging" }, icon("settings"), t("web.addon_open"))));
   const ownPanel = h("section", { class: "panel stack" });
   const drawOwn = async () => {
     const list = await api("/api/plugin-manager");

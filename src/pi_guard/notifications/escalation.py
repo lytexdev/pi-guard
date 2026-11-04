@@ -56,9 +56,11 @@ class Escalation:
         self._db = app.db
         self._db.executescript(_SCHEMA)
         s = app.settings
-        self.contacts = [("telegram", str(uid)) for uid in s.emergency_telegram_user_ids] + [
-            ("signal", number) for number in s.emergency_signal_numbers
-        ]
+        self.contacts = (
+            [("telegram", str(uid)) for uid in s.emergency_telegram_user_ids]
+            + [("signal", number) for number in s.emergency_signal_numbers]
+            + [("discord", uid) for uid in s.emergency_discord_user_ids]
+        )
         self.after_alerts = s.emergency_after_alerts
         self.after = timedelta(minutes=s.emergency_after_minutes)
 

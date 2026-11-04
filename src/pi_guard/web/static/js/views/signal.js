@@ -1,5 +1,13 @@
-// Signal: what is missing, and linking the phone by QR code.
+// Connections of the messengers: what is missing, linking Signal, trying out Discord.
 import { api, attempt, fill, h, icon, t } from "../api.js";
+
+export async function discordPanel() {
+  const s = await api("/api/discord");
+  return h("section", { class: "panel stack" }, h("h2", {}, t("web.discord_status")),
+    h("p", { class: s.connected ? "" : "notice" }, !s.enabled ? t("web.discord_setup") : s.connected ? t("web.discord_connected", { name: s.name }) : t("web.discord_waiting")),
+    s.invite ? h("a", { class: "button", href: s.invite, target: "_blank", rel: "noopener", title: t("web.discord_invite_tip") }, icon("plus"), t("web.discord_invite")) : null,
+    s.connected ? h("button", { title: t("web.discord_test_tip"), onclick: () => attempt(() => api("/api/discord/test", { method: "POST" }), t("web.discord_test_sent")) }, icon("bell"), t("web.discord_test")) : null);
+}
 
 export async function signalPanel() {
   const panel = h("section", { class: "panel stack" });

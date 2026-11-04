@@ -49,6 +49,10 @@ FIELDS = (
     Field("telegram_admin_user_ids", "messaging", "list"),
     Field("telegram_viewer_user_ids", "messaging", "list"),
     Field("telegram_allowed_chat_ids", "messaging", "list"),
+    Field("discord_enabled", "discord", "bool"),
+    Field("discord_bot_token", "discord", "secret"),
+    Field("discord_admin_user_ids", "discord", "list"),
+    Field("discord_viewer_user_ids", "discord", "list"),
     Field("signal_enabled", "signal", "bool"),
     Field("signal_phone_number", "signal", "text"),
     Field("signal_admin_numbers", "signal", "list"),
@@ -56,6 +60,7 @@ FIELDS = (
     Field("signal_cli_address", "signal", "text"),
     Field("emergency_telegram_user_ids", "emergency", "list"),
     Field("emergency_signal_numbers", "emergency", "list"),
+    Field("emergency_discord_user_ids", "emergency", "list"),
     Field("emergency_after_alerts", "emergency", "int", 1, 50),
     Field("emergency_after_minutes", "emergency", "int", 1, 1440),
     Field("mqtt_enabled", "integrations", "bool"),
@@ -90,7 +95,7 @@ BY_KEY = {f.key: f for f in FIELDS}
 SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password", "dashboard_secret_key",
            "assistant_api_key", "assistant_deepl_key", "assistant_paperless_token",
            "assistant_nextcloud_password", "whatsapp_access_token",
-           "whatsapp_app_secret", "whatsapp_verify_token")  # fmt: skip
+           "whatsapp_app_secret", "whatsapp_verify_token", "discord_bot_token")  # fmt: skip
 
 
 def to_env(field_: Field, value: Any) -> str:

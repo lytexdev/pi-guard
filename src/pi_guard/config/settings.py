@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     telegram_allowed_chat_ids: IntList = Field(default_factory=list)
     telegram_group_plain_text: bool = False
 
+    # Discord (optional bot in direct messages; see docs/discord.md)
+    discord_enabled: bool = False
+    discord_bot_token: SecretStr | None = None
+    discord_admin_user_ids: StrList = Field(default_factory=list)
+    discord_viewer_user_ids: StrList = Field(default_factory=list)
+
     signal_enabled: bool = False
     signal_phone_number: str | None = None
     signal_admin_numbers: StrList = Field(default_factory=list)
@@ -97,6 +103,7 @@ class Settings(BaseSettings):
     # Emergency contacts: written to when alerts stay unacknowledged.
     emergency_telegram_user_ids: IntList = Field(default_factory=list)
     emergency_signal_numbers: StrList = Field(default_factory=list)
+    emergency_discord_user_ids: StrList = Field(default_factory=list)
     emergency_after_alerts: int = Field(3, ge=1, le=50)
     emergency_after_minutes: int = Field(30, ge=1, le=1440)
 
@@ -174,6 +181,9 @@ class Settings(BaseSettings):
         "dashboard_trusted_proxies",
         "emergency_telegram_user_ids",
         "emergency_signal_numbers",
+        "emergency_discord_user_ids",
+        "discord_admin_user_ids",
+        "discord_viewer_user_ids",
         "dashboard_tls_names",
         mode="before",
     )
@@ -199,6 +209,16 @@ class Settings(BaseSettings):
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"unknown timezone {value!r}") from exc
         return value
+
+    @field_validator(
+        "discord_admin_user_ids", "discord_viewer_user_ids", "emergency_discord_user_ids"
+    )
+    @classmethod
+    def _check_discord_ids(cls, values: list[str]) -> list[str]:
+        for value in values:
+            if not value.isdigit():
+                raise ValueError("Discord user IDs are numbers; copy them with developer mode")
+        return values
 
     @field_validator("signal_phone_number")
     @classmethod
@@ -311,6 +331,12 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "the bot's own ID was listed as an admin; use your personal Telegram user ID"
                 )
+        if self.discord_enabled:
+            bot_token = self.discord_bot_token
+            if not (bot_token and bot_token.get_secret_value()):
+                raise ValueError("PI_GUARD_DISCORD_BOT_TOKEN is required when Discord is enabled")
+            if not self.discord_admin_user_ids:
+                raise ValueError("PI_GUARD_DISCORD_ADMIN_USER_IDS needs at least one user ID")
         if self.signal_enabled:
             if not self.signal_phone_number:
                 raise ValueError("PI_GUARD_SIGNAL_PHONE_NUMBER is required when Signal is enabled")

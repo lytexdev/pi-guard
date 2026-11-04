@@ -466,3 +466,5 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .scan-list li { align-items: flex-start; }
 .scan-list .badge { flex: none; }
 .storage-row { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.device-test { display: grid; gap: 6px; justify-items: start; margin-bottom: 12px; }
+.device-test audio { width: min(320px, 100%); height: 36px; }

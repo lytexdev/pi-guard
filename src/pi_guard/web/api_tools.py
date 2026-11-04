@@ -12,13 +12,22 @@ import secrets
 import shutil
 import sqlite3
 import string
+import tempfile
+import time
+from pathlib import Path
 from typing import Any
 
 from aiohttp import web
 
+from pi_guard.audio import check
+from pi_guard.audio import devices as audio_devices
+from pi_guard.audio.service import AudioError
+from pi_guard.core.permissions import Role
 from pi_guard.core.schedule import PLAN_KEY, clean_plan
 from pi_guard.diagnostics import storage as disk
 from pi_guard.diagnostics.scan import HELPER, read_report, request_root
+from pi_guard.i18n import t
+from pi_guard.messaging.base import ProviderUnavailableError, Reply
 from pi_guard.messaging.signal.provider import rpc
 from pi_guard.network.fritzbox import FritzError
 from pi_guard.network.lan import neighbour_table
@@ -29,6 +38,7 @@ from pi_guard.web.server import current, dashboard, read_json
 log = logging.getLogger(__name__)
 
 LINK_SECONDS = 300
+TEST_SECONDS = 3
 SUPPORT_FIELDS = {"name": 100, "phone": 40, "email": 100, "address": 300}
 NAV_ROUTES = re.compile(r"^[a-z]{2,20}$")
 MAX_NAV = 20
@@ -40,6 +50,10 @@ _links: dict[str, Any] = {}
 
 def routes() -> list[web.RouteDef]:
     return [
+        web.post("/api/devices/test/speaker", test_speaker),
+        web.post("/api/devices/test/microphone", test_microphone),
+        web.get("/api/discord", discord_status),
+        web.post("/api/discord/test", discord_test),
         web.get("/api/signal", signal_status),
         web.post("/api/signal/link", signal_link),
         web.post("/api/network/wifi/qr", wifi_qr),
@@ -68,6 +82,114 @@ def _confirm(request: web.Request, data: dict[str, Any]) -> None:
     name = d.auth.account(current(request).username)["username"]
     if d.auth.check_password(name, str(data.get("password", ""))) is None:
         raise web.HTTPForbidden(text="web.wrong_password")
+
+
+# --- trying out audio devices ---------------------------------------------------------------
+
+
+async def _audio_device(request: web.Request, capability: str) -> str:
+    """Only names the system itself reports reach ffmpeg."""
+    device = str((await read_json(request)).get("device", ""))
+    found = await asyncio.to_thread(audio_devices.discover)
+    if not any(a.alsa_name == device and getattr(a, capability) for a in found):
+        raise web.HTTPBadRequest(text="web.dev_test_unknown")
+    return device
+
+
+async def test_speaker(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    device = await _audio_device(request, "playback")
+    with tempfile.TemporaryDirectory(dir=d.settings.data_dir) as folder:
+        sound = Path(folder) / "test.wav"
+        await asyncio.to_thread(check.write_test_sound, sound)
+        try:
+            await check.play_on(device, sound)
+        except AudioError as exc:
+            raise web.HTTPConflict(text=exc.key) from None
+    d.app.db.audit(_actor(request), "audio.test_speaker", device[:80])
+    return web.json_response({"ok": True})
+
+
+async def _from_running(app: Any, device: str, output: Path) -> bool:
+    """A camera may hold the microphone; then its own sound stream is the sample."""
+    pipeline = next((p for p in app.cameras.values() if p.microphone == device
+                     and p.segment_dir and p.live_fps > 0), None)  # fmt: skip
+    if pipeline is None:
+        return False
+    queue = pipeline.live_audio.subscribe()
+    sample = bytearray()
+    end = time.monotonic() + TEST_SECONDS
+    try:
+        while (left := end - time.monotonic()) > 0:
+            with contextlib.suppress(TimeoutError):
+                sample += await asyncio.wait_for(queue.get(), left)
+    finally:
+        pipeline.live_audio.unsubscribe(queue)
+    if not sample:
+        raise AudioError("web.dev_test_failed")
+    await asyncio.to_thread(output.write_bytes, bytes(sample))
+    return True
+
+
+async def test_microphone(request: web.Request) -> web.StreamResponse:
+    """A short sample for the person choosing, not kept. Announced like listening in."""
+    d = dashboard(request)
+    app = d.app
+    device = await _audio_device(request, "capture")
+    app.db.audit(_actor(request), "audio.test_microphone", device[:80])
+    audio = app.audio
+    chime = audio.sounds.path("chime") if audio and audio.playback_enabled else None
+    if audio and chime:
+        with contextlib.suppress(AudioError):
+            await audio.play(chime, ignore_quiet_hours=True)
+    with tempfile.TemporaryDirectory(dir=d.settings.data_dir) as folder:
+        sample = Path(folder) / "test.mp3"
+        try:
+            if not await _from_running(app, device, sample):
+                await check.record_from(device, TEST_SECONDS, sample)
+        except AudioError as exc:
+            raise web.HTTPConflict(text=exc.key) from None
+        peak = await check.peak_db(sample)
+        body = await asyncio.to_thread(sample.read_bytes)
+    silent = peak is None or peak < check.SILENT_BELOW_DB
+    return web.Response(body=body, content_type="audio/mpeg", headers={
+        "X-Peak-Db": "" if peak is None or peak == float("-inf") else f"{peak:.1f}",
+        "X-Silent": "1" if silent else "0", "Cache-Control": "no-store",
+    })  # fmt: skip
+
+
+# --- Discord --------------------------------------------------------------------------------
+
+
+async def discord_status(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    provider = d.app.providers.get("discord")
+    bot = getattr(provider, "bot_id", None)
+    invite = f"https://discord.com/oauth2/authorize?client_id={bot}&scope=bot" if bot else None
+    return web.json_response({
+        "enabled": d.settings.discord_enabled, "connected": bool(provider and provider.connected),
+        "name": getattr(provider, "username", None), "invite": invite,
+    })  # fmt: skip
+
+
+async def discord_test(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    app = d.app
+    if "discord" not in app.providers:
+        raise web.HTTPConflict(text="web.discord_off")
+    sent = 0
+    for user in app.users.all("discord"):
+        if user.role is Role.ADMIN:
+            try:
+                await app.messenger.send(
+                    "discord", user.user_id, Reply(t("discord.test", d.settings.language))
+                )
+                sent += 1
+            except (ProviderUnavailableError, RuntimeError):
+                log.warning("discord test message not delivered")
+    if not sent:
+        raise web.HTTPBadGateway(text="web.discord_not_delivered")
+    return web.json_response({"sent": sent})
 
 
 # --- Signal ---------------------------------------------------------------------------------

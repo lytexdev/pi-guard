@@ -28,6 +28,7 @@ config_app = typer.Typer(no_args_is_help=True, help="Inspect configuration.")
 audio_app = typer.Typer(no_args_is_help=True, help="Audio devices.")
 telegram_app = typer.Typer(no_args_is_help=True, help="Telegram connection.")
 signal_app = typer.Typer(no_args_is_help=True, help="Signal (signal-cli) connection.")
+discord_app = typer.Typer(no_args_is_help=True, help="Discord bot connection.")
 presence_app = typer.Typer(no_args_is_help=True, help="Wi-Fi presence detection.")
 models_app = typer.Typer(no_args_is_help=True, help="Optional detection models.")
 faces_app = typer.Typer(no_args_is_help=True, help="Enrolled people (face recognition).")
@@ -37,6 +38,7 @@ for sub, name in (
     (audio_app, "audio"),
     (telegram_app, "telegram"),
     (signal_app, "signal"),
+    (discord_app, "discord"),
     (presence_app, "presence"),
     (models_app, "models"),
     (faces_app, "faces"),
@@ -371,6 +373,15 @@ def telegram_test(
             ok = response.status_code == 200
             hint = "delivered" if ok else "failed: open the bot in Telegram and press Start first"
             _line("ok" if ok else "fail", f"admin {admin}", hint)
+
+
+@discord_app.command("test")
+def discord_test() -> None:
+    """Check the Discord bot token."""
+    from pi_guard.diagnostics.doctor import check_discord
+
+    result = check_discord(_config())[0]
+    _line(result.level.value, "discord", result.detail)
 
 
 @signal_app.command("test")

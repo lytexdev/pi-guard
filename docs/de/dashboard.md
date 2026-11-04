@@ -72,6 +72,10 @@ Dashboard die Fehlermeldung des Browsers.
 
 ## Werkzeuge im Alltag
 
+- **Geräte ausprobieren:** Unter *Geräte & Kameras* spielt **Lautsprecher testen** drei Töne auf dem gewählten
+  Lautsprecher. **Mikrofon testen** nimmt 3 Sekunden zum Anhören auf und zeigt, wie laut es war. Die Aufnahme
+  wird nicht gespeichert; der Test wird protokolliert und wie beim Mithören mit dem Gong angekündigt.
+
 - **Tooltips** erklären Knöpfe und Einträge, wenn du mit der Maus darauf zeigst.
 - **Navigation:** Unter *Erscheinungsbild → Navigation* ziehst du die Einträge in deine Reihenfolge. Sie
   gilt für dein Konto. Der Kameraraum ist ein Unterpunkt von Live.

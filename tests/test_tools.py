@@ -5,19 +5,36 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import numpy as np
 import pytest
+from aiohttp import web
+from aiohttp.test_utils import TestServer
 
+from pi_guard.audio import check
+from pi_guard.audio.devices import AudioDevice
+from pi_guard.audio.service import AudioError
+from pi_guard.audio.sounds import write_wav
+from pi_guard.config.settings import Settings
 from pi_guard.core.modes import Mode, ModeController, Presence, Selection
 from pi_guard.core.schedule import PLAN_KEY, ScheduleRunner, clean_plan
 from pi_guard.diagnostics import scan, storage
+from pi_guard.messaging.base import Button, ProviderUnavailableError, Reply
+from pi_guard.messaging.discord.provider import (
+    DiscordFatalError,
+    DiscordProvider,
+    chunks,
+    components,
+)
 from pi_guard.messaging.signal.provider import SignalProvider, parse_envelope
 from pi_guard.network.fritzbox import FritzBox, FritzError, Wlan
+from pi_guard.web import api_tools
 from pi_guard.web.api_tools import _wifi_text
 
 from .test_web import PASSWORD, _client, _login
@@ -299,3 +316,272 @@ async def test_storage_cleans_only_old_files(tmp_path: Path) -> None:
 def test_analysis_names_cameras(tmp_path: Path) -> None:
     assert storage.CLEANABLE[0] == "recordings" and "evidence" not in storage.CLEANABLE
     assert json.dumps(scan.check("x", "ok", 1)) == '{"id": "x", "status": "ok", "detail": "1"}'
+
+
+# --- Discord, against a small stand-in for its gateway and REST API --------------------------
+
+
+class FakeDiscord:
+    def __init__(self) -> None:
+        self.sent: list[dict[str, Any]] = []
+        self.files: list[bytes] = []
+        self.acks: list[int] = []
+        self.identify: dict[str, Any] = {}
+        self.ws: Any = None
+        self.limited = 0
+        self.close_code: int | None = None
+        app = web.Application()
+        app.add_routes([
+            web.get("/gateway/bot", self.gateway), web.get("/ws", self.socket),
+            web.post("/users/@me/channels", self.channel),
+            web.post("/channels/{id}/messages", self.message),
+            web.post("/interactions/{id}/{token}/callback", self.callback),
+        ])  # fmt: skip
+        self.server = TestServer(app)
+
+    async def gateway(self, request: web.Request) -> web.Response:
+        if request.headers["Authorization"] != "Bot good-token":
+            return web.json_response({}, status=401)
+        return web.json_response({"url": str(self.server.make_url("/ws"))})
+
+    async def socket(self, request: web.Request) -> web.WebSocketResponse:
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+        self.ws = ws
+        await ws.send_json({"op": 10, "d": {"heartbeat_interval": 60000}})
+        async for frame in ws:
+            data = json.loads(frame.data)
+            if data["op"] == 2:
+                self.identify = data["d"]
+                if self.close_code:
+                    await ws.close(code=self.close_code)
+                    break
+                await self.dispatch("READY", {"user": {"id": "99", "username": "guard"}})
+        return ws
+
+    async def dispatch(self, name: str, data: dict[str, Any]) -> None:
+        await self.ws.send_json({"op": 0, "s": 1, "t": name, "d": data})
+
+    async def channel(self, request: web.Request) -> web.Response:
+        body = await request.json()
+        return web.json_response({"id": f"dm{body['recipient_id']}"})
+
+    async def message(self, request: web.Request) -> web.Response:
+        if self.limited:
+            self.limited -= 1
+            return web.json_response({"retry_after": 0.01}, status=429)
+        if request.content_type == "multipart/form-data":
+            fields = await request.post()
+            payload = fields["payload_json"]
+            text = payload.file.read() if hasattr(payload, "file") else payload
+            self.sent.append({"channel": request.match_info["id"], **json.loads(text)})
+            self.files.append(fields["files[0]"].file.read())  # type: ignore[union-attr]
+        else:
+            self.sent.append({"channel": request.match_info["id"], **await request.json()})
+        return web.json_response({"id": "1"})
+
+    async def callback(self, request: web.Request) -> web.Response:
+        self.acks.append((await request.json())["type"])
+        return web.Response(status=204)
+
+
+@pytest.fixture
+async def discord(tmp_path: Path) -> Any:
+    fake = FakeDiscord()
+    await fake.server.start_server()
+    provider = DiscordProvider("good-token", tmp_path / "up", 1000, lambda user: user == "1",
+                               api=str(fake.server.make_url("")).rstrip("/"))  # fmt: skip
+    yield fake, provider
+    await fake.server.close()
+
+
+async def _connected(provider: DiscordProvider, got: list[Any]) -> asyncio.Task[None]:
+    async def handler(message: Any) -> None:
+        got.append(message)
+
+    task = asyncio.create_task(provider.run(handler))
+    for _ in range(100):
+        if provider.connected:
+            return task
+        await asyncio.sleep(0.01)
+    raise AssertionError("not connected")
+
+
+async def _wait(condition: Any) -> None:
+    for _ in range(200):
+        if condition():
+            return
+        await asyncio.sleep(0.01)
+    raise AssertionError("timed out")
+
+
+async def test_discord_direct_messages_and_buttons(discord: Any) -> None:
+    fake, provider = discord
+    got: list[Any] = []
+    task = await _connected(provider, got)
+    try:
+        assert fake.identify["intents"] == 1 << 12 and provider.username == "guard"
+        author = {"id": "1", "username": "lena", "global_name": "Lena"}
+        await fake.dispatch(
+            "MESSAGE_CREATE", {"author": author, "channel_id": "c1", "content": "foto"}
+        )
+        await _wait(lambda: got)
+        assert (got[0].provider, got[0].sender_id, got[0].text) == ("discord", "1", "foto")
+        assert got[0].sender_name == "Lena" and not got[0].is_group
+
+        # Servers and other bots are ignored.
+        await fake.dispatch("MESSAGE_CREATE", {"author": author, "channel_id": "s", "guild_id": "7",
+                                               "content": "foto"})  # fmt: skip
+        robot = {"id": "2", "bot": True}
+        await fake.dispatch("MESSAGE_CREATE", {"author": robot, "channel_id": "b", "content": "x"})
+        await fake.dispatch("INTERACTION_CREATE", {
+            "type": 3, "id": "5", "token": "t", "user": author, "locale": "de",
+            "data": {"custom_id": "status"},
+        })  # fmt: skip
+        await _wait(lambda: len(got) > 1)
+        assert len(got) == 2 and got[1].from_button and got[1].text == "status"
+        assert got[1].language_hint == "de" and fake.acks == [6]
+
+        row = (Button("Menü", "menu"),)
+        await provider.send("1", Reply("x" * 2500, buttons=(row,)))
+        assert [m["channel"] for m in fake.sent] == ["c1", "c1"]  # the channel it wrote from
+        assert len(fake.sent[0]["content"]) == 2000 and "components" not in fake.sent[0]
+        assert fake.sent[1]["components"][0]["components"][0]["custom_id"] == "menu"
+
+        await provider.send("42", Reply("alarm"))  # alerts open the direct message themselves
+        assert fake.sent[-1]["channel"] == "dm42"
+    finally:
+        task.cancel()
+
+
+async def test_discord_sends_files_and_waits_on_rate_limits(discord: Any, tmp_path: Path) -> None:
+    fake, provider = discord
+    task = await _connected(provider, [])
+    try:
+        photo = tmp_path / "bild.jpg"
+        photo.write_bytes(b"jpeg")
+        fake.limited = 1
+        await provider.send("1", Reply("Foto", photo=photo))
+        assert fake.files == [b"jpeg"] and fake.sent[-1]["content"] == "Foto"
+    finally:
+        task.cancel()
+
+
+async def test_discord_only_admins_may_upload(discord: Any, tmp_path: Path) -> None:
+    fake, provider = discord
+    got: list[Any] = []
+    task = await _connected(provider, got)
+    try:
+        item = {"url": "https://evil.example/x.jpg", "content_type": "image/jpeg", "size": 3,
+                "filename": "x.jpg"}  # fmt: skip
+        guest = {"id": "2", "username": "g"}
+        await fake.dispatch("MESSAGE_CREATE", {"author": guest, "channel_id": "c", "content": "hi",
+                                               "attachments": [item]})  # fmt: skip
+        await _wait(lambda: got)
+        assert got[0].attachment is None
+        with pytest.raises(ProviderUnavailableError):  # other hosts are never fetched
+            await provider._download(item)
+    finally:
+        task.cancel()
+
+
+async def test_discord_bad_token_is_reported(tmp_path: Path) -> None:
+    fake = FakeDiscord()
+    await fake.server.start_server()
+    provider = DiscordProvider("wrong", tmp_path, 1000, lambda _: False,
+                               api=str(fake.server.make_url("")).rstrip("/"))  # fmt: skip
+
+    async def handler(_: Any) -> None:
+        return None
+
+    with pytest.raises(DiscordFatalError):
+        await provider.run(handler)
+    await fake.server.close()
+
+
+async def test_discord_not_connected_can_be_retried(tmp_path: Path) -> None:
+    provider = DiscordProvider("t", tmp_path, 1000, lambda _: False)
+    with pytest.raises(ProviderUnavailableError):
+        await provider.send("1", Reply("x"))
+
+
+def test_discord_menus_fit_its_limits() -> None:
+    many = tuple((Button(f"b{i}", f"c{i}"),) for i in range(8))  # one per row, as menus do
+    rows = components(many)
+    assert len(rows) == 2 and len(rows[0]["components"]) == 5
+    assert components(((Button("x", "y" * 101),),)) == []
+    assert chunks("a\n" * 1500)[0].endswith("a") and all(len(c) <= 2000 for c in chunks("b" * 4500))
+
+
+def test_discord_ids_must_be_numbers(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="numbers"):
+        Settings(_env_file=None, data_dir=tmp_path, discord_admin_user_ids="lena#1234")  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="TOKEN"):
+        Settings(_env_file=None, data_dir=tmp_path, discord_enabled=True,  # type: ignore[call-arg]
+                 discord_admin_user_ids="1", telegram_enabled=False)  # fmt: skip
+
+
+# --- trying out audio devices ----------------------------------------------------------------
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
+async def test_test_sound_is_loud_and_silence_is_detected(tmp_path: Path) -> None:
+    sound = tmp_path / "test.wav"
+    check.write_test_sound(sound)
+    assert (await check.peak_db(sound) or -99) > -20
+    quiet = tmp_path / "quiet.wav"
+    write_wav(quiet, np.zeros(8000, np.float32))
+    assert (await check.peak_db(quiet) or float("-inf")) < check.SILENT_BELOW_DB
+
+
+async def test_only_real_devices_can_be_tested(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, app = await _client(tmp_path)
+    speaker = AudioDevice(1, "USB", 0, "Box", True, False)
+    played: list[str] = []
+    recorded: list[str] = []
+
+    async def play(device: str, path: Path) -> None:
+        assert path.exists()
+        played.append(device)
+
+    async def record(device: str, seconds: int, output: Path) -> None:
+        recorded.append(device)
+        check.write_test_sound(output)
+
+    monkeypatch.setattr(api_tools.audio_devices, "discover", lambda: [speaker])
+    monkeypatch.setattr(check, "play_on", play)
+    monkeypatch.setattr(check, "record_from", record)
+    try:
+        headers = {"X-CSRF-Token": await _login(client)}
+        url = "/api/devices/test/speaker"
+        evil = {"device": "-f null /etc/passwd"}
+        assert (await client.post(url, json=evil, headers=headers)).status == 400
+        good = {"device": speaker.alsa_name}
+        assert (await client.post(url, json=good, headers=headers)).status == 200
+        assert played == [speaker.alsa_name]
+        # It has no microphone.
+        mic = await client.post("/api/devices/test/microphone", json=good, headers=headers)
+        assert mic.status == 400 and not recorded
+
+        monkeypatch.setattr(api_tools.audio_devices, "discover", lambda: [
+            AudioDevice(1, "USB", 0, "Box", False, True)])  # fmt: skip
+        mic = await client.post("/api/devices/test/microphone", json=good, headers=headers)
+        assert mic.status == 200 and mic.headers["X-Silent"] == "0" and await mic.read()
+        assert not list(tmp_path.glob("tmp*"))  # the sample is not kept
+        actions = [r[0] for r in app.db.execute("SELECT action FROM audit")]
+        assert "audio.test_microphone" in actions
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_busy_device_says_so(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    async def run(args: list[str], limit: float) -> tuple[int, bytes, bytes]:
+        return 1, b"", b"cannot open audio device: Device or resource busy"
+
+    monkeypatch.setattr(check, "_run", run)
+    with pytest.raises(AudioError) as caught:
+        await check.record_from("hw:1", 1, tmp_path / "x.mp3")
+    assert caught.value.key == "web.dev_test_busy"

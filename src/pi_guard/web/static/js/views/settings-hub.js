@@ -6,7 +6,7 @@ import { restartPrompt } from "./settings.js";
 
 const SECTIONS = [
   ["general", "settings", ["general"]], ["recording", "video", ["recording"]], ["detection", "users", ["detection"]],
-  ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "whatsapp", "signal"]],
+  ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "discord", "whatsapp", "signal"]],
   ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]], ["appearance", "palette", null],
   ["plan", "calendar", null], ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null], ["api", "key", null],
   ["security", "shield-check", null], ["storage", "database", null], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
@@ -134,7 +134,10 @@ export async function render(main, params = []) {
       onSaved: (changed) => { saveBar.classList.add("hidden"); if (Object.keys(changed || {}).length) { if (changed.language) location.reload(); restartPrompt(); } else toast(t("web.saved")); } });
     body.addEventListener("input", showSave);
     body.addEventListener("change", showSave);
-    if (current === "messaging") body.append(await (await import("./signal.js")).signalPanel());
+    if (current === "messaging") {
+      const { discordPanel, signalPanel } = await import("./signal.js");
+      body.append(await discordPanel(), await signalPanel());
+    }
   } else if (current === "devices") {
     const view = await import("./devices.js");
     await view.render(body, [], { embedded: true, register: (fn) => { save = fn; }, onSaved: () => { saveBar.classList.add("hidden"); restartPrompt(); } });

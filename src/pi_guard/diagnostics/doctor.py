@@ -224,6 +224,19 @@ def check_telegram(config: Config) -> list[Check]:
     return [Check("telegram", Level.OK, f"bot @{username}")]
 
 
+def check_discord(config: Config) -> list[Check]:
+    s = config.settings
+    if not s.discord_enabled or s.discord_bot_token is None:
+        return [Check("discord", Level.SKIP, "disabled")]
+    from pi_guard.messaging.discord.provider import probe
+
+    try:
+        name = asyncio.run(probe(s.discord_bot_token.get_secret_value()))
+    except Exception as exc:
+        return [Check("discord", Level.FAIL, f"bot not reachable: {type(exc).__name__}: {exc}")]
+    return [Check("discord", Level.OK, f"bot {name}")]
+
+
 def check_signal(config: Config) -> list[Check]:
     s = config.settings
     if not s.signal_enabled:
@@ -305,6 +318,7 @@ CHECKS: list[Callable[[Config], list[Check]]] = [
     check_database,
     check_detection,
     check_telegram,
+    check_discord,
     check_signal,
     check_dashboard,
     check_service,

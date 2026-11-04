@@ -44,7 +44,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   WLAN-QR-Codes. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
 - **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-Status,
   feste IP-Adresse. Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
-- **Optional und standardmäßig aus:** Signal, Personenerkennung,
+- **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
   Home Assistant.
 - **Keine Cloud.** Kein Benutzerkonto bei einem Anbieter, keine offenen Ports,

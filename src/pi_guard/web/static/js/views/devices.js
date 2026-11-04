@@ -15,6 +15,38 @@ function select(options, value, allowNone) {
     value && !options.some(([v]) => v === value) ? h("option", { value, selected: true }, `${value} (${t("web.not_found")})`) : null);
 }
 
+function speakerTest(chosen) {
+  const out = h("small", { class: "muted", "aria-live": "polite" });
+  const button = h("button", { type: "button", title: t("web.dev_test_speaker_tip"), onclick: async (event) => {
+    event.stopPropagation();  // not a change to the settings
+    if (!chosen.value) { out.textContent = t("web.dev_test_choose"); return; }
+    button.disabled = true;
+    out.textContent = t("web.dev_test_playing");
+    const done = await attempt(() => api("/api/devices/test/speaker", { method: "POST", body: { device: chosen.value } }));
+    button.disabled = false;
+    out.textContent = done ? t("web.dev_test_heard") : "";
+  } }, icon("volume"), t("web.dev_test_speaker"));
+  return h("div", { class: "device-test" }, button, out);
+}
+
+function microphoneTest(chosen) {
+  const out = h("div", { class: "stack tight", "aria-live": "polite" });
+  const button = h("button", { type: "button", title: t("web.dev_test_mic_tip"), onclick: async (event) => {
+    event.stopPropagation();
+    if (!chosen.value) { fill(out, h("small", { class: "muted" }, t("web.dev_test_choose"))); return; }
+    button.disabled = true;
+    fill(out, h("small", { class: "muted" }, t("web.dev_test_recording")));
+    const response = await attempt(() => api("/api/devices/test/microphone", { method: "POST", body: { device: chosen.value }, raw: true }));
+    button.disabled = false;
+    if (!response) { fill(out); return; }
+    const silent = response.headers.get("X-Silent") === "1";
+    const peak = response.headers.get("X-Peak-Db");
+    const player = h("audio", { controls: true, src: URL.createObjectURL(await response.blob()) });
+    fill(out, h("small", { class: silent ? "warn-text" : "muted" }, t(silent ? "web.dev_test_silent" : "web.dev_test_sound", { peak })), player);
+  } }, icon("microphone"), t("web.dev_test_mic"));
+  return h("div", { class: "device-test" }, button, out);
+}
+
 function cameraEditor(camera, devices, mics, remove) {
   const usb = (camera.source || "usb") === "usb";
   const dev = usb ? select(devices.cameras.map((c) => [c.path, `${c.name} – ${c.path.split("/").pop()}`]), camera.device)
@@ -44,7 +76,7 @@ function cameraEditor(camera, devices, mics, remove) {
     h("label", { class: "check" }, enabled, t("web.enabled")),
     h("label", { class: "check" }, recording, t("web.recording")),
     h("label", { class: "check" }, motion, t("web.motion_detection")),
-    field(t("web.sensitivity"), sens), field(t("web.microphone_in_video"), mic));
+    field(t("web.sensitivity"), sens), field(t("web.microphone_in_video"), mic), microphoneTest(mic));
   panel.read = () => ({
     ...camera, name: name.value, room: room.value.trim(), device: dev.value.trim(), resolution: res.value, fps: Number(fps.value),
     enabled: enabled.checked, recording: recording.checked, motion_detection: motion.checked,
@@ -98,7 +130,7 @@ export async function render(main, params = [], opts = {}) {
         icon("plus"), `${t("web.add")}: ${c.name}`))),
     h("div", { class: "grid wide" },
       h("section", { class: "panel" }, h("h2", {}, t("web.audio")),
-        field(t("web.speaker"), speaker), field(t("web.microphone"), microphone), field(t("web.quiet_hours_sound"), quiet)),
+        field(t("web.speaker"), speaker), speakerTest(speaker), field(t("web.microphone"), microphone), microphoneTest(microphone), field(t("web.quiet_hours_sound"), quiet)),
       h("section", { class: "panel" }, h("h2", {}, t("web.notifications")), field(t("web.quiet_hours_alerts"), notifyQuiet)),
       h("section", { class: "panel" }, h("h2", {}, t("web.trusted_devices")), h("p", { class: "muted" }, t("web.trusted_devices_hint")),
         presence, h("button", { onclick: () => deviceRow({ name: "", mac_address: "", enabled: true, ip_address: null }) }, icon("plus"), t("web.add")))));

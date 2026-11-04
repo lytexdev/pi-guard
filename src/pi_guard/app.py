@@ -94,6 +94,8 @@ class App:
                 | {n: Role.ADMIN for n in s.signal_admin_numbers},
                 "whatsapp": {n.lstrip("+"): Role.VIEWER for n in s.whatsapp_allowed_numbers}
                 | {n.lstrip("+"): Role.ADMIN for n in s.whatsapp_admin_numbers},
+                "discord": {n: Role.VIEWER for n in s.discord_viewer_user_ids}
+                | {n: Role.ADMIN for n in s.discord_admin_user_ids},
             },
         )
         self.modes = mode_controller(self.db, self.bus, config)
@@ -359,6 +361,23 @@ def build_app(config: Config) -> App:
             may_upload,
             app.command_menu(),
         )
+    if s.discord_enabled and s.discord_bot_token is not None:
+        try:
+            from pi_guard.messaging.discord.provider import DiscordProvider
+        except ImportError:
+            log.error("Discord needs the dashboard packages: pip install 'pi-guard[web]'")
+        else:
+
+            def may_upload_discord(user_id: str) -> bool:
+                user = app.users.get("discord", user_id)
+                return user is not None and user.role is Role.ADMIN
+
+            app.providers["discord"] = DiscordProvider(
+                s.discord_bot_token.get_secret_value(),
+                app.media_dir / "uploads",
+                config.file.audio.max_upload_bytes,
+                may_upload_discord,
+            )
     if s.signal_enabled and s.signal_phone_number:
         from pi_guard.messaging.signal.provider import SignalProvider
 
