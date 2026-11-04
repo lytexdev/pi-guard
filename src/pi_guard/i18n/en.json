@@ -1574,7 +1574,7 @@
   "web.setting_discord_admin_user_ids": "Admin user IDs",
   "web.setting_discord_viewer_user_ids": "Viewer user IDs",
   "web.setting_emergency_discord_user_ids": "Emergency contacts (Discord user IDs)",
-  "web.tip_discord_bot_token": "From the Discord Developer Portal, under Bot",
+  "web.tip_discord_bot_token": "Developer Portal, under Bot, Reset Token. Not the Client Secret or Public Key",
   "web.tip_discord_admin_user_ids": "These people may use every command and get alerts",
   "web.tip_discord_viewer_user_ids": "These people may watch and get alerts",
   "web.tip_emergency_discord_user_ids": "Get a message when alerts stay unanswered",
@@ -1639,5 +1639,7 @@
   "web.pq_view_left": "Left",
   "web.pq_view_right": "Right",
   "web.setting_fritzbox_username": "FRITZ!Box user name",
-  "web.tip_fritzbox_username": "The user set up on the FRITZ!Box. Empty: the box names its last user"
+  "web.tip_fritzbox_username": "The user set up on the FRITZ!Box. Empty: the box names its last user",
+  "web.discord_refused": "Discord refused the token. Under Bot in the Developer Portal, press Reset Token and paste the new one. The Client Secret and Public Key are other values.",
+  "web.discord_bad_token": "This is not a bot token, probably the Client Secret. In the Developer Portal, open Bot and press Reset Token."
 }

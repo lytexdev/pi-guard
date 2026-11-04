@@ -46,6 +46,7 @@ All notable changes are documented here. The format follows
 ### Fixed
 
 - Signal no longer crashes in a loop while signal-cli is not running.
+- A refused Discord token is shown in the dashboard instead of restarting in a loop.
 - The lines of the network map were almost invisible.
 
 - Updater: from the dashboard or `scripts/update.sh`, fast-forward only, with health check and

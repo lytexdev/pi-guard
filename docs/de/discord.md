@@ -11,6 +11,7 @@ aus deinem Zuhause dort nichts verloren haben. Bilder und Alarme laufen über di
 1. Öffne das [Discord Developer Portal](https://discord.com/developers/applications) und erstelle eine
    **New Application**.
 2. Drücke unter **Bot** auf **Reset Token** und kopiere den Token. Behandle ihn wie ein Passwort.
+   Client Secret und Public Key auf den anderen Seiten sind etwas anderes und funktionieren nicht.
 3. Privilegierte Intents sind nicht nötig.
 
 ## Benutzer-ID finden

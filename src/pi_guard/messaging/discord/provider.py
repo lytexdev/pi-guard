@@ -109,6 +109,7 @@ class DiscordProvider:
         may_upload: Callable[[str], bool],
         api: str = API,
     ) -> None:
+        token = token.strip().removeprefix("Bot ").strip()  # often copied with the prefix
         self._headers = {"Authorization": f"Bot {token}", "User-Agent": "pi-guard"}
         self._token = token
         self._api = api
@@ -122,6 +123,7 @@ class DiscordProvider:
         self._sequence: int | None = None
         self.username: str | None = None
         self.bot_id: str | None = None
+        self.problem: str | None = None
 
     @property
     def connected(self) -> bool:
@@ -135,6 +137,12 @@ class DiscordProvider:
                 while True:
                     try:
                         await self._session(http, on_message)
+                    except DiscordFatalError as exc:
+                        # Trying again cannot help: say why once and wait for new settings.
+                        self.problem = str(exc)
+                        self._ready = False
+                        log.error("discord stays offline: %s", exc)
+                        await asyncio.Event().wait()
                     except (_Reconnect, aiohttp.ClientError, OSError, TimeoutError) as exc:
                         log.info("discord connection lost (%s)", type(exc).__name__)
                     self._ready = False

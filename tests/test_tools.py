@@ -27,7 +27,6 @@ from pi_guard.core.schedule import PLAN_KEY, ScheduleRunner, clean_plan
 from pi_guard.diagnostics import scan, storage
 from pi_guard.messaging.base import Button, ProviderUnavailableError, Reply
 from pi_guard.messaging.discord.provider import (
-    DiscordFatalError,
     DiscordProvider,
     chunks,
     components,
@@ -495,9 +494,12 @@ async def test_discord_bad_token_is_reported(tmp_path: Path) -> None:
     async def handler(_: Any) -> None:
         return None
 
-    with pytest.raises(DiscordFatalError):
-        await provider.run(handler)
+    task = asyncio.create_task(provider.run(handler))
+    await _wait(lambda: provider.problem == "token refused")
+    assert not task.done() and not provider.connected  # waits, no crash loop
+    task.cancel()
     await fake.server.close()
+    assert DiscordProvider("Bot abc ", tmp_path, 1, lambda _: False)._token == "abc"
 
 
 async def test_discord_not_connected_can_be_retried(tmp_path: Path) -> None:
@@ -603,3 +605,10 @@ def test_fritzbox_user_from_the_settings_is_used(tmp_path: Path) -> None:
                         fritzbox_password="x", telegram_enabled=False)  # fmt: skip
     assert to_env(BY_KEY["fritzbox_username"], " lytex ") == "lytex"
     assert settings.fritzbox_username == "lytex"
+
+
+def test_a_discord_client_secret_is_not_taken_for_the_token() -> None:
+    field = BY_KEY["discord_bot_token"]
+    with pytest.raises(ValueError, match="bad_token"):
+        to_env(field, "a" * 32)
+    assert to_env(field, "aaa.bbb.ccc") == "aaa.bbb.ccc"

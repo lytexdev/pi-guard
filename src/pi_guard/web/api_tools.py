@@ -169,6 +169,7 @@ async def discord_status(request: web.Request) -> web.Response:
     return web.json_response({
         "enabled": d.settings.discord_enabled, "connected": bool(provider and provider.connected),
         "name": getattr(provider, "username", None), "invite": invite,
+        "problem": getattr(provider, "problem", None),
     })  # fmt: skip
 
 

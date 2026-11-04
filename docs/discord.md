@@ -10,7 +10,8 @@ pictures from your home do not belong there. Pictures and alerts pass through Di
 
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications) and create a **New
    Application**.
-2. Under **Bot**, press **Reset Token** and copy the token. Treat it like a password.
+2. Under **Bot**, press **Reset Token** and copy the token. Treat it like a password. The Client
+   Secret and Public Key on the other pages are different values and will not work.
 3. No privileged intents are needed.
 
 ## Find your user ID

@@ -1574,7 +1574,7 @@
   "web.setting_discord_admin_user_ids": "Admin-Benutzer-IDs",
   "web.setting_discord_viewer_user_ids": "Betrachter-Benutzer-IDs",
   "web.setting_emergency_discord_user_ids": "Notfallkontakte (Discord-Benutzer-IDs)",
-  "web.tip_discord_bot_token": "Aus dem Discord Developer Portal, unter Bot",
+  "web.tip_discord_bot_token": "Developer Portal, unter Bot, Reset Token. Nicht Client Secret oder Public Key",
   "web.tip_discord_admin_user_ids": "Diese Personen dürfen alle Befehle nutzen und bekommen Alarme",
   "web.tip_discord_viewer_user_ids": "Diese Personen dürfen zuschauen und bekommen Alarme",
   "web.tip_emergency_discord_user_ids": "Bekommen eine Nachricht, wenn Alarme unbeantwortet bleiben",
@@ -1639,5 +1639,7 @@
   "web.pq_view_left": "Links",
   "web.pq_view_right": "Rechts",
   "web.setting_fritzbox_username": "FRITZ!Box-Benutzername",
-  "web.tip_fritzbox_username": "Der Benutzer, der an der FRITZ!Box eingerichtet ist. Leer: die Box nennt ihren letzten Benutzer"
+  "web.tip_fritzbox_username": "Der Benutzer, der an der FRITZ!Box eingerichtet ist. Leer: die Box nennt ihren letzten Benutzer",
+  "web.discord_refused": "Discord hat den Token abgelehnt. Drücke im Developer Portal unter Bot auf Reset Token und füge den neuen ein. Client Secret und Public Key sind etwas anderes.",
+  "web.discord_bad_token": "Das ist kein Bot-Token, wahrscheinlich das Client Secret. Öffne im Developer Portal den Punkt Bot und drücke Reset Token."
 }

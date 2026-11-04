@@ -138,6 +138,8 @@ def to_env(field_: Field, value: Any) -> str:
         text = str(value).strip()
         if not text or "\n" in text or len(text) > 200:
             raise ValueError(f"{field_.key}: invalid value")
+        if field_.key == "discord_bot_token" and text.removeprefix("Bot ").count(".") != 2:
+            raise ValueError("web.discord_bad_token")  # the Client Secret looks similar
         return text
     if field_.kind == "list":
         items = value if isinstance(value, list) else str(value).split(",")
