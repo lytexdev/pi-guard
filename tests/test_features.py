@@ -149,6 +149,7 @@ def test_device_guesses() -> None:
     assert windows["private_mac"] is False
     assert guess(64, {9100, 80}, None, None)["kind"] == "printer"
     assert guess(64, {554}, None, None)["kind"] == "camera"
+    assert guess(64, {53, 80, 443, 554, 49000}, "AVM GmbH", None)["kind"] == "router"
     assert guess(None, set(), None, None)["system"] == "unknown"
 
 

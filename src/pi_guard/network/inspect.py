@@ -61,12 +61,12 @@ def guess(ttl: int | None, ports: set[int], vendor: str | None, mac: str | None)
     if 548 in ports:
         system = "apple"
     kind = "unknown"
-    if 9100 in ports or 631 in ports or 515 in ports or maker == "Printer":
+    if 49000 in ports or maker == "AVM FRITZ!":  # routers offer RTSP for TV, so check them first
+        kind = "router"
+    elif 9100 in ports or 631 in ports or 515 in ports or maker == "Printer":
         kind = "printer"
     elif 554 in ports:
         kind = "camera"
-    elif 49000 in ports or maker == "AVM FRITZ!":
-        kind = "router"
     elif 8008 in ports or 7000 in ports:
         kind = "media"
     elif 62078 in ports or (private and system in ("linux_like", "apple")):
