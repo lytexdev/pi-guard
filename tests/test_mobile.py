@@ -229,7 +229,7 @@ async def test_viewers_can_pair_but_not_find(tmp_path: Path) -> None:
 
 
 async def test_a_call_needs_the_same_origin(tmp_path: Path) -> None:
-    client, app, headers, _ = await _paired(tmp_path)
+    client, app, _headers, _ = await _paired(tmp_path)
     try:
         app.audio = SimpleNamespace(playback_enabled=True, settings=SimpleNamespace(speaker="hw:1"))
         response = await client.get(
