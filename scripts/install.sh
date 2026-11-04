@@ -287,6 +287,9 @@ printf 'REPO=%q\nOWNER=%q\n' "$REPO" "$OWNER" > "$CONF/update.conf"
 runuser -u "$OWNER" -- git -C "$REPO" rev-parse HEAD > "$PREFIX/commit" 2>/dev/null || true
 install -m 0755 "$REPO/scripts/update.sh" /usr/local/sbin/pi-guard-update
 install -m 0644 "$REPO/deploy/update/pi-guard-update.path" "$REPO/deploy/update/pi-guard-update.service" /etc/systemd/system/
+install -m 0755 "$REPO/deploy/maint/pi-guard-maint" /usr/local/sbin/pi-guard-maint
+install -m 0644 "$REPO/deploy/maint/pi-guard-maint.path" "$REPO/deploy/maint/pi-guard-maint.service" /etc/systemd/system/
+install -d -o pi-guard -g pi-guard -m 0700 "$DATA/maint"
 install -m 0644 "$REPO/deploy/systemd/pi-guard.service" /etc/systemd/system/pi-guard.service
 DROPIN=/etc/systemd/system/pi-guard.service.d
 if [[ "$RECORDINGS" != "$DATA"* ]]; then
@@ -297,7 +300,7 @@ systemctl daemon-reload
 "$PREFIX/venv/bin/pi-guard" --env-file "$ENV_FILE" config check \
     || die "configuration is invalid; fix $ENV_FILE and run the installer again"
 systemctl enable --quiet pi-guard
-systemctl enable --now --quiet pi-guard-update.path
+systemctl enable --now --quiet pi-guard-update.path pi-guard-maint.path
 systemctl restart pi-guard
 
 # 14: diagnostics --------------------------------------------------------------------

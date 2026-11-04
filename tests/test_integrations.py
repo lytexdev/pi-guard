@@ -147,7 +147,7 @@ async def test_signal_outage_does_not_affect_other_components() -> None:
     for task in tasks:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
-    assert signal_state.restarts >= 3 and "ConnectionRefused" in (signal_state.last_error or "")
+    assert signal_state.restarts == 0 and signal_state.last_error is None  # waits, no crash
     assert ticks > 10
 
 

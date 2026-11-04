@@ -40,7 +40,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Einstellungen, Statistik und Logs; als App installierbar mit
   Push-Meldungen; Anmeldung mit Passwort oder Schlüsseldatei, optional mit
   Zwei-Faktor-Code oder Hardware-Schlüssel; mehrere Benutzer (Admins und Betrachter);
-  eigene Farben, Schrift und Logo. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
+  eigene Farben, Schrift und Logo; Wochenplan, Sicherheitscheck, Speicher-Bereinigung und
+  WLAN-QR-Codes. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
 - **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-Status,
   feste IP-Adresse. Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
 - **Optional und standardmäßig aus:** Signal, Personenerkennung,

@@ -8,6 +8,15 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Security scan with an optional report by messenger, and a storage analysis with clean-up. System
+  checks run in a new root job, `pi-guard-maint`.
+- Weekly plan: mark when nobody is usually home, in a calendar you can draw in.
+- Wi-Fi QR codes, internet block per device and a new Wi-Fi key through the FRITZ!Box.
+- "What others can see of you" on the network page.
+- Tooltips, navigation order by drag and drop, camera room as a sub-entry of Live.
+- One field per contact instead of comma lists, search behind an icon, the map opens large.
+- Support contact in the overview, settings, logs and the assistant.
+- Signal: `scripts/signal.sh`, linking the phone by QR code, and Note to Self with your own number.
 - Several dashboard users with the roles admin and viewer. Viewers only watch; the server enforces
   this with an allowlist. Everyone has their own password and two-factor code.
 - Appearance settings: accent colour, font, animations and your own logo, also in the setup.
@@ -28,6 +37,7 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Signal no longer crashes in a loop while signal-cli is not running.
 - The lines of the network map were almost invisible.
 
 - Updater: from the dashboard or `scripts/update.sh`, fast-forward only, with health check and

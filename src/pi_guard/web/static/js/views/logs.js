@@ -1,5 +1,6 @@
 // Recent service logs and the audit trail.
 import { api, h, icon, t, when, fill } from "../api.js";
+import { supportNote } from "../widgets.js";
 
 function securityPanels(s) {
   const tile = (key, value, bad) => h("div", { class: `tile ${bad && value ? "bad" : ""}` }, h("div", {}, h("div", { class: "tile-value" }, value), h("small", {}, t(`web.sec_${key}`))));
@@ -38,7 +39,8 @@ export async function render(main) {
     security ? securityPanels(security) : null,
     h("section", { class: "panel" }, h("h2", {}, t("web.service_log")), logBox),
     h("section", { class: "panel" }, h("h2", {}, t("web.audit")),
-      h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, t("web.time")), h("th", {}, t("web.actor")), h("th", {}, t("web.action")), h("th", {}, t("web.detail")))), auditBody))));
+      h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, t("web.time")), h("th", {}, t("web.actor")), h("th", {}, t("web.action")), h("th", {}, t("web.detail")))), auditBody))),
+    supportNote());
   await draw();
   const timer = setInterval(() => draw().catch(() => {}), 10000);
   return () => clearInterval(timer);

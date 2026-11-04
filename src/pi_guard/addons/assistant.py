@@ -71,6 +71,7 @@ LANGUAGE_NAMES = {"de": "German", "en": "English"}
 
 _WEATHER_RE = re.compile(r"\b(wetter|weather|vorhersage|forecast|regnet|regen|rain)\b")
 _PLACE_RE = re.compile(r"\b(?:in|für|fuer|for)\s+([^\W\d_][\w .-]{1,40}?)\s*(?:\?|$|heute|morgen)")
+_SUPPORT_RE = re.compile(r"\b(support|hilfe|ansprechpartner|wen (kann|soll) ich|who can help)\b")
 _TIME_RE = re.compile(r"^(wie spät|wie spaet|wieviel uhr|wie viel uhr|what time)\b")
 _DATE_RE = re.compile(r"^(welcher tag|welches datum|what day|what date|den wievielten)\b")
 _TRANSLATE_RE = re.compile(
@@ -176,6 +177,11 @@ class Assistant:
 
     # --- answers ------------------------------------------------------------------------
 
+    def _support(self) -> str:
+        """Who helps with this system, as set in the dashboard. Never needs the AI."""
+        contact = self._db.get("web.support") or {}
+        return "\n".join(str(v) for v in contact.values() if v)
+
     async def ask(
         self, question: str, lang: str, conversation: str, private: bool = False
     ) -> Answer:
@@ -187,6 +193,9 @@ class Assistant:
         local = self._local(lowered, lang)
         if local is not None:
             return local
+        support = self._support() if _SUPPORT_RE.search(lowered) else None
+        if support:
+            return Answer(support, "support")
         if _WEATHER_RE.search(lowered):
             return await self._answer_weather(lowered, lang)
         translation = _TRANSLATE_RE.match(question)

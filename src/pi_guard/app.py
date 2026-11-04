@@ -24,12 +24,14 @@ from pi_guard.core.events import Event, EventBus, EventType
 from pi_guard.core.lifecycle import ComponentState, supervise
 from pi_guard.core.modes import Mode, mode_controller
 from pi_guard.core.permissions import Role, UserStore
+from pi_guard.core.schedule import ScheduleRunner
 from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.analysis import MotionAnalysis
 from pi_guard.detection.enrollment import EnrollmentSession
 from pi_guard.detection.faces import BiometricStore, FaceRecognizer
 from pi_guard.detection.motion import MotionDetector
 from pi_guard.detection.persons import PersonDetector
+from pi_guard.diagnostics.scan import SecurityScan
 from pi_guard.i18n import LANGUAGES, load_extra, t
 from pi_guard.integrations.mqtt.bridge import MqttBridge
 from pi_guard.messaging.base import Provider
@@ -138,6 +140,8 @@ class App:
             box = config.file.presence.fritzbox
             self.fritz = FritzBox(box.host, box.username, s.fritzbox_password.get_secret_value())
         self.addons = Addons(self)
+        self.schedule = ScheduleRunner(self.db, self.modes, s.tz)
+        self.scanner = SecurityScan(self)
         if s.presence_enabled:
             presence = config.file.presence
             self.presence = PresenceMonitor(
@@ -269,6 +273,7 @@ class App:
         path = secure_dir(self.settings.runtime_dir) / "heartbeat"
         while True:
             self.modes.tick()
+            self.schedule.tick()
             await asyncio.to_thread(
                 atomic_write, path, datetime.now(UTC).isoformat().encode(), 0o644
             )

@@ -87,8 +87,8 @@ export async function topologyPanel(onDevice) {
       item.href ? h("a", { href: item.href }, t("web.topo_open")) : null,
       item.device && onDevice ? h("button", { onclick: () => onDevice(item.device) }, icon("zoom-in"), t("web.dev_details")) : null);
   };
-  const draw = () => {
-    const width = Math.max(300, box.clientWidth || 800);
+  const draw = (target = box, forced = 0) => {
+    const width = forced || Math.max(300, target.clientWidth || 800);
     const map = svg("svg", { class: "tmap", role: "group", "aria-label": t("web.topo_title") });
     const internet = node(map, { label: t("web.topo_internet"), icon: "world", state: "ok", detail: t("web.topo_internet_text") }, (width - NODE_W) / 2, 6, select);
     const router = node(map, { label: t("web.topo_router"), icon: "router", state: "ok", detail: t("web.topo_router_text") }, (width - NODE_W) / 2, 6 + ROW - 24, select);
@@ -119,11 +119,28 @@ export async function topologyPanel(onDevice) {
     map.prepend(arrowHead());
     map.setAttribute("viewBox", `0 0 ${width} ${y + 6}`);
     map.setAttribute("height", y + 6);
-    fill(box, map);
+    fill(target, map);
   };
+  const enlarge = () => {
+    // Like a picture: opens large, with room to zoom and scroll.
+    const view = h("div", { class: "topology large" });
+    let zoom = 1;
+    const size = (step) => { zoom = Math.min(3, Math.max(1, zoom * step)); draw(view, Math.max(innerWidth - 80, 900) * zoom); };
+    const dialog = h("dialog", { class: "lightbox map" },
+      view, h("div", { class: "row end" },
+        h("button", { class: "icon-only", title: t("web.zoom_out"), onclick: () => size(1 / 1.4) }, icon("zoom-out")),
+        h("button", { class: "icon-only", title: t("web.zoom_in"), onclick: () => size(1.4) }, icon("zoom-in")),
+        h("button", { class: "primary", onclick: () => dialog.close() }, t("web.close"))));
+    dialog.addEventListener("close", () => dialog.remove());
+    document.body.append(dialog);
+    dialog.showModal();
+    size(1);
+  };
+  box.addEventListener("click", (event) => { if (!event.target.closest("g, a, button")) enlarge(); });
   const panel = h("section", { class: "panel" }, h("div", { class: "row between" }, h("h2", {}, icon("network"), " ", t("web.topo_title")),
-    data.lan.length > MAX_LAN ? h("small", { class: "muted" }, t("web.topo_more", { count: data.lan.length - MAX_LAN })) : null), box, info);
-  requestAnimationFrame(draw);
+    h("div", { class: "row" }, data.lan.length > MAX_LAN ? h("small", { class: "muted" }, t("web.topo_more", { count: data.lan.length - MAX_LAN })) : null,
+      h("button", { class: "icon-only", title: t("web.topo_enlarge"), onclick: enlarge }, icon("maximize")))), box, info);
+  requestAnimationFrame(() => draw());
   const observer = new ResizeObserver(() => { if (box.clientWidth && box.dataset.w !== String(box.clientWidth)) { box.dataset.w = box.clientWidth; draw(); } });
   observer.observe(box);
   return panel;

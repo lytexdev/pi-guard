@@ -3,6 +3,7 @@ numbered menu where a platform has no buttons."""
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,8 @@ from pi_guard.addons.assistant import AssistantError
 from pi_guard.addons.remote import ConfirmationError
 from pi_guard.addons.smarthome import SmartHomeError
 from pi_guard.core.permissions import Role
+from pi_guard.core.timeutil import utcnow
+from pi_guard.diagnostics.storage import analyse
 from pi_guard.messaging.base import Button, Reply
 from pi_guard.messaging.commands.context import CommandContext
 from pi_guard.messaging.commands.core import menu_row
@@ -256,8 +259,45 @@ def more_rows(ctx: CommandContext) -> list[tuple[Button, ...]]:
     return [tuple(buttons[i : i + 2]) for i in range(0, len(buttons), 2)]
 
 
+# --- system ------------------------------------------------------------------------------
+
+
+async def security_scan(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    started = ctx.app.scanner.start(report_to_admins=True)
+    return Reply(ctx.t("scan.started" if started else "scan.running"), buttons=(menu_row(ctx),))
+
+
+async def storage(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    data = await asyncio.to_thread(analyse, ctx.app)
+    lines = [ctx.t("storage.title", free=round(data["free"] / 1e9, 1),
+                   total=round(data["total"] / 1e9, 1))]  # fmt: skip
+    for item in data["items"][:6]:
+        if item["bytes"]:
+            label = " ".join(filter(None, (ctx.t(f"web.st_{item['id']}"), item["name"])))
+            lines.append(f"• {label}: {item['bytes'] / 1e9:.2f} GB")
+    return Reply("\n".join(lines), buttons=(menu_row(ctx),))
+
+
+async def plan(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    current = ctx.app.schedule.plan()
+    if not current["enabled"] or not current["blocks"]:
+        return Reply(ctx.t("plan.off"), buttons=(menu_row(ctx),))
+    today = utcnow().astimezone(ctx.app.settings.tz).weekday()
+    blocks = [b for b in current["blocks"] if b["day"] == today]
+    lines = [ctx.t("plan.today")]
+    lines += [f"• {b['start'] // 60:02}:{b['start'] % 60:02}–{b['end'] // 60:02}:{b['end'] % 60:02}"
+              f" {b['label']}".rstrip() for b in blocks]  # fmt: skip
+    return Reply("\n".join(lines) if blocks else ctx.t("plan.none_today"), buttons=(menu_row(ctx),))
+
+
 def register(registry: Registry) -> None:
     text = (TextArg("text"),)
+    registry.add(Command("securityscan", security_scan, ("sicherheitscheck", "sicherheitsscan"),
+                         role=Role.ADMIN, help_key="help.securityscan", menu=False))  # fmt: skip
+    registry.add(Command("storage", storage, ("speicher", "festplatte"),
+                         role=Role.ADMIN, help_key="help.storage", menu=False))  # fmt: skip
+    registry.add(Command("plan", plan, ("zeitplan", "wochenplan"),
+                         role=Role.ADMIN, help_key="help.plan", menu=False))  # fmt: skip
     registry.add(Command("services", services, ("dienste", "heartbeat", "server"),
                          role=Role.ADMIN, help_key="help.services", menu=False))  # fmt: skip
     registry.add(Command("netstats", netstats, ("analyse", "netzwerk", "network"), text,

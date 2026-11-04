@@ -1,7 +1,7 @@
 // Camera room: every camera at once, like a security desk.
 import { api, attempt, fill, h, icon, t, toast } from "../api.js";
 import { state } from "../app.js";
-import { assistantIcon } from "../widgets.js";
+import { assistantIcon, liveSwitch } from "../widgets.js";
 
 const KEY = "monitor.columns";
 
@@ -29,7 +29,7 @@ export async function render(main) {
     img.addEventListener("error", () => tile.classList.add("offline"));
     grid.append(tile);
   });
-  fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_monitor")),
+  fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_monitor")), liveSwitch("monitor"),
     h("div", { class: "row" }, clock, h("div", { class: "segmented" }, [1, 2, 3, 4].map((n) => h("button", { onclick: () => columns(n) }, n))))),
     overview.cameras.length ? grid : h("p", { class: "empty" }, t("web.no_cameras")));
   const tick = () => { clock.textContent = new Date().toLocaleTimeString(); };

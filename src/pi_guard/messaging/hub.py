@@ -204,7 +204,7 @@ class Messenger:
             await self._send_safely(msg.provider, msg.chat_id, Reply(t("invite.invalid", lang)))
             return
         log.info("%s joined as %s", mask_sender(sender), user.role)
-        await self._notify_admins(t("invite.joined_admin", lang, name=user.name or user.user_id))
+        await self.notify_admins(t("invite.joined_admin", lang, name=user.name or user.user_id))
         ctx = self._context(msg, user)
         welcome = await self._app.registry.get("menu").handler(ctx, {})  # type: ignore[union-attr]
         await self._reply(
@@ -280,7 +280,7 @@ class Messenger:
                 log.info("reply via %s failed (%s), try %d again", provider_name, exc, attempt + 2)
                 await asyncio.sleep(pause)
 
-    async def _notify_admins(self, text: str) -> None:
+    async def notify_admins(self, text: str) -> None:
         for user in self._app.users.all():
             if user.role is Role.ADMIN and user.provider in self._app.providers:
                 await self._send_safely(user.provider, user.user_id, Reply(text))

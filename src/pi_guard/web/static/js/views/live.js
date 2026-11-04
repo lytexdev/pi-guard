@@ -1,5 +1,6 @@
 // Live: picture, sound, push-to-talk, image tools, sounds and alarm.
 import { api, attempt, confirmDialog, h, icon, t, toast, fill } from "../api.js";
+import { liveSwitch } from "../widgets.js";
 import { state } from "../app.js";
 
 const REGIONS = ["top_left", "top", "top_right", "left", "center", "right", "bottom_left", "bottom", "bottom_right"];
@@ -196,7 +197,7 @@ export async function render(main, params) {
   const pan = pannable(stage, img);
   const result = resultPanel();
   const audio = h("audio", { class: "hidden" });
-  const listen = h("button", { class: "big" }, icon("volume"), t("web.listen"));
+  const listen = h("button", { class: "big", title: t("web.tip_listen") }, icon("volume"), t("web.listen"));
   listen.disabled = !features.audio_recording;
   let listening = false, retries = 0;
   const connect = () => {
@@ -233,20 +234,20 @@ export async function render(main, params) {
     button.disabled = false;
     if (response) result.show(await response.json(), response.headers.get("X-Person") === "1" ? t("web.sharper_person") : t("web.sharper"));
   };
-  const sharperButton = h("button", {}, icon("focus-2"), t("image.sharper_button"));
+  const sharperButton = h("button", { title: t("web.tip_sharper") }, icon("focus-2"), t("image.sharper_button"));
   sharperButton.addEventListener("click", () => sharper(sharperButton));
 
   fill(main,
-    h("div", { class: "topbar" }, h("h1", {}, t("web.nav_live")),
+    h("div", { class: "topbar" }, h("h1", {}, t("web.nav_live")), liveSwitch("live"),
       cameras.length > 1 ? h("div", { class: "segmented" }, cameras.map((c) =>
         h("button", { class: c.id === camera.id ? "on" : "", onclick: () => { location.hash = `#/live/${c.id}`; } }, c.name))) : null),
     h("div", { class: "grid wide" },
       h("section", { class: "panel" }, stage,
         h("div", { class: "controls" },
-          h("button", { onclick: () => pan.zoom(1.5) }, icon("zoom-in"), t("web.zoom_in")),
-          h("button", { onclick: () => pan.zoom(1 / 1.5) }, icon("zoom-out"), t("web.zoom_out")),
-          h("button", { onclick: () => stage.requestFullscreen?.() }, icon("maximize"), t("web.fullscreen")),
-          viewer ? null : h("button", { onclick: photo }, icon("photo"), t("web.photo")),
+          h("button", { title: t("web.tip_zoom_in"), onclick: () => pan.zoom(1.5) }, icon("zoom-in"), t("web.zoom_in")),
+          h("button", { title: t("web.tip_zoom_out"), onclick: () => pan.zoom(1 / 1.5) }, icon("zoom-out"), t("web.zoom_out")),
+          h("button", { title: t("web.tip_fullscreen"), onclick: () => stage.requestFullscreen?.() }, icon("maximize"), t("web.fullscreen")),
+          viewer ? null : h("button", { title: t("web.tip_photo"), onclick: photo }, icon("photo"), t("web.photo")),
           viewer ? null : h("button", { onclick: async () => {
             const minutes = Number(prompt(t("web.ev_minutes"), "5"));
             if (minutes && await attempt(() => api("/api/evidence", { method: "POST", body: { camera: camera.id, minutes } }))) toast(t("web.ev_started", { minutes }));

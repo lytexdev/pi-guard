@@ -1,0 +1,361 @@
+"""Tools in the dashboard: Signal linking, Wi-Fi access, weekly plan, support contact,
+navigation, security scan and storage. Everything here is for admins, see VIEWER_GET."""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import ipaddress
+import logging
+import re
+import secrets
+import shutil
+import sqlite3
+import string
+from typing import Any
+
+from aiohttp import web
+
+from pi_guard.core.schedule import PLAN_KEY, clean_plan
+from pi_guard.diagnostics import storage as disk
+from pi_guard.diagnostics.scan import HELPER, read_report, request_root
+from pi_guard.messaging.signal.provider import rpc
+from pi_guard.network.fritzbox import FritzError
+from pi_guard.network.lan import neighbour_table
+from pi_guard.network.pihole import PiholeError
+from pi_guard.web.api_account import _qr_svg
+from pi_guard.web.server import current, dashboard, read_json
+
+log = logging.getLogger(__name__)
+
+LINK_SECONDS = 300
+SUPPORT_FIELDS = {"name": 100, "phone": 40, "email": 100, "address": 300}
+NAV_ROUTES = re.compile(r"^[a-z]{2,20}$")
+MAX_NAV = 20
+ENCRYPTED_DNS_PORTS = (443, 853)
+WIFI_KEY_LENGTH = 20
+WIFI_ALPHABET = string.ascii_letters + string.digits
+_links: dict[str, Any] = {}
+
+
+def routes() -> list[web.RouteDef]:
+    return [
+        web.get("/api/signal", signal_status),
+        web.post("/api/signal/link", signal_link),
+        web.post("/api/network/wifi/qr", wifi_qr),
+        web.post("/api/network/wifi/{index:[123]}/renew", wifi_renew),
+        web.get("/api/network/internet/{ip}", internet_state),
+        web.post("/api/network/internet/{ip}", internet_set),
+        web.get("/api/network/exposure", exposure),
+        web.get("/api/schedule", schedule_get),
+        web.put("/api/schedule", schedule_put),
+        web.put("/api/support", support_put),
+        web.post("/api/me/nav", nav_put),
+        web.get("/api/scan", scan_get),
+        web.post("/api/scan", scan_start),
+        web.get("/api/storage", storage_get),
+        web.post("/api/storage/clean", storage_clean),
+    ]
+
+
+def _actor(request: web.Request) -> str:
+    return f"web:{current(request).username}"
+
+
+def _confirm(request: web.Request, data: dict[str, Any]) -> None:
+    """Changes that lock people out need the password again."""
+    d = dashboard(request)
+    name = d.auth.account(current(request).username)["username"]
+    if d.auth.check_password(name, str(data.get("password", ""))) is None:
+        raise web.HTTPForbidden(text="web.wrong_password")
+
+
+# --- Signal ---------------------------------------------------------------------------------
+
+
+async def signal_status(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    s = d.settings
+    provider = d.app.providers.get("signal")
+    version, accounts = None, []
+    try:
+        version = (await rpc(s.signal_cli_address, "version", wait=3) or {}).get("version")
+        found = await rpc(s.signal_cli_address, "listAccounts", wait=3) or []
+        accounts = [a.get("number") for a in found if isinstance(a, dict)]
+    except (OSError, TimeoutError, ValueError, RuntimeError) as exc:
+        log.debug("signal-cli: %s", type(exc).__name__)
+    return web.json_response({
+        "enabled": s.signal_enabled, "installed": shutil.which("signal-cli") is not None,
+        "running": version is not None, "version": version,
+        "linked": s.signal_phone_number in accounts, "accounts": len(accounts),
+        "connected": bool(provider and provider.connected),
+        "link": {k: v for k, v in _links.items() if k != "task"},
+    })  # fmt: skip
+
+
+async def _finish_link(address: str, uri: str) -> None:
+    try:
+        await rpc(address, "finishLink", {"deviceLinkUri": uri, "deviceName": "pi-guard"},
+                  wait=LINK_SECONDS)  # fmt: skip
+        _links.update(state="linked")
+    except (OSError, TimeoutError, ValueError, RuntimeError) as exc:
+        log.warning("linking Signal failed: %s", type(exc).__name__)
+        _links.update(state="failed")
+
+
+async def signal_link(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    address = d.settings.signal_cli_address
+    try:
+        started = await rpc(address, "startLink", wait=20)
+    except (OSError, TimeoutError, ValueError, RuntimeError):
+        raise web.HTTPConflict(text="web.signal_not_running") from None
+    uri = str(started["deviceLinkUri"])
+    _links.clear()
+    _links.update(state="waiting", task=asyncio.create_task(_finish_link(address, uri)))
+    d.app.db.audit(_actor(request), "signal.link")
+    return web.json_response({"qr": _qr_svg(uri)})
+
+
+# --- Wi-Fi ----------------------------------------------------------------------------------
+
+
+def _wifi_text(ssid: str, key: str) -> str:
+    def escaped(value: str) -> str:
+        return re.sub(r'([\\;,:"])', r"\\\1", value)
+
+    return f"WIFI:T:WPA;S:{escaped(ssid)};P:{escaped(key)};;"
+
+
+def _fritz(request: web.Request) -> Any:
+    fritz = dashboard(request).app.fritz
+    if fritz is None:
+        raise web.HTTPConflict(text="web.wifi_no_fritz")
+    return fritz
+
+
+async def wifi_qr(request: web.Request) -> web.Response:
+    """From the FRITZ!Box, or typed in. The key is only passed on, never stored."""
+    d = dashboard(request)
+    data = await read_json(request)
+    ssid, key = str(data.get("ssid", "")).strip(), str(data.get("key", ""))
+    index = data.get("index")
+    if index in (1, 2, 3):
+        fritz = _fritz(request)
+        try:
+            wlans = {w.index: w for w in await fritz.wlans()}
+            ssid, key = wlans[index].ssid, await fritz.wifi_key(index)
+        except (FritzError, KeyError):
+            raise web.HTTPBadGateway(text="web.wifi_no_key") from None
+    if not ssid or not 8 <= len(key) <= 63:
+        raise web.HTTPBadRequest(text="web.wifi_bad_input")
+    d.app.db.audit(_actor(request), "network.wifi_qr", ssid[:32])
+    return web.json_response({"ssid": ssid, "key": key, "qr": _qr_svg(_wifi_text(ssid, key))})
+
+
+async def _on_wifi() -> bool:
+    """True if this Pi itself is connected by Wi-Fi: a new key would cut it off."""
+    process = await asyncio.create_subprocess_exec(
+        "ip", "-4", "route", "show", "default",
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+    )  # fmt: skip
+    output, _ = await process.communicate()
+    return " dev wl" in output.decode()
+
+
+async def wifi_renew(request: web.Request) -> web.Response:
+    """A new key: the only way the router offers to make devices log in again."""
+    d = dashboard(request)
+    data = await read_json(request)
+    _confirm(request, data)
+    fritz = _fritz(request)
+    index = int(request.match_info["index"])
+    if index != 3 and await _on_wifi():
+        raise web.HTTPConflict(text="web.wifi_pi_on_wifi")
+    key = "".join(secrets.choice(WIFI_ALPHABET) for _ in range(WIFI_KEY_LENGTH))
+    try:
+        wlans = await fritz.wlans()
+        targets = [w for w in wlans if w.guest == (index == 3)]
+        for wlan in targets:
+            await fritz.set_wifi_key(wlan.index, key)
+    except FritzError:
+        raise web.HTTPBadGateway(text="web.wifi_no_key") from None
+    d.app.db.audit(_actor(request), "network.wifi_renew", str(index))
+    ssid = targets[0].ssid if targets else ""
+    return web.json_response({"ssid": ssid, "key": key, "qr": _qr_svg(_wifi_text(ssid, key))})
+
+
+def _private_ip(request: web.Request) -> str:
+    ip = request.match_info["ip"]
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        raise web.HTTPBadRequest(text="analytics.bad_ip") from None
+    if address.version != 4 or not address.is_private:
+        raise web.HTTPBadRequest(text="analytics.bad_ip")
+    return ip
+
+
+async def internet_state(request: web.Request) -> web.Response:
+    ip = _private_ip(request)
+    fritz = dashboard(request).app.fritz
+    if fritz is None:
+        return web.json_response({"available": False})
+    try:
+        return web.json_response({"available": True, "allowed": await fritz.internet_allowed(ip)})
+    except FritzError:
+        return web.json_response({"available": False})
+
+
+async def internet_set(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    ip = _private_ip(request)
+    data = await read_json(request)
+    _confirm(request, data)
+    allowed = data.get("allowed") is True
+    try:
+        await _fritz(request).set_internet(ip, allowed)
+    except FritzError:
+        raise web.HTTPBadGateway(text="web.wifi_no_key") from None
+    d.app.db.audit(_actor(request), "network.internet", f"{ip} {'on' if allowed else 'off'}")
+    return web.json_response({"ok": True, "allowed": allowed})
+
+
+async def _upstreams(app: Any) -> list[dict[str, Any]]:
+    if app.pihole is None:
+        return []
+    try:
+        data = await app.pihole.request("GET", "/api/stats/upstreams")
+    except PiholeError:
+        return []
+    found = [u for u in data.get("upstreams", []) if u.get("port", 0) > 0]
+    return [{"name": u.get("name") or u.get("ip"), "port": u.get("port")} for u in found]
+
+
+async def exposure(request: web.Request) -> web.Response:
+    """What this device gives away, from what the home network itself can see of it."""
+    d = dashboard(request)
+    app = d.app
+    ip = d.guard.client_ip(request)
+    vpn = False
+    with contextlib.suppress(ValueError):
+        vpn = ipaddress.ip_address(ip) in ipaddress.ip_network("10.8.0.0/24")
+    mac = ""
+    try:
+        table = await neighbour_table(app.config.file.presence.interface)
+        mac = next((m for m, entry in table.items() if entry[0] == ip), "")
+    except (OSError, TimeoutError):
+        pass
+    name = ""
+    if app.fritz is not None and mac:
+        with contextlib.suppress(FritzError):
+            name = next((h.name for h in await app.fritz.hosts() if h.mac == mac), "")
+    usage = None
+    if app.addons.analytics is not None:
+        try:
+            usage = await app.addons.analytics.device(ip)
+        except (PiholeError, ValueError):
+            usage = None
+    upstreams = await _upstreams(app)
+    return web.json_response({
+        "ip": ip, "vpn": vpn, "mac": mac, "name": name, "usage": usage, "upstreams": upstreams,
+        "dns_encrypted": bool(upstreams) and all(
+            u["port"] in ENCRYPTED_DNS_PORTS for u in upstreams
+        ),
+    })  # fmt: skip
+
+
+# --- plan, support, navigation --------------------------------------------------------------
+
+
+async def schedule_get(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    return web.json_response({**d.app.schedule.plan(),
+                              "presence": d.settings.presence_enabled})  # fmt: skip
+
+
+async def schedule_put(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    try:
+        plan = clean_plan(await read_json(request))
+    except (ValueError, AttributeError):
+        raise web.HTTPBadRequest(text="web.plan_invalid") from None
+    d.app.db.set(PLAN_KEY, plan)
+    d.app.db.audit(_actor(request), "schedule.save", str(len(plan["blocks"])))
+    return web.json_response(plan)
+
+
+async def support_put(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await read_json(request)
+    saved = {k: str(data.get(k, "")).strip()[:size] for k, size in SUPPORT_FIELDS.items()}
+    d.app.db.set("web.support", saved)
+    return web.json_response(saved)
+
+
+async def nav_put(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    order = (await read_json(request)).get("order")
+    if not isinstance(order, list) or len(order) > MAX_NAV:
+        raise web.HTTPBadRequest(text="web.error")
+    if not all(isinstance(r, str) and NAV_ROUTES.match(r) for r in order):
+        raise web.HTTPBadRequest(text="web.error")
+    d.app.db.set(f"web.nav.{current(request).username}", order)
+    return web.json_response({"ok": True})
+
+
+# --- security scan --------------------------------------------------------------------------
+
+
+async def scan_get(request: web.Request) -> web.Response:
+    app = dashboard(request).app
+    return web.json_response({"running": app.scanner.running, "last": app.scanner.last,
+                              "root_job": HELPER.exists()})  # fmt: skip
+
+
+async def scan_start(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await read_json(request)
+    if not d.app.scanner.start(data.get("report") is True):
+        raise web.HTTPConflict(text="web.scan_busy")
+    d.app.db.audit(_actor(request), "security.scan_start")
+    return web.json_response({"ok": True})
+
+
+# --- storage --------------------------------------------------------------------------------
+
+
+async def storage_get(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await asyncio.to_thread(disk.analyse, d.app)
+    system = read_report("disk")
+    if HELPER.exists() and (system is None or request.query.get("refresh")):
+        await asyncio.to_thread(request_root, d.settings.data_dir, "disk")
+    return web.json_response({**data, "system": system, "root_job": HELPER.exists()})
+
+
+async def storage_clean(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await read_json(request)
+    target = str(data.get("target", ""))
+    if target in ("journal", "apt"):
+        if not HELPER.exists():
+            raise web.HTTPConflict(text="web.st_no_job")
+        await asyncio.to_thread(request_root, d.settings.data_dir, f"clean-{target}")
+        d.app.db.audit(_actor(request), "storage.clean", target)
+        return web.json_response({"ok": True, "started": True})
+    if target == "database":
+        try:
+            await asyncio.to_thread(d.app.db.execute, "VACUUM")
+        except sqlite3.OperationalError:  # busy right now
+            raise web.HTTPConflict(text="web.st_busy") from None
+        d.app.db.audit(_actor(request), "storage.clean", target)
+        return web.json_response({"ok": True, "files": 0, "bytes": 0})
+    try:
+        files, freed = await asyncio.to_thread(
+            disk.clean, d.app, target, int(data.get("days", 0)), str(data.get("camera", ""))
+        )
+    except ValueError:
+        raise web.HTTPBadRequest(text="web.error") from None
+    d.app.db.audit(_actor(request), "storage.clean", f"{target} {files} files")
+    return web.json_response({"ok": True, "files": files, "bytes": freed})

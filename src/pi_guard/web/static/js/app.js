@@ -1,5 +1,6 @@
 // Shell, navigation and hash router. Views live in ./views and render into <main>.
 import { accessibilityButton, applyAccessibility } from "./accessibility.js";
+import { installTooltips } from "./tooltip.js";
 import { assistantButton, installLightbox, scrollTopButton } from "./widgets.js";
 import { api, h, icon, loadTexts, lang, setCsrf, t, fill } from "./api.js";
 import { applyAppearance, applyDesign, logoUrl } from "./theme.js";
@@ -22,7 +23,6 @@ const VIEWS = {
 const PRIMARY = [
   ["overview", "home", "web.nav_overview"],
   ["live", "video", "web.nav_live"],
-  ["monitor", "camera", "web.nav_monitor"],
   ["events", "bell", "web.nav_events"],
   ["people", "users", "web.nav_people"],
 ];
@@ -33,39 +33,52 @@ const SECONDARY = [
   ["logs", "list-details", "web.nav_logs"],
 ];
 
+const CHILDREN = { live: [["monitor", "camera", "web.nav_monitor"]] };
 const VIEWER_ROUTES = ["overview", "live", "monitor", "events", "account"];
 
 applyAccessibility();
 installLightbox();
+installTooltips();
 
 export const state = { session: null, overview: null };
 let cleanup = null;
 
-function link(route, iconName, label, current) {
-  return h("a", { href: `#/${route}`, class: current === route ? "active" : "" },
+function link(route, iconName, label, current, extra = "") {
+  return h("a", { href: `#/${route}`, title: t(`web.tip_nav_${route}`), class: `${current === route ? "active" : ""} ${extra}`.trim() },
     icon(iconName), h("span", {}, t(label)));
+}
+
+// The main entries in this person's own order; anything new goes to the end.
+export function navItems() {
+  const viewer = state.session?.role === "viewer";
+  const items = viewer ? [...PRIMARY.filter(([r]) => VIEWER_ROUTES.includes(r)), ["account", "user", "web.nav_account"]] : [...PRIMARY, ...SECONDARY];
+  const order = state.session?.nav || [];
+  const rank = (route) => (order.includes(route) ? order.indexOf(route) : order.length);
+  return items.map((item, index) => [item, index]).sort((a, b) => rank(a[0][0]) - rank(b[0][0]) || a[1] - b[1]).map(([item]) => item);
 }
 
 function shell(route) {
   const main = h("main", { id: "main" });
   const viewer = state.session?.role === "viewer";
-  const primary = viewer ? PRIMARY.filter(([r]) => VIEWER_ROUTES.includes(r)) : PRIMARY;
-  const mine = ["account", "user", "web.nav_account"];
+  const items = navItems();
+  const custom = (state.session?.nav || []).length > 0;
+  const entry = ([r, i, l]) => [link(r, i, l, route), (CHILDREN[r] || []).map(([cr, ci, cl]) => link(cr, ci, cl, route, "sub"))];
   const nav = h("nav", { class: "nav", "aria-label": "pi-guard" },
     h("div", { class: "brand" }, h("img", { src: logoUrl(), alt: "" }), "pi-guard"),
-    primary.map(([r, i, l]) => link(r, i, l, route)),
-    h("h3", {}, t("web.nav_system")),
-    (viewer ? [mine] : SECONDARY).map(([r, i, l]) => link(r, i, l, route)),
+    custom || viewer ? items.map(entry) : [
+      items.filter(([r]) => PRIMARY.some(([p]) => p === r)).map(entry),
+      h("h3", {}, t("web.nav_system")),
+      items.filter(([r]) => SECONDARY.some(([p]) => p === r)).map(entry)],
     (state.session?.pinned || []).length ? h("h3", {}, t("web.nav_pinned")) : null,
     (state.session?.pinned || []).map((id) => link(`addons/${id}`, "cpu", `addons.${id}`, route)),
     h("div", { class: "spacer" }),
     h("a", { href: "#/logout" }, icon("logout"), h("span", {}, t("web.logout"))),
     h("div", { class: "credit" }, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex")));
+  const tabs = route === "monitor" ? "live" : route;
   const tabbar = h("nav", { class: "tabbar", "aria-label": "pi-guard" },
-    viewer ? [...primary, mine].map(([r, i, l]) => link(r, i, l, route)) : [
-      ...primary.filter(([r]) => r !== "monitor").map(([r, i, l]) => link(r, i, l, route)),
-      link("more", "menu-2", "web.nav_more",
-        SECONDARY.some(([r]) => r === route) || route === "more" ? "more" : route)]);
+    viewer ? items.map(([r, i, l]) => link(r, i, l, tabs)) : [
+      ...items.slice(0, 4).map(([r, i, l]) => link(r, i, l, tabs)),
+      link("more", "menu-2", "web.nav_more", items.slice(0, 4).some(([r]) => r === tabs) ? tabs : "more")]);
   return h("div", { class: "shell" }, nav, main, tabbar, scrollTopButton(), accessibilityButton(),
     state.session?.assistant ? assistantButton() : null);
 }

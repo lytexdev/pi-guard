@@ -47,8 +47,9 @@ SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/
 # What viewers may do: watch. Everything else is closed to them, also anything added later.
 VIEWER_GET = {"/api/overview", "/api/events", "/api/stats", "/api/alerts", "/api/connection",
               "/api/evidence", "/api/account"}  # fmt: skip
-VIEWER_POST = {"/api/me/password", "/api/connection/check", "/api/account/totp/begin",
-               "/api/account/totp/confirm", "/api/account/totp/disable"}  # fmt: skip
+VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check",
+               "/api/account/totp/begin", "/api/account/totp/confirm",
+               "/api/account/totp/disable"}  # fmt: skip
 SETUP_DONE_KEY = "web.setup_done"
 TOTP_LENGTH = 6
 STATIC = Path(str(resources.files("pi_guard.web").joinpath("static")))
@@ -152,6 +153,7 @@ class Dashboard:
             api_network,
             api_security,
             api_system,
+            api_tools,
             api_v1,
         )
 
@@ -174,7 +176,7 @@ class Dashboard:
         webapp.router.add_post("/api/logout", self._logout)
         for module in (api_account, api_addons, api_agents, api_core, api_export, api_login,
                        api_live, api_manage, api_network, api_security, api_system,
-                       api_v1):  # fmt: skip
+                       api_tools, api_v1):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
             sub = web.Application()
@@ -350,6 +352,8 @@ class Dashboard:
             "role": self.auth.role_of(session.username) if active and session else None,
             "appearance": self.app.db.get("web.appearance") or {},
             "pinned": (self.app.db.get("web.pinned") or []) if active else [],
+            "nav": self.app.db.get(f"web.nav.{session.username}") or [] if session else [],
+            "support": (self.app.db.get("web.support") or {}) if active else {},
             "assistant": bool(
                 active and self.app.addons.assistant
                 and session and self.auth.role_of(session.username) == "admin"

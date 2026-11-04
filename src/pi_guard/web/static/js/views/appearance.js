@@ -1,6 +1,6 @@
 // Appearance. Theme and text size belong to this device, the rest to everyone.
 import { api, attempt, fill, h, icon, t } from "../api.js";
-import { state } from "../app.js";
+import { navItems, state } from "../app.js";
 import { applyAppearance, FONTS, logoUrl, setDesign, SIZES, THEMES } from "../theme.js";
 
 const DEFAULT_ACCENT = "#5cb3ff";
@@ -45,6 +45,54 @@ export function sharedDesign(box) {
         saved.logo ? h("button", { class: "ghost", onclick: () => changeLogo(() => api("/api/appearance/logo", { method: "DELETE" })) }, t("web.ap_logo_reset")) : null)));
 }
 
+function navPanel() {
+  const list = h("ul", { class: "list nav-order" });
+  const save = async () => {
+    const order = [...list.children].map((row) => row.dataset.route);
+    if (!await attempt(() => api("/api/me/nav", { method: "POST", body: { order } }))) return;
+    state.session.nav = order;
+    dispatchEvent(new HashChangeEvent("hashchange"));
+  };
+  const move = (row, step) => {
+    const other = step < 0 ? row.previousElementSibling : row.nextElementSibling;
+    if (!other) return;
+    if (step < 0) other.before(row); else other.after(row);
+    save();
+  };
+  const grab = (row, event) => {
+    event.preventDefault();
+    row.classList.add("dragging");
+    const follow = (e) => {
+      const other = [...list.children].find((item) => {
+        const r = item.getBoundingClientRect();
+        return item !== row && e.clientY > r.top && e.clientY < r.bottom;
+      });
+      if (!other) return;
+      if (other.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING) other.before(row); else other.after(row);
+    };
+    const drop = () => {
+      removeEventListener("pointermove", follow);
+      removeEventListener("pointerup", drop);
+      row.classList.remove("dragging");
+      save();
+    };
+    addEventListener("pointermove", follow);
+    addEventListener("pointerup", drop);
+  };
+  navItems().forEach(([route, name, label]) => {
+    const row = h("li", { dataset: { route } },
+      h("button", { class: "icon-only grip", title: t("web.ap_nav_drag"), onpointerdown: (e) => grab(row, e) }, icon("grip-vertical")),
+      icon(name), h("span", { class: "grow" }, t(label)),
+      h("button", { class: "icon-only", title: t("web.ap_nav_up"), onclick: () => move(row, -1) }, icon("arrow-up")),
+      h("button", { class: "icon-only", title: t("web.ap_nav_down"), onclick: () => move(row, 1) }, icon("arrow-down")));
+    list.append(row);
+  });
+  return h("section", { class: "panel stack" }, h("h2", {}, t("web.ap_nav")), h("p", { class: "muted" }, t("web.ap_nav_hint")), list,
+    h("button", { class: "ghost", onclick: async () => {
+      if (await attempt(() => api("/api/me/nav", { method: "POST", body: { order: [] } }))) { state.session.nav = []; dispatchEvent(new HashChangeEvent("hashchange")); }
+    } }, t("web.ap_nav_reset")));
+}
+
 export function render(box) {
   const shared = h("div", { class: "stack" });
   const device = h("section", { class: "panel stack" });
@@ -57,5 +105,5 @@ export function render(box) {
       onclick: () => { setDesign(null, size); drawDevice(); } }, t(`web.text_${size}`)))));
   drawDevice();
   sharedDesign(shared);
-  fill(box, device, shared);
+  fill(box, device, navPanel(), shared);
 }

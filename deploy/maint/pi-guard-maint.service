@@ -1,0 +1,9 @@
+[Unit]
+Description=pi-guard security scan and clean-up
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-guard-maint
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=45min

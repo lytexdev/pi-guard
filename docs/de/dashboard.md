@@ -70,6 +70,43 @@ Der Browser bietet einen Schlüssel nur an, wenn beides stimmt:
 Die Schritte stehen auch unter *Zugang → Hardware-Schlüssel einrichten*. Klappt es nicht, zeigt das
 Dashboard die Fehlermeldung des Browsers.
 
+## Werkzeuge im Alltag
+
+- **Tooltips** erklären Knöpfe und Einträge, wenn du mit der Maus darauf zeigst.
+- **Navigation:** Unter *Erscheinungsbild → Navigation* ziehst du die Einträge in deine Reihenfolge. Sie
+  gilt für dein Konto. Der Kameraraum ist ein Unterpunkt von Live.
+- **Wochenplan** (*Einstellungen*): Zieh in einem Tag, wann normalerweise niemand zu Hause ist. pi-guard
+  wechselt dann auf Abwesend und zurück. Was du von Hand einstellst, bleibt bis zum nächsten Wechsel im
+  Plan. Mit Anwesenheitserkennung bleibt es auf Zuhause, solange jemand erkannt wird.
+- **Support** (*Einstellungen*): Name, Telefon, E-Mail und Adresse, alles optional. Erscheint klein in der
+  Übersicht, den Einstellungen, den Logs und beim KI-Assistenten.
+
+## Netzwerk-Werkzeuge
+
+- **WLAN-QR-Code:** Der Code-Knopf neben jedem WLAN liest den Schlüssel aus der FRITZ!Box. Du kannst den
+  Code als Bild speichern; wer ihn hat, kommt ins WLAN. Ohne FRITZ!Box trägst du Name und Schlüssel ein.
+  Der Schlüssel wird nicht gespeichert.
+- **Was andere von dir sehen können** erklärt, was dein Anbieter, andere im Netzwerk und der Betreiber
+  sehen können, mit dem, was dieser Pi über dein aktuelles Gerät weiß.
+- **Ein Gerät aussperren:** Die Schnittstelle der FRITZ!Box kann kein einzelnes Gerät aus dem WLAN werfen.
+  Stattdessen gibt es zwei Wege, beide mit deinem Passwort:
+  - *Internet sperren* in den Gerätedetails. Das Gerät bleibt im WLAN, kommt aber nicht ins Internet.
+  - *Neuer Schlüssel* im Fenster mit dem WLAN-Code. Alle Geräte müssen sich neu anmelden, auch deins. Wer
+    den neuen Schlüssel nicht bekommt, kann nur noch ins Gast-WLAN. Hängt der Pi selbst im WLAN, geht das nicht.
+- **Die Karte** öffnet sich groß, wenn du auf ihren Hintergrund oder den Vergrößern-Knopf klickst.
+
+## Sicherheitscheck und Speicher
+
+*Einstellungen → Sicherheitscheck* prüft Anmeldung, HTTPS, die pi-guard-Dateien gegen ihre Prüfsummen, offene
+Ports, System-Updates, Firewall, SSH, Systemdateien gegen ihre Pakete, unbekannte Programme mit Root-Rechten,
+Programme in temporären Ordnern und Konten. Er ändert nichts und kann eine Zusammenfassung per Messenger an
+Admins schicken (im Chat auch `/sicherheitscheck`). Ein Rootkit-Scan läuft, wenn `rkhunter` oder `chkrootkit`
+installiert ist. Ein gutes Ergebnis ist keine Garantie, dass ein System sauber ist.
+
+*Einstellungen → Speicher* zeigt, was den Platz belegt, und kann alte Aufnahmen, Fotos und Clips löschen, die
+Datenbank verdichten sowie alte Systemprotokolle und den Paket-Cache leeren (im Chat auch `/speicher`).
+Beweisvideos und Gesichtsdaten werden dort nicht bereinigt.
+
 ## Erscheinungsbild
 
 Unter *Einstellungen → Erscheinungsbild* wählst du Akzentfarbe, Schriftart, Animationen und ein

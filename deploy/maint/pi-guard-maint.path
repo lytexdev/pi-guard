@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for scan and clean-up requests from the pi-guard dashboard
+
+[Path]
+PathExists=/var/lib/pi-guard/maint/request
+Unit=pi-guard-maint.service
+
+[Install]
+WantedBy=paths.target

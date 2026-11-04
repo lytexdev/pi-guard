@@ -119,6 +119,26 @@ function wireguardPanel(d, redraw) {
   return panel;
 }
 
+async function internetControl(ip) {
+  // The router has no call to throw a device out of the Wi-Fi: it can cut its internet access.
+  if (!ip || ip.includes(":")) return null;
+  const url = `/api/network/internet/${encodeURIComponent(ip)}`;
+  const state = await api(url).catch(() => null);
+  if (!state?.available) return null;
+  const box = h("div", { class: "stack" });
+  const draw = (allowed) => fill(box, h("h3", {}, t("web.ia_title")), h("p", { class: "muted" }, t(allowed ? "web.ia_allowed" : "web.ia_blocked")),
+    h("button", { class: allowed ? "danger" : "primary", title: t("web.ia_tip"), onclick: async () => {
+      if (allowed && !await confirmDialog(t("web.ia_confirm", { ip }), t("web.ia_block"), true)) return;
+      const password = prompt(t("web.confirm_password"));
+      if (!password) return;
+      const done = await attempt(() => api(url, { method: "POST", body: { allowed: !allowed, password } }), t("web.saved"));
+      if (done) draw(done.allowed);
+    } }, icon(allowed ? "ban" : "check"), t(allowed ? "web.ia_block" : "web.ia_allow")),
+    h("p", { class: "muted" }, h("small", {}, t("web.ia_hint"))));
+  draw(state.allowed);
+  return box;
+}
+
 function deviceDialog(device) {
   const body = h("div", { class: "stack" }, h("p", { class: "muted" }, t("web.dev_scanning")));
   const label = h("input", { value: device.label || "", placeholder: device.router_name || device.name || "", maxlength: 40, "aria-label": t("web.dev_label") });
@@ -143,9 +163,11 @@ function deviceDialog(device) {
       row(t("web.dev_private"), r.private_mac ? t("web.yes") : null),
       row(t("web.dev_router_name"), device.router_name), row(t("web.dev_connection"), device.connection), row(t("web.dev_speed"), device.speed ? `${device.speed} Mbit/s` : null)),
       h("div", { class: "hints" }),
+      h("div", { class: "access-box" }),
       h("h3", {}, t("web.dev_ports")),
       r.ports.length ? h("div", { class: "row wrap" }, r.ports.map((p) => h("span", { class: "badge" }, `${p.port} ${p.service}`))) : h("p", { class: "muted" }, t("web.dev_no_ports")),
       h("p", { class: "muted" }, h("small", {}, t("web.dev_estimate"))));
+    internetControl(ip).then((box) => { if (box) body.querySelector(".access-box")?.replaceChildren(box); });
     api(`/api/addons/analytics/device/${encodeURIComponent(ip)}`).then((a) => {
       if (a.hints?.length) body.querySelector(".hints")?.replaceChildren(h("h3", {}, t("web.dev_hints")), h("div", { class: "row wrap" }, a.hints.map((x) => h("span", { class: "badge accent" }, x))));
     }).catch(() => {});
@@ -213,12 +235,77 @@ function devicesPanel(devices, redraw) {
         } }, icon("user-check")))))))));
 }
 
+function wifiDialog(wifi, index) {
+  // Saved as a picture, for the fridge or a guest. The key stays in this browser window.
+  const key = h("code", { class: "hidden" }, wifi.key);
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, wifi.ssid), h("p", { class: "muted" }, t("web.wifi_scan")),
+    h("img", { class: "qr light", src: wifi.qr, alt: t("web.wifi_qr_alt", { name: wifi.ssid }) }),
+    h("p", {}, h("button", { class: "ghost", title: t("web.wifi_show_key"), onclick: () => key.classList.toggle("hidden") }, icon("eye"), t("web.wifi_key")), " ", key),
+    h("div", { class: "row end" },
+      h("a", { class: "button", href: wifi.qr, download: `wlan-${wifi.ssid.replace(/[^\w-]+/g, "_")}.svg`, title: t("web.wifi_save_tip") }, icon("download"), t("web.wifi_save")),
+      index ? h("button", { class: "danger", title: t("web.wifi_renew_tip"), onclick: () => { dialog.close(); renewWifi(index); } }, icon("refresh"), t("web.wifi_renew")) : null,
+      h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+async function renewWifi(index) {
+  const text = t(index === 3 ? "web.wifi_renew_guest_confirm" : "web.wifi_renew_confirm");
+  if (!await confirmDialog(text, t("web.wifi_renew"), true)) return;
+  const password = prompt(t("web.confirm_password"));
+  if (!password) return;
+  const wifi = await attempt(() => api(`/api/network/wifi/${index}/renew`, { method: "POST", body: { password } }), t("web.saved"));
+  if (wifi) wifiDialog(wifi, index);
+}
+
+function manualWifi() {
+  const ssid = h("input", { placeholder: t("web.wifi_name"), "aria-label": t("web.wifi_name"), autocomplete: "off" });
+  const key = h("input", { type: "password", placeholder: t("web.wifi_key"), "aria-label": t("web.wifi_key"), autocomplete: "off" });
+  return h("div", { class: "row" }, ssid, key, h("button", { title: t("web.wifi_qr_tip"), onclick: async () => {
+    const wifi = await attempt(() => api("/api/network/wifi/qr", { method: "POST", body: { ssid: ssid.value, key: key.value } }));
+    if (wifi) wifiDialog(wifi, null);
+  } }, icon("qrcode"), t("web.wifi_qr")));
+}
+
+async function exposureDialog() {
+  const e = await attempt(() => api("/api/network/exposure"));
+  if (!e) return;
+  const list = (items) => h("ul", { class: "seen" }, items.filter(Boolean).map(([seen, text]) => h("li", {}, icon(seen ? "eye" : "ban"), h("span", {}, text))));
+  const domains = e.usage?.top_domains?.slice(0, 8) || [];
+  const dialog = h("dialog", { class: "wg-dialog wide" }, h("h2", {}, t("web.ex_title")),
+    h("p", { class: "muted" }, t("web.ex_intro", { device: e.name || e.ip })),
+    e.vpn ? h("p", { class: "notice" }, t("web.ex_vpn")) : null,
+    h("h3", {}, t("web.ex_provider")),
+    list([[true, t("web.ex_p_ip")], [true, t("web.ex_p_volume")],
+      [!e.dns_encrypted, t(e.dns_encrypted ? "web.ex_p_dns_hidden" : "web.ex_p_dns")], [true, t("web.ex_p_sni")], [false, t("web.ex_p_content")]]),
+    e.upstreams.length ? h("small", { class: "muted" }, t("web.ex_upstreams", { names: e.upstreams.map((u) => `${u.name}:${u.port}`).join(", ") })) : null,
+    h("h3", {}, t("web.ex_others")),
+    list([[true, t("web.ex_o_name", { name: e.name || "–", mac: e.mac || "–" })], [true, t("web.ex_o_services")], [false, t("web.ex_o_content")]]),
+    h("h3", {}, t("web.ex_admin")),
+    list([[true, t("web.ex_a_domains")], [false, t("web.ex_a_content")]]),
+    domains.length ? [h("h3", {}, t("web.ex_example", { count: e.usage.queries })), h("div", { class: "row wrap" }, domains.map((d) => h("span", { class: "badge" }, d.domain)))] : null,
+    e.usage?.hints?.length ? h("p", { class: "muted" }, t("web.ex_hints"), " ", e.usage.hints.join(", ")) : null,
+    h("p", { class: "muted" }, h("small", {}, t("web.ex_estimate"))),
+    h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+const exposurePanel = () => h("section", { class: "panel stack" }, h("h2", {}, icon("eye"), " ", t("web.ex_title")), h("p", { class: "muted" }, t("web.ex_teaser")),
+  h("button", { title: t("web.ex_tip"), onclick: exposureDialog }, icon("eye"), t("web.ex_open")));
+
 function wifiPanel(d) {
   return h("section", { class: "panel stack" }, h("h2", {}, icon("wifi"), " ", t("web.nm_wifi")),
     d.wlans.length ? h("ul", { class: "list" }, d.wlans.map((w) => h("li", {}, h("span", { class: `dot ${w.enabled ? "ok" : ""}` }),
       h("div", { class: "grow" }, h("div", {}, w.ssid || "–", w.guest ? h("span", { class: "badge accent" }, t("web.nm_guest")) : null),
-        h("small", {}, `${w.enabled ? t("web.nm_on") : t("web.nm_off")} · ${t("web.nm_channel", { channel: w.channel })} · ${t("web.nm_clients", { count: w.clients })}`)))))
-      : h("p", { class: "muted" }, t("web.nm_no_router")),
+        h("small", {}, `${w.enabled ? t("web.nm_on") : t("web.nm_off")} · ${t("web.nm_channel", { channel: w.channel })} · ${t("web.nm_clients", { count: w.clients })}`)),
+      h("button", { class: "icon-only", title: t("web.wifi_qr_tip"), onclick: async () => {
+        const wifi = await attempt(() => api("/api/network/wifi/qr", { method: "POST", body: { index: w.index } }));
+        if (wifi) wifiDialog(wifi, w.index);
+      } }, icon("qrcode")))))
+      : [h("p", { class: "muted" }, t("web.nm_no_router")), manualWifi()],
     d.nearby.length ? [h("h3", {}, t("web.nm_nearby")), h("ul", { class: "list" }, d.nearby.map((n) => h("li", {}, icon("wifi"),
       h("div", { class: "grow" }, h("div", {}, n.ssid), h("small", {}, `${n.security || t("web.nm_open")} · ${t("web.nm_channel", { channel: n.channel })}`)),
       h("span", { class: "badge" }, `${n.signal} %`))))] : null);
@@ -254,7 +341,7 @@ export async function render(main, data, params = []) {
   const body = h("div", { class: "stack" });
   const redraw = () => location.reload();
   main.append(h("nav", { class: "tabs", "aria-label": t("web.nav_network") }, TABS.map((id) => h("a", { href: `#/network/${id}`, class: id === tab ? "active" : "" }, t(`web.nm_tab_${id}`)))), body);
-  if (tab === "overview") fill(body, h("div", { class: "grid wide" }, piholePanel(data.pihole, redraw), wifiPanel(data)));
+  if (tab === "overview") fill(body, h("div", { class: "grid wide" }, piholePanel(data.pihole, redraw), wifiPanel(data), exposurePanel()));
   if (tab === "devices") fill(body, devicesPanel(data.devices, redraw));
   if (tab === "blocks") fill(body, await blocksPanel(data));
   if (tab === "lists") fill(body, await blockPanel(data.pihole_enabled));

@@ -20,55 +20,33 @@ separately. Treat it as an extra with its own maintenance:
 If signal-cli is down, Signal messages fail and are retried a few times;
 recording, detection and Telegram continue normally.
 
-## Install signal-cli
-
-signal-cli needs Java 21 (or use the native build where available). On
-Raspberry Pi OS 64-bit:
+## Install and link
 
 ```bash
-sudo apt install -y openjdk-21-jre-headless   # or the version your release offers
-VERSION=0.13.x   # pick the current release from the GitHub releases page
-wget https://github.com/AsamK/signal-cli/releases/download/v$VERSION/signal-cli-$VERSION.tar.gz
-sudo tar xf signal-cli-$VERSION.tar.gz -C /opt
-sudo ln -sf /opt/signal-cli-$VERSION/bin/signal-cli /usr/local/bin/signal-cli
+sudo ./scripts/signal.sh install
 ```
 
-signal-cli runs as the `pi-guard` user, because it has to read the photos and
-videos pi-guard sends:
+This installs Java and the latest signal-cli release from GitHub, and starts the service
+`pi-guard-signal`. It runs as the `pi-guard` user, because it has to read the photos and videos
+pi-guard sends, and listens on `127.0.0.1:7583` only. Keep it current with
+`sudo ./scripts/signal.sh update`.
+
+Then open *Settings → Messenger*, press **Link phone** and scan the code in the Signal app under
+*Settings → Linked devices*.
+
+With your own number, pi-guard is a linked device of your account. Write to it in **Note to Self**
+and alerts arrive there too. Set your number as system number and as admin number. Messages you
+write to other people are ignored.
+
+To register a separate number instead, use signal-cli directly:
 
 ```bash
-sudo install -d -o pi-guard -g pi-guard -m 0700 /var/lib/pi-guard/signal-cli
 alias sc='sudo -u pi-guard signal-cli --config /var/lib/pi-guard/signal-cli'
-```
-
-### Option A: register a separate number
-
-```bash
 sc -a +4915100000000 register          # may ask for a captcha, see signal-cli docs
 sc -a +4915100000000 verify 123-456    # code from the SMS
-sc -a +4915100000000 updateProfile --name "pi-guard"
 ```
 
-### Option B: link to an existing account
-
-```bash
-sc link -n pi-guard        # prints an sgnl:// link; turn it into a QR code
-```
-
-Scan the QR code in the Signal app under *Settings → Linked devices*.
-
-The numbers can also be entered in the dashboard under *Settings → Messenger → Signal*.
-
-## Run the daemon
-
-```bash
-echo "SIGNAL_ACCOUNT=+4915100000000" | sudo tee /etc/pi-guard/signal.env
-sudo install -m 0644 deploy/systemd/pi-guard-signal.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now pi-guard-signal
-```
-
-The daemon listens on `127.0.0.1:7583` only.
+While signal-cli is not running, pi-guard logs this once and keeps trying.
 
 ## Configure pi-guard
 

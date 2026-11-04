@@ -1,5 +1,34 @@
 // Things that float above every page: back to top, and the assistant.
 import { api, attempt, fill, h, icon, t, toast } from "./api.js";
+import { state } from "./app.js";
+
+// A small search icon beside the headline; the field only opens when it is needed.
+export function searchToggle(label, onInput) {
+  const input = h("input", { type: "search", class: "hidden", placeholder: label, "aria-label": label });
+  const button = h("button", { class: "icon-only", title: label, "aria-expanded": "false", onclick: () => {
+    const open = input.classList.toggle("hidden") === false;
+    button.setAttribute("aria-expanded", String(open));
+    if (open) input.focus();
+    else { input.value = ""; onInput(""); }
+  } }, icon("search"));
+  input.addEventListener("input", () => onInput(input.value.trim().toLowerCase()));
+  input.addEventListener("keydown", (event) => { if (event.key === "Escape") button.click(); });
+  return h("div", { class: "search-toggle" }, button, input);
+}
+
+// Who to ask, if the admin entered it. Shown small on the pages where people get stuck.
+export function supportNote() {
+  const s = state.session?.support || {};
+  if (!s.name && !s.phone && !s.email && !s.address) return null;
+  return h("p", { class: "support-note" }, icon("headset"), " ", t("web.support_note"), " ", s.name || null,
+    s.phone ? [" · ", h("a", { href: `tel:${s.phone.replace(/[^+\d]/g, "")}` }, s.phone)] : null,
+    s.email ? [" · ", h("a", { href: `mailto:${s.email}` }, s.email)] : null,
+    s.address ? ` · ${s.address}` : null);
+}
+
+// Live and the camera room are one place with two views.
+export const liveSwitch = (current) => h("div", { class: "segmented" }, [["live", "web.nav_live"], ["monitor", "web.nav_monitor"]].map(([route, label]) =>
+  h("a", { class: `button${route === current ? " on" : ""}`, href: `#/${route}` }, t(label))));
 
 export function scrollTopButton() {
   const button = h("button", { class: "to-top hidden", title: t("web.to_top"), "aria-label": t("web.to_top"), onclick: () => scrollTo({ top: 0, behavior: "smooth" }) }, icon("chevron-right"));
@@ -59,7 +88,7 @@ function panel() {
   const form = h("form", { class: "row" }, input, window.MediaRecorder && window.isSecureContext ? mic : null, h("button", { class: "primary", type: "submit" }, t("web.ai_send")));
   form.addEventListener("submit", send);
   const dialog = h("dialog", { class: "chat", "aria-label": t("addons.assistant") },
-    h("div", { class: "row between" }, h("h2", { class: "ai-title" }, assistantIcon(), t("addons.assistant")), h("button", { class: "icon-only", title: t("web.close"), onclick: () => dialog.close() }, icon("x"))), log, form);
+    h("div", { class: "row between" }, h("h2", { class: "ai-title" }, assistantIcon(), t("addons.assistant")), h("button", { class: "icon-only", title: t("web.close"), onclick: () => dialog.close() }, icon("x"))), log, form, supportNote());
   document.body.append(dialog);
   return dialog;
 }

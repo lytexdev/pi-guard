@@ -1,5 +1,6 @@
 // Overview: what is happening right now, at a glance.
 import { api, attempt, duration, h, icon, t, when, fill } from "../api.js";
+import { supportNote } from "../widgets.js";
 import { state } from "../app.js";
 import { topologyPanel } from "./topology.js";
 
@@ -56,7 +57,7 @@ export async function render(main) {
     const modeButtons = h("div", { class: "segmented" },
       ["HOME", "AWAY", ...(mode.presence_enabled ? ["AUTO"] : [])].map((m) => {
         const on = m === "AUTO" ? mode.selection === "AUTO" : mode.selection !== "AUTO" && mode.effective === m;
-        return h("button", { class: on ? "on" : "", onclick: async () => {
+        return h("button", { class: on ? "on" : "", title: t(`web.tip_mode_${m.toLowerCase()}`), onclick: async () => {
           await attempt(() => api("/api/mode", { method: "POST", body: { mode: m } }), t("web.saved"));
           draw();
         } }, icon(m === "HOME" ? "home-shield" : m === "AWAY" ? "walk" : "wifi"), t(`web.mode_${m.toLowerCase()}`));
@@ -105,7 +106,7 @@ export async function render(main) {
             h("dl", { class: "kv" }, h("dt", {}, t("web.memory")), h("dd", {}, `${sys.memory_used_percent} %`)), meter(sys.memory_used_percent),
             h("p", { class: "muted" }, h("small", {}, `v${o.version} · ${t("web.uptime")} ${duration(o.uptime)}`)),
             o.components.filter((c) => !c.running && c.restarts).map((c) => h("p", { class: "notice danger" }, `${c.name}: ${c.error || t("web.not_running")}`))))),
-      topology);
+      topology, supportNote());
   };
   await draw();
   const timer = setInterval(() => draw().catch(() => {}), 15000);

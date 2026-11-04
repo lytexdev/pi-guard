@@ -9,8 +9,29 @@ export async function restartPrompt() {
   }
 }
 
+const tip = (key) => (t(key) === key ? null : t(key));
+
+function listEditor(field, values, id) {
+  // One value per line: numbers and IDs are easier to check and change than a comma list.
+  const rows = h("div", { class: "stack tight" });
+  const box = h("div", { id, class: "list-edit" });
+  const changed = () => box.dispatchEvent(new Event("input", { bubbles: true }));
+  const add = (text = "") => {
+    const input = h("input", { value: text, "aria-label": t(`web.setting_${field.key}`) });
+    const row = h("div", { class: "list-row" }, input,
+      h("button", { class: "icon-only danger", type: "button", title: t("web.list_remove"), onclick: () => { row.remove(); changed(); } }, icon("trash")));
+    rows.append(row);
+    return input;
+  };
+  (values || []).forEach((value) => add(String(value)));
+  box.append(rows, h("button", { class: "ghost", type: "button", title: t("web.list_add_tip"), onclick: () => add().focus() }, icon("plus"), t("web.list_add")));
+  box.values = () => [...rows.querySelectorAll("input")].map((input) => input.value.trim()).filter(Boolean);
+  return box;
+}
+
 function control(field, value) {
   const id = `s_${field.key}`;
+  if (field.kind === "list") return listEditor(field, value, id);
   if (field.kind === "bool") return h("input", { id, type: "checkbox", checked: Boolean(value) });
   if (field.kind === "secret") {
     return h("input", { id, type: "password", autocomplete: "off", placeholder: t("web.secret_placeholder") });
@@ -23,7 +44,7 @@ function control(field, value) {
 function read(field, el) {
   if (field.kind === "bool") return el.checked;
   if (field.kind === "int") return Number(el.value);
-  if (field.kind === "list") return el.value.split(",").map((s) => s.trim()).filter(Boolean);
+  if (field.kind === "list") return el.values();
   return el.value;
 }
 
@@ -57,7 +78,7 @@ export async function render(main, params = [], opts = {}) {
         const el = control(field, data.values[field.key]);
         inputs.set(field.key, el);
         return h("div", { class: "switch-row" },
-          h("label", { for: el.id }, t(`web.setting_${field.key}`)), h("div", { class: "control" }, el));
+          h("label", { for: el.id, title: tip(`web.tip_${field.key}`) }, t(`web.setting_${field.key}`)), h("div", { class: "control" }, el));
       })))),
     opts.embedded ? null : h("section", { class: "panel" }, h("h2", {}, t("web.secrets")),
       h("p", { class: "muted" }, t("web.secrets_note")),

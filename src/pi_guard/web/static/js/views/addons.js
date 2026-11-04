@@ -1,6 +1,7 @@
 // Add-ons: overview with on/off switches, and one detail page per add-on.
 // renderDetail() is also used by the setup assistant.
 import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { searchToggle } from "../widgets.js";
 import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
 
@@ -477,7 +478,6 @@ export async function render(main, params = []) {
     const saved = await attempt(() => api("/api/navigation/pinned", { method: "PUT", body: { pinned: [...pinned] } }));
     if (saved) { state.session.pinned = saved.pinned; location.reload(); }
   };
-  const search = h("input", { type: "search", placeholder: t("web.pm_search"), "aria-label": t("web.pm_search") });
   const cards = h("div", { class: "grid wide" }, data.addons.map((addon) => {
     const toggle = h("input", { type: "checkbox", checked: addon.enabled, "aria-label": t(`addons.${addon.id}`) });
     toggle.addEventListener("change", () => setEnabled(addon.id, toggle.checked));
@@ -525,11 +525,10 @@ export async function render(main, params = []) {
         if (password && await attempt(() => api("/api/plugin-manager/create", { method: "POST", body: { id, name: name.value, password } }), t("web.saved"))) drawOwn();
       } }, icon("plus"), t("web.pm_create_button"))));
   };
-  search.addEventListener("input", () => {
-    const q = search.value.trim().toLowerCase();
+  const search = searchToggle(t("web.pm_search"), (q) => {
     [...cards.children, ...ownPanel.querySelectorAll(".list li")].forEach((el) => el.classList.toggle("hidden", q && !el.textContent.toLowerCase().includes(q)));
   });
-  fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_addons")), search), cards, ownPanel);
+  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_addons")), search)), cards, ownPanel);
   await drawOwn();
 }
 

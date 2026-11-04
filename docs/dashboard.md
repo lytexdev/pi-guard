@@ -84,6 +84,48 @@ Browsers only offer a YubiKey or passkey when both of these are true:
 *Access → Set up a hardware key* shows these steps, and a failed attempt shows the browser's own
 error message.
 
+## Everyday tools
+
+- **Tooltips** explain buttons and entries on hover and keyboard focus.
+- **Navigation:** *Appearance → Navigation* sets your own order by dragging, per account. The camera
+  room is a sub-entry of Live.
+- **Weekly plan** (*Settings*): drag in a day to mark when nobody is usually home. pi-guard switches
+  to Away and back at those times. What you set by hand stays until the next change in the plan. If
+  presence detection is on, it stays at Home while someone is detected at home.
+- **Support** (*Settings*): optional name, phone, email and address, shown small on the overview, in
+  settings, logs and the assistant. The assistant answers with them when asked for help.
+
+## Network tools
+
+- **Wi-Fi QR codes:** the code button beside each Wi-Fi reads its key from the FRITZ!Box. The code
+  can be saved as a picture; anyone who has it can join. Without a FRITZ!Box, type the name and key.
+  The key is not stored.
+- **What others can see of you** explains what your provider, others in the network and the operator
+  of the network can see, using what this Pi knows about the device you are on.
+- **Locking a device out:** TR-064 has no call to throw one device out of the Wi-Fi. There are two
+  ways instead, both with your password:
+  - *Block internet* in the device details. The device stays in the Wi-Fi but cannot reach the
+    internet.
+  - *New key* in the Wi-Fi code window. Every device has to join again, also yours. Devices you do
+    not give the new key to can only use the guest Wi-Fi. This is refused if the Pi itself uses Wi-Fi.
+- **The map** opens large on a click on its background or the enlarge button.
+
+## Security scan and storage
+
+*Settings → Security scan* checks the login, HTTPS, pi-guard's own files against their checksums, open
+ports, system updates, the firewall, SSH, system files against their packages, unknown programs with
+root rights, programs in temporary folders, and accounts. It changes nothing and can send a summary to
+admins by messenger (also `/securityscan` in chat). A rootkit scan runs if `rkhunter` or `chkrootkit`
+is installed. A clean result is no guarantee that a system is not compromised.
+
+*Settings → Storage* shows what uses the disk and can delete old recordings, photos and clips, compact
+the database, and clear old system logs and the package cache (also `/storage` in chat). Evidence videos
+and face data are not cleaned there.
+
+pi-guard has no root rights. The system checks come from `pi-guard-maint`, a root job started by a
+systemd path unit. It accepts only four fixed words and writes its reports to `/var/lib/pi-guard-scan`,
+where pi-guard cannot write.
+
 ## Appearance
 
 *Settings → Appearance* sets the accent colour, font, animations and your own logo (PNG, JPEG or

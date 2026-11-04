@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""Root jobs for pi-guard: the security scan, disk figures and two clean-ups.
+
+pi-guard itself has no root rights. It leaves one word in a file; a systemd path unit starts
+this program, which accepts only the words in JOBS. Reports go to a directory pi-guard cannot
+write to, so a compromised pi-guard cannot trick root into overwriting anything.
+"""
+
+import grp
+import json
+import os
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+REQUEST = Path("/var/lib/pi-guard/maint/request")
+REPORTS = Path("/var/lib/pi-guard-scan")
+LIMIT = 20
+
+
+def run(*command, timeout=900):
+    try:
+        done = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return done.stdout
+
+
+def take_request():
+    """Read and remove the request without following links."""
+    try:
+        fd = os.open(REQUEST, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError:
+        REQUEST.unlink(missing_ok=True)
+        return ""
+    with os.fdopen(fd) as file:
+        word = file.read(32).strip()
+    REQUEST.unlink(missing_ok=True)
+    return word
+
+
+def write(name, report):
+    REPORTS.mkdir(mode=0o750, exist_ok=True)
+    group = grp.getgrnam("pi-guard").gr_gid
+    os.chown(REPORTS, 0, group)
+    target = REPORTS / f"{name}.json"
+    temporary = target.with_suffix(".tmp")
+    temporary.write_text(json.dumps(report))
+    os.chown(temporary, 0, group)
+    temporary.chmod(0o640)
+    temporary.replace(target)
+
+
+def updates(report):
+    run("apt-get", "update", "-qq", timeout=300)
+    lines = [x for x in run("apt-get", "-s", "upgrade").splitlines() if x.startswith("Inst ")]
+    report["updates"] = len(lines)
+    report["security_updates"] = sum("-security" in x for x in lines)
+    report["reboot_required"] = Path("/run/reboot-required").exists()
+    report["unattended"] = "install ok installed" in run(
+        "dpkg-query", "-W", "-f=${Status}", "unattended-upgrades"
+    )
+
+
+def firewall(report):
+    status = run("ufw", "status") if shutil.which("ufw") else ""
+    if "Status: active" in status:
+        report["firewall"] = True
+        report["firewall_detail"] = "ufw"
+        return
+    rules = run("nft", "list", "ruleset") if shutil.which("nft") else ""
+    report["firewall"] = "policy drop" in rules
+    report["firewall_detail"] = "nftables" if report["firewall"] else ""
+
+
+def ssh(report):
+    if not shutil.which("sshd"):
+        return
+    wanted = ("permitrootlogin", "passwordauthentication")
+    settings = [x.split(None, 1) for x in run("sshd", "-T").splitlines()]
+    report["ssh"] = {x[0]: x[1] for x in settings if len(x) == 2 and x[0] in wanted}
+
+
+def packaged(path):
+    return bool(run("dpkg", "-S", path).strip())
+
+
+def files(report):
+    # dpkg --verify prints "??5??????   /path", or with a "c" for configuration files.
+    changed = []
+    for line in run("nice", "dpkg", "--verify", timeout=1500).splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0][2] == "5":
+            changed.append(parts[1])
+    report["changed_files"] = changed[:LIMIT]
+    found = run("find", "/", "-xdev", "-type", "f", "-perm", "-4000", timeout=600).splitlines()
+    report["unknown_suid"] = [p for p in found if not packaged(p)][:LIMIT]
+
+
+def suspicious(report):
+    preload = Path("/etc/ld.so.preload")
+    report["preload"] = [str(preload)] if preload.exists() and preload.read_text().strip() else []
+    programs = []
+    for folder in ("/tmp", "/var/tmp", "/dev/shm"):  # noqa: S108
+        programs += run("find", folder, "-xdev", "-type", "f", "-perm", "/111").splitlines()
+    report["tmp_programs"] = programs[:LIMIT]
+
+
+def accounts(report):
+    users = [x.split(":") for x in Path("/etc/passwd").read_text().splitlines()]
+    report["extra_root_users"] = [u[0] for u in users if u[2] == "0" and u[0] != "root"]
+    shadow = [x.split(":") for x in Path("/etc/shadow").read_text().splitlines()]
+    report["empty_passwords"] = sum(1 for x in shadow if len(x) > 1 and x[1] == "")
+
+
+def rootkits(report):
+    if shutil.which("rkhunter"):
+        output = run("rkhunter", "--check", "--skip-keypress", "--report-warnings-only", timeout=1500)
+        report["rootkit_tool"] = "rkhunter"
+    elif shutil.which("chkrootkit"):
+        output = "\n".join(x for x in run("chkrootkit", "-q", timeout=1500).splitlines() if x.strip())
+        report["rootkit_tool"] = "chkrootkit"
+    else:
+        report["rootkit_tool"] = None
+        return
+    report["rootkit_warnings"] = [x.strip()[:160] for x in output.splitlines()][:LIMIT]
+
+
+def scan():
+    report = {}
+    for step in (updates, firewall, ssh, files, suspicious, accounts, rootkits):
+        step(report)
+    write("scan", report)
+
+
+def disk():
+    journal = re.search(r"([\d.]+)([KMGT])", run("journalctl", "--disk-usage"))
+    factor = {"K": 1e3, "M": 1e6, "G": 1e9, "T": 1e12}
+    cache = run("du", "-sb", "/var/cache/apt").split()
+    folders = []
+    for line in run("du", "-xb", "--max-depth=2", "/", timeout=600).splitlines():
+        size, path = line.split("\t", 1)
+        folders.append({"path": path, "bytes": int(size)})
+    folders.sort(key=lambda f: f["bytes"], reverse=True)
+    write("disk", {
+        "journal": int(float(journal[1]) * factor[journal[2]]) if journal else 0,
+        "apt": int(cache[0]) if cache else 0,
+        "folders": [f for f in folders if f["path"] != "/"][:12],
+    })
+
+
+def clean_journal():
+    run("journalctl", "--vacuum-time=14d")
+    disk()
+
+
+def clean_apt():
+    run("apt-get", "clean")
+    disk()
+
+
+JOBS = {"scan": scan, "disk": disk, "clean-journal": clean_journal, "clean-apt": clean_apt}
+
+if __name__ == "__main__":
+    job = JOBS.get(take_request())
+    if job:
+        job()
