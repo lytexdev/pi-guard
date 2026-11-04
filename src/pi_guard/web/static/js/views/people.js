@@ -1,5 +1,15 @@
 // Trusted people: add, add more pictures, rename, delete.
 import { api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
+import { captureDialog } from "./capture.js";
+
+// What makes recognition work, in the order it matters when adding someone.
+const GUIDE = [["user-check", "ask"], ["sun", "light"], ["eye", "face"], ["refresh", "angles"], ["circle-check", "test"]];
+
+function guide(open) {
+  return h("details", { class: "guide", open }, h("summary", {}, icon("bulb"), t("web.pt_title")),
+    h("ol", {}, GUIDE.map(([name, id]) => h("li", {}, icon(name), h("div", {}, h("strong", {}, t(`web.pt_${id}`)), h("small", {}, t(`web.pt_${id}_text`)))))),
+    h("p", { class: "muted" }, h("small", {}, t("web.pt_privacy"))));
+}
 
 export async function render(main, params = [], opts = {}) {
   const overview = await api("/api/overview");
@@ -13,40 +23,41 @@ export async function render(main, params = [], opts = {}) {
 
   const enrollForm = (preset = "") => {
     const name = h("input", { id: "pname", required: true, maxlength: 64, value: preset });
-    const files = h("input", { id: "pfiles", type: "file", multiple: true, accept: "image/*,video/*" });
+    const files = h("input", { class: "hidden", type: "file", multiple: true, accept: "image/*,video/*" });
     const consent = h("input", { id: "pconsent", type: "checkbox" });
-    const camSel = h("select", { id: "pcam" }, overview.cameras.map((c) => h("option", { value: c.id }, c.name)));
+    const camSel = h("select", { id: "pcam", "aria-label": t("web.camera") }, overview.cameras.map((c) => h("option", { value: c.id }, c.name)));
     const status = h("p", { class: "muted", "aria-live": "polite" });
     const check = () => {
-      if (!name.value.trim()) { toast(t("web.name_required"), true); return false; }
+      if (!name.value.trim()) { toast(t("web.name_required"), true); name.focus(); return false; }
       if (!consent.checked) { toast(t("web.consent_required"), true); return false; }
       return true;
     };
-    const upload = h("button", { class: "primary", type: "button", onclick: async () => {
-      if (!check() || !files.files.length) return;
+    const send = async (chosen) => {
       const form = new FormData();
       form.append("consent", "yes");
-      [...files.files].forEach((f) => form.append("files", f, f.name));
-      upload.disabled = true; status.textContent = t("web.processing");
+      chosen.forEach((f) => form.append("files", f, f.name));
+      fill(status, t("web.processing"));
       const result = await attempt(() => api(`/api/people/${encodeURIComponent(name.value.trim())}/samples`, { method: "POST", body: form }));
-      upload.disabled = false;
       fill(status, result ? enrollSummary(result) : "");
-      if (result) { files.value = ""; drawList(); }
-    } }, icon("upload"), t("web.upload_pictures"));
+      if (result) drawList();
+    };
+    files.addEventListener("change", () => { if (files.files.length) send([...files.files]); files.value = ""; });
+    const live = h("button", { class: "primary big", type: "button", onclick: () => { if (check()) captureDialog(name.value.trim(), send); } }, icon("camera"), t("web.cap_open"));
+    const upload = h("button", { class: "big", type: "button", onclick: () => { if (check()) files.click(); } }, icon("upload"), t("web.upload_pictures"));
     const fromCamera = h("button", { type: "button", onclick: async () => {
       if (!check()) return;
       const result = await attempt(() => api(`/api/people/${encodeURIComponent(name.value.trim())}/camera`,
         { method: "POST", body: { camera: camSel.value, consent: true } }));
       if (result) { fill(status, t("web.enroll_camera_ok", { total: result.total }), qualityView(result.quality)); drawList(); }
-    } }, icon("camera"), t("faces.camera_button"));
+    } }, icon("video"), t("faces.camera_button"));
     fill(formPanel,
       h("h2", {}, preset ? t("faces.more_button", { name: preset }) : t("faces.add_button")),
+      guide(!preset),
       h("div", { class: "field" }, h("label", { for: "pname" }, t("web.name")), name),
-      h("div", { class: "field" }, h("label", { for: "pfiles" }, t("web.pictures_or_videos")), files,
-        h("div", { class: "hint" }, t("web.enroll_hint"))),
       h("label", { class: "check", for: "pconsent" }, consent, t("web.consent_label")),
-      h("div", { class: "row" }, upload,
-        overview.cameras.length ? [overview.cameras.length > 1 ? camSel : null, fromCamera] : null),
+      h("div", { class: "enroll-ways" }, live, upload, files),
+      h("div", { class: "hint" }, t("web.enroll_hint")),
+      overview.cameras.length ? h("div", { class: "row enroll-home" }, overview.cameras.length > 1 ? camSel : null, fromCamera) : null,
       status);
   };
 

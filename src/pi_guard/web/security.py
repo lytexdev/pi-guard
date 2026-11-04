@@ -150,7 +150,7 @@ class Guard:
         h["X-Frame-Options"] = "DENY"
         h["Referrer-Policy"] = "no-referrer"
         h["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
-        h["Permissions-Policy"] = "microphone=(self), camera=(), geolocation=(), payment=()"
+        h["Permissions-Policy"] = "microphone=(self), camera=(self), geolocation=(), payment=()"
         h["Cross-Origin-Opener-Policy"] = "same-origin"
         h["Cross-Origin-Resource-Policy"] = "same-origin"
         if self._tls:

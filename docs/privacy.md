@@ -80,6 +80,8 @@ Art. 9 GDPR. pi-guard:
 
 - only enrolls people an admin enrolls explicitly, after confirming consent
 - deletes enrollment photos immediately and stores only embeddings
+- takes live pictures in the browser or app only when you press the buttons, without sound; they reach the Pi
+  on upload and are treated like any other enrollment photo
   (128 numbers per sample, plus the viewing direction and brightness of the picture) in a separate database readable only by the service
 - uses SQLite `secure_delete` and `VACUUM` when a person is deleted
 - never sends embeddings anywhere, and never sends names to MQTT

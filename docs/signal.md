@@ -40,7 +40,12 @@ To avoid that, build it yourself from
 [signal-cli wiki](https://github.com/AsamK/signal-cli/wiki/Provide-native-lib-for-libsignal).
 
 Then open *Settings → Messenger*, press **Link phone** and scan the code in the Signal app under
-*Settings → Linked devices*.
+*Settings → Linked devices → Link new device*. Use the scanner inside Signal, not the camera app, and show
+the code on another screen than the phone you scan with.
+
+A code only works for two minutes, so the page shows how long it has left and replaces it by itself, up to
+five times. After scanning, pi-guard takes the number from the phone, switches Signal on and asks you to
+restart. If no admin number is set yet, your number becomes the admin number.
 
 With your own number, pi-guard is a linked device of your account. Write to it in **Note to Self**
 and alerts arrive there too. Set your number as system number and as admin number. Messages you

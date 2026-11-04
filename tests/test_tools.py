@@ -817,3 +817,80 @@ async def test_donation_addresses_are_shown_with_codes(tmp_path: Path) -> None:
     finally:
         await client.close()
         app.db.close()
+
+
+async def _linking(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, finish: Any) -> Any:
+    from pi_guard.web import api_tools
+
+    async def fake(address: str, method: str, params: Any = None, wait: float = 10) -> Any:
+        if method == "startLink":
+            return {"deviceLinkUri": "sgnl://linkdevice?uuid=a&pub_key=b"}
+        if method == "finishLink":
+            return await finish()
+        return {"version": "0.14"} if method == "version" else []
+
+    monkeypatch.setattr(api_tools, "rpc", fake)
+    api_tools._links.clear()
+    client, app = await _client(tmp_path)
+    return client, app, {"X-CSRF-Token": await _login(client)}
+
+
+async def _link_state(client: Any) -> Any:
+    for _ in range(50):
+        status = await (await client.get("/api/signal")).json()
+        if status["link"].get("state") != "waiting":
+            return status
+        await asyncio.sleep(0.01)
+    return status
+
+
+async def test_linked_phone_brings_its_number(tmp_path: Path, monkeypatch: Any) -> None:
+    async def finish() -> Any:
+        await asyncio.sleep(0.02)
+        return {"number": "+4915112345678"}
+
+    client, app, headers = await _linking(tmp_path, monkeypatch, finish)
+    try:
+        answer = await client.post("/api/signal/link", json={}, headers=headers)
+        code = await answer.json()
+        assert code["qr"].startswith("data:image/svg") and 0 < code["seconds"] < 120
+        status = await _link_state(client)
+        assert status["link"]["state"] == "linked" and status["linked"]
+        stored = (app.settings.data_dir / "dashboard.env").read_text()
+        assert "+4915112345678" in stored and "PI_GUARD_SIGNAL_ENABLED=true" in stored
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_expired_code_is_not_a_failure(tmp_path: Path, monkeypatch: Any) -> None:
+    async def finish() -> Any:
+        raise RuntimeError("Link request timed out, please try again.")
+
+    client, app, headers = await _linking(tmp_path, monkeypatch, finish)
+    try:
+        await client.post("/api/signal/link", json={}, headers=headers)
+        assert (await _link_state(client))["link"]["state"] == "expired"
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_new_code_replaces_the_one_before(tmp_path: Path, monkeypatch: Any) -> None:
+    from pi_guard.web import api_tools
+
+    async def finish() -> Any:
+        await asyncio.sleep(30)
+
+    client, app, headers = await _linking(tmp_path, monkeypatch, finish)
+    try:
+        await client.post("/api/signal/link", json={}, headers=headers)
+        first = api_tools._links["task"]
+        await client.post("/api/signal/link", json={}, headers=headers)
+        await asyncio.sleep(0)
+        assert first.cancelled() or first.cancelling()
+        assert (await (await client.get("/api/signal")).json())["link"]["state"] == "waiting"
+        api_tools._links["task"].cancel()
+    finally:
+        await client.close()
+        app.db.close()

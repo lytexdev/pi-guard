@@ -46,6 +46,7 @@ DONATIONS = (
 )  # fmt: skip
 NEEDS_NO_SETUP = ("mobile",)  # the others start only once their settings are filled in
 LINK_SECONDS = 300
+LINK_VALID = 110  # signal-cli gives up on a code after 120 s; a new one comes just before
 TEST_SECONDS = 3
 SUPPORT_FIELDS = {"name": 100, "phone": 40, "email": 100, "address": 300}
 NAV_ROUTES = re.compile(r"^[a-z]{2,20}$")
@@ -292,20 +293,43 @@ async def signal_status(request: web.Request) -> web.Response:
     return web.json_response({
         "enabled": s.signal_enabled, "installed": shutil.which("signal-cli") is not None,
         "running": version is not None, "version": version,
-        "linked": s.signal_phone_number in accounts, "accounts": len(accounts),
+        "linked": s.signal_phone_number in accounts or _links.get("state") == "linked",
+        "accounts": len(accounts),
         "connected": bool(provider and provider.connected),
         "link": {k: v for k, v in _links.items() if k != "task"},
     })  # fmt: skip
 
 
-async def _finish_link(address: str, uri: str) -> None:
+async def _finish_link(d: Any, uri: str, actor: str) -> None:
+    address = d.settings.signal_cli_address
     try:
-        await rpc(address, "finishLink", {"deviceLinkUri": uri, "deviceName": "pi-guard"},
-                  wait=LINK_SECONDS)  # fmt: skip
-        _links.update(state="linked")
-    except (OSError, TimeoutError, ValueError, RuntimeError) as exc:
+        result = await rpc(address, "finishLink", {"deviceLinkUri": uri, "deviceName": "pi-guard"},
+                           wait=LINK_SECONDS)  # fmt: skip
+    except RuntimeError as exc:
+        expired = "timed out" in str(exc).lower()
+        if not expired:
+            text = re.sub(r"sgnl://\S+", "(code)", str(exc))
+            log.warning("linking Signal failed: %s", text[:160])
+        _links.update(state="expired" if expired else "failed")
+        return
+    except (OSError, TimeoutError, ValueError) as exc:
         log.warning("linking Signal failed: %s", type(exc).__name__)
         _links.update(state="failed")
+        return
+    # The number comes from the phone, so nobody has to type it and get it slightly wrong.
+    number = (result or {}).get("number")
+    if not number:
+        found = await rpc(address, "listAccounts", wait=5) or []
+        number = found[0].get("number") if len(found) == 1 else None
+    if number:
+        try:
+            values = {"signal_phone_number": number, "signal_enabled": True}
+            if not d.settings.signal_admin_numbers:  # whoever links their phone runs this Pi
+                values["signal_admin_numbers"] = [number]
+            await apply_settings(d, values, actor)
+        except (OSError, ValueError, web.HTTPException) as exc:
+            log.warning("storing the Signal number failed: %s", type(exc).__name__)
+    _links.update(state="linked")
 
 
 async def signal_link(request: web.Request) -> web.Response:
@@ -316,10 +340,13 @@ async def signal_link(request: web.Request) -> web.Response:
     except (OSError, TimeoutError, ValueError, RuntimeError):
         raise web.HTTPConflict(text="web.signal_not_running") from None
     uri = str(started["deviceLinkUri"])
+    if previous := _links.get("task"):  # its code is gone from the screen
+        previous.cancel()
     _links.clear()
-    _links.update(state="waiting", task=asyncio.create_task(_finish_link(address, uri)))
-    d.app.db.audit(_actor(request), "signal.link")
-    return web.json_response({"qr": _qr_svg(uri)})
+    actor = _actor(request)
+    _links.update(state="waiting", task=asyncio.create_task(_finish_link(d, uri, actor)))
+    d.app.db.audit(actor, "signal.link")
+    return web.json_response({"qr": _qr_svg(uri), "seconds": LINK_VALID})
 
 
 # --- Wi-Fi ----------------------------------------------------------------------------------

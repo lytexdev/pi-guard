@@ -95,6 +95,12 @@ are off start folded.
 
 ## Trusted people
 
+The form explains what makes recognition work. **Take photos or a video now** opens the camera of the
+device you are using and guides the person through front and turned views, or films 8 seconds without sound.
+Tap a picture to remove it; nothing leaves the page before **Upload**. This needs the HTTPS address and your
+permission for the camera; otherwise the page offers the phone's camera app. You can also choose existing
+files or use a camera at home.
+
 A bar shows how well each person is learned, with the pictures per viewing direction and the next
 useful step. The score is an estimate from the number of pictures, front and turned views, light and how
 well the pictures agree; look-alikes in the family lower it. *Test with a photo* shows the real result.

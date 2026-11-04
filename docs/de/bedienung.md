@@ -113,6 +113,8 @@ werden.
 einmal nach, dann ertönt der Alarm 30 Sekunden lang, auch in der Ruhezeit.
 Mit **Alarm stoppen** oder `alarm aus` hört er sofort auf.
 
+Im Dashboard führt dich die Seite *Personen* mit einer Anleitung und einer Live-Aufnahme durch alles.
+
 **Vertraute Personen** (wenn die Gesichtserkennung eingerichtet ist):
 *Weitere Funktionen → Vertraute Personen → Person hinzufügen*. Danach sagt pi-guard, wie gut die
 Person eingeprägt ist und welche Bilder als Nächstes helfen.

@@ -8,6 +8,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Adding a trusted person explains what works best and can take guided photos or a video on the spot, in
+  the browser and in the app.
+- Linking Signal shows steps and the time left, and stores the number from the phone.
+- A new login page with a way to show the password.
 - Android app PiGuard (`android/`) with the add-on `mobile`: dashboard, alerts without Google, WireGuard
   client, find a phone, SOS, app lock, signed updates, calendar as away times.
 - Call a camera from the Live page, also in the browser.
@@ -54,6 +58,8 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- The Signal link code vanished after four seconds and was never renewed, although a code only works for
+  two minutes.
 - Phones no longer scroll sideways: pages were wider than the screen, the network pages on every phone.
 - Borders were missing everywhere, because the line spacing setting overwrote their colour.
 - Settings are a list on a phone, tables stack, and tabs wrap, so there is no sideways strip left.

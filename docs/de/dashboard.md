@@ -81,6 +81,12 @@ Messenger, die aus sind, starten zugeklappt.
 
 ## Vertraute Personen
 
+Das Formular erklärt, was die Erkennung gut macht. **Jetzt Fotos oder Video aufnehmen** öffnet die Kamera des
+Geräts, das du gerade benutzt, und führt die Person durch Blick geradeaus und leicht zur Seite, oder filmt
+8 Sekunden ohne Ton. Antippen entfernt ein Bild; erst **Hochladen** schickt etwas an den Pi. Das braucht die
+HTTPS-Adresse und deine Erlaubnis für die Kamera, sonst bietet die Seite die Kamera-App des Handys an. Du kannst
+auch vorhandene Dateien wählen oder eine Kamera zu Hause nutzen.
+
 Ein Balken zeigt, wie gut jede Person eingeprägt ist, mit den Bildern je Blickrichtung und dem nächsten
 sinnvollen Schritt. Der Wert ist eine Schätzung aus Anzahl der Bilder, Blick von vorne und zur Seite, Licht und
 wie gut die Bilder zusammenpassen; Ähnlichkeit in der Familie senkt ihn. Den echten Eindruck gibt der Test mit

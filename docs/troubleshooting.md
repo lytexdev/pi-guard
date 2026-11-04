@@ -105,3 +105,5 @@ sudo journalctl -u pi-guard -n 100
 - `pi-guard signal test` must report a version.
 - `sudo systemctl status pi-guard-signal`; `journalctl -u pi-guard-signal`.
 - After a long time offline, update signal-cli; outdated clients are rejected.
+- Signal says the code is invalid: it was older than two minutes, or scanned with the camera app. Scan the
+  current code inside Signal under *Linked devices*.

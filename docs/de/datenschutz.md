@@ -66,6 +66,8 @@ Speichern nach. Das Foto wird sofort gelöscht, gespeichert werden nur
 Merkmalswerte. Löschen: `/gesichter löschen Name`. Beim Eintragen werden
 Fotos und Videobilder sofort nach dem Auswerten gelöscht; die Gesichtsdaten
 bleiben nur im Arbeitsspeicher, bis Sie die Zustimmung bestätigen.
+Live-Aufnahmen im Browser oder in der App entstehen nur, wenn Sie die Knöpfe drücken, ohne Ton, und werden
+beim Hochladen wie jedes andere Foto behandelt.
 
 **Schärfer und normale Sätze.** „Schärfer“ sucht nur, *wo* eine Person im Bild
 ist, nicht *wer* sie ist. Geschriebene Sätze werden auf dem Gerät anhand von

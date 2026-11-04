@@ -7,8 +7,10 @@ import { explainKeyError, getCredential } from "../webauthn.js";
 export async function render(root) {
   const methods = state.session.methods;
   const panel = h("div", { class: "panel" },
-    h("div", { class: "brand" }, h("img", { src: logoUrl(), alt: "" }), "pi-guard"));
-  root.append(h("div", { class: "login" }, panel));
+    h("div", { class: "brand" }, h("img", { src: logoUrl(), alt: "" }), h("strong", {}, "pi-guard"), h("small", {}, t("web.login_tagline"))));
+  root.append(h("div", { class: "login" }, panel,
+    h("p", { class: "login-credit" }, "made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex"))));
+  const other = () => { if (panel.querySelector("form") && !panel.querySelector(".login-or")) panel.append(h("div", { class: "login-or" }, h("span", {}, t("web.login_or")))); };
 
   const done = (result) => next(result);
   const fail = (error) => toast(error.status === 429 ? t("web.login_rate_limited") : t("web.login_failed"), true);
@@ -64,18 +66,25 @@ export async function render(root) {
     const user = h("input", { id: "user", autocomplete: "username", required: true, value: "" });
     const pass = h("input", { id: "pass", type: "password", autocomplete: "current-password", required: true });
     const honey = h("input", { name: "website", tabindex: "-1", autocomplete: "off" });
+    const submit = h("button", { class: "primary big", type: "submit" }, t("web.login"));
+    const reveal = h("button", { class: "ghost icon-only", type: "button", title: t("web.login_show"), "aria-label": t("web.login_show"), onclick: () => {
+      const shown = pass.type === "text";
+      pass.type = shown ? "password" : "text";
+      fill(reveal, icon(shown ? "eye" : "eye-off"));
+    } }, icon("eye"));
     const form = h("form", {},
       h("h1", {}, t("web.login_title")),
-      h("div", { class: "field" }, h("label", { for: "user" }, t("web.username")), user),
-      h("div", { class: "field" }, h("label", { for: "pass" }, t("web.password")), pass),
+      h("div", { class: "field" }, h("label", { for: "user" }, t("web.username")), h("div", { class: "login-input" }, icon("user"), user)),
+      h("div", { class: "field" }, h("label", { for: "pass" }, t("web.password")), h("div", { class: "login-input" }, icon("lock"), pass, reveal)),
       h("div", { class: "honey", "aria-hidden": "true" }, h("label", {}, "Website"), honey),
-      h("button", { class: "primary big", type: "submit" }, t("web.login")));
+      submit);
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      submit.disabled = true;
       try {
         done(await api("/api/login", { method: "POST",
           body: { username: user.value, password: pass.value, website: honey.value } }));
-      } catch (error) { fail(error); pass.select(); }
+      } catch (error) { fail(error); pass.select(); submit.disabled = false; }
     });
     panel.append(form);
   }
@@ -87,13 +96,13 @@ export async function render(root) {
       try { done(await api("/api/login", { method: "POST", body: { keyfile: content } })); }
       catch (error) { fail(error); file.value = ""; }
     });
-    panel.append(h("div", { class: "field" },
-      h("h3", {}, t("web.keyfile_login")),
-      h("label", { for: "keyfile" }, t("web.keyfile_choose")), file,
-      h("div", { class: "hint" }, t("web.keyfile_hint"))));
+    other();
+    file.classList.add("hidden");
+    panel.append(file, h("button", { class: "login-alt", type: "button", title: t("web.keyfile_hint"), onclick: () => file.click() }, icon("key"), t("web.keyfile_login")));
   }
   if (methods.includes("webauthn") && window.PublicKeyCredential) {
-    panel.append(h("button", { class: "big", onclick: async () => {
+    other();
+    panel.append(h("button", { class: "login-alt", onclick: async () => {
       try {
         const { flow, options } = await api("/api/login/webauthn/begin", { method: "POST", body: {} });
         const credential = await getCredential(options);
@@ -104,10 +113,10 @@ export async function render(root) {
     } }, icon("key"), t("web.webauthn_login")));
   }
   if (methods.includes("telegram")) {
-    panel.append(h("button", { class: "big", onclick: async () => {
+    other();
+    panel.append(h("button", { class: "login-alt", onclick: async () => {
       try { telegramWait(await api("/api/login/telegram", { method: "POST", body: {} })); }
       catch (error) { fail(error); }
     } }, icon("device-mobile"), t("web.tg_login_button")));
   }
-  panel.append(h("p", { class: "muted" }, h("small", {}, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex"))));
 }

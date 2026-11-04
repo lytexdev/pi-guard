@@ -35,6 +35,8 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 
 Auf dem Handy sind die Einstellungen des Dashboards eine Liste: Abschnitt antippen, der Pfeil oben führt zurück.
 
+Die App fragt erst nach der Kamera, wenn du im Dashboard Bilder einer vertrauten Person aufnimmst.
+
 ## Bauen und signieren
 
 ```bash

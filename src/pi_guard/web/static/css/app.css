@@ -190,9 +190,25 @@ th { color: var(--muted); font-weight: 500; }
 .chart line { stroke: var(--line); }
 
 /* login */
-.login { min-height: 100dvh; display: grid; place-items: center; padding: 20px; }
-.login .panel { width: min(420px, 100%); padding: 28px; }
-.login .brand { padding: 0 0 20px; font-size: 1.2rem; }
+.login {
+  min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px;
+  background: radial-gradient(60rem 36rem at 50% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+}
+.login .panel { width: min(400px, 100%); padding: 28px 24px; border-radius: 16px; box-shadow: 0 16px 48px rgba(0, 0, 0, .35); }
+.login .brand { flex-direction: column; gap: 2px; padding: 0 0 20px; text-align: center; }
+.login .brand img { width: 72px; height: 72px; border-radius: 0; margin-bottom: 8px; }
+.login .brand strong { font-size: 1.4rem; }
+.login .brand small { font-weight: 400; }
+.login h1 { font-size: 1.05rem; color: var(--muted); font-weight: 500; text-align: center; margin-bottom: 16px; }
+.login-input { position: relative; color: var(--muted); }
+.login-input > .icon { position: absolute; left: 12px; top: calc(50% - 10px); pointer-events: none; }
+.login-input input { padding-left: 42px; padding-right: 46px; }
+.login-input button { position: absolute; right: 0; top: 0; height: 100%; border: 0; color: var(--muted); }
+.login form button.big { width: 100%; min-height: 52px; margin-top: 4px; }
+.login-or { display: flex; align-items: center; gap: 12px; margin: 18px 0 12px; color: var(--muted); font-size: .85rem; }
+.login-or::before, .login-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.login-alt { width: 100%; margin-top: 8px; }
+.login-credit { color: var(--muted); font-size: .8rem; margin: 0; }
 .honey { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 
 /* feedback */
@@ -516,3 +532,35 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
   .table-wrap td:first-child { display: block; padding-right: 0; font-weight: 600; }
   .person-row .grow { flex: 1 1 calc(100% - 44px); }
 }
+
+/* Linking Signal */
+.qr.big { display: block; width: min(300px, 100%); height: auto; aspect-ratio: 1; margin: 12px auto; }
+.steps-list { margin: 0; padding-left: 22px; }
+.steps-list li + li { margin-top: 6px; }
+
+/* Adding a trusted person */
+.guide { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 14px; }
+.guide summary { display: flex; align-items: center; gap: 8px; min-height: 32px; font-weight: 600; cursor: pointer; }
+.guide summary .icon { color: var(--warn); }
+.guide ol { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 10px; }
+.guide li { display: flex; gap: 10px; align-items: flex-start; }
+.guide li .icon { color: var(--accent); margin-top: 2px; }
+.guide li strong { display: block; font-weight: 600; }
+.guide p { margin: 0; }
+.enroll-ways { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); margin: 6px 0 8px; }
+.enroll-home { margin-top: 12px; }
+dialog.capture { width: min(520px, calc(100vw - 16px)); max-height: 96dvh; overflow-y: auto; padding: 14px; }
+.capture h2 { margin: 0; }
+.capture-stage { position: relative; margin: 10px 0; border-radius: var(--radius); overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.capture-stage video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.capture-stage video.mirror { transform: scaleX(-1); }
+.capture-oval { position: absolute; left: 50%; top: 50%; height: 78%; aspect-ratio: 3 / 4; transform: translate(-50%, -50%); border: 3px dashed rgba(255, 255, 255, .75); border-radius: 50%; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .3); }
+.capture-prompt { min-height: 3em; font-size: 1.05rem; font-weight: 600; text-align: center; margin: 0 0 8px; }
+.capture-buttons { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.capture-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.capture-strip:empty { display: none; }
+button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; overflow: hidden; }
+.capture-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.panel.stack > small { display: block; }
+.capture-buttons button { padding: 0 8px; min-height: 56px; font-size: 1rem; }
+.capture .row.end { flex-wrap: nowrap; justify-content: flex-end; }

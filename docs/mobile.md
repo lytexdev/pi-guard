@@ -34,6 +34,8 @@ app* and its token stops working at once.
 
 On a phone the dashboard's settings are a list: tap a section to open it, and the arrow at the top leads back.
 
+The app asks for the camera only when you take pictures of a trusted person in the dashboard.
+
 ## Building and signing
 
 ```bash
