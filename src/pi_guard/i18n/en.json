@@ -1394,7 +1394,7 @@
   "web.signal_not_running": "signal-cli is not running.",
   "web.signal_status": "Signal connection",
   "web.signal_missing": "signal-cli is not installed. Run this on the Pi:",
-  "web.signal_stopped": "signal-cli is installed but not running.",
+  "web.signal_stopped": "signal-cli is installed but does not start. Run the installation again on the Pi:",
   "web.signal_unlinked": "signal-cli is running. Now link your phone.",
   "web.signal_restart": "Your phone is linked. Save the settings and restart pi-guard.",
   "web.signal_ready": "Signal is connected.",

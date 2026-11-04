@@ -13,6 +13,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd /
 DATA=/var/lib/pi-guard/signal-cli
 PROJECT=AsamK/signal-cli
+NATIVE_PROJECT=exquo/signal-libs-build  # signal-cli only bundles libsignal for x86_64 Linux
 
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -40,6 +41,40 @@ fetch() {
     ln -sfn "/opt/signal-cli-$version/bin/signal-cli" /usr/local/bin/signal-cli
 }
 
+native_lib() {
+    # The Java part of signal-cli needs libsignal as a native library. For ARM it comes from a
+    # third party that builds Signal's own source; it must match the version signal-cli uses.
+    local target folder jar version tag name digest tmp
+    case "$(uname -m)" in
+        x86_64) return 0 ;;
+        aarch64) target=aarch64-unknown-linux-gnu; folder=/usr/lib/aarch64-linux-gnu/jni ;;
+        armv7l) target=armv7-unknown-linux-gnueabihf; folder=/usr/lib/arm-linux-gnueabihf/jni ;;
+        *) die "no libsignal available for $(uname -m)" ;;
+    esac
+    jar="$(ls "$(dirname "$(readlink -f /usr/local/bin/signal-cli)")"/../lib/libsignal-client-*.jar)"
+    version="$(basename "$jar" .jar)"
+    version="${version#libsignal-client-}"
+    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "unexpected libsignal version: $version"
+    tag="libsignal_v$version"
+    name="libsignal_jni.so-v$version-$target.tar.gz"
+    digest="$(curl -fsS "https://api.github.com/repos/$NATIVE_PROJECT/releases/tags/$tag" \
+        | python3 -c '
+import json, sys
+wanted = sys.argv[1]
+assets = json.load(sys.stdin)["assets"]
+print(next(a["digest"] for a in assets if a["name"] == wanted).removeprefix("sha256:"))' "$name")" \
+        || die "no libsignal $version for $target yet; try again later"
+    say "downloading libsignal $version for $target"
+    tmp="$(mktemp -d)"
+    curl -fsSL -o "$tmp/$name" "https://github.com/$NATIVE_PROJECT/releases/download/$tag/$name"
+    printf '%s  %s\n' "$digest" "$tmp/$name" | sha256sum --check --quiet \
+        || die "checksum of the download does not match"
+    tar xzf "$tmp/$name" -C "$tmp"
+    install -d "$folder"
+    install -m 0644 "$tmp/libsignal_jni.so" "$folder/libsignal_jni.so"
+    rm -r "$tmp"
+}
+
 install_all() {
     id pi-guard >/dev/null 2>&1 || die "run scripts/install.sh first"
     apt-get update -qq
@@ -49,6 +84,7 @@ install_all() {
     say "installing $java"
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$java"
     fetch
+    native_lib
     install -d -o pi-guard -g pi-guard -m 0700 "$DATA"
     install -m 0644 "$REPO/deploy/systemd/pi-guard-signal.service" /etc/systemd/system/
     systemctl daemon-reload
@@ -59,7 +95,7 @@ install_all() {
 
 case "${1:-}" in
     install) install_all ;;
-    update) fetch; systemctl restart pi-guard-signal; say "updated" ;;
+    update) fetch; native_lib; systemctl restart pi-guard-signal; say "updated" ;;
     status) signal-cli --version; systemctl --no-pager status pi-guard-signal | head -5 ;;
     *) die "usage: $0 install | update | status" ;;
 esac

@@ -31,6 +31,14 @@ This installs Java and the latest signal-cli release from GitHub, and starts the
 pi-guard sends, and listens on `127.0.0.1:7583` only. Keep it current with
 `sudo ./scripts/signal.sh update`.
 
+signal-cli only bundles its native library, libsignal, for x86_64 Linux. On a Raspberry Pi the script
+fetches a build made by the third-party project
+[exquo/signal-libs-build](https://github.com/exquo/signal-libs-build), checks it against the checksum
+of that release and installs it. This library handles your Signal keys, so you trust that project too.
+To avoid that, build it yourself from
+[Signal's source](https://github.com/signalapp/libsignal), as described in the
+[signal-cli wiki](https://github.com/AsamK/signal-cli/wiki/Provide-native-lib-for-libsignal).
+
 Then open *Settings → Messenger*, press **Link phone** and scan the code in the Signal app under
 *Settings → Linked devices*.
 

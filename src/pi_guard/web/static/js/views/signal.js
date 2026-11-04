@@ -26,7 +26,7 @@ export async function signalPanel() {
       h("p", { class: state === "ready" ? "" : "notice" }, t(`web.signal_${state}`)),
       s.version ? h("small", { class: "muted" }, `signal-cli ${s.version}`) : null,
       state === "missing" ? h("pre", { class: "mono wrap" }, "sudo ./scripts/signal.sh install") : null,
-      state === "stopped" ? h("pre", { class: "mono wrap" }, "sudo systemctl restart pi-guard-signal") : null,
+      state === "stopped" ? h("pre", { class: "mono wrap" }, "cd ~/pi-guard && sudo ./scripts/signal.sh install") : null,
       state === "unlinked" ? link : null);
     if (s.link?.state === "waiting") timer = setTimeout(draw, 4000);
   };
