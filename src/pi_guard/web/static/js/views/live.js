@@ -1,5 +1,6 @@
 // Live: picture, sound, push-to-talk, image tools, sounds and alarm.
 import { api, attempt, confirmDialog, h, icon, t, toast, fill } from "../api.js";
+import { state } from "../app.js";
 
 const REGIONS = ["top_left", "top", "top_right", "left", "center", "right", "bottom_left", "bottom", "bottom_right"];
 const ARROWS = ["↖", "↑", "↗", "←", "·", "→", "↙", "↓", "↘"];
@@ -187,6 +188,7 @@ export async function render(main, params) {
   if (!cameras.length) { main.append(h("p", { class: "empty" }, t("web.no_cameras"))); return; }
   const camera = cameras.find((c) => c.id === params[0]) || cameras[0];
   const features = overview.features;
+  const viewer = state.session.role === "viewer";
   const img = h("img", { src: `/api/live/${camera.id}/video`, alt: camera.name });
   img.addEventListener("error", () => { if (!img.dataset.failed) { img.dataset.failed = "1"; toast(t("web.live_unavailable"), true); } });
   const stage = h("div", { class: "stage" }, img,
@@ -244,19 +246,19 @@ export async function render(main, params) {
           h("button", { onclick: () => pan.zoom(1.5) }, icon("zoom-in"), t("web.zoom_in")),
           h("button", { onclick: () => pan.zoom(1 / 1.5) }, icon("zoom-out"), t("web.zoom_out")),
           h("button", { onclick: () => stage.requestFullscreen?.() }, icon("maximize"), t("web.fullscreen")),
-          h("button", { onclick: photo }, icon("photo"), t("web.photo")),
-          h("button", { onclick: async () => {
+          viewer ? null : h("button", { onclick: photo }, icon("photo"), t("web.photo")),
+          viewer ? null : h("button", { onclick: async () => {
             const minutes = Number(prompt(t("web.ev_minutes"), "5"));
             if (minutes && await attempt(() => api("/api/evidence", { method: "POST", body: { camera: camera.id, minutes } }))) toast(t("web.ev_started", { minutes }));
           } }, icon("video"), t("web.ev_button")),
-          sharperButton)),
-      h("section", { class: "panel stack" },
+          viewer ? null : sharperButton)),
+      viewer ? null : h("section", { class: "panel stack" },
         h("h2", {}, t("web.talk_and_listen")),
         listen, audio,
         features.audio_playback ? talkButton(camera) : h("p", { class: "muted" }, t("web.no_speaker")),
         h("p", { class: "muted" }, h("small", {}, t("web.listen_note"))))),
     result.panel);
-  const sounds = await soundsPanel(features);
+  const sounds = viewer ? null : await soundsPanel(features);
   if (sounds) main.append(sounds);
   return () => { listening = false; img.removeAttribute("src"); audio.pause(); audio.removeAttribute("src"); };
 }

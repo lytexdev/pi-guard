@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -35,3 +36,13 @@ def test_every_text_used_by_the_dashboard_reaches_the_browser() -> None:
         for key in re.findall(r'\bt\("([a-z_]+\.[a-z0-9_.]+)"', script.read_text()):
             assert key in keys, f"{script.name}: no text for {key}"
             assert key.startswith(sent), f"{script.name}: {key} is not sent to the browser"
+
+
+def test_every_icon_used_is_in_the_sprite() -> None:
+    static = Path(__file__).resolve().parent.parent / "src" / "pi_guard" / "web" / "static"
+    sprite = (static / "icons" / "sprite.svg").read_text()
+    known = set(re.findall(r'<symbol id="([^"]+)"', sprite))
+    used: set[str] = set()
+    for script in (static / "js").rglob("*.js"):
+        used |= set(re.findall(r'\bicon\("([a-z0-9-]+)"', script.read_text()))
+    assert used <= known, sorted(used - known)

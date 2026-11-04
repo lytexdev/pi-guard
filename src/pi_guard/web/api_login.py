@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import logging
 import secrets
+import socket
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -201,7 +202,10 @@ async def webauthn_list(request: web.Request) -> web.Response:
         usable = True
     except web.HTTPConflict:
         usable = False
-    return web.json_response({"keys": keys, "usable_here": usable})
+    names = [socket.gethostname(), *d.settings.dashboard_tls_names]  # the certificate has both
+    names = [n for n in dict.fromkeys(names) if ":" not in n and not n.replace(".", "").isdigit()]
+    return web.json_response({"keys": keys, "usable_here": usable, "names": names,
+                              "port": d.settings.dashboard_port})  # fmt: skip
 
 
 async def webauthn_register_begin(request: web.Request) -> web.Response:

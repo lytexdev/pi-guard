@@ -48,6 +48,10 @@ CREATE TABLE IF NOT EXISTS web_keyfiles (
 CREATE TABLE IF NOT EXISTS web_account (
     id INTEGER PRIMARY KEY CHECK (id = 1), username TEXT NOT NULL, password_hash TEXT NOT NULL,
     must_change INTEGER NOT NULL, totp TEXT, totp_pending TEXT, updated TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS web_users (
+    id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash TEXT NOT NULL, role TEXT NOT NULL, totp TEXT, totp_pending TEXT,
+    created TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS web_recovery (hash TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS web_tokens (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, scope TEXT NOT NULL,
@@ -275,16 +279,95 @@ class AuthStore:
         )
         self.end_all()
 
-    def account(self) -> dict[str, Any]:
+    # More people: admins can do everything, viewers only watch (see VIEWER_PATHS in server.py).
+
+    def users(self) -> list[dict[str, Any]]:
+        rows = self._db.execute(
+            "SELECT id, username, role, created, totp IS NOT NULL AS totp FROM web_users "
+            "ORDER BY username"
+        ).fetchall()
+        return [{**dict(r), "totp": bool(r["totp"])} for r in rows]
+
+    def _extra(self, username: str) -> Any:
+        return self._db.execute(
+            "SELECT * FROM web_users WHERE username = ?", (username,)
+        ).fetchone()
+
+    def _check_new_login(self, username: str, password: str) -> None:
+        clean = username.replace("_", "").replace("-", "").replace(".", "")
+        if not 3 <= len(username) <= 32 or not clean.isalnum():
+            raise CredentialError("web.bad_username")
+        if len(password) < MIN_PASSWORD:
+            raise CredentialError("web.password_too_short")
+        if password == DEFAULT_PASSWORD or password.casefold() == username.casefold():
+            raise CredentialError("web.password_too_simple")
+
+    def add_user(self, username: str, password: str, role: str) -> None:
+        username = username.strip()
+        self._check_new_login(username, password)
+        if role not in ("admin", "viewer"):
+            raise CredentialError("web.bad_username")
+        taken = username.casefold() == self.account()["username"].casefold()
+        if taken or self._extra(username) is not None:
+            raise CredentialError("web.user_taken")
+        self._db.execute(
+            "INSERT INTO web_users (username, password_hash, role, created) VALUES (?, ?, ?, ?)",
+            (username, hash_password(password, self._pepper), role, utcnow().isoformat()),
+        )
+
+    def set_role(self, user_id: int, role: str) -> bool:
+        if role not in ("admin", "viewer"):
+            return False
+        return self._db.execute("UPDATE web_users SET role = ? WHERE id = ?",
+                                (role, user_id)).rowcount > 0  # fmt: skip
+
+    def delete_user(self, user_id: int) -> bool:
+        row = self._db.execute("SELECT username FROM web_users WHERE id = ?", (user_id,)).fetchone()
+        if row is None:
+            return False
+        self._db.execute("DELETE FROM web_users WHERE id = ?", (user_id,))
+        self._db.execute("DELETE FROM web_sessions WHERE username = ?", (row["username"],))
+        return True
+
+    def change_own_password(self, username: str, current: str, password: str) -> None:
+        row = self._extra(username)
+        if row is None or self.check_password(username, current) is None:
+            raise CredentialError("web.wrong_password")
+        self._check_new_login(username, password)
+        self._db.execute("UPDATE web_users SET password_hash = ? WHERE id = ?",
+                         (hash_password(password, self._pepper), row["id"]))  # fmt: skip
+
+    def role_of(self, username: str) -> str:
+        """Unknown names are viewers: a session can outlive a changed account."""
+        if username.startswith(("key:", "api:")) or username == "local":
+            return "admin"
+        if username.casefold() == self.account()["username"].casefold():
+            return "admin"
+        row = self._extra(username)
+        return str(row["role"]) if row else "viewer"
+
+    def is_owner(self, username: str) -> bool:
+        return self._extra(username) is None
+
+    def account(self, username: str | None = None) -> dict[str, Any]:
+        extra = self._extra(username) if username else None
+        if extra is not None:
+            return {"username": extra["username"], "must_change": False, "owner": False,
+                    "totp": extra["totp"] is not None, "codeword": False,
+                    "recovery_left": 0}  # fmt: skip
         row = self._db.execute("SELECT * FROM web_account WHERE id = 1").fetchone()
         return {"username": row["username"], "must_change": bool(row["must_change"]),
                 "totp": row["totp"] is not None, "codeword": self.has_codeword,
-                "recovery_left": self.recovery_left}  # fmt: skip
+                "recovery_left": self.recovery_left, "owner": True}  # fmt: skip
 
     def check_password(self, username: str, password: str) -> str | None:
         row = self._db.execute("SELECT * FROM web_account WHERE id = 1").fetchone()
+        extra = self._extra(username.strip())
+        stored = extra["password_hash"] if extra else row["password_hash"]
         # Always hash, so a wrong user name takes as long as a wrong password.
-        ok = verify_password(password[:1000], row["password_hash"], self._pepper)
+        ok = verify_password(password[:1000], stored, self._pepper)
+        if extra is not None:
+            return str(extra["username"]) if ok else None
         same_user = hmac.compare_digest(username.strip().casefold(), row["username"].casefold())
         return str(row["username"]) if ok and same_user else None
 
@@ -302,14 +385,15 @@ class AuthStore:
             raise CredentialError("web.password_too_short")
         if password in (DEFAULT_PASSWORD, current) or password.casefold() == username.casefold():
             raise CredentialError("web.password_too_simple")
+        if self._extra(username) is not None:
+            raise CredentialError("web.user_taken")
         self._db.execute(
             "UPDATE web_account SET username = ?, password_hash = ?, must_change = 0, updated = ? "
             "WHERE id = 1",
             (username, hash_password(password, self._pepper), utcnow().isoformat()),
         )
-        self._db.execute(
-            "UPDATE web_sessions SET username = ? WHERE username NOT LIKE 'key:%'", (username,)
-        )
+        self._db.execute("UPDATE web_sessions SET username = ? WHERE username = ?",
+                         (username, account["username"]))  # fmt: skip
 
     # TOTP secrets are encrypted with a key derived from the dashboard secret key.
 
@@ -330,34 +414,46 @@ class AuthStore:
         except InvalidTag:
             return None  # the secret key changed; TOTP cannot be checked any more
 
-    def totp_secret(self) -> str | None:
-        row = self._db.execute("SELECT totp FROM web_account WHERE id = 1").fetchone()
-        return self._decrypt(row["totp"]) if row and row["totp"] else None
+    def _totp_row(self, username: str | None) -> tuple[str, int]:
+        """(table, id) of a person's TOTP columns; the table name is one of these two constants."""
+        extra = self._extra(username) if username else None
+        return ("web_users", extra["id"]) if extra is not None else ("web_account", 1)
 
-    def begin_totp(self) -> str:
+    def _totp_read(self, column: str, username: str | None) -> str | None:
+        table, key = self._totp_row(username)
+        sql = f"SELECT {column} AS value FROM {table} WHERE id = ?"  # noqa: S608
+        row = self._db.execute(sql, (key,)).fetchone()
+        return self._decrypt(row["value"]) if row and row["value"] else None
+
+    def _totp_write(self, assignment: str, values: tuple[Any, ...], username: str | None) -> None:
+        table, key = self._totp_row(username)
+        sql = f"UPDATE {table} SET {assignment} WHERE id = ?"  # noqa: S608
+        self._db.execute(sql, (*values, key))
+
+    def totp_secret(self, username: str | None = None) -> str | None:
+        return self._totp_read("totp", username)
+
+    def begin_totp(self, username: str | None = None) -> str:
         secret = new_totp_secret()
-        self._db.execute("UPDATE web_account SET totp_pending = ? WHERE id = 1",
-                         (self._encrypt(secret),))  # fmt: skip
+        self._totp_write("totp_pending = ?", (self._encrypt(secret),), username)
         return secret
 
-    def confirm_totp(self, code: str) -> bool:
-        row = self._db.execute(
-            "SELECT totp_pending, username FROM web_account WHERE id = 1"
-        ).fetchone()
-        secret = self._decrypt(row["totp_pending"]) if row["totp_pending"] else None
+    def confirm_totp(self, code: str, username: str | None = None) -> bool:
+        secret = self._totp_read("totp_pending", username)
         step = totp_match(secret, code) if secret else None
-        if secret is None or step is None or not self.totp_step_unused("account", step):
+        used = "account" if username is None or self.is_owner(username) else username
+        if secret is None or step is None or not self.totp_step_unused(used, step):
             return False
-        self._db.execute("UPDATE web_account SET totp = totp_pending, totp_pending = NULL, "
-                         "updated = ? WHERE id = 1", (utcnow().isoformat(),))  # fmt: skip
+        self._totp_write("totp = totp_pending, totp_pending = NULL", (), username)
         return True
 
-    def disable_totp(self, password: str) -> bool:
-        account = self.account()
+    def disable_totp(self, password: str, username: str | None = None) -> bool:
+        account = self.account(username)
         if self.check_password(account["username"], password) is None:
             return False
-        self._db.execute("UPDATE web_account SET totp = NULL, totp_pending = NULL WHERE id = 1")
-        self._db.execute("DELETE FROM web_recovery")
+        self._totp_write("totp = NULL, totp_pending = NULL", (), username)
+        if account["owner"]:
+            self._db.execute("DELETE FROM web_recovery")
         return True
 
     # Recovery codes replace a lost phone once each. 80 random bits, so a keyed hash is enough.

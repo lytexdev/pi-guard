@@ -44,6 +44,11 @@ PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.c
 # Reachable while the default password has not been changed yet.
 SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",
                  "/api/account/totp/confirm", "/api/setup/status"}  # fmt: skip
+# What viewers may do: watch. Everything else is closed to them, also anything added later.
+VIEWER_GET = {"/api/overview", "/api/events", "/api/stats", "/api/alerts", "/api/connection",
+              "/api/evidence", "/api/account"}  # fmt: skip
+VIEWER_POST = {"/api/me/password", "/api/connection/check", "/api/account/totp/begin",
+               "/api/account/totp/confirm", "/api/account/totp/disable"}  # fmt: skip
 SETUP_DONE_KEY = "web.setup_done"
 TOTP_LENGTH = 6
 STATIC = Path(str(resources.files("pi_guard.web").joinpath("static")))
@@ -161,6 +166,7 @@ class Dashboard:
         webapp.router.add_get("/sw.js", self._service_worker)
         webapp.router.add_get("/manifest.webmanifest", self._manifest)
         webapp.router.add_get("/ca.crt", self._ca)
+        webapp.router.add_get("/branding/logo", self._logo)
         webapp.router.add_static("/static/", STATIC, append_version=True)
         webapp.router.add_get("/api/session", self._session)
         webapp.router.add_post("/api/login", self._login)
@@ -243,6 +249,8 @@ class Dashboard:
             raise web.HTTPUnauthorized(text="login required")
         if path not in SETUP_ALLOWED and self._setup_required(session):
             raise web.HTTPForbidden(text="setup_required")
+        if self.auth.role_of(session.username) == "viewer" and not self._viewer_may(request):
+            raise web.HTTPForbidden(text="web.viewer_forbidden")
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             token = request.headers.get("X-CSRF-Token", "")
             if not secrets.compare_digest(token, session.csrf):
@@ -270,6 +278,14 @@ class Dashboard:
             raise web.HTTPForbidden(text="this token may only read")
         request[SESSION_KEY] = Session(f"api:{found['name']}", "", False)
         return await handler(request)
+
+    @staticmethod
+    def _viewer_may(request: web.Request) -> bool:
+        path = request.path
+        if request.method not in ("GET", "HEAD"):
+            return path in VIEWER_POST
+        is_video = path.startswith("/api/live/") and path.endswith("/video")  # listening is not
+        return path in VIEWER_GET or is_video or path.startswith("/api/media/")
 
     def _setup_required(self, session: Session) -> bool:
         """The default password must be replaced before anything else works."""
@@ -300,6 +316,11 @@ class Dashboard:
     async def _robots(self, request: web.Request) -> web.Response:
         return web.Response(text="User-agent: *\nDisallow: /\n")
 
+    async def _logo(self, request: web.Request) -> web.StreamResponse:
+        for path in sorted(self.settings.data_dir.glob("logo.*")):
+            return web.FileResponse(path, headers={"Cache-Control": "no-cache"})
+        return web.FileResponse(STATIC / "img" / "logo.svg")
+
     async def _ca(self, request: web.Request) -> web.StreamResponse:
         ca = self.tls_dir / "ca.crt"
         if not ca.exists():
@@ -321,12 +342,18 @@ class Dashboard:
             "csrf": session.csrf if session and not session.pending else None,
             "methods": self.login_methods(),
             "pending_level": session.level if session else 0,
-            "codeword": self.auth.has_codeword,
-            "totp": self.auth.totp_secret() is not None,
+            "codeword": bool(session and self.auth.is_owner(session.username)
+                             and self.auth.has_codeword),
+            "totp": bool(session and self.auth.totp_secret(session.username)),
             "setup_required": bool(active and session and self._setup_required(session)),
             "setup_done": bool(self.app.db.get(SETUP_DONE_KEY)),
+            "role": self.auth.role_of(session.username) if active and session else None,
+            "appearance": self.app.db.get("web.appearance") or {},
             "pinned": (self.app.db.get("web.pinned") or []) if active else [],
-            "assistant": bool(active and self.app.addons.assistant),
+            "assistant": bool(
+                active and self.app.addons.assistant
+                and session and self.auth.role_of(session.username) == "admin"
+            ),
             "language": self.settings.language,
         })  # fmt: skip
 
@@ -343,10 +370,11 @@ class Dashboard:
         response.set_cookie(COOKIE, token, httponly=True, secure=secure,
                             samesite="Strict", path="/", max_age=7 * 86400)  # fmt: skip
 
-    def _second_step(self) -> int:
-        if self.auth.totp_secret() is not None:
+    def _second_step(self, username: str) -> int:
+        if self.auth.totp_secret(username) is not None:
             return PENDING_ALL
-        return PENDING_CODEWORD if self.auth.has_codeword else PENDING_NONE
+        owner = self.auth.is_owner(username)
+        return PENDING_CODEWORD if owner and self.auth.has_codeword else PENDING_NONE
 
     async def _login(self, request: web.Request) -> web.Response:
         ip = self.guard.client_ip(request)
@@ -361,7 +389,7 @@ class Dashboard:
             self.guard.login_failed(ip)
             self.app.db.audit(f"web:{ip}", "login.failed")
             raise web.HTTPUnauthorized(text="login failed")
-        pending = self._second_step()
+        pending = self._second_step(username)
         token = self.auth.create_session(username, ip, request.headers.get("User-Agent", ""),
                                          pending=pending)  # fmt: skip
         if not pending:
@@ -384,15 +412,17 @@ class Dashboard:
             return None
         return self.auth.check_password(username, password)
 
-    def _second_factor(self, code: str) -> tuple[bool, bool]:
+    def _second_factor(self, code: str, username: str) -> tuple[bool, bool]:
         """(accepted, it was a recovery code). Codes are checked only after the code word."""
-        secret = self.auth.totp_secret()
+        secret = self.auth.totp_secret(username)
         if secret is None:
             return True, False
-        if len(code.replace(" ", "")) > TOTP_LENGTH:
+        owner = self.auth.is_owner(username)
+        if owner and len(code.replace(" ", "")) > TOTP_LENGTH:
             return self.auth.use_recovery_code(code), True
         step = totp_match(secret, code)
-        return step is not None and self.auth.totp_step_unused("account", step), False
+        used = "account" if owner else username
+        return step is not None and self.auth.totp_step_unused(used, step), False
 
     async def _login_totp(self, request: web.Request) -> web.Response:
         ip = self.guard.client_ip(request)
@@ -404,9 +434,10 @@ class Dashboard:
             raise web.HTTPUnauthorized(text="login required")
         data = await read_json(request)
         used_recovery = False
-        passed = self.auth.check_codeword(str(data.get("codeword", "")))
+        owner = self.auth.is_owner(session.username)
+        passed = not owner or self.auth.check_codeword(str(data.get("codeword", "")))
         if passed and session.level == PENDING_ALL:
-            passed, used_recovery = self._second_factor(str(data.get("code", "")))
+            passed, used_recovery = self._second_factor(str(data.get("code", "")), session.username)
         if not passed:
             self.guard.login_failed(ip)
             self.app.db.audit(f"web:{ip}", "login.totp_failed")

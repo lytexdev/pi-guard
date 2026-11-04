@@ -4,7 +4,8 @@
 // assistant can be opened again under More.
 import { api, attempt, fill, h, icon, lang, t, toast } from "../api.js";
 import { state, switchLanguage } from "../app.js";
-import { setDesign, SIZES, THEMES } from "../theme.js";
+import { logoUrl, setDesign, SIZES, THEMES } from "../theme.js";
+import { sharedDesign } from "./appearance.js";
 
 const STEPS = ["welcome", "account", "devices", "telegram", "alerts", "emergency", "people", "addons", "design", "finish"];
 const restartNeeded = () => sessionStorage.getItem("pg.restart") === "1";
@@ -22,7 +23,7 @@ function frame(root, step, body, { canSkip = true, nextLabel = null, onNext = nu
     canSkip && step !== "finish" ? h("button", { class: "ghost", onclick: () => next(step) }, t("web.skip")) : null,
     onNext ? h("button", { class: "primary big", onclick: onNext }, nextLabel || t("web.next"), icon("chevron-right")) : null);
   fill(root, h("div", { class: "wizard" },
-    h("div", { class: "brand" }, h("img", { src: "/static/img/logo.svg", alt: "" }), "pi-guard",
+    h("div", { class: "brand" }, h("img", { src: logoUrl(), alt: "" }), "pi-guard",
       h("span", { class: "badge" }, t("web.setup_step", { n: index + 1, total: STEPS.length }))),
     h("div", { class: "steps", "aria-hidden": "true" }, STEPS.map((s, i) =>
       h("span", { class: i < index ? "done" : i === index ? "now" : "" }))),
@@ -236,6 +237,8 @@ async function addons(root) {
 }
 
 function design(root) {
+  const shared = h("div", { class: "stack" });
+  sharedDesign(shared);
   const draw = () => frame(root, "design", h("div", { class: "stack" },
     h("section", { class: "panel" }, h("h2", {}, t("web.theme")),
       h("div", { class: "choice" }, THEMES.map((theme) => h("button", {
@@ -247,7 +250,7 @@ function design(root) {
         class: (localStorage.getItem("text") || "normal") === size ? "on" : "",
         onclick: () => { setDesign(null, size); draw(); },
       }, t(`web.text_${size}`)))),
-      h("p", { class: "muted" }, t("web.design_per_device")))), { onNext: () => next("design") });
+      h("p", { class: "muted" }, t("web.design_per_device"))), shared), { onNext: () => next("design") });
   draw();
 }
 
@@ -293,7 +296,7 @@ export async function render(root, params) {
       t("web.setup_have_telegram", { bot: status.telegram.bot ? `@${status.telegram.bot}` : "Telegram", admins: status.telegram.admins }),
     ], () => go("telegram/change"));
   }
-  else if (step === "telegram") await embedded(root, "telegram", () => import("./settings.js"), { groups: ["messaging", "whatsapp"] });
+  else if (step === "telegram") await embedded(root, "telegram", () => import("./settings.js"), { groups: ["messaging", "whatsapp", "signal"] });
   else if (step === "alerts") await alerts(root);
   else if (step === "emergency") await embedded(root, "emergency", () => import("./settings.js"), { groups: ["emergency"] });
   else if (step === "people") await people(root);

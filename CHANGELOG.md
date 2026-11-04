@@ -8,6 +8,14 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Several dashboard users with the roles admin and viewer. Viewers only watch; the server enforces
+  this with an allowlist. Everyone has their own password and two-factor code.
+- Appearance settings: accent colour, font, animations and your own logo, also in the setup.
+- Signal in Settings > Messenger and in the setup.
+- An icon for the AI assistant.
+- `scripts/dashboard-name.sh` gives the dashboard a name through Pi-hole, for hardware keys.
+- Guide for hardware keys under Access. A failed attempt now shows the browser's own error.
+- Camera room in the tutorial.
 - Connected computers: a small agent in Rust (`agent/`) connects out to pi-guard, with status,
   safe shutdown confirmed twice, and Docker management. Shown on the map.
 - Add-on ecosystem: manifest with name, icon, version, source and authors; settings forms,

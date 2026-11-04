@@ -1,6 +1,7 @@
 // Camera room: every camera at once, like a security desk.
 import { api, attempt, fill, h, icon, t, toast } from "../api.js";
 import { state } from "../app.js";
+import { assistantIcon } from "../widgets.js";
 
 const KEY = "monitor.columns";
 
@@ -22,7 +23,7 @@ export async function render(main) {
     const note = h("div", { class: "mon-note", "aria-live": "polite" });
     const tile = h("figure", { class: "mon-tile" }, img,
       h("figcaption", {}, h("span", { class: `dot ${camera.state === "running" ? "ok" : "danger"}` }), h("span", { class: "grow" }, camera.name, camera.room ? ` · ${camera.room}` : ""),
-        state.session.assistant ? h("button", { class: "icon-only", title: t("web.mon_ai"), onclick: () => describe(camera, note) }, icon("speakerphone")) : null,
+        state.session.assistant ? h("button", { class: "icon-only", title: t("web.mon_ai"), onclick: () => describe(camera, note) }, assistantIcon()) : null,
         h("button", { class: "icon-only", title: t("web.fullscreen"), onclick: () => tile.requestFullscreen?.() }, icon("maximize")),
         h("a", { class: "button icon-only", href: `#/live/${camera.id}`, title: t("web.nav_live") }, icon("video"))), note);
     img.addEventListener("error", () => tile.classList.add("offline"));

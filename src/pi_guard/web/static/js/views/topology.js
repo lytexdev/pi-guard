@@ -1,5 +1,6 @@
 // Interactive map: internet, router, this Pi with its services, and everything connected to it.
 import { api, fill, h, icon, svg, t } from "../api.js";
+import { logoUrl } from "../theme.js";
 
 const NODE_W = 132, NODE_H = 46, GAP_X = 14, ROW = 112;
 const MAX_LAN = 12;
@@ -22,7 +23,7 @@ function node(map, item, x, y, select) {
   const group = svg("g", { class: `tnode ${item.cls || ""}`, tabindex: "0", role: "button", "aria-label": item.label });
   group.append(svg("rect", { x, y, width: NODE_W, height: NODE_H, rx: 10 }));
   if (item.logo) {
-    group.append(svg("image", { href: "/static/img/logo.svg", x: x + 7, y: y + 9, width: 28, height: 28 }));
+    group.append(svg("image", { href: logoUrl(), x: x + 7, y: y + 9, width: 28, height: 28 }));
   } else {
     const use = svg("use", { href: `/static/icons/sprite.svg#${item.icon || "router"}`, x: x + 10, y: y + 13, width: 20, height: 20, class: "ticon" });
     group.append(use);

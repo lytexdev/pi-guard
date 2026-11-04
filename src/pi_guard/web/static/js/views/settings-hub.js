@@ -4,8 +4,8 @@ import { restartPrompt } from "./settings.js";
 
 const SECTIONS = [
   ["general", "settings", ["general"]], ["recording", "video", ["recording"]], ["detection", "users", ["detection"]],
-  ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "whatsapp"]],
-  ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]],
+  ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "whatsapp", "signal"]],
+  ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]], ["appearance", "palette", null],
   ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null], ["api", "key", null], ["data", "database", null], ["updates", "refresh", null],
 ];
 
@@ -117,6 +117,8 @@ export async function render(main, params = []) {
     body.addEventListener("click", (e) => { if (e.target.closest("button")) showSave(); });
   } else if (current === "notifications") {
     await (await import("./notifications.js")).render(body);
+  } else if (current === "appearance") {
+    (await import("./appearance.js")).render(body);
   } else if (current === "access") {
     await (await import("./access.js")).render(body);
   } else if (current === "api") {

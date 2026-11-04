@@ -404,3 +404,17 @@ img.thumb, .result img, .bubble img { cursor: zoom-in; }
 @media (max-width: 760px) { .wg-actions { grid-column: 1; } }
 .agent { flex-wrap: wrap; }
 pre.log { max-height: 50dvh; overflow-y: auto; }
+
+/* Appearance, assistant */
+.no-motion *, .no-motion *::before, .no-motion *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+.ai-icon { width: 30px; height: 30px; display: block; }
+.ai-open { display: grid; place-items: center; }
+.ai-title { display: flex; align-items: center; gap: 8px; }
+.mon-tile .ai-icon { width: 22px; height: 22px; }
+.swatch { width: var(--tap); height: var(--tap); padding: 0; border-radius: 50%; border: 2px solid var(--line); }
+input[type="color"] { width: 64px; height: var(--tap); padding: 2px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.ap-logo { width: 72px; height: 72px; object-fit: contain; }
+details > summary { cursor: pointer; min-height: var(--tap); display: flex; align-items: center; }
+details ol { padding-left: 20px; display: grid; gap: 10px; }
+details ol a { display: block; }
+.list select { width: auto; flex: none; max-width: 46%; }

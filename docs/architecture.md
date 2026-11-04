@@ -85,3 +85,15 @@ replaced by synthetic FFmpeg sources (`lavfi`), fake providers and a fake
 signal-cli server. Tests that need FFmpeg are marked `ffmpeg` and skipped if it
 is missing; tests that need real devices are marked `hardware` and excluded by
 default (`pytest -m hardware`).
+
+## Why SQLite, and no job queue
+
+pi-guard is one process on one small computer, with few writes. Measured on a Raspberry Pi with
+an SD card: about 250 durable single inserts per second, and 0.2 ms to read the latest 50 of
+500,000 events. A real installation had about 3,000 events in under 1 MB after several days.
+
+- **PostgreSQL or MySQL** would add a server that uses memory and writes to the SD card, plus
+  passwords and backups to look after, with no gain at this size. They pay off when several
+  machines share one database. Full-text search also relies on SQLite FTS5.
+- **Celery and Redis** solve work spread over many processes or machines. Here asyncio tasks
+  already run the background work; a broker would add two services and another way to fail.

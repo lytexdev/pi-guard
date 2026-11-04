@@ -57,6 +57,8 @@ sc link -n pi-guard        # prints an sgnl:// link; turn it into a QR code
 
 Scan the QR code in the Signal app under *Settings → Linked devices*.
 
+The numbers can also be entered in the dashboard under *Settings → Messenger → Signal*.
+
 ## Run the daemon
 
 ```bash

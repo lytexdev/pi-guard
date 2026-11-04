@@ -203,3 +203,90 @@ async def test_notifications_can_be_switched_off_at_once(tmp_path: Path) -> None
     finally:
         await client.close()
         app.db.close()
+
+
+async def _viewer(client: Any, csrf: str, role: str = "viewer") -> tuple[int, dict[str, str]]:
+    """Adds a person and logs in as them in a second cookie jar; returns (user id, headers)."""
+    body = {"username": "oma", "password": "lange-passphrase-1", "role": role}
+    response = await client.post("/api/dashboard-users", json=body, headers={"X-CSRF-Token": csrf})
+    assert response.status == 200
+    data = await (await client.get("/api/dashboard-users")).json()
+    client.session.cookie_jar.clear()
+    login = await client.post("/api/login", json={"username": "oma", "password": body["password"]})
+    assert login.status == 200
+    session = await (await client.get("/api/session")).json()
+    assert (session["role"] == role and session["assistant"] is False) or role == "admin"
+    return data["users"][0]["id"], {"X-CSRF-Token": session["csrf"]}
+
+
+async def test_viewers_only_watch(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        _, headers = await _viewer(client, await _login(client))
+        for path in ("/api/overview", "/api/events", "/api/stats?days=3", "/api/account"):
+            assert (await client.get(path)).status == 200, path
+        for path in ("/api/settings", "/api/users", "/api/logs", "/api/people", "/api/topology",
+                     "/api/dashboard-users", "/api/live/cam/audio", "/api/account/webauthn",
+                     "/api/tokens", "/api/sounds"):  # fmt: skip
+            assert (await client.get(path)).status == 403, path
+        for path in ("/api/mode", "/api/talk", "/api/alarm", "/api/alerts/ack", "/api/evidence",
+                     "/api/assistant/chat", "/api/dashboard-users",
+                     "/api/system/restart"):  # fmt: skip
+            assert (await client.post(path, json={}, headers=headers)).status == 403, path
+        assert (await client.put("/api/appearance", json={}, headers=headers)).status == 403
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_people_keep_their_own_login(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        csrf = await _login(client)
+        owner = (await (await client.get("/api/account")).json())["username"]
+        taken = {"username": owner.upper(), "password": "lange-passphrase-1", "role": "viewer"}
+        headers = {"X-CSRF-Token": csrf}
+        response = await client.post("/api/dashboard-users", json=taken, headers=headers)
+        assert response.status == 400 and await response.text() == "web.user_taken"
+
+        user_id, headers = await _viewer(client, csrf)
+        new = {"current": "lange-passphrase-1", "password": "andere-passphrase-2"}
+        assert (await client.post("/api/me/password", json=new, headers=headers)).status == 200
+        setup = await (await client.post("/api/account/totp/begin", headers=headers)).json()
+        assert app.db.execute("SELECT totp FROM web_account").fetchone()["totp"] is None
+        assert setup["secret"]
+
+        # Removed people lose their session at once; a changed role counts immediately.
+        users = app.dashboard.auth
+        assert users.set_role(user_id, "admin") and users.role_of("oma") == "admin"
+        assert (await client.get("/api/settings")).status == 200
+        assert users.delete_user(user_id)
+        assert (await client.get("/api/overview")).status == 401
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_appearance_and_logo(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        headers = {"X-CSRF-Token": await _login(client)}
+        bad = {"accent": "red;}", "font": "system"}
+        assert (await client.put("/api/appearance", json=bad, headers=headers)).status == 400
+        body = {"accent": "#ff7a59", "font": "serif", "animations": False}
+        assert (await client.put("/api/appearance", json=body, headers=headers)).status == 200
+
+        svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+        url = "/api/appearance/logo"
+        assert (await client.post(url, data=svg, headers=headers)).status == 400
+        png = b"\x89PNG\r\n\x1a\n" + b"0" * 100
+        assert (await client.post(url, data=png, headers=headers)).status == 200
+
+        client.session.cookie_jar.clear()  # the login page shows both
+        session = await (await client.get("/api/session")).json()
+        assert session["appearance"]["accent"] == "#ff7a59" and session["appearance"]["logo"]
+        logo = await client.get("/branding/logo")
+        assert logo.status == 200 and await logo.read() == png
+    finally:
+        await client.close()
+        app.db.close()

@@ -39,7 +39,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Lautsprecher, Bildwerkzeuge, vertraute Personen, Geräteauswahl,
   Einstellungen, Statistik und Logs; als App installierbar mit
   Push-Meldungen; Anmeldung mit Passwort oder Schlüsseldatei, optional mit
-  Zwei-Faktor-Code. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
+  Zwei-Faktor-Code oder Hardware-Schlüssel; mehrere Benutzer (Admins und Betrachter);
+  eigene Farben, Schrift und Logo. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
 - **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-Status,
   feste IP-Adresse. Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
 - **Optional und standardmäßig aus:** Signal, Personenerkennung,

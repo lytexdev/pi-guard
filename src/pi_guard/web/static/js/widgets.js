@@ -7,6 +7,8 @@ export function scrollTopButton() {
   return button;
 }
 
+export const assistantIcon = () => h("img", { class: "ai-icon", src: "/static/img/assistant.svg", alt: "" });
+
 function panel() {
   const log = h("div", { class: "chat-log", "aria-live": "polite" }, h("p", { class: "muted" }, t("web.ai_hello")));
   const say = (cls, ...content) => { const el = h("div", { class: `bubble ${cls}` }, ...content); log.append(el); log.scrollTop = log.scrollHeight; return el; };
@@ -57,7 +59,7 @@ function panel() {
   const form = h("form", { class: "row" }, input, window.MediaRecorder && window.isSecureContext ? mic : null, h("button", { class: "primary", type: "submit" }, t("web.ai_send")));
   form.addEventListener("submit", send);
   const dialog = h("dialog", { class: "chat", "aria-label": t("addons.assistant") },
-    h("div", { class: "row between" }, h("h2", {}, t("addons.assistant")), h("button", { class: "icon-only", title: t("web.close"), onclick: () => dialog.close() }, icon("x"))), log, form);
+    h("div", { class: "row between" }, h("h2", { class: "ai-title" }, assistantIcon(), t("addons.assistant")), h("button", { class: "icon-only", title: t("web.close"), onclick: () => dialog.close() }, icon("x"))), log, form);
   document.body.append(dialog);
   return dialog;
 }
@@ -67,7 +69,7 @@ export function assistantButton() {
   return h("button", { class: "ai-open", title: t("addons.assistant"), "aria-label": t("addons.assistant"), onclick: () => {
     dialog ||= panel();
     dialog.showModal();
-  } }, icon("speakerphone"));
+  } }, assistantIcon());
 }
 
 // Any picture marked .thumb or .zoomable opens large on click; Escape or a click closes it.

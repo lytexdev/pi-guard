@@ -53,8 +53,43 @@ uses it, the log says so at every start.
 | `none` | No login. Only allowed on `127.0.0.1`, or with `PI_GUARD_DASHBOARD_ALLOW_UNAUTHENTICATED=true`. |
 
 Two-factor codes apply to both methods. Change the login or switch codes on
-and off later under *Access → Your account*. All dashboard logins have full
-administrator rights.
+and off later under *Access → Your account*.
+
+### More users
+
+*Settings → Access → Dashboard users* adds people with their own password and role:
+
+| Role | Can do |
+|---|---|
+| Admin | everything |
+| Viewer | see the overview, live picture, camera room and events, and change their own password and two-factor code |
+
+Viewers cannot listen in, talk, take photos, change the mode, use the assistant or open
+settings. The server enforces this with an allowlist, so new features stay closed to viewers
+until they are added to it. A changed role counts at once; removing a person ends their
+sessions. Hardware keys, recovery codes and the code word belong to the main account.
+
+### Hardware keys and passkeys
+
+Browsers only offer a YubiKey or passkey when both of these are true:
+
+1. **The dashboard is opened by name, not by IP address**, for example
+   `https://lytexsystem:8443`. If the name does not resolve on your devices,
+   `sudo ./scripts/dashboard-name.sh pi-guard.lan` adds one to Pi-hole and to the certificate.
+   This changes Pi-hole's local DNS records.
+2. **The browser trusts the certificate.** Clicking through the warning is not enough: Chrome
+   and Chromium refuse keys on pages with certificate errors. See below for installing it. On
+   Arch Linux: `sudo trust anchor --store pi-guard-ca.crt`, then restart the browser.
+
+*Access → Set up a hardware key* shows these steps, and a failed attempt shows the browser's own
+error message.
+
+## Appearance
+
+*Settings → Appearance* sets the accent colour, font, animations and your own logo (PNG, JPEG or
+WebP up to 1 MB; no SVG, because it can contain scripts) for everyone, also on the login page.
+Theme and text size are chosen per device. No fonts are loaded from the internet: the choices use
+what the device has. The high-contrast theme keeps its own colours.
 
 ### The secret key
 
@@ -126,7 +161,7 @@ encrypted, and are delivered through the browser vendor's push service
 | Network | Pi-hole statistics and pause, WireGuard peers, devices in the LAN (see [network.md](network.md)) |
 | Devices | camera device, resolution, frame rate, motion settings, microphone and speaker as selection fields; trusted presence devices |
 | Settings | the `.env` settings, grouped; the Telegram bot token can be entered but is never shown again |
-| Access | Telegram/Signal users and invitations, key files, active sessions, blocked addresses, certificate download |
+| Access | Dashboard users and roles, Telegram/Signal users and invitations, key files, active sessions, blocked addresses, certificate download |
 | Logs | service log and audit trail |
 
 German and English are switched under *More*.

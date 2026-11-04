@@ -1,6 +1,6 @@
 // Who can use pi-guard: chat users, invitations, key files, sessions, bans.
 import { api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
-import { createCredential } from "../webauthn.js";
+import { createCredential, explainKeyError } from "../webauthn.js";
 
 function showCodes(codes) {
   const dialog = h("dialog", {}, h("h2", {}, t("web.recovery_title")), h("p", {}, t("web.recovery_save")),
@@ -13,10 +13,49 @@ function showCodes(codes) {
   dialog.showModal();
 }
 
+function keyGuide(keys) {
+  // Browsers want a name instead of an IP address, and a certificate they trust.
+  const urls = keys.names.map((name) => `https://${name}:${keys.port}`);
+  return h("details", { class: "stack", open: !keys.usable_here }, h("summary", {}, t("web.key_guide")),
+    h("ol", {},
+      h("li", {}, t("web.key_guide_name"), urls.length ? [" ", urls.map((url) => h("a", { href: url }, url))] : null,
+        h("pre", { class: "mono wrap" }, "sudo ./scripts/dashboard-name.sh pi-guard.lan")),
+      h("li", {}, t("web.key_guide_ca"), " ", h("a", { href: "/ca.crt", download: "pi-guard-ca.crt" }, t("web.key_guide_ca_link")),
+        h("pre", { class: "mono wrap" }, "sudo trust anchor --store pi-guard-ca.crt")),
+      h("li", {}, t("web.key_guide_touch"))),
+    h("small", { class: "muted" }, t("web.key_guide_here", { host: location.host })));
+}
+
+async function peoplePanel(draw) {
+  // Who may open the dashboard: admins change everything, viewers only watch.
+  const data = await api("/api/dashboard-users");
+  const name = h("input", { placeholder: t("web.username"), maxlength: 32, autocomplete: "off", "aria-label": t("web.username") });
+  const password = h("input", { type: "password", placeholder: t("web.password"), autocomplete: "new-password", "aria-label": t("web.password") });
+  const roles = (selected) => ["viewer", "admin"].map((r) => h("option", { value: r, selected: r === selected }, t(`web.role_${r}`)));
+  const role = h("select", { "aria-label": t("web.role") }, roles("viewer"));
+  return h("section", { class: "panel stack" }, h("h2", {}, icon("users"), " ", t("web.users_title")),
+    h("p", { class: "muted" }, t("web.users_hint")),
+    h("ul", { class: "list" },
+      h("li", {}, icon("shield-lock"), h("div", { class: "grow" }, data.owner), h("span", { class: "badge accent" }, t("web.role_owner"))),
+      data.users.map((u) => {
+        const select = h("select", { "aria-label": t("web.role") }, roles(u.role));
+        select.addEventListener("change", () => attempt(() => api(`/api/dashboard-users/${u.id}`, { method: "PATCH", body: { role: select.value } }), t("web.saved")));
+        return h("li", {}, icon("user"), h("div", { class: "grow" }, u.username, u.totp ? h("small", { class: "block" }, t("web.totp_on")) : null), select,
+          h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+            if (await confirmDialog(t("web.users_delete", { name: u.username }), t("web.delete"), true)
+                && await attempt(() => api(`/api/dashboard-users/${u.id}`, { method: "DELETE" }), t("web.deleted"))) draw();
+          } }, icon("trash")));
+      })),
+    h("div", { class: "row" }, name, password, role, h("button", { class: "primary", onclick: async () => {
+      if (await attempt(() => api("/api/dashboard-users", { method: "POST", body: { username: name.value, password: password.value, role: role.value } }), t("web.saved"))) draw();
+    } }, icon("plus"), t("web.users_add"))));
+}
+
 async function loginPanel(account, draw) {
   // Second factors and passkeys.
   const keys = await api("/api/account/webauthn");
   const name = h("input", { placeholder: t("web.webauthn_name"), maxlength: 40, "aria-label": t("web.webauthn_name") });
+  const problem = h("div", { "aria-live": "polite" });
   return h("section", { class: "panel stack" }, h("h2", {}, icon("shield-lock"), " ", t("web.login_security")),
     h("h3", {}, t("web.webauthn_title")), h("p", { class: "muted" }, t("web.webauthn_hint")),
     keys.usable_here ? null : h("p", { class: "notice" }, t("web.webauthn_needs_name")),
@@ -27,13 +66,15 @@ async function loginPanel(account, draw) {
             && await attempt(() => api(`/api/account/webauthn/${k.id}`, { method: "DELETE" }))) draw();
       } }, icon("trash")))) : h("li", { class: "empty" }, t("web.nothing"))),
     keys.usable_here ? h("div", { class: "row" }, name, h("button", { onclick: async () => {
+      fill(problem);
       const start = await attempt(() => api("/api/account/webauthn/begin", { method: "POST", body: {} }));
       if (!start) return;
       try {
         const credential = await createCredential(start.options);
         if (await attempt(() => api("/api/account/webauthn/finish", { method: "POST", body: { flow: start.flow, credential, name: name.value } }), t("web.saved"))) draw();
-      } catch { toast(t("web.webauthn_cancelled"), true); }
+      } catch (error) { fill(problem, h("p", { class: "notice danger" }, explainKeyError(error))); }
     } }, icon("plus"), t("web.webauthn_add"))) : null,
+    problem, keyGuide(keys),
     h("h3", {}, t("web.recovery_title")),
     account.totp ? h("p", { class: "muted" }, t("web.recovery_left", { count: account.recovery_left })) : h("p", { class: "muted" }, t("web.recovery_needs_totp")),
     account.totp ? h("button", { onclick: async () => {
@@ -58,11 +99,13 @@ async function loginPanel(account, draw) {
 export async function render(main) {
   const draw = async () => {
     const [users, access, account] = await Promise.all([api("/api/users"), api("/api/access"), api("/api/account")]);
-    const security = await loginPanel(account, draw);
+    const security = account.owner ? await loginPanel(account, draw) : null;
+    const people = await peoplePanel(draw);
     const keyName = h("input", { id: "kname", placeholder: "laptop", pattern: "[A-Za-z0-9_-]{1,40}" });
     const inviteOut = h("div", { class: "stack" });
     fill(main,
       h("div", { class: "topbar" }, h("h1", {}, t("web.nav_access"))),
+      people,
       h("div", { class: "grid wide" },
         h("section", { class: "panel" }, h("h2", {}, t("web.account")),
           h("p", {}, icon("user"), " ", account.username, " ",

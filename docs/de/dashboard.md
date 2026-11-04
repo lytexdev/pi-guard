@@ -42,6 +42,40 @@ die Anmeldung auf admin / admin123 zurück.
 - Beides zusammen: `PI_GUARD_DASHBOARD_AUTH=password,keyfile`.
 - Passwort ändern und Zwei-Faktor-Code ein-/ausschalten: *Zugang → Ihr Konto*.
 
+## Mehrere Benutzer
+
+Unter *Einstellungen → Zugang → Dashboard-Benutzer* legst du Personen mit eigenem Passwort an:
+
+| Rolle | Darf |
+|---|---|
+| Admin | alles |
+| Betrachter | Übersicht, Live-Bild, Kameraraum und Ereignisse ansehen, eigenes Passwort und Zwei-Faktor-Code ändern |
+
+Betrachter können nicht mithören, sprechen, Fotos auslösen, den Modus ändern, den KI-Assistenten
+nutzen oder Einstellungen öffnen. Das prüft der Server, nicht nur die Oberfläche. Wird eine Person
+entfernt, ist sie sofort abgemeldet.
+
+## YubiKey und Passkeys
+
+Der Browser bietet einen Schlüssel nur an, wenn beides stimmt:
+
+1. **Das Dashboard ist über einen Namen geöffnet, nicht über die IP-Adresse**, zum Beispiel
+   `https://lytexsystem:8443`. Funktioniert der Name nicht, legt
+   `sudo ./scripts/dashboard-name.sh pi-guard.lan` einen Namen in Pi-hole und im Zertifikat an.
+   Das ändert die lokalen DNS-Einträge von Pi-hole.
+2. **Der Browser vertraut dem Zertifikat.** Die Warnung wegzuklicken reicht nicht: Chrome und
+   Chromium lehnen Schlüssel auf Seiten mit Zertifikatsfehler ab. Unter Arch Linux:
+   `sudo trust anchor --store pi-guard-ca.crt`, danach den Browser neu starten.
+
+Die Schritte stehen auch unter *Zugang → Hardware-Schlüssel einrichten*. Klappt es nicht, zeigt das
+Dashboard die Fehlermeldung des Browsers.
+
+## Erscheinungsbild
+
+Unter *Einstellungen → Erscheinungsbild* wählst du Akzentfarbe, Schriftart, Animationen und ein
+eigenes Logo (PNG, JPEG oder WebP bis 1 MB) für alle, auch für die Anmeldeseite. Farbschema und
+Schriftgröße gelten pro Gerät. Schriften werden nicht aus dem Internet geladen.
+
 ## Zertifikat installieren (einmal pro Gerät)
 
 Mikrofon, App-Installation und Push-Benachrichtigungen funktionieren nur über

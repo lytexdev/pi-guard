@@ -84,7 +84,7 @@ function save(change) {
   applyAccessibility();
 }
 
-const TOUR = ["overview", "live", "events", "people", "network", "addons", "settings"];
+const TOUR = ["overview", "live", "monitor", "events", "people", "network", "addons", "settings"];
 
 function tutorial(step = 0) {
   const dialog = h("dialog", { class: "tour" },

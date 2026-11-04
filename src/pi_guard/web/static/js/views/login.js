@@ -1,12 +1,13 @@
 // Login: password, key file, passkey or Telegram; then TOTP and the code word if configured.
 import { api, h, icon, t, toast, fill } from "../api.js";
 import { state } from "../app.js";
-import { getCredential } from "../webauthn.js";
+import { logoUrl } from "../theme.js";
+import { explainKeyError, getCredential } from "../webauthn.js";
 
 export async function render(root) {
   const methods = state.session.methods;
   const panel = h("div", { class: "panel" },
-    h("div", { class: "brand" }, h("img", { src: "/static/img/logo.svg", alt: "" }), "pi-guard"));
+    h("div", { class: "brand" }, h("img", { src: logoUrl(), alt: "" }), "pi-guard"));
   root.append(h("div", { class: "login" }, panel));
 
   const done = (result) => next(result);
@@ -98,7 +99,7 @@ export async function render(root) {
         const credential = await getCredential(options);
         done(await api("/api/login/webauthn/finish", { method: "POST", body: { flow, credential } }));
       } catch (error) {
-        toast(error.status === 409 ? t(error.message) : error.name === "NotAllowedError" ? t("web.webauthn_cancelled") : t("web.login_failed"), true);
+        toast(error.status === 409 ? t(error.message) : error.status ? t("web.login_failed") : explainKeyError(error), true);
       }
     } }, icon("key"), t("web.webauthn_login")));
   }

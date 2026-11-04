@@ -38,7 +38,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
 - **Web dashboard (optional).** Live picture and sound, talk through the
   speaker, image tools, trusted people, device selection, settings,
   statistics and logs; installable as an app with push notifications; login
-  by password or key file with optional two-factor codes.
+  by password or key file with optional two-factor codes, hardware keys, several users
+  (admins and viewers) and your own colours, font and logo.
 - **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
   WireGuard status, a safe fixed-IP script.
 - **Optional, off by default:** Signal (via signal-cli), person detection,

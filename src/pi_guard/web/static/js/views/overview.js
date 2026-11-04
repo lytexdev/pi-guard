@@ -1,5 +1,6 @@
 // Overview: what is happening right now, at a glance.
 import { api, attempt, duration, h, icon, t, when, fill } from "../api.js";
+import { state } from "../app.js";
 import { topologyPanel } from "./topology.js";
 
 export function meter(percent, warnAt = 75, dangerAt = 90) {
@@ -46,7 +47,8 @@ async function connectionPanel() {
 }
 
 export async function render(main) {
-  const topology = await topologyPanel();
+  const viewer = state.session.role === "viewer";
+  const topology = viewer ? null : await topologyPanel();
   const draw = async () => {
     const [o, events, open] = await Promise.all([api("/api/overview"), api("/api/events?limit=6"), api("/api/alerts")]);
     const cameras = Object.fromEntries(o.cameras.map((c) => [c.id, c.name]));
@@ -73,8 +75,8 @@ export async function render(main) {
           h("p", { class: "muted" }, mode.selection === "AUTO" ? t("web.mode_auto_note")
             : mode.until ? t("web.mode_until", { time: when(mode.until) }) : t("web.mode_manual_note"),
           mode.presence_enabled ? ` · ${t(`presence.${mode.presence.toLowerCase()}`)}` : "")),
-        h("div", { class: "hero-actions" }, modeButtons,
-          open.length ? h("button", { class: "primary", onclick: async () => {
+        h("div", { class: "hero-actions" }, viewer ? null : modeButtons,
+          open.length && !viewer ? h("button", { class: "primary", onclick: async () => {
             await attempt(() => api("/api/alerts/ack", { method: "POST" }), t("web.saved")); draw();
           } }, icon("circle-check"), t("web.ack_all")) : null)),
       h("div", { class: "tiles" },
