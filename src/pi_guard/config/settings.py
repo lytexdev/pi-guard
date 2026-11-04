@@ -128,6 +128,9 @@ class Settings(BaseSettings):
     assistant_paperless_token: SecretStr | None = None
     assistant_nextcloud_password: SecretStr | None = None
 
+    # Second address of the Pi for the block page, see scripts/blockpage.sh.
+    blockpage_ip: str | None = None
+
     # Web dashboard (optional)
     dashboard_enabled: bool = False
     dashboard_host: str = "0.0.0.0"  # noqa: S104 - the dashboard is meant for the LAN

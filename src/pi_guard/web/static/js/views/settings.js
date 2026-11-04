@@ -40,6 +40,7 @@ export async function render(main, params = [], opts = {}) {
       if (JSON.stringify(value) !== JSON.stringify(data.values[field.key])) changed[field.key] = value;
     }
     if (!Object.keys(changed).length) { opts.onSaved?.({}); return; }
+    if (Object.values(changed).every((v) => v === "")) { opts.onSaved?.({}); return; }
     if (await attempt(() => api("/api/settings", { method: "PUT", body: changed }), t("web.saved"))) {
       if (opts.onSaved) { opts.onSaved(changed); return; }
       if (changed.language && changed.language !== lang) await switchLanguage(changed.language);

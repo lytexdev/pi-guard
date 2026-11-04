@@ -43,7 +43,7 @@ async def i18n(request: web.Request) -> web.Response:
     texts = {k: v for k, v in catalog(lang).items()
              if k.startswith(("web.", "menu.", "mode.", "event.", "camera.state.", "presence.",
                               "image.", "faces.", "status.", "addons.", "remote.", "smarthome.",
-                              "assistant.", "analytics.", "knowledge."))}  # fmt: skip
+                              "assistant.", "analytics.", "knowledge.", "cmd."))}  # fmt: skip
     return web.json_response(texts, headers={"Cache-Control": "max-age=300"})
 
 

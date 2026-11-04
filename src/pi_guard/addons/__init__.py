@@ -14,7 +14,10 @@ from pi_guard.addons.plugin import load_plugins
 if TYPE_CHECKING:
     from pi_guard.addons.analytics import NetworkAnalytics
     from pi_guard.addons.assistant import Assistant
+    from pi_guard.addons.blocking import Blocks
+    from pi_guard.addons.commander import Commander
     from pi_guard.addons.heartbeat import HeartbeatWatcher
+    from pi_guard.addons.jobs import Jobs
     from pi_guard.addons.remote import RemoteActions
     from pi_guard.addons.smarthome import SmartHome
     from pi_guard.app import App
@@ -31,6 +34,7 @@ class Addons:
         self.heartbeat: HeartbeatWatcher | None = None
         self.analytics: NetworkAnalytics | None = None
         self.smarthome: SmartHome | None = None
+        self.blocks: Blocks | None = None
         self.remote: RemoteActions | None = None
         self.assistant: Assistant | None = None
         if settings.heartbeat.enabled:
@@ -39,8 +43,10 @@ class Addons:
             self.heartbeat = HeartbeatWatcher(settings.heartbeat.targets, app.bus, app.db)
         if settings.analytics.enabled and app.pihole is not None:
             from pi_guard.addons.analytics import NetworkAnalytics
+            from pi_guard.addons.blocking import Blocks
 
             self.analytics = NetworkAnalytics(app.pihole)
+            self.blocks = Blocks(app.db, app.pihole, s.blockpage_ip)
         if settings.smarthome.enabled:
             from pi_guard.addons.smarthome import SmartHome
 
@@ -59,6 +65,14 @@ class Addons:
                 settings.assistant, app.db, s.tz, api_key or None, deepl or None, app.media_dir,
                 Knowledge(s.data_dir / "knowledge.db"), _searchers(settings.assistant, s),
             )  # fmt: skip
+        self.jobs: Jobs | None = None
+        self.commander: Commander | None = None
+        if self.assistant is not None:
+            from pi_guard.addons.commander import Commander
+            from pi_guard.addons.jobs import Jobs
+
+            self.jobs = Jobs(app)
+            self.commander = Commander(app)
         self.plugins = load_plugins(app, settings.plugins)
 
     def components(self) -> dict[str, Callable[[], Awaitable[None]]]:
@@ -67,6 +81,10 @@ class Addons:
             parts["addon:heartbeat"] = self.heartbeat.run
         if self.smarthome is not None:
             parts["addon:smarthome"] = self.smarthome.run
+        if self.blocks is not None:
+            parts["addon:blocks"] = self.blocks.run
+        if self.jobs is not None:
+            parts["addon:jobs"] = self.jobs.run
         for plugin in self.plugins:
             parts[f"plugin:{plugin.id}"] = plugin.run
         return parts

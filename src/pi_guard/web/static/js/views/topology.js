@@ -1,7 +1,7 @@
 // Interactive map: internet, router, this Pi with its services, and everything connected to it.
 import { api, fill, h, icon, svg, t } from "../api.js";
 
-const NODE_W = 132, NODE_H = 46, GAP_X = 14, ROW = 92;
+const NODE_W = 132, NODE_H = 46, GAP_X = 14, ROW = 112;
 const MAX_LAN = 12;
 
 function node(map, item, x, y, select) {
@@ -23,9 +23,25 @@ function node(map, item, x, y, select) {
   return { x: x + NODE_W / 2, top: y, bottom: y + NODE_H };
 }
 
-function link(map, a, b, cls = "") {
+function arrowHead() {
+  const defs = svg("defs");
+  const marker = svg("marker", { id: "tarrow", viewBox: "0 0 10 10", refX: 9, refY: 5, markerUnits: "userSpaceOnUse", markerWidth: 9, markerHeight: 9, orient: "auto-start-reverse" });
+  marker.append(svg("path", { d: "M0 0L10 5L0 10z", class: "tarrow" }));
+  defs.append(marker);
+  return defs;
+}
+
+function link(map, a, b, cls = "", label = "") {
+  // Arrows at both ends: data flows both ways; the moving dashes show an active connection.
   const mid = (a.bottom + b.top) / 2;
-  map.prepend(svg("path", { class: `tlink ${cls}`, d: `M${a.x} ${a.bottom} C${a.x} ${mid} ${b.x} ${mid} ${b.x} ${b.top}` }));
+  const path = svg("path", { class: `tlink ${cls}`, d: `M${a.x} ${a.bottom} C${a.x} ${mid} ${b.x} ${mid} ${b.x} ${b.top - 2}`,
+    "marker-end": "url(#tarrow)", "marker-start": "url(#tarrow)" });
+  map.prepend(path);
+  if (label) {
+    const text = svg("text", { x: (a.x + b.x) / 2 + 8, y: mid + 4, class: "tedge" });
+    text.textContent = label;
+    map.append(text);
+  }
 }
 
 function row(map, items, y, width, select) {
@@ -55,10 +71,10 @@ export async function topologyPanel(onDevice) {
     const map = svg("svg", { class: "tmap", role: "group", "aria-label": t("web.topo_title") });
     const internet = node(map, { label: t("web.topo_internet"), state: "ok", detail: t("web.topo_internet_text") }, (width - NODE_W) / 2, 6, select);
     const router = node(map, { label: t("web.topo_router"), state: "ok", detail: t("web.topo_router_text") }, (width - NODE_W) / 2, 6 + ROW - 24, select);
-    link(map, internet, router);
+    link(map, internet, router, "live");
     const pi = node(map, { label: "Pi-Guard", cls: "hub", state: "ok", detail: t("web.topo_pi_text"), href: "#/overview" }, (width - NODE_W) / 2, 6 + 2 * ROW - 48, select);
-    link(map, router, pi);
-    let y = 6 + 3 * ROW - 62;
+    link(map, router, pi, "live", data.services.wireguard ? "UDP 51820" : "");
+    let y = 6 + 3 * ROW - 48;
     const services = [
       data.services.pihole ? { label: "Pi-hole", sub: "DNS", state: "ok", detail: t("web.topo_pihole_text"), href: "#/network" } : null,
       data.services.wireguard ? { label: "WireGuard", sub: t("web.topo_vpn_count", { count: data.vpn.filter((p) => p.active).length }), state: "ok", detail: t("web.topo_vpn_text"), href: "#/network" } : null,
@@ -66,7 +82,7 @@ export async function topologyPanel(onDevice) {
     ].filter(Boolean);
     if (services.length) {
       const r = row(map, services, y, width, select);
-      r.placed.forEach((p) => link(map, pi, p));
+      r.placed.forEach((p) => link(map, pi, p, "live"));
       y += r.height + 30;
     }
     const groups = [
@@ -76,8 +92,9 @@ export async function topologyPanel(onDevice) {
         detail: [d.vendor, d.mac, d.kind ? t(`web.dev_kind_${d.kind}`) : null].filter(Boolean).join(" · "), device: d })),
     ];
     const r = row(map, groups, y, width, select);
-    r.placed.forEach((p) => link(map, pi, p, "thin"));
+    r.placed.forEach((p, i) => link(map, pi, p, groups[i].state === "ok" ? "thin live" : "thin"));
     y += r.height;
+    map.prepend(arrowHead());
     map.setAttribute("viewBox", `0 0 ${width} ${y + 6}`);
     map.setAttribute("height", y + 6);
     fill(box, map);

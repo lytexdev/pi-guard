@@ -57,6 +57,11 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/addons/remote/cancel", remote_cancel),
         web.get("/api/addons/assistant/status", assistant_status),
         web.post("/api/addons/assistant/ask", assistant_ask),
+        web.post("/api/assistant/chat", assistant_chat),
+        web.post("/api/assistant/chat/voice", assistant_chat_voice),
+        web.post("/api/assistant/confirm", assistant_confirm),
+        web.get("/api/assistant/jobs", assistant_jobs),
+        web.delete("/api/assistant/jobs/{id:\\d+}", assistant_job_delete),
         web.post("/api/addons/assistant/voice", assistant_voice),
         web.get("/api/addons/assistant/knowledge", knowledge_list),
         web.post("/api/addons/assistant/knowledge", knowledge_add),
@@ -265,6 +270,79 @@ async def assistant_voice(request: web.Request) -> web.Response:
         raise web.HTTPConflict(text=exc.key) from None
     finally:
         path.unlink(missing_ok=True)
+
+
+def _shown(outcome: Any) -> dict[str, Any]:
+    photo = f"/api/media/snapshots/{outcome.photo.name}" if outcome.photo else None
+    return {"reply": outcome.text, "pending": outcome.pending, "photo": photo}
+
+
+async def _chat(request: web.Request, text: str) -> web.Response:
+    d = dashboard(request)
+    assistant = _running(request, "assistant")
+    lang = d.settings.language
+    commander = d.app.addons.commander
+    assert commander is not None  # exists whenever the assistant does
+    try:
+        outcome = await commander.propose(text, lang, _actor(request))
+        if outcome is not None:
+            return web.json_response({"question": text, **_shown(outcome)})
+        answer = await assistant.ask(text, lang, _actor(request), private=True)
+    except AssistantError as exc:
+        raise web.HTTPConflict(text=exc.key) from None
+    return web.json_response({"question": text, "reply": answer.text, "pending": None,
+                              "documents": list(answer.documents)})  # fmt: skip
+
+
+async def assistant_chat(request: web.Request) -> web.Response:
+    return await _chat(request, str((await read_json(request)).get("text", "")))
+
+
+async def assistant_chat_voice(request: web.Request) -> web.Response:
+    assistant = _running(request, "assistant")
+    body = await request.content.read(MAX_VOICE_BYTES + 1)
+    if not body or len(body) > MAX_VOICE_BYTES:
+        raise web.HTTPRequestEntityTooLarge(max_size=MAX_VOICE_BYTES, actual_size=len(body))
+    path = Path(tempfile.gettempdir()) / f"pi-guard-chat-{uuid.uuid4().hex}.webm"
+    path.write_bytes(body)
+    try:
+        text = await assistant.transcribe(path)
+    except AssistantError as exc:
+        raise web.HTTPConflict(text=exc.key) from None
+    finally:
+        path.unlink(missing_ok=True)
+    return await _chat(request, text)
+
+
+async def assistant_confirm(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    commander = d.app.addons.commander
+    if commander is None:
+        raise web.HTTPConflict(text="web.addon_not_running")
+    data = await read_json(request)
+    actor = _actor(request)
+
+    async def deliver(path: str) -> None:
+        d.app.db.audit(actor, "assistant.video_ready", Path(path).name)
+
+    try:
+        outcome = await commander.answer(str(data.get("token", "")), data.get("yes") is True,
+                                         d.settings.language, actor, deliver, {})  # fmt: skip
+    except AssistantError as exc:
+        raise web.HTTPConflict(text=exc.key) from None
+    return web.json_response(_shown(outcome))
+
+
+async def assistant_jobs(request: web.Request) -> web.Response:
+    jobs = dashboard(request).app.addons.jobs
+    return web.json_response(jobs.list() if jobs else [])
+
+
+async def assistant_job_delete(request: web.Request) -> web.Response:
+    jobs = dashboard(request).app.addons.jobs
+    if jobs is None or not jobs.delete(int(request.match_info["id"])):
+        raise web.HTTPNotFound()
+    return web.json_response({"ok": True})
 
 
 def _knowledge(request: web.Request) -> Knowledge:

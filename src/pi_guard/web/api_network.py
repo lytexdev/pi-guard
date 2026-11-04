@@ -7,15 +7,18 @@ import contextlib
 import ipaddress
 import logging
 import re
+import time
 from typing import Any
 from urllib.parse import urlsplit
 
 import yaml
 from aiohttp import web
 
+from pi_guard.addons.blocking import BlockError, Blocks
 from pi_guard.config import OVERRIDE_YAML
 from pi_guard.config.files import FileConfig, TrustedDevice
 from pi_guard.network.blocklists import MAX_FILE_BYTES, PRESETS, parse_domains, valid_list_address
+from pi_guard.network.fritzbox import FritzError, as_dicts
 from pi_guard.network.inspect import inspect_device
 from pi_guard.network.lan import merge, neighbour_table, reverse_names
 from pi_guard.network.pihole import PiholeError
@@ -35,6 +38,10 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/network/pihole/blocking", blocking),
         web.post("/api/network/trust", trust_device),
         web.get("/api/network/device/{ip}", device_details),
+        web.put("/api/network/label/{mac}", save_label),
+        web.get("/api/network/blocks", blocks_list),
+        web.post("/api/network/blocks", blocks_add),
+        web.delete("/api/network/blocks/{id:\\d+}", blocks_remove),
         web.get("/api/network/blocklists", blocklists),
         web.post("/api/network/blocklists", blocklist_add),
         web.put("/api/network/blocklists", blocklist_toggle),
@@ -86,6 +93,7 @@ async def overview(request: web.Request) -> web.Response:
     ips = [ip for _, (ip, _) in neighbours.items()]
     names = await reverse_names(ips)
     devices = merge(neighbours, pihole_devices, trusted, names)
+    wlans, hosts = await _router(app)
     wireguard = read_status(s.runtime_dir / "wireguard.status") if s.wireguard_enabled else None
     store = dashboard(request).wg_peers
     if wireguard is not None and store is not None:
@@ -107,15 +115,85 @@ async def overview(request: web.Request) -> web.Response:
         "wireguard": wireguard,
         "wireguard_endpoint": s.wireguard_endpoint,
         "wireguard_home_network": s.wireguard_home_network,
-        "devices": [_with_details(app, d.as_dict()) for d in devices],
+        "devices": [_with_details(app, d.as_dict(), hosts) for d in devices
+                    if not _internal(d.ips)],
+        "wlans": wlans,
+        "nearby": await _nearby_wifi(),
+        "blockpage": s.blockpage_ip,
     })  # fmt: skip
+
+
+LABEL_PREFIX = "lan.label."
+ROUTER_SECONDS = 30
+_router_cache: tuple[float, list[dict[str, Any]], dict[str, dict[str, Any]]] = (0.0, [], {})
+
+
+async def _router(app: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Wi-Fi networks and device names from the FRITZ!Box, if connected (cached shortly)."""
+    global _router_cache
+    if app.fritz is None:
+        return [], {}
+    if time.monotonic() - _router_cache[0] < ROUTER_SECONDS:
+        return _router_cache[1], _router_cache[2]
+    try:
+        wlans = as_dicts(await app.fritz.wlans())
+        hosts = {h["mac"]: h for h in as_dicts(await app.fritz.hosts())}
+    except FritzError as exc:
+        log.info("FRITZ!Box not available: %s", exc)
+        return _router_cache[1], _router_cache[2]
+    _router_cache = (time.monotonic(), wlans, hosts)
+    return wlans, hosts
+
+
+async def _nearby_wifi() -> list[dict[str, Any]]:
+    """Wi-Fi networks this Pi can see, including guest networks of the own router."""
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,CHAN", "device", "wifi", "list",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        )  # fmt: skip
+        out, _ = await asyncio.wait_for(process.communicate(), 5)
+    except (OSError, TimeoutError):
+        return []
+    found: dict[str, dict[str, Any]] = {}
+    for line in out.decode(errors="replace").splitlines():
+        parts = re.split(r"(?<!\\):", line)
+        if len(parts) == 4 and parts[0] and parts[1].isdigit():
+            ssid = parts[0].replace("\\:", ":")
+            if ssid not in found or int(parts[1]) > found[ssid]["signal"]:
+                found[ssid] = {"ssid": ssid, "signal": int(parts[1]), "security": parts[2],
+                               "channel": parts[3]}  # fmt: skip
+    return sorted(found.values(), key=lambda n: -n["signal"])[:20]
+
+
+async def save_label(request: web.Request) -> web.Response:
+    """Own name and owner of a device: "Handy Ben"."""
+    d = dashboard(request)
+    mac = request.match_info["mac"].lower()
+    if not _MAC_RE.match(mac):
+        raise web.HTTPBadRequest(text="bad address")
+    data = await read_json(request)
+    label = {
+        "name": str(data.get("name", "")).strip()[:40],
+        "owner": str(data.get("owner", "")).strip()[:40],
+    }
+    d.app.db.set(LABEL_PREFIX + mac, label)
+    return web.json_response({"ok": True})
 
 
 DETAILS_PREFIX = "lan.details."
 
 
-def _with_details(app: Any, device: dict[str, Any]) -> dict[str, Any]:
+def _with_details(
+    app: Any, device: dict[str, Any], hosts: dict[str, dict[str, Any]] | None = None
+) -> dict[str, Any]:
     known = app.db.get(DETAILS_PREFIX + device["mac"])
+    label = app.db.get(LABEL_PREFIX + device["mac"]) or {}
+    host = (hosts or {}).get(device["mac"])
+    if host:
+        device = {**device, "router_name": host["name"], "connection": host["interface"],
+                  "online": host["active"], "speed": host["speed"]}  # fmt: skip
+    device = {**device, "label": label.get("name"), "owner": label.get("owner")}
     return {**device, "details": known} if known else device
 
 
@@ -136,6 +214,47 @@ async def device_details(request: web.Request) -> web.Response:
         d.app.db.set(DETAILS_PREFIX + mac, report)
     d.app.db.audit(f"web:{current(request).username}", "network.inspect", ip)
     return web.json_response(report)
+
+
+# --- blocked websites ---------------------------------------------------------------------
+
+
+def _blocks(request: web.Request) -> Blocks:
+    blocks = dashboard(request).app.addons.blocks
+    if blocks is None:
+        raise web.HTTPConflict(text="web.addon_not_running")
+    return blocks
+
+
+async def blocks_list(request: web.Request) -> web.Response:
+    return web.json_response(_blocks(request).list())
+
+
+async def blocks_add(request: web.Request) -> web.Response:
+    data = await read_json(request)
+    minutes = int(data["minutes"]) if data.get("minutes") else None
+    device = str(data["device"]) if data.get("device") else None
+    if device:
+        ipaddress.ip_address(device)
+    try:
+        result = await _blocks(request).add(str(data.get("domain", "")), minutes, device,
+                                            str(data.get("label", "")))  # fmt: skip
+    except BlockError as exc:
+        raise web.HTTPBadRequest(text=exc.key) from None
+    except PiholeError as exc:
+        raise web.HTTPBadGateway(text=str(exc)) from None
+    dashboard(request).app.db.audit(f"web:{current(request).username}", "network.block",
+                                    result["domain"])  # fmt: skip
+    return web.json_response(result)
+
+
+async def blocks_remove(request: web.Request) -> web.Response:
+    try:
+        if not await _blocks(request).remove(int(request.match_info["id"])):
+            raise web.HTTPNotFound()
+    except PiholeError as exc:
+        raise web.HTTPBadGateway(text=str(exc)) from None
+    return web.json_response({"ok": True})
 
 
 # --- block lists --------------------------------------------------------------------------

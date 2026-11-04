@@ -3,6 +3,7 @@ numbered menu where a platform has no buttons."""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from pi_guard.addons.assistant import AssistantError
@@ -185,10 +186,41 @@ async def action(ctx: CommandContext, args: dict[str, Any]) -> Reply:
 # --- assistant ---------------------------------------------------------------------------
 
 
+def _outcome(ctx: CommandContext, outcome: Any) -> Reply:
+    buttons: tuple[tuple[Button, ...], ...] = ()
+    if outcome.pending:
+        buttons = ((Button(ctx.t("cmd.yes"), f"proposal yes {outcome.pending}"),),
+                   (Button(ctx.t("cmd.no"), f"proposal no {outcome.pending}"),))  # fmt: skip
+    return Reply(outcome.text, photo=outcome.photo, video=outcome.video, buttons=buttons)
+
+
+async def confirm(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    """Answer to "Soll ich ...?"."""
+    commander = ctx.app.addons.commander
+    choice, _, token = args.get("text", "").partition(" ")
+    if commander is None or choice not in ("yes", "no"):
+        return Reply(ctx.t("cmd.expired"), buttons=(menu_row(ctx),))
+
+    async def deliver(path: str) -> None:
+        await ctx.send(Reply(ctx.t("cmd.video_ready"), video=Path(path)))
+
+    chat = {"provider": ctx.user.provider, "chat": ctx.chat_id}
+    outcome = await commander.answer(token, choice == "yes", ctx.lang, ctx.user.key, deliver, chat)
+    return _outcome(ctx, outcome)
+
+
 async def answer(ctx: CommandContext, question: str) -> Reply:
     assistant = ctx.app.addons.assistant
     if assistant is None:
         return _off(ctx, "assistant")
+    commander = ctx.app.addons.commander
+    if commander is not None and ctx.user.role is Role.ADMIN and not ctx.is_group:
+        try:
+            outcome = await commander.propose(question, ctx.lang, ctx.user.key)
+        except AssistantError:
+            outcome = None
+        if outcome is not None:
+            return _outcome(ctx, outcome)
     try:
         private = ctx.user.role is Role.ADMIN and not ctx.is_group
         result = await assistant.ask(question, ctx.lang, ctx.chat_key, private)
@@ -236,5 +268,6 @@ def register(registry: Registry) -> None:
                          role=Role.ADMIN, help_key="help.action", menu=False))  # fmt: skip
     registry.add(Command("ask", ask, ("frage", "ki", "ai", "assistent"), text,
                          help_key="help.ask", menu=False))  # fmt: skip
+    registry.add(Command("proposal", confirm, (), text, role=Role.ADMIN, menu=False))
     registry.add(Command("weather", weather, ("wetter",), text,
                          help_key="help.weather", menu=False))  # fmt: skip

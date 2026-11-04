@@ -8,7 +8,7 @@ messenger, where buttons become a numbered menu if the platform has none.
 | Add-on | Command | Aliases |
 | --- | --- | --- |
 | Service watcher | `/services` | `/dienste` |
-| Network analysis | `/netstats [ip]` | `/analyse` |
+| Network management | `/netstats [ip]` | `/analyse` |
 | Smart home | `/smarthome [name] [on\|off]` | `/smart`, `/schalte` |
 | Remote commands | `/action` | `/aktion` |
 | AI assistant | `/ask question`, `/weather [place]` | `/frage`, `/wetter` |
@@ -22,7 +22,26 @@ row you get one message, and another when the service is back. HTTP answers belo
 count as alive, so a login page that says 401 is fine. Alerts follow the rules
 `service_down` and `service_up`.
 
-## Network analysis
+## Network management
+
+Everything about the home network under **Network**: Pi-hole, Wi-Fi networks, devices, blocked
+websites, block lists, VPN access, the map and the analysis.
+
+**Wi-Fi and device names:** with the FRITZ!Box password set, the router lists its Wi-Fi networks
+including the guest network, and the names it knows ("Galaxy-von-Ben"), read-only. You can
+give each device your own name and owner. The domains a device asks for help to tell
+devices apart, e.g. Apple, Roblox or Instagram.
+
+**Blocking websites:** for everyone or one device, for good or for a while. Temporary blocks end
+by themselves. A device with a private Wi-Fi address may change its IP, and then a block
+for that device no longer fits.
+
+**Block page:** without it, browsers just say a blocked site cannot be reached.
+`sudo ./scripts/blockpage.sh setup 192.168.178.110` (a free address outside the DHCP range) gives
+blocked sites a page of their own. Nearly all websites use HTTPS, so a browser only shows the
+page if pi-guard's certificate is installed on the device; otherwise it shows its own warning.
+Apps do not show pages at all, they simply fail. The script also allows Pi-hole's app
+password to change settings.
 
 Reads Pi-hole's statistics: queries over 24 hours, devices, most requested and most
 blocked domains, DNS servers, and per device its recent domains.
@@ -71,6 +90,7 @@ refused. Shutting down protects a disk only if it is encrypted and locks on shut
 
 ## AI assistant
 
+The round button at the bottom right of the dashboard opens a chat with text and microphone.
 With the add-on on, anything you write that is no command is a question; voice messages
 get an extra button, and the dashboard has a text box and a microphone.
 
@@ -96,9 +116,34 @@ the same question within an hour comes from a cache; the prompt is one short sen
 answers are capped, and only the last few turns are sent. When the daily token limit is
 reached the AI pauses until the next day; weather and time keep working.
 
-Privacy: questions go to the chosen provider. The assistant receives no camera pictures,
-no names, no device or presence data and no secrets, and it cannot switch anything or
-run commands.
+Privacy: questions go to the chosen provider. By default the assistant receives no camera
+pictures, no names, no device or presence data and no secrets. Each of those needs its own
+tick below.
+
+### Doing things by asking
+
+Admins can ask for things in the chat widget, Telegram, Signal and WhatsApp:
+
+- "Licht im Schlafzimmer aus", "Fahre meinen PC herunter", "Spiel den Alarm ab"
+- "Nimm 10 Minuten Video auf", "Erstelle einen VPN-Zugang für Anna"
+- "Nimm heute Nacht von 3 bis 4 Uhr Ton auf" (planned, up to two hours, then sent to you)
+- "Wie lange geht noch die Spülmaschine?" reads a sensor, if there is one with that name
+
+**Nothing happens without your yes**, and remote commands need a second one. Common sentences
+are understood right here, without AI and without tokens. For free wording, tick "The AI may
+plan actions": names of devices and cameras then go to the provider. The AI only picks from a
+fixed list of actions; everything it returns is checked, and it never sees documents while
+planning. It cannot invent commands.
+
+Device state only exists if the device reports it over MQTT, so the dishwasher question needs a
+dishwasher that does.
+
+### Looking at cameras
+
+With "The AI may look at camera pictures" ticked, "Was siehst du im Wohnzimmer?" sends one
+picture to the provider after you confirm, each time. It needs a model that can see, e.g. a
+vision model in Ollama for keeping pictures at home. The provider then has a picture of the
+inside of your home, so use this with care.
 
 ### Your own files and documents
 

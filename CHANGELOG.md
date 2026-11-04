@@ -8,6 +8,18 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Updater: from the dashboard or `scripts/update.sh`, fast-forward only, with health check and
+  automatic return to the previous version.
+- Network management: Wi-Fi networks and device names from the FRITZ!Box, own device names,
+  recognition by domains, blocking websites per device and for a while, block page.
+- Doing things by asking, with confirmation: smart home, remote commands, video, VPN access,
+  planned sound recordings; chat widget with voice; AI may look at camera pictures if allowed.
+- Camera room with all cameras at once.
+- API with tokens (`/api/v1`) and OpenAPI description.
+- Own add-ons in the dashboard: ZIP upload with plugin.json, create, edit, delete, search, pin.
+- Settings in one page with sections, search and save bar; recovery of what is stored per person;
+  arrows on the map; links in security recommendations; back to top.
+
 - Login with Telegram (number comparison), passkeys and hardware keys (WebAuthn), TOTP
   recovery codes and an optional code word.
 - Dashboard behind a domain and reverse proxy: public URL, host name check, secure cookies.

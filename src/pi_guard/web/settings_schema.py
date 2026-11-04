@@ -56,6 +56,7 @@ FIELDS = (
     Field("mqtt_port", "integrations", "int", 1, 65535),
     Field("pihole_enabled", "network", "bool"),
     Field("pihole_url", "network", "text"),
+    Field("fritzbox_password", "network", "secret"),
     Field("wireguard_enabled", "network", "bool"),
     Field("wireguard_endpoint", "network", "text"),
     Field("assistant_api_key", "assistant", "secret"),

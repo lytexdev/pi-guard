@@ -448,7 +448,7 @@ async def test_plugin_commands_and_routes(tmp_path: Path, monkeypatch: Any) -> N
     plugins = tmp_path / "plugins"
     plugins.mkdir()
     (plugins / "hello.py").write_text(PLUGIN)
-    monkeypatch.setattr(module, "discover", lambda: discover(plugins, check_owner=False))
+    monkeypatch.setattr(module, "discover", lambda **kw: discover(plugins, check_owner=False))
     app = make_app(tmp_path / "a")
     loaded = load_plugins(
         app, {"hello": {"enabled": True, "name": "Lena"}, "gone": {"enabled": True}}

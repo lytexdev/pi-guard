@@ -1,4 +1,4 @@
-"""Network analysis from Pi-hole's data: who asks for which domains, and how often.
+"""Network management data from Pi-hole: who asks for which domains, and how often.
 
 Everything comes from DNS, so this shows domain names and devices, not pages or
 content. Devices that do not use Pi-hole as DNS server, or that use encrypted DNS
@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 from collections import Counter
+from collections.abc import Iterable
 from typing import Any
 
 from pi_guard.network.pihole import Pihole
@@ -17,6 +18,19 @@ from pi_guard.network.pihole import Pihole
 BLOCKED_STATUS = ("GRAVITY", "DENYLIST", "REGEX", "BLOCKED", "BLACKLIST")
 HIDDEN_SUFFIXES = (".in-addr.arpa", ".ip6.arpa", ".local", ".lan", ".fritz.box")
 DEVICE_QUERIES = 1000
+# What a device talks to tells a lot about it: helps to tell "my phone" from "my brother's".
+DOMAIN_HINTS = (
+    ("icloud.com", "Apple"), ("apple.com", "Apple"), ("mzstatic.com", "Apple"),
+    ("samsung", "Samsung"), ("xiaomi", "Xiaomi"), ("miui.com", "Xiaomi"), ("huawei", "Huawei"),
+    ("android", "Android"), ("gvt1.com", "Android"), ("windowsupdate", "Windows"),
+    ("msftconnecttest", "Windows"), ("xboxlive", "Xbox"), ("playstation", "PlayStation"),
+    ("nintendo", "Nintendo"), ("epicgames", "Fortnite/Epic"), ("roblox", "Roblox"),
+    ("steampowered", "Steam"), ("minecraft", "Minecraft"), ("tiktok", "TikTok"),
+    ("instagram", "Instagram"), ("snapchat", "Snapchat"), ("whatsapp", "WhatsApp"),
+    ("netflix", "Netflix"), ("spotify", "Spotify"), ("googlevideo", "YouTube"),
+    ("youtube", "YouTube"), ("twitch", "Twitch"), ("discord", "Discord"), ("telegram", "Telegram"),
+    ("amazon", "Amazon"), ("sonos", "Sonos"), ("proton.me", "Proton"), ("tuya", "Tuya smart home"),
+)  # fmt: skip
 
 
 def _visible(domain: str) -> bool:
@@ -29,6 +43,16 @@ def base_domain(domain: str) -> str:
     if len(parts) > 2 and len(parts[-2]) <= 3 and len(parts[-1]) == 2:  # example.co.uk
         return ".".join(parts[-3:])
     return ".".join(parts[-2:])
+
+
+def hints(domains: Iterable[str]) -> list[str]:
+    """Brands and apps recognised from the domains a device asks for, most frequent first."""
+    found: Counter[str] = Counter()
+    for domain in domains:
+        for needle, label in DOMAIN_HINTS:
+            if needle in domain:
+                found[label] += 1
+    return [label for label, _ in found.most_common(8)]
 
 
 def group_domains(rows: list[dict[str, Any]], count: int) -> list[dict[str, Any]]:
@@ -95,6 +119,7 @@ class NetworkAnalytics:
             "GET", "/api/queries", params={"client_ip": ip, "length": DEVICE_QUERIES}
         )
         queries = data.get("queries", [])
+        recognised = hints(str(q.get("domain") or "") for q in queries)
         allowed: Counter[str] = Counter()
         blocked: Counter[str] = Counter()
         for query in queries:
@@ -108,6 +133,8 @@ class NetworkAnalytics:
             "ip": ip,
             "queries": len(queries),
             "last": max((q.get("time", 0) for q in queries), default=None),
+            "first": min((q.get("time", 0) for q in queries), default=None),
+            "hints": recognised,
             "top_domains": [{"domain": d, "count": n} for d, n in allowed.most_common(20)],
             "top_blocked": [{"domain": d, "count": n} for d, n in blocked.most_common(10)],
         }

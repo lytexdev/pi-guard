@@ -8,7 +8,7 @@ function securityPanels(s) {
     h("section", { class: "panel" }, h("h2", {}, icon("shield-check"), " ", t("web.sec_title", { days: s.days })),
       h("div", { class: "tiles" }, tile("logins", c.logins), tile("failed_logins", c.failed_logins, true), tile("honeypot_hits", c.honeypot_hits, true),
         tile("bans", c.bans, true), tile("bad_hosts", c.bad_hosts, true), tile("rejected_messages", c.rejected_messages, true), tile("denied_commands", c.denied_commands, true)),
-      s.recommendations.map((key) => h("p", { class: "notice" }, t(key)))),
+      s.recommendations.map((r) => h("p", { class: "notice row between" }, h("span", {}, t(r.key)), h("a", { class: "button", href: r.href }, t("web.sec_fix"))))),
     h("div", { class: "grid wide" },
       h("section", { class: "panel" }, h("h2", {}, t("web.sec_sources")), h("ul", { class: "list" }, s.top_sources.length ? s.top_sources.map((x) => h("li", {}, h("span", { class: "grow mono" }, x.ip), h("span", { class: "badge" }, x.count))) : h("li", { class: "empty" }, t("web.nothing")))),
       h("section", { class: "panel" }, h("h2", {}, t("web.sec_honeypots")), h("ul", { class: "list" }, s.honeypot_paths.length ? s.honeypot_paths.map((x) => h("li", {}, h("span", { class: "grow mono" }, x.path), h("span", { class: "badge" }, x.count))) : h("li", { class: "empty" }, t("web.nothing")))),

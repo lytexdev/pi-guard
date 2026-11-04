@@ -144,6 +144,8 @@ class Dashboard:
             api_manage,
             api_network,
             api_security,
+            api_system,
+            api_v1,
         )
 
         webapp = web.Application(
@@ -163,7 +165,7 @@ class Dashboard:
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
         for module in (api_account, api_addons, api_core, api_login, api_live, api_manage,
-                       api_network, api_security):  # fmt: skip
+                       api_network, api_security, api_system, api_v1):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
             sub = web.Application()
@@ -228,6 +230,11 @@ class Dashboard:
         path = request.path
         if not path.startswith("/api/") or path in PUBLIC or path.startswith("/api/i18n/"):
             return await handler(request)
+        bearer = request.headers.get("Authorization", "")
+        if path.startswith(("/api/v1/", "/api/plugins/")) and bearer.startswith("Bearer "):
+            return await self._token_request(request, handler, bearer[7:].strip())
+        if path.startswith("/api/v1/"):
+            raise web.HTTPUnauthorized(text="API token required")
         session = self._resolve(request)
         if session is None or session.pending:
             raise web.HTTPUnauthorized(text="login required")
@@ -242,6 +249,23 @@ class Dashboard:
             if origin and origin.split("://", 1)[-1] != request.host and origin != public:
                 raise web.HTTPForbidden(text="cross-origin request")
         request[SESSION_KEY] = session
+        return await handler(request)
+
+    async def _token_request(
+        self,
+        request: web.Request,
+        handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
+        token: str,
+    ) -> web.StreamResponse:
+        ip = self.guard.client_ip(request)
+        found = self.auth.check_token(token[:100])
+        if found is None:
+            self.guard.login_failed(ip)
+            self.app.db.audit(f"web:{ip}", "login.failed", "api token")
+            raise web.HTTPUnauthorized(text="invalid token")
+        if request.method not in ("GET", "HEAD") and found["scope"] != "control":
+            raise web.HTTPForbidden(text="this token may only read")
+        request[SESSION_KEY] = Session(f"api:{found['name']}", "", False)
         return await handler(request)
 
     def _setup_required(self, session: Session) -> bool:
@@ -298,6 +322,8 @@ class Dashboard:
             "totp": self.auth.totp_secret() is not None,
             "setup_required": bool(active and session and self._setup_required(session)),
             "setup_done": bool(self.app.db.get(SETUP_DONE_KEY)),
+            "pinned": (self.app.db.get("web.pinned") or []) if active else [],
+            "assistant": bool(active and self.app.addons.assistant),
             "language": self.settings.language,
         })  # fmt: skip
 

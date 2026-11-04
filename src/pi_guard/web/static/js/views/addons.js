@@ -1,6 +1,7 @@
 // Add-ons: overview with on/off switches, and one detail page per add-on.
 // renderDetail() is also used by the setup assistant.
 import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
 
 export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone" };
@@ -334,6 +335,8 @@ async function assistant(box, data, opts) {
   const turns = h("input", { type: "number", min: 0, max: 10, value: section.history_turns });
   const speech = h("input", { type: "checkbox", checked: section.speech_output });
   const share = h("input", { type: "checkbox", checked: section.share_documents });
+  const actions = h("input", { type: "checkbox", checked: section.ai_actions });
+  const vision = h("input", { type: "checkbox", checked: section.allow_vision });
   const paperless = h("input", { type: "url", value: section.paperless_url || "", placeholder: "http://192.168.178.20:8000" });
   const nextcloud = h("input", { type: "url", value: section.nextcloud_url || "", placeholder: "https://cloud.example.org" });
   const nextUser = h("input", { value: section.nextcloud_user || "" });
@@ -343,7 +346,7 @@ async function assistant(box, data, opts) {
     if (saveKeys) saveKeys();
     await save("assistant", { ...section, provider: provider.value, model: model.value.trim(), base_url: url.value.trim() || null, location: location.value.trim(),
       daily_token_limit: Number(limit.value), max_answer_tokens: Number(length.value), history_turns: Number(turns.value), speech_output: speech.checked,
-      share_documents: share.checked, paperless_url: paperless.value.trim() || null, nextcloud_url: nextcloud.value.trim() || null, nextcloud_user: nextUser.value.trim() }, opts);
+      share_documents: share.checked, ai_actions: actions.checked, allow_vision: vision.checked, paperless_url: paperless.value.trim() || null, nextcloud_url: nextcloud.value.trim() || null, nextcloud_user: nextUser.value.trim() }, opts);
   } }, icon("check"), t("web.save"));
   fill(box,
     info ? askPanel(info) : null,
@@ -354,6 +357,8 @@ async function assistant(box, data, opts) {
       h("label", { class: "check" }, speech, t("web.as_speech_output")),
       h("h3", {}, t("web.as_documents")), h("p", { class: "muted" }, t("web.as_documents_hint")),
       h("label", { class: "check" }, share, t("web.as_share")),
+      h("label", { class: "check" }, actions, t("web.as_actions")),
+      h("label", { class: "check" }, vision, t("web.as_vision")),
       field("Paperless-ngx", paperless), field("Nextcloud", nextcloud), field(t("web.as_nextcloud_user"), nextUser),
       keys, button),
     info ? await knowledgePanel(info) : null,
@@ -383,15 +388,75 @@ export async function render(main, params = []) {
     return;
   }
   const data = await api("/api/addons");
-  fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_addons"))),
-    h("div", { class: "grid wide" }, data.addons.map((addon) => {
-      const toggle = h("input", { type: "checkbox", checked: addon.enabled, "aria-label": t(`addons.${addon.id}`) });
-      toggle.addEventListener("change", () => setEnabled(addon.id, toggle.checked));
-      return h("section", { class: "panel stack" },
-        h("div", { class: "row between" }, h("h2", {}, icon(ADDONS[addon.id]), " ", t(`addons.${addon.id}`)), toggle),
-        h("p", { class: "muted" }, t(`web.addon_${addon.id}_text`)),
-        addon.needs ? h("p", { class: "notice" }, t(addon.needs)) : null,
-        addon.enabled !== addon.running ? h("p", { class: "notice" }, t("web.addon_restart")) : null,
-        h("a", { class: "button", href: `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")));
-    })));
+  const pinned = new Set(state.session.pinned || []);
+  const pin = async (id, button) => {
+    if (pinned.has(id)) pinned.delete(id); else pinned.add(id);
+    button.classList.toggle("on", pinned.has(id));
+    const saved = await attempt(() => api("/api/navigation/pinned", { method: "PUT", body: { pinned: [...pinned] } }));
+    if (saved) { state.session.pinned = saved.pinned; location.reload(); }
+  };
+  const search = h("input", { type: "search", placeholder: t("web.pm_search"), "aria-label": t("web.pm_search") });
+  const cards = h("div", { class: "grid wide" }, data.addons.map((addon) => {
+    const toggle = h("input", { type: "checkbox", checked: addon.enabled, "aria-label": t(`addons.${addon.id}`) });
+    toggle.addEventListener("change", () => setEnabled(addon.id, toggle.checked));
+    const star = h("button", { class: `icon-only pin${pinned.has(addon.id) ? " on" : ""}`, title: t("web.pm_pin"), onclick: () => pin(addon.id, star) }, icon("list-details"));
+    return h("section", { class: "panel stack" },
+      h("div", { class: "row between" }, h("h2", {}, icon(ADDONS[addon.id]), " ", t(`addons.${addon.id}`)), h("div", { class: "row" }, star, toggle)),
+      h("p", { class: "muted" }, t(`web.addon_${addon.id}_text`)),
+      addon.needs ? h("p", { class: "notice" }, t(addon.needs)) : null,
+      addon.enabled !== addon.running ? h("p", { class: "notice" }, t("web.addon_restart")) : null,
+      h("a", { class: "button", href: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")));
+  }));
+  const ownPanel = h("section", { class: "panel stack" });
+  const drawOwn = async () => {
+    const list = await api("/api/plugin-manager");
+    const zip = h("input", { type: "file", accept: ".zip", "aria-label": t("web.pm_upload") });
+    const name = h("input", { placeholder: t("web.pm_new_name"), "aria-label": t("web.pm_new_name") });
+    fill(ownPanel, h("h2", {}, t("web.pm_title")), h("p", { class: "notice" }, t("web.pm_warning")),
+      h("ul", { class: "list" }, list.length ? list.map((p) => {
+        const on = h("input", { type: "checkbox", checked: p.enabled, "aria-label": p.name });
+        on.addEventListener("change", async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}/enabled`, { method: "PUT", body: { enabled: on.checked } }), t("web.saved"))) restartPrompt(); });
+        return h("li", {}, on, h("div", { class: "grow clip" }, h("div", {}, p.name, " ", h("small", { class: "muted" }, `v${p.version}${p.author ? ` · ${p.author}` : ""}`)), h("small", {}, p.description || p.id)),
+          h("button", { class: "icon-only", title: t("web.pm_edit"), onclick: () => editSource(p) }, icon("pencil")),
+          h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}`, { method: "DELETE" }), t("web.saved"))) drawOwn(); } }, icon("trash")));
+      }) : h("li", { class: "empty" }, t("web.nothing"))),
+      h("h3", {}, t("web.pm_upload")), h("p", { class: "muted" }, h("small", {}, t("web.pm_upload_hint"))),
+      h("div", { class: "row" }, zip, h("button", { onclick: async () => {
+        if (!zip.files.length) return;
+        const password = prompt(t("web.confirm_password"));
+        if (!password) return;
+        const form = new FormData();
+        form.append("password", password);
+        form.append("file", zip.files[0], zip.files[0].name);
+        if (await attempt(() => api("/api/plugin-manager", { method: "POST", body: form }), t("web.saved"))) drawOwn();
+      } }, icon("upload"), t("web.upload"))),
+      h("h3", {}, t("web.pm_create")),
+      h("div", { class: "row" }, name, h("button", { onclick: async () => {
+        const id = slug(name.value);
+        const password = name.value && prompt(t("web.confirm_password"));
+        if (password && await attempt(() => api("/api/plugin-manager/create", { method: "POST", body: { id, name: name.value, password } }), t("web.saved"))) drawOwn();
+      } }, icon("plus"), t("web.pm_create_button"))));
+  };
+  search.addEventListener("input", () => {
+    const q = search.value.trim().toLowerCase();
+    [...cards.children, ...ownPanel.querySelectorAll(".list li")].forEach((el) => el.classList.toggle("hidden", q && !el.textContent.toLowerCase().includes(q)));
+  });
+  fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_addons")), search), cards, ownPanel);
+  await drawOwn();
+}
+
+async function editSource(plugin) {
+  const data = await attempt(() => api(`/api/plugin-manager/${plugin.id}/source`));
+  if (!data) return;
+  const text = h("textarea", { class: "mono code", spellcheck: "false", rows: 22, "aria-label": data.entry });
+  text.value = data.source;
+  const dialog = h("dialog", { class: "editor" }, h("h2", {}, `${plugin.name} · ${data.entry}`), text,
+    h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
+      h("button", { class: "primary", onclick: async () => {
+        const password = prompt(t("web.confirm_password"));
+        if (password && await attempt(() => api(`/api/plugin-manager/${plugin.id}/source`, { method: "PUT", body: { source: text.value, password } }), t("web.saved"))) { dialog.close(); restartPrompt(); }
+      } }, t("web.save"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
 }

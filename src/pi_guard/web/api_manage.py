@@ -59,6 +59,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/people-test", test_recognition),
         web.get("/api/evidence", evidence_list),
         web.post("/api/evidence", evidence_start),
+        web.get("/api/people/{name}", person_details),
+        web.delete("/api/people-samples/{id:\\d+}", delete_sample),
         web.patch("/api/people/{name}", rename_person),
         web.delete("/api/people/{name}", delete_person),
         web.get("/api/sounds", sounds),
@@ -437,6 +439,20 @@ async def evidence_start(request: web.Request) -> web.Response:
 
     d.background(run())
     return web.json_response({"ok": True, "minutes": minutes})
+
+
+async def person_details(request: web.Request) -> web.Response:
+    faces = _faces(request)
+    return web.json_response(await asyncio.to_thread(faces.store.details, _name(request)))
+
+
+async def delete_sample(request: web.Request) -> web.Response:
+    faces = _faces(request)
+    if not faces.store.delete_sample(int(request.match_info["id"])):
+        raise web.HTTPNotFound()
+    faces.forget_cache()
+    dashboard(request).app.db.audit(_actor(request), "faces.delete_sample")
+    return web.json_response({"ok": True})
 
 
 async def rename_person(request: web.Request) -> web.Response:

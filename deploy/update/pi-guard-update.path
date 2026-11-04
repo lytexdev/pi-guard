@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for update requests from the pi-guard dashboard
+
+[Path]
+PathExists=/var/lib/pi-guard/update/request
+Unit=pi-guard-update.service
+
+[Install]
+WantedBy=paths.target

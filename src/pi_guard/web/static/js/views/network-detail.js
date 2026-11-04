@@ -65,7 +65,7 @@ function addForm(redraw) {
 
 function wireguardPanel(d, redraw) {
   const wg = d.wireguard;
-  const panel = h("section", { class: "panel" }, h("h2", {}, t("web.wg_title")));
+  const panel = h("section", { class: "panel wg" }, h("h2", {}, t("web.wg_title")));
   if (!d.wireguard_enabled) { panel.append(h("p", { class: "muted" }, t("web.wireguard_off"))); return panel; }
   if (!wg) { panel.append(h("p", { class: "notice" }, t("web.wireguard_no_status"))); return panel; }
   const peers = wg.peers;
@@ -93,15 +93,17 @@ function wireguardPanel(d, redraw) {
         } }, icon("trash")),
       ] : null))
       : h("li", { class: "empty" }, t("web.no_peers"))),
-    h("h3", {}, t("web.wg_add")),
-    addForm(redraw));
+    h("div", { class: "wg-add" }, h("h3", {}, t("web.wg_add")), addForm(redraw)));
   return panel;
 }
 
 function deviceDialog(device) {
   const body = h("div", { class: "stack" }, h("p", { class: "muted" }, t("web.dev_scanning")));
-  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, device.trusted || device.name || device.ip || device.ips?.[0] || device.mac), body,
-    h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
+  const label = h("input", { value: device.label || "", placeholder: device.router_name || device.name || "", maxlength: 40, "aria-label": t("web.dev_label") });
+  const owner = h("input", { value: device.owner || "", placeholder: t("web.dev_owner_hint"), maxlength: 40, "aria-label": t("web.dev_owner") });
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, device.label || device.trusted || device.router_name || device.name || device.ip || device.ips?.[0] || device.mac),
+    device.mac ? h("div", { class: "row" }, label, owner, h("button", { onclick: () => attempt(() => api(`/api/network/label/${device.mac}`, { method: "PUT", body: { name: label.value, owner: owner.value } }), t("web.saved")) }, t("web.save"))) : null,
+    body, h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();
@@ -116,10 +118,15 @@ function deviceDialog(device) {
       row(t("web.dev_maker"), r.maker || device.vendor), row(t("web.address"), ip), row("MAC", device.mac),
       row(t("web.dev_hostname"), r.name), row(t("web.dev_latency"), r.latency_ms != null ? `${r.latency_ms} ms` : null), row("TTL", r.ttl),
       row(t("web.dev_web"), [r.web_title, r.web_server].filter(Boolean).join(" · ")),
-      row(t("web.dev_private"), r.private_mac ? t("web.yes") : null)),
+      row(t("web.dev_private"), r.private_mac ? t("web.yes") : null),
+      row(t("web.dev_router_name"), device.router_name), row(t("web.dev_connection"), device.connection), row(t("web.dev_speed"), device.speed ? `${device.speed} Mbit/s` : null)),
+      h("div", { class: "hints" }),
       h("h3", {}, t("web.dev_ports")),
       r.ports.length ? h("div", { class: "row wrap" }, r.ports.map((p) => h("span", { class: "badge" }, `${p.port} ${p.service}`))) : h("p", { class: "muted" }, t("web.dev_no_ports")),
       h("p", { class: "muted" }, h("small", {}, t("web.dev_estimate"))));
+    api(`/api/addons/analytics/device/${encodeURIComponent(ip)}`).then((a) => {
+      if (a.hints?.length) body.querySelector(".hints")?.replaceChildren(h("h3", {}, t("web.dev_hints")), h("div", { class: "row wrap" }, a.hints.map((x) => h("span", { class: "badge accent" }, x))));
+    }).catch(() => {});
   });
 }
 
@@ -169,7 +176,8 @@ function devicesPanel(devices, redraw) {
     h("div", { class: "table-wrap" }, h("table", {},
       h("thead", {}, h("tr", {}, ["web.device_name", "web.dev_kind", "web.address", "MAC", "web.vendor", "web.last_seen", ""].map((k) => h("th", {}, k.startsWith("web.") ? t(k) : k)))),
       h("tbody", {}, devices.map((d) => h("tr", {},
-        h("td", {}, d.trusted ? [icon("shield-check"), " "] : null, d.trusted || d.name || "–"),
+        h("td", {}, d.trusted ? [icon("shield-check"), " "] : null, d.label || d.trusted || d.router_name || d.name || "–", d.owner ? h("small", { class: "muted block" }, d.owner) : null,
+          d.connection ? h("small", { class: "muted block" }, `${d.connection === "802.11" ? "WLAN" : d.connection}${d.speed ? ` · ${d.speed} Mbit/s` : ""}`) : null),
         h("td", {}, d.details ? `${t(`web.dev_kind_${d.details.kind}`)} · ${t(`web.dev_system_${d.details.system}`)}` : "–"),
         h("td", { class: "mono" }, d.ips.join(", ")),
         h("td", { class: "mono" }, d.mac, d.randomized ? h("span", { class: "badge", title: t("web.random_mac") }, "R") : null),
@@ -183,18 +191,55 @@ function devicesPanel(devices, redraw) {
         } }, icon("user-check")))))))));
 }
 
-export async function render(main, data) {
-  const redraw = async () => {
-    const fresh = await api("/api/network");
-    const old = [...main.querySelectorAll(":scope > .grid.wide, :scope > section.devices")];
-    const [grid, devices] = build(fresh);
-    old[0]?.replaceWith(grid);
-    old[1]?.replaceWith(devices);
+function wifiPanel(d) {
+  return h("section", { class: "panel stack" }, h("h2", {}, icon("wifi"), " ", t("web.nm_wifi")),
+    d.wlans.length ? h("ul", { class: "list" }, d.wlans.map((w) => h("li", {}, h("span", { class: `dot ${w.enabled ? "ok" : ""}` }),
+      h("div", { class: "grow" }, h("div", {}, w.ssid || "–", w.guest ? h("span", { class: "badge accent" }, t("web.nm_guest")) : null),
+        h("small", {}, `${w.enabled ? t("web.nm_on") : t("web.nm_off")} · ${t("web.nm_channel", { channel: w.channel })} · ${t("web.nm_clients", { count: w.clients })}`)))))
+      : h("p", { class: "muted" }, t("web.nm_no_router")),
+    d.nearby.length ? [h("h3", {}, t("web.nm_nearby")), h("ul", { class: "list" }, d.nearby.map((n) => h("li", {}, icon("wifi"),
+      h("div", { class: "grow" }, h("div", {}, n.ssid), h("small", {}, `${n.security || t("web.nm_open")} · ${t("web.nm_channel", { channel: n.channel })}`)),
+      h("span", { class: "badge" }, `${n.signal} %`))))] : null);
+}
+
+async function blocksPanel(d) {
+  const panel = h("section", { class: "panel stack" });
+  const draw = async () => {
+    const blocks = await api("/api/network/blocks").catch(() => null);
+    if (blocks === null) { fill(panel, h("h2", {}, t("web.nm_blocks")), h("p", { class: "notice" }, t("web.nm_needs_addon"), " ", h("a", { href: "#/addons" }, t("web.nav_addons")))); return; }
+    const domain = h("input", { placeholder: "tiktok.com", "aria-label": t("web.nm_domain") });
+    const time = h("select", { "aria-label": t("web.nm_duration") }, [["", "web.nm_forever"], ["30", "web.nm_30m"], ["60", "web.nm_1h"], ["180", "web.nm_3h"], ["1440", "web.nm_1d"]].map(([v, k]) => h("option", { value: v }, t(k))));
+    const who = h("select", { "aria-label": t("web.nm_for") }, h("option", { value: "" }, t("web.nm_everyone")),
+      d.devices.filter((x) => x.ips.length).map((x) => h("option", { value: x.ips[0] }, x.label || x.trusted || x.router_name || x.name || x.ips[0])));
+    fill(panel, h("h2", {}, icon("ban"), " ", t("web.nm_blocks")), h("p", { class: "muted" }, t("web.nm_blocks_hint")),
+      h("div", { class: "row wrap" }, domain, time, who, h("button", { class: "primary", onclick: async () => {
+        const option = who.selectedOptions[0];
+        if (await attempt(() => api("/api/network/blocks", { method: "POST", body: { domain: domain.value, minutes: time.value ? Number(time.value) : null, device: who.value || null, label: who.value ? option.textContent : "" } }), t("web.saved"))) draw();
+      } }, icon("ban"), t("web.nm_block"))),
+      h("ul", { class: "list" }, blocks.length ? blocks.map((b) => h("li", {}, icon("ban"),
+        h("div", { class: "grow" }, h("div", {}, b.domain), h("small", {}, `${b.label || t("web.nm_everyone")} · ${b.until ? t("web.nm_until", { time: when(b.until) }) : t("web.nm_forever")}`)),
+        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { if (await attempt(() => api(`/api/network/blocks/${b.id}`, { method: "DELETE" }))) draw(); } }, icon("trash")))) : h("li", { class: "empty" }, t("web.nothing"))),
+      h("p", { class: d.blockpage ? "muted" : "notice" }, h("small", {}, d.blockpage ? t("web.nm_page_on", { ip: d.blockpage }) : t("web.nm_page_off"))));
   };
-  const build = (d) => [
-    h("div", { class: "grid wide" }, piholePanel(d.pihole, redraw), wireguardPanel(d, redraw)),
-    devicesPanel(d.devices, redraw),
-  ];
-  const [map, block] = await Promise.all([topologyPanel(deviceDialog), blockPanel(data.pihole_enabled)]);
-  main.append(...[map, ...build(data), block].filter(Boolean));
+  await draw();
+  return panel;
+}
+
+const TABS = ["overview", "devices", "blocks", "lists", "vpn", "map", "analysis"];
+
+export async function render(main, data, params = []) {
+  const tab = TABS.includes(params[0]) ? params[0] : "overview";
+  const body = h("div", { class: "stack" });
+  const redraw = () => location.reload();
+  main.append(h("nav", { class: "tabs", "aria-label": t("web.nav_network") }, TABS.map((id) => h("a", { href: `#/network/${id}`, class: id === tab ? "active" : "" }, t(`web.nm_tab_${id}`)))), body);
+  if (tab === "overview") fill(body, h("div", { class: "grid wide" }, piholePanel(data.pihole, redraw), wifiPanel(data)));
+  if (tab === "devices") fill(body, devicesPanel(data.devices, redraw));
+  if (tab === "blocks") fill(body, await blocksPanel(data));
+  if (tab === "lists") fill(body, await blockPanel(data.pihole_enabled));
+  if (tab === "vpn") fill(body, wireguardPanel(data, redraw));
+  if (tab === "map") fill(body, await topologyPanel(deviceDialog));
+  if (tab === "analysis") {
+    const view = await import("./addons.js");
+    await view.renderDetail("analytics", body);
+  }
 }

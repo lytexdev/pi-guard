@@ -18,6 +18,7 @@ whatever a document tries to order has nothing to act on anyway.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import logging
 import re
@@ -232,7 +233,7 @@ class Assistant:
             self.knowledge.remember(key, text, list(names))
         return Answer(text, "documents", used, names)
 
-    async def _complete(self, system: str, turns: list[dict[str, str]]) -> tuple[str, int]:
+    async def _complete(self, system: str, turns: list[dict[str, Any]]) -> tuple[str, int]:
         """One answer from the provider; returns (text, tokens used)."""
         limit = self.settings.max_answer_tokens
         if self.settings.provider == "anthropic":
@@ -405,6 +406,36 @@ class Assistant:
         if response.status_code >= 400:
             raise AssistantError("assistant.failed")
         return Answer(response.json()["translations"][0]["text"], "translate")
+
+    # --- planning and pictures --------------------------------------------------------------
+
+    async def plan(self, system: str, text: str) -> str:
+        """Ask for a structured plan; the caller checks every field of the result."""
+        if not self.ready:
+            raise AssistantError("assistant.no_key")
+        if self.tokens_today >= self.settings.daily_token_limit:
+            raise AssistantError("assistant.limit_reached")
+        answer, _ = await self._complete(system, [{"role": "user", "content": text}])
+        return answer
+
+    async def describe(self, picture: Path, question: str, lang: str) -> str:
+        """What the model sees in a picture. Only called after a person confirmed it."""
+        if not self.settings.allow_vision:
+            raise AssistantError("assistant.no_vision")
+        if not self.ready:
+            raise AssistantError("assistant.no_key")
+        if self.tokens_today >= self.settings.daily_token_limit:
+            raise AssistantError("assistant.limit_reached")
+        data = base64.b64encode(picture.read_bytes()).decode()
+        if self.settings.provider == "anthropic":
+            image: dict[str, Any] = {"type": "image", "source": {
+                "type": "base64", "media_type": "image/jpeg", "data": data}}  # fmt: skip
+        else:
+            image = {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}}
+        content: Any = [image, {"type": "text", "text": question}]
+        system = SYSTEM.format(language=LANGUAGE_NAMES.get(lang, "German"))
+        text, _ = await self._complete(system, [{"role": "user", "content": content}])
+        return text
 
     # --- speech ---------------------------------------------------------------------------
 

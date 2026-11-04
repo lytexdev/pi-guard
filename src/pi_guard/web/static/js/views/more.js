@@ -57,8 +57,8 @@ function designPanel() {
 }
 
 export async function render(main) {
-  const entries = [["setup/welcome", "settings", "web.setup_open"], ["network", "network", "web.nav_network"], ["addons", "cpu", "web.nav_addons"], ["devices", "camera", "web.nav_devices"],
-    ["settings", "settings", "web.nav_settings"], ["notifications", "bell-ringing", "web.nav_notifications"], ["access", "shield-lock", "web.nav_access"],
+  const entries = [["setup/welcome", "settings", "web.setup_open"], ["network", "network", "web.nav_network"], ["addons", "cpu", "web.nav_addons"], ["monitor", "camera", "web.nav_monitor"],
+    ["settings", "settings", "web.nav_settings"],
     ["logs", "list-details", "web.nav_logs"], ["logout", "logout", "web.logout"]];
   fill(main,
     h("div", { class: "topbar" }, h("h1", {}, t("web.nav_more"))),

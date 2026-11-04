@@ -125,6 +125,7 @@ pi-guard logs -f
 | [WhatsApp](docs/whatsapp.md) | Official Cloud API setup and its limits |
 | [Public access](docs/public-access.md) | Domain, reverse proxy and safe login |
 | [Plugins](docs/plugins.md) | Write your own add-ons |
+| [API](docs/api.md) | Tokens and endpoints for your own scripts |
 | [Architecture](docs/architecture.md) | how the parts fit together |
 | [Performance](docs/performance.md) | measurements and limits |
 | [Troubleshooting](docs/troubleshooting.md) | common problems |

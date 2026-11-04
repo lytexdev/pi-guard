@@ -43,6 +43,15 @@ Ausschnitte gehen nur dann an einen Cloud-Anbieter, wenn Sie das ausdrücklich e
 Steuer-ID verlässt dann Ihr Zuhause. Mit Ollama bleibt alles im Heimnetz. Sprachmodelle
 können sich irren: Prüfen Sie wichtige Zahlen im Dokument.
 
+**Netzwerk-Verwaltung:** Unter Netzwerk finden Sie WLANs (auch Gast-WLAN), Geräte mit Namen aus
+dem Router, gesperrte Webseiten, Sperrlisten, VPN und Karte. Eine eigene Sperrseite richtet
+`sudo ./scripts/blockpage.sh setup <freie-IP>` ein. Bei HTTPS erscheint sie nur auf Geräten mit
+installiertem pi-guard-Zertifikat, sonst zeigt der Browser eine eigene Warnung.
+
+**Sprachbefehle:** „Licht im Schlafzimmer aus“, „Fahre meinen PC herunter“, „Nimm heute Nacht von 3
+bis 4 Uhr Ton auf“. Vor jeder Aktion fragt pi-guard nach, Fernbefehle zweimal. Häufige Sätze
+versteht es ohne KI.
+
 **MQTT selbst bereitstellen:** `sudo ./scripts/mqtt.sh setup` installiert Mosquitto mit Passwort.
 
 Details: [addons.md](../addons.md).

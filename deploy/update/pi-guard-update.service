@@ -1,0 +1,8 @@
+[Unit]
+Description=Update pi-guard
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-guard-update
+TimeoutStartSec=20min

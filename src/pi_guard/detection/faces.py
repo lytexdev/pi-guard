@@ -170,6 +170,25 @@ class BiometricStore:
         )
         return [(name, np.frombuffer(blob, dtype=np.float32)) for name, blob in rows]
 
+    def details(self, name: str) -> list[dict[str, Any]]:
+        """One row per stored sample; pictures are not kept, only these numbers."""
+        rows = self._conn.execute(
+            "SELECT s.id, s.created_at, s.embedding, p.enrolled_by FROM samples s "
+            "JOIN people p ON p.id = s.person_id WHERE p.name = ? COLLATE NOCASE ORDER BY s.id",
+            (name,),
+        ).fetchall()
+        vectors = [np.frombuffer(r[2], dtype=np.float32) for r in rows]
+        vectors = [v / (np.linalg.norm(v) or 1.0) for v in vectors]
+        mean = np.mean(vectors, axis=0) if vectors else np.zeros(1, dtype=np.float32)
+        return [
+            {"id": r[0], "created": r[1], "by": r[3], "bytes": len(r[2]), "numbers": len(v),
+             "match": round(float(np.dot(v, mean / (np.linalg.norm(mean) or 1.0))), 2)}
+            for r, v in zip(rows, vectors, strict=True)
+        ]  # fmt: skip
+
+    def delete_sample(self, sample_id: int) -> bool:
+        return self._conn.execute("DELETE FROM samples WHERE id = ?", (sample_id,)).rowcount > 0
+
     def delete(self, name: str) -> bool:
         deleted = (
             self._conn.execute(
@@ -313,6 +332,9 @@ class FaceRecognizer:
     def delete(self, name: str) -> bool:
         self._cache = None
         return self.store.delete(name)
+
+    def forget_cache(self) -> None:
+        self._cache = None
 
     def similar_people(self) -> dict[str, tuple[str, float]]:
         """For each person, the most similar other person and how similar (for warnings)."""

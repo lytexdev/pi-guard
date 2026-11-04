@@ -12,17 +12,19 @@
         async def say_hello(self, ctx, args):
             return self.reply("Hello!")
 
-A plugin is either an installed Python package with an entry point in the group
-`pi_guard.plugins`, or a file in `/etc/pi-guard/plugins/`. Plugins run with the rights of
-pi-guard and can do what it can do, so such a file only counts if it belongs to root and
-nobody else can write to it. Each plugin is switched on in `addons.plugins.<id>.enabled`,
-and the rest of that section is its settings. A broken plugin is skipped, not fatal.
+A plugin is an installed Python package with an entry point in the group `pi_guard.plugins`,
+a file in `/etc/pi-guard/plugins/` that belongs to root, or an add-on installed in the
+dashboard (`<data dir>/plugins/<id>/` with a plugin.json). Plugins run with the rights of
+pi-guard and can do what it can do; the dashboard asks for the password before it takes
+code. Each plugin is switched on in `addons.plugins.<id>.enabled`, and the rest of that section
+is its settings. A broken plugin is skipped, not fatal.
 """
 
 from __future__ import annotations
 
 import asyncio
 import importlib.util
+import json
 import logging
 import stat
 from collections.abc import Awaitable, Callable, Iterable
@@ -42,6 +44,22 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 PLUGIN_DIR = Path("/etc/pi-guard/plugins")
+UPLOAD_DIR = "plugins"  # inside the data directory
+TEMPLATE = '''"""{name}: an own pi-guard add-on."""
+
+from pi_guard.addons.plugin import Plugin
+
+
+class {cls}(Plugin):
+    id = "{id}"
+    title = "{name}"
+
+    def commands(self):
+        return [self.command("{id}", self.answer)]
+
+    async def answer(self, ctx, args):
+        return self.reply("Hello from {name}!")
+'''
 ENTRY_POINT_GROUP = "pi_guard.plugins"
 
 
@@ -107,8 +125,21 @@ def _from_file(path: Path) -> list[type[Plugin]]:
     ]  # fmt: skip
 
 
-def discover(directory: Path = PLUGIN_DIR, check_owner: bool = True) -> dict[str, type[Plugin]]:
+def _uploaded(root: Path) -> list[type[Plugin]]:
     found: list[type[Plugin]] = []
+    for manifest in sorted(root.glob("*/plugin.json")):
+        try:
+            entry = str(json.loads(manifest.read_text()).get("entry", "plugin.py"))
+            found += _from_file(manifest.parent / Path(entry).name)
+        except Exception:
+            log.exception("add-on %s could not be loaded", manifest.parent.name)
+    return found
+
+
+def discover(
+    directory: Path = PLUGIN_DIR, check_owner: bool = True, uploads: Path | None = None
+) -> dict[str, type[Plugin]]:
+    found: list[type[Plugin]] = _uploaded(uploads) if uploads else []
     for entry in entry_points(group=ENTRY_POINT_GROUP):
         try:
             found.append(entry.load())
@@ -131,7 +162,7 @@ def load_plugins(app: App, settings: dict[str, dict[str, Any]]) -> list[Plugin]:
     if not wanted:
         return []
     plugins: list[Plugin] = []
-    available = discover()
+    available = discover(uploads=app.settings.data_dir / UPLOAD_DIR)
     for plugin_id, config in wanted.items():
         cls = available.get(plugin_id)
         if cls is None:

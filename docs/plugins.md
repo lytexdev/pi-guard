@@ -36,7 +36,19 @@ and `self.settings` holds your section of the configuration.
 
 ## Installing
 
-Either as a Python package with an entry point:
+In the dashboard under **Add-ons › Own add-ons**: upload a ZIP, or create one and edit its code
+there. The ZIP needs a `plugin.json`:
+
+```json
+{"id": "doorbell", "name": "Doorbell", "version": "1.0", "entry": "plugin.py",
+ "author": "You", "description": "Rings the speaker"}
+```
+
+The dashboard asks for your password first, because this installs program code. Paths in the
+ZIP are checked before anything is written. There is no public add-on directory yet; the search
+covers what is installed.
+
+Or as a Python package with an entry point:
 
 ```toml
 [project.entry-points."pi_guard.plugins"]

@@ -59,6 +59,7 @@ export async function render(main, params = [], opts = {}) {
           p.similar_to ? h("small", { class: "warn-text" }, h("br"), t("web.similar_warning", { other: p.similar_to })) : null,
           !p.similar_to && p.few_samples ? h("small", { class: "muted" }, h("br"), t("web.few_samples")) : null),
         h("button", { class: "icon-only", title: t("faces.more_button", { name: p.name }), onclick: () => { enrollForm(p.name); formPanel.scrollIntoView({ behavior: "smooth" }); } }, icon("plus")),
+        h("button", { class: "icon-only", title: t("web.pp_details"), onclick: () => detailsDialog(p, drawList) }, icon("list-details")),
         h("button", { class: "icon-only", title: t("web.rename"), onclick: async () => {
           const next = prompt(t("web.new_name"), p.name);
           if (next && next.trim() !== p.name && await attempt(() => api(`/api/people/${encodeURIComponent(p.name)}`, { method: "PATCH", body: { name: next.trim() } }), t("web.saved"))) drawList();
@@ -115,4 +116,23 @@ function testPanel() {
     h("p", { class: "muted" }, t("web.test_hint")),
     h("div", { class: "row" }, file, button),
     out);
+}
+
+async function detailsDialog(person, redraw) {
+  const rows = await attempt(() => api(`/api/people/${encodeURIComponent(person.name)}`));
+  if (!rows) return;
+  const list = h("ul", { class: "list" });
+  const draw = (items) => fill(list, items.map((r) => h("li", {}, icon("photo"),
+    h("div", { class: "grow" }, h("div", {}, when(r.created)), h("small", {}, t("web.pp_sample", { numbers: r.numbers, bytes: r.bytes, match: Math.round(r.match * 100) }))),
+    r.match < 0.45 ? h("span", { class: "badge danger" }, t("web.pp_odd")) : null,
+    h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+      if (await attempt(() => api(`/api/people-samples/${r.id}`, { method: "DELETE" }))) { items = items.filter((x) => x.id !== r.id); draw(items); redraw(); }
+    } }, icon("trash")))));
+  draw(rows);
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, person.name),
+    h("p", { class: "muted" }, t("web.pp_intro", { count: rows.length, by: rows[0]?.by || "–" })), list,
+    h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
 }

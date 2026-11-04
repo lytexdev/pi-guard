@@ -169,7 +169,7 @@ async def test_security_analysis(tmp_path: Path, monkeypatch: Any) -> None:
         assert data["counts"]["honeypot_hits"] == 1 and data["counts"]["bans"] == 1
         assert any(s["ip"] == "203.0.113.9" for s in data["top_sources"])
         assert data["honeypot_paths"][0]["path"] == "/wp-admin"
-        assert "web.sec_tip_2fa" in data["recommendations"]
+        assert data["recommendations"][0] == {"key": "web.sec_tip_2fa", "href": "#/settings/access"}
         assert data["new_devices"] == []  # the first look only learns what is there
 
         async def more(interface: Any = None) -> dict[str, Any]:

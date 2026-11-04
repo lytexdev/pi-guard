@@ -340,6 +340,11 @@ class AssistantAddon(_Model):
     # Passages from your files and documents may be sent to a cloud provider.
     # Local models (Ollama) always may use them; nothing leaves the network then.
     share_documents: bool = False
+    # The AI may be told names of devices and cameras to plan actions. Simple commands
+    # ("Licht Schlafzimmer aus") work without this, locally and without tokens.
+    ai_actions: bool = False
+    # Camera pictures may be sent to the provider, each time after confirmation.
+    allow_vision: bool = False
     paperless_url: str | None = None
     nextcloud_url: str | None = None
     nextcloud_user: str = ""

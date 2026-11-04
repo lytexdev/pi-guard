@@ -282,6 +282,11 @@ fi
 
 # 13: systemd ------------------------------------------------------------------------
 say "installing systemd service"
+OWNER="$(stat -c %U "$REPO")"
+printf 'REPO=%q\nOWNER=%q\n' "$REPO" "$OWNER" > "$CONF/update.conf"
+runuser -u "$OWNER" -- git -C "$REPO" rev-parse HEAD > "$PREFIX/commit" 2>/dev/null || true
+install -m 0755 "$REPO/scripts/update.sh" /usr/local/sbin/pi-guard-update
+install -m 0644 "$REPO/deploy/update/pi-guard-update.path" "$REPO/deploy/update/pi-guard-update.service" /etc/systemd/system/
 install -m 0644 "$REPO/deploy/systemd/pi-guard.service" /etc/systemd/system/pi-guard.service
 DROPIN=/etc/systemd/system/pi-guard.service.d
 if [[ "$RECORDINGS" != "$DATA"* ]]; then
@@ -292,6 +297,7 @@ systemctl daemon-reload
 "$PREFIX/venv/bin/pi-guard" --env-file "$ENV_FILE" config check \
     || die "configuration is invalid; fix $ENV_FILE and run the installer again"
 systemctl enable --quiet pi-guard
+systemctl enable --now --quiet pi-guard-update.path
 systemctl restart pi-guard
 
 # 14: diagnostics --------------------------------------------------------------------

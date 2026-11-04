@@ -35,6 +35,7 @@ from pi_guard.integrations.mqtt.bridge import MqttBridge
 from pi_guard.messaging.base import Provider
 from pi_guard.messaging.commands import build_registry
 from pi_guard.messaging.hub import Messenger
+from pi_guard.network.fritzbox import FritzBox
 from pi_guard.network.pihole import Pihole
 from pi_guard.notifications.engine import Notifier
 from pi_guard.notifications.escalation import Escalation
@@ -131,6 +132,10 @@ class App:
         if s.pihole_enabled:
             password = s.pihole_password.get_secret_value() if s.pihole_password else None
             self.pihole = Pihole(s.pihole_url, password)
+        self.fritz: FritzBox | None = None
+        if s.fritzbox_password and s.fritzbox_password.get_secret_value():
+            box = config.file.presence.fritzbox
+            self.fritz = FritzBox(box.host, box.username, s.fritzbox_password.get_secret_value())
         self.addons = Addons(self)
         if s.presence_enabled:
             presence = config.file.presence
@@ -284,6 +289,11 @@ class App:
             parts["mqtt"] = self.mqtt.run
         if self.dashboard is not None:
             parts["dashboard"] = self.dashboard.run
+            if self.settings.blockpage_ip:
+                from pi_guard.addons.blockpage import BlockPage
+
+                page = BlockPage(self.dashboard.tls_dir, self.settings.language)
+                parts["blockpage"] = page.run
         parts.update(self.addons.components())
         if (
             self.audio is not None

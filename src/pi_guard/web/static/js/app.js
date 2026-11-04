@@ -1,5 +1,6 @@
 // Shell, navigation and hash router. Views live in ./views and render into <main>.
 import { accessibilityButton, applyAccessibility } from "./accessibility.js";
+import { assistantButton, scrollTopButton } from "./widgets.js";
 import { api, h, icon, loadTexts, lang, setCsrf, t, fill } from "./api.js";
 import { applyDesign } from "./theme.js";
 
@@ -11,10 +12,8 @@ const VIEWS = {
   more: () => import("./views/more.js"),
   network: () => import("./views/network.js"),
   addons: () => import("./views/addons.js"),
-  notifications: () => import("./views/notifications.js"),
-  settings: () => import("./views/settings.js"),
-  devices: () => import("./views/devices.js"),
-  access: () => import("./views/access.js"),
+  settings: () => import("./views/settings-hub.js"),
+  monitor: () => import("./views/monitor.js"),
   logs: () => import("./views/logs.js"),
   login: () => import("./views/login.js"),
   setup: () => import("./views/setup.js"),
@@ -22,16 +21,14 @@ const VIEWS = {
 const PRIMARY = [
   ["overview", "home", "web.nav_overview"],
   ["live", "video", "web.nav_live"],
+  ["monitor", "camera", "web.nav_monitor"],
   ["events", "bell", "web.nav_events"],
   ["people", "users", "web.nav_people"],
 ];
 const SECONDARY = [
   ["network", "network", "web.nav_network"],
   ["addons", "cpu", "web.nav_addons"],
-  ["devices", "camera", "web.nav_devices"],
   ["settings", "settings", "web.nav_settings"],
-  ["notifications", "bell-ringing", "web.nav_notifications"],
-  ["access", "shield-lock", "web.nav_access"],
   ["logs", "list-details", "web.nav_logs"],
 ];
 
@@ -52,14 +49,17 @@ function shell(route) {
     PRIMARY.map(([r, i, l]) => link(r, i, l, route)),
     h("h3", {}, t("web.nav_system")),
     SECONDARY.map(([r, i, l]) => link(r, i, l, route)),
+    (state.session?.pinned || []).length ? h("h3", {}, t("web.nav_pinned")) : null,
+    (state.session?.pinned || []).map((id) => link(`addons/${id}`, "cpu", `addons.${id}`, route)),
     h("div", { class: "spacer" }),
     h("a", { href: "#/logout" }, icon("logout"), h("span", {}, t("web.logout"))),
     h("div", { class: "credit" }, "pi-guard · made by lytex"));
   const tabbar = h("nav", { class: "tabbar", "aria-label": "pi-guard" },
-    PRIMARY.map(([r, i, l]) => link(r, i, l, route)),
+    PRIMARY.filter(([r]) => r !== "monitor").map(([r, i, l]) => link(r, i, l, route)),
     link("more", "menu-2", "web.nav_more",
       SECONDARY.some(([r]) => r === route) || route === "more" ? "more" : route));
-  return h("div", { class: "shell" }, nav, main, tabbar, accessibilityButton());
+  return h("div", { class: "shell" }, nav, main, tabbar, scrollTopButton(), accessibilityButton(),
+    state.session?.assistant ? assistantButton() : null);
 }
 
 async function refreshSession() {
@@ -79,7 +79,9 @@ async function route() {
 
 async function show() {
   if (cleanup) { cleanup(); cleanup = null; }
-  const [name, ...params] = (location.hash.replace(/^#\/?/, "") || "overview").split("/");
+  let [name, ...params] = (location.hash.replace(/^#\/?/, "") || "overview").split("/");
+  if (["devices", "notifications", "access"].includes(name)) { params = [name]; name = "settings"; }
+  if (name === "addons" && params[0] === "analytics") { name = "network"; params = []; }
   const root = document.getElementById("app");
   if (name === "logout") {
     await api("/api/logout", { method: "POST" }).catch(() => {});

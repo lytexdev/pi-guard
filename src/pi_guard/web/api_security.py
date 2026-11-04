@@ -51,20 +51,20 @@ def track_devices(app: Any, macs: list[str]) -> list[dict[str, str]]:
     return [{"mac": m, "first_seen": ts} for m, ts in seen.items() if ts and ts >= limit]
 
 
-def recommendations(d: Any, account: dict[str, Any]) -> list[str]:
+def recommendations(d: Any, account: dict[str, Any]) -> list[dict[str, str]]:
     s = d.settings
     tips = []
     strong_login = account["totp"] or d.auth.credentials()
     if not strong_login:
-        tips.append("web.sec_tip_2fa")
+        tips.append({"key": "web.sec_tip_2fa", "href": "#/settings/access"})
     if account["totp"] and not account["recovery_left"]:
-        tips.append("web.sec_tip_recovery")
+        tips.append({"key": "web.sec_tip_recovery", "href": "#/settings/access"})
     if s.dashboard_public_url and not strong_login:
-        tips.append("web.sec_tip_public_2fa")
+        tips.append({"key": "web.sec_tip_public_2fa", "href": "#/settings/access"})
     if not s.dashboard_honeypot:
-        tips.append("web.sec_tip_honeypot")
+        tips.append({"key": "web.sec_tip_honeypot", "href": "#/settings/dashboard"})
     if not s.dashboard_tls and not s.dashboard_public_url:
-        tips.append("web.sec_tip_tls")
+        tips.append({"key": "web.sec_tip_tls", "href": "#/settings/dashboard"})
     return tips
 
 

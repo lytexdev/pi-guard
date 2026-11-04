@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS web_account (
     id INTEGER PRIMARY KEY CHECK (id = 1), username TEXT NOT NULL, password_hash TEXT NOT NULL,
     must_change INTEGER NOT NULL, totp TEXT, totp_pending TEXT, updated TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS web_recovery (hash TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS web_tokens (
+    id INTEGER PRIMARY KEY, name TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, scope TEXT NOT NULL,
+    created TEXT NOT NULL, last_used TEXT);
 CREATE TABLE IF NOT EXISTS web_factors (name TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS web_credentials (
     id TEXT PRIMARY KEY, public_key TEXT NOT NULL, sign_count INTEGER NOT NULL,
@@ -412,6 +415,34 @@ class AuthStore:
         if row is None:
             return True
         return verify_password(word.strip().casefold()[:200], row["value"], self._pepper)
+
+    # API tokens: 256 random bits, shown once, stored as a hash.
+
+    def create_token(self, name: str, scope: str) -> str:
+        token = f"pg_{secrets.token_urlsafe(32)}"
+        self._db.execute(
+            "INSERT INTO web_tokens (name, hash, scope, created) VALUES (?, ?, ?, ?)",
+            (name[:40], _digest(token), scope, utcnow().isoformat()),
+        )
+        return token
+
+    def tokens(self) -> list[dict[str, Any]]:
+        rows = self._db.execute(
+            "SELECT id, name, scope, created, last_used FROM web_tokens ORDER BY id"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_token(self, token_id: int) -> bool:
+        return self._db.execute("DELETE FROM web_tokens WHERE id = ?", (token_id,)).rowcount > 0
+
+    def check_token(self, token: str) -> dict[str, Any] | None:
+        row = self._db.execute("SELECT * FROM web_tokens WHERE hash = ?",
+                               (_digest(token),)).fetchone()  # fmt: skip
+        if row is None:
+            return None
+        self._db.execute("UPDATE web_tokens SET last_used = ? WHERE id = ?",
+                         (utcnow().isoformat(), row["id"]))  # fmt: skip
+        return dict(row)
 
     # Passkeys and hardware keys (WebAuthn).
 
