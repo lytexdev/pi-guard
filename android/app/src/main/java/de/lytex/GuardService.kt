@@ -36,6 +36,7 @@ class GuardService : Service() {
     private var ringtone: Ringtone? = null
     private var alerts = ALERT_BASE
     private var checkedUpdate = 0L
+    private var retryAfter = RETRY_AFTER
     private lateinit var store: Store
 
     private val reconnect = Runnable { connect() }
@@ -91,16 +92,29 @@ class GuardService : Service() {
         val url = store.url!!.replaceFirst("https://", "wss://")
         val request = Net.request(store, "").url("$url/api/mobile/ws").build()
         socket = Net.client(store).newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) = main.removeCallbacks(reconnect)
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                main.removeCallbacks(reconnect)
+                retryAfter = RETRY_AFTER
+            }
+
             override fun onMessage(webSocket: WebSocket, text: String) = received(JSONObject(text))
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) = retry()
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                if (response?.code == 401) {
+                    store.token = null // removed in the dashboard: the app asks for a login again
+                    main.post(::stopSelf)
+                } else {
+                    retry()
+                }
+            }
+
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = retry()
         })
     }
 
     private fun retry() {
         main.removeCallbacks(reconnect)
-        main.postDelayed(reconnect, RETRY_AFTER)
+        main.postDelayed(reconnect, retryAfter)
+        retryAfter = minOf(retryAfter * 2, RETRY_MAX) // away from home this saves the battery
     }
 
     private fun send(report: JSONObject) {
@@ -182,6 +196,7 @@ class GuardService : Service() {
         private const val UPDATE_EVERY = 24 * 3600_000L
         private const val ALERT_BASE = 100
         private const val RETRY_AFTER = 15_000L
+        private const val RETRY_MAX = 300_000L
         private const val REPORT_EVERY = 15 * 60_000L
         private const val RING_FOR = 120_000L
         private const val ACTION_STOP_RING = "de.lytex.STOP_RING"

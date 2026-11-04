@@ -20,10 +20,17 @@ import kotlin.concurrent.thread
 class AppSettingsActivity : AppCompatActivity() {
     private lateinit var store: Store
     private lateinit var vpnState: TextView
-    private val askCalendar = registerForActivityResult(ActivityResultContracts.RequestPermission()) { store.useCalendar = it }
+    private val askCalendar = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        store.useCalendar = it
+        findViewById<CheckBox>(R.id.calendar).isChecked = it
+    }
     private val askLocation = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         store.shareLocation = it[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        findViewById<CheckBox>(R.id.location).isChecked = store.shareLocation
         if (store.shareLocation) askBackground.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    }
+    private val askVpn = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == RESULT_OK) toggleVpn()
     }
     private val askBackground = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
@@ -63,10 +70,13 @@ class AppSettingsActivity : AppCompatActivity() {
         box.setOnCheckedChangeListener { _, on -> changed(on) }
     }
 
-    private fun showVpn() = vpnState.setText(if (Vpn.running) R.string.vpn_on else R.string.vpn_off)
+    private fun showVpn() {
+        vpnState.setText(if (Vpn.running) R.string.vpn_on else R.string.vpn_off)
+        findViewById<Button>(R.id.vpn_toggle).setText(if (Vpn.running) R.string.disconnect_vpn else R.string.connect_vpn)
+    }
 
     private fun toggleVpn() {
-        VpnService.prepare(this)?.let { return startActivity(it) }
+        VpnService.prepare(this)?.let { return askVpn.launch(it) }
         thread {
             val done = runCatching { if (Vpn.running) Vpn.down(this) else Vpn.up(this, store) }.isSuccess
             runOnUiThread {

@@ -43,6 +43,9 @@ class MainActivity : AppCompatActivity() {
         chosen?.onReceiveValue(it.toTypedArray())
         chosen = null
     }
+    private val askVpn = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == RESULT_OK) connectVpn()
+    }
     private val askPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
 
     override fun onCreate(state: Bundle?) {
@@ -122,7 +125,10 @@ class MainActivity : AppCompatActivity() {
         thread {
             val cookie = runCatching {
                 val request = Net.request(store, "/api/mobile/session").post(ByteArray(0).toRequestBody()).build()
-                Net.client(store).newCall(request).execute().use { it.header("Set-Cookie").takeIf { _ -> it.isSuccessful } }
+                Net.client(store).newCall(request).execute().use {
+                    if (it.code == 401) store.token = null // removed in the dashboard: log in again
+                    it.header("Set-Cookie").takeIf { _ -> it.isSuccessful }
+                }
             }.getOrNull()
             runOnUiThread {
                 if (cookie != null) CookieManager.getInstance().setCookie(store.url, cookie)
@@ -159,7 +165,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun connectVpn() {
         val permission = android.net.VpnService.prepare(this)
-        if (permission != null) return startActivity(permission)
+        if (permission != null) return askVpn.launch(permission)
         thread {
             val done = runCatching { Vpn.up(this, store) }.isSuccess
             runOnUiThread { if (done) open() else Toast.makeText(this, R.string.vpn_failed, Toast.LENGTH_LONG).show() }

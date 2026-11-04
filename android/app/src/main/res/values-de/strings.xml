@@ -17,6 +17,7 @@
     <string name="cancel">Abbrechen</string>
     <string name="unreachable">pi-guard ist nicht erreichbar.</string>
     <string name="connect_vpn">VPN verbinden</string>
+    <string name="disconnect_vpn">VPN trennen</string>
     <string name="retry">Erneut versuchen</string>
     <string name="pair_failed">Dieses Handy konnte nicht verbunden werden. Ist das Add-on Handy-App an, und bist du im Heimnetz?</string>
     <string name="sos">SOS</string>
