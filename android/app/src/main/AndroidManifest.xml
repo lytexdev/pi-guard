@@ -30,10 +30,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".SetupActivity" android:exported="false" />
+        <activity android:name=".SetupActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".LockActivity" android:exported="false" />
         <activity android:name=".EmergencyActivity" android:exported="false" android:showWhenLocked="true" android:turnScreenOn="true" />
-        <activity android:name=".AppSettingsActivity" android:exported="false" />
+        <activity android:name=".AppSettingsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
 
         <service android:name=".GuardService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Live connection to the user's own home security system, for alarms and finding this phone." />

@@ -21,6 +21,10 @@ class SetupActivity : AppCompatActivity() {
         address = findViewById(R.id.address)
         findViewById<Button>(R.id.connect).setOnClickListener { connect(address.text.toString().trim().trimEnd('/')) }
         findViewById<Button>(R.id.search).setOnClickListener { search() }
+        address.setOnEditorActionListener { _, _, _ ->
+            connect(address.text.toString().trim().trimEnd('/'))
+            true
+        }
         search()
     }
 
@@ -30,7 +34,7 @@ class SetupActivity : AppCompatActivity() {
             val found = Net.discover(this)
             runOnUiThread {
                 if (found != null) {
-                    address.setText(found)
+                    if (address.text.isBlank()) address.setText(found) // never over what was typed
                     status.text = getString(R.string.setup_found, found)
                 } else {
                     status.setText(R.string.setup_none)
