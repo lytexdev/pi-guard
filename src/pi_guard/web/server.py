@@ -50,6 +50,7 @@ VIEWER_GET = {"/api/overview", "/api/events", "/api/stats", "/api/alerts", "/api
 VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check",
                "/api/account/totp/begin", "/api/account/totp/confirm",
                "/api/account/totp/disable"}  # fmt: skip
+MODULES = ("discord", "whatsapp", "email")
 SETUP_DONE_KEY = "web.setup_done"
 TOTP_LENGTH = 6
 STATIC = Path(str(resources.files("pi_guard.web").joinpath("static")))
@@ -281,6 +282,11 @@ class Dashboard:
         request[SESSION_KEY] = Session(f"api:{found['name']}", "", False)
         return await handler(request)
 
+    def modules(self) -> dict[str, bool]:
+        """Optional messengers: shown only if wanted. On by default if already in use."""
+        saved = self.app.db.get("web.modules") or {}
+        return {m: bool(saved.get(m, getattr(self.settings, f"{m}_enabled"))) for m in MODULES}
+
     @staticmethod
     def _viewer_may(request: web.Request) -> bool:
         path = request.path
@@ -354,6 +360,7 @@ class Dashboard:
             "pinned": (self.app.db.get("web.pinned") or []) if active else [],
             "nav": self.app.db.get(f"web.nav.{session.username}") or [] if session else [],
             "support": (self.app.db.get("web.support") or {}) if active else {},
+            "modules": self.modules() if active else {},
             "assistant": bool(
                 active and self.app.addons.assistant
                 and session and self.auth.role_of(session.username) == "admin"

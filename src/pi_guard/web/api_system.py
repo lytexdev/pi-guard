@@ -8,7 +8,6 @@ import io
 import json
 import re
 import shutil
-import tempfile
 import time
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -26,6 +25,7 @@ from pi_guard.addons.plugin import (
     check_manifest,
     read_manifest,
 )
+from pi_guard.addons.plugin_updates import PluginGitError
 from pi_guard.config.files import FileConfig
 from pi_guard.web.api_manage import saved_config, write_config
 from pi_guard.web.server import current, dashboard, read_json
@@ -48,6 +48,9 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/plugin-manager", plugin_upload),
         web.post("/api/plugin-manager/create", plugin_create),
         web.post("/api/plugin-manager/git", plugin_from_git),
+        web.post("/api/plugin-manager/{id}/check", plugin_check),
+        web.post("/api/plugin-manager/{id}/update", plugin_update),
+        web.put("/api/plugin-manager/{id}/auto", plugin_auto),
         web.get("/api/plugin-manager/{id}/panel", plugin_panel),
         web.post("/api/plugin-manager/{id}/action/{name}", plugin_action),
         web.put("/api/plugin-manager/{id}/settings", plugin_settings),
@@ -197,6 +200,7 @@ async def plugin_list(request: web.Request) -> web.Response:
     root = _root(request)
     enabled = (saved_config(d).get("addons") or {}).get("plugins") or {}
     running = {p.id for p in d.app.addons.plugins}
+    updates = d.app.addons.updates
     rows = []
     for directory in sorted(root.iterdir()) if root.is_dir() else []:
         manifest = _manifest(directory)
@@ -208,6 +212,9 @@ async def plugin_list(request: web.Request) -> web.Response:
                     **manifest,
                     "enabled": active,
                     "running": directory.name in running,
+                    "git": _git_info(record)
+                    if (record := updates.record(directory.name))
+                    else None,
                     "values": {
                         f["key"]: values.get(f["key"], f["default"])
                         for f in manifest["settings"]
@@ -240,34 +247,53 @@ async def plugin_from_git(request: web.Request) -> web.Response:
     url = str(data.get("url", "")).strip()
     if not re.match(r"^https://[A-Za-z0-9./_-]{4,200}$", url):
         raise web.HTTPBadRequest(text="web.pm_bad_url")
-    root = _root(request)
-    root.mkdir(parents=True, exist_ok=True)
-    work = Path(tempfile.mkdtemp(prefix=".git-", dir=root))
+    d = dashboard(request)
     try:
-        process = await asyncio.create_subprocess_exec(
-            "git", "-c", "protocol.allow=never", "-c", "protocol.https.allow=always", "clone",
-            "--depth", "1", "--no-recurse-submodules", "--", url, str(work / "repo"),
-            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
-            env={"GIT_TERMINAL_PROMPT": "0", "PATH": "/usr/bin:/bin", "HOME": str(work)},
-        )  # fmt: skip
-        if await asyncio.wait_for(process.wait(), 60) != 0:
-            raise web.HTTPBadGateway(text="web.pm_git_failed")
-        repo = work / "repo"
-        shutil.rmtree(repo / ".git", ignore_errors=True)
-        try:
-            manifest = read_manifest(repo)
-        except (OSError, ValueError):
-            raise web.HTTPBadRequest(text="web.pm_bad_manifest") from None
-        if not (repo / manifest["entry"]).is_file() or any(p.is_symlink() for p in repo.rglob("*")):
-            raise web.HTTPBadRequest(text="web.pm_bad_manifest")
-        target = root / manifest["id"]
-        if target.exists():
-            shutil.rmtree(target)
-        repo.rename(target)
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-    dashboard(request).app.db.audit(f"web:{current(request).username}", "plugin.install", url[:120])
+        manifest = await d.app.addons.updates.install(url)
+    except PluginGitError as exc:
+        status = web.HTTPBadGateway if exc.key == "web.pm_git_failed" else web.HTTPBadRequest
+        raise status(text=exc.key) from None
+    d.app.db.audit(f"web:{current(request).username}", "plugin.install", url[:120])
     return web.json_response(manifest)
+
+
+async def plugin_check(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    try:
+        record = await d.app.addons.updates.check(request.match_info["id"])
+    except PluginGitError as exc:
+        raise web.HTTPBadGateway(text=exc.key) from None
+    if record is None:
+        raise web.HTTPNotFound()
+    return web.json_response(_git_info(record))
+
+
+async def plugin_update(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await read_json(request)
+    _confirmed(request, str(data.get("password", "")))
+    try:
+        manifest = await d.app.addons.updates.update(request.match_info["id"])
+    except PluginGitError as exc:
+        raise web.HTTPBadGateway(text=exc.key) from None
+    return web.json_response(manifest)
+
+
+async def plugin_auto(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await read_json(request)
+    enabled = data.get("enabled") is True
+    if enabled:  # new code from elsewhere would run without anybody looking at it
+        _confirmed(request, str(data.get("password", "")))
+    if not d.app.addons.updates.set_auto(request.match_info["id"], enabled):
+        raise web.HTTPNotFound()
+    d.app.db.audit(f"web:{current(request).username}", "plugin.auto_update", str(enabled))
+    return web.json_response({"ok": True})
+
+
+def _git_info(record: dict[str, Any]) -> dict[str, Any]:
+    return {"url": record["url"], "branch": record["branch"], "commit": record["commit"][:10],
+            "auto": record["auto"], "update": record["latest"] != record["commit"]}  # fmt: skip
 
 
 def _running_plugin(request: web.Request) -> Any:
@@ -361,6 +387,7 @@ async def plugin_delete(request: web.Request) -> web.Response:
     directory, manifest = _plugin_dir(request)
     await _set_enabled(request, manifest["id"], False)
     shutil.rmtree(directory)
+    dashboard(request).app.addons.updates.forget(manifest["id"])
     dashboard(request).app.db.audit(
         f"web:{current(request).username}", "plugin.delete", manifest["id"]
     )

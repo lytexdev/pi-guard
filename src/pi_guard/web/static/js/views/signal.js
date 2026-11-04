@@ -9,6 +9,16 @@ export async function discordPanel() {
     s.connected ? h("button", { title: t("web.discord_test_tip"), onclick: () => attempt(() => api("/api/discord/test", { method: "POST" }), t("web.discord_test_sent")) }, icon("bell"), t("web.discord_test")) : null);
 }
 
+export function emailPanel() {
+  return h("section", { class: "panel stack" }, h("h2", {}, t("web.email_status")), h("p", { class: "muted" }, t("web.email_hint")),
+    h("div", { class: "row" },
+      h("button", { title: t("web.email_test_tip"), onclick: () => attempt(() => api("/api/email/test", { method: "POST" }), t("web.email_sent")) }, icon("mail"), t("web.email_test")),
+      h("button", { title: t("web.email_export_tip"), onclick: async () => {
+        const password = prompt(t("web.confirm_password"));
+        if (password) await attempt(() => api("/api/email/export", { method: "POST", body: { password } }), t("web.email_sent"));
+      } }, icon("download"), t("web.email_export"))));
+}
+
 export async function signalPanel() {
   const panel = h("section", { class: "panel stack" });
   let timer = null;

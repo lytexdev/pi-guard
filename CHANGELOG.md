@@ -8,6 +8,12 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Modules for Discord, WhatsApp and email that can be switched off, with a Verified badge.
+- Email add-on: alerts and data exports, off by default.
+- Plugins from a Git link can be checked and updated, also automatically if chosen, following
+  `release_branch` from plugin.json or the main branch.
+- Settings panels fold; your own add-ons open with the plus beside the search.
+- Optional donations under Support.
 - A bar shows how well a trusted person is learned and which pictures would help; slightly turned
   faces are accepted now. Viewing direction and brightness are stored with each sample.
 - FRITZ!Box user name in the settings.

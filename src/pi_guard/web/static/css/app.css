@@ -476,3 +476,16 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .person-row { flex-wrap: wrap; }
 .person-row .quality { flex: 1 1 100%; max-width: none; }
 .quality-tips li { display: list-item; padding: 0; border: 0; min-height: 0; }
+
+/* Folding panels, add-ons, donations */
+.foldable > h2:first-child, .foldable > .row.between:first-child > h2 { cursor: pointer; user-select: none; }
+.foldable > h2:first-child::after, .foldable > .row.between:first-child > h2::after { content: "▾"; margin-left: 8px; color: var(--muted); font-size: .9em; display: inline-block; }
+.folded > h2:first-child::after, .folded > .row.between:first-child > h2::after { transform: rotate(-90deg); }
+.panel.folded > :not(:first-child) { display: none; }
+.verified { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; vertical-align: 2px; font-weight: 500; }
+.verified .icon { width: 14px; height: 14px; }
+.git-row { flex: 1 1 100%; align-items: center; }
+.donate-row { flex-wrap: wrap; }
+.donate-row .wrap { word-break: break-all; }
+.donate-row .qr { flex: 1 1 100%; max-width: 220px; margin: 8px auto; }
+.donate-row .clip, .donate-row .clip * { white-space: normal; overflow: visible; text-overflow: clip; }

@@ -1,6 +1,6 @@
 // .env settings the dashboard may change, grouped, with a restart prompt.
 import { api, attempt, confirmDialog, h, icon, lang, t, fill } from "../api.js";
-import { switchLanguage } from "../app.js";
+import { state, switchLanguage } from "../app.js";
 
 export async function restartPrompt() {
   if (await confirmDialog(t("web.restart_confirm"), t("web.restart"))) {
@@ -10,7 +10,7 @@ export async function restartPrompt() {
 }
 
 const tip = (key) => (t(key) === key ? null : t(key));
-const GROUP_ICONS = { messaging: "brand-telegram", discord: "brand-discord", signal: "brand-signal", whatsapp: "brand-whatsapp" };
+const GROUP_ICONS = { messaging: "brand-telegram", discord: "brand-discord", signal: "brand-signal", whatsapp: "brand-whatsapp", email: "mail" };
 const FIELD_ICONS = [["mqtt_", "brand-mqtt"], ["pihole_", "brand-pihole"], ["wireguard_", "brand-wireguard"], ["assistant_deepl", "brand-deepl"],
   ["assistant_paperless", "brand-paperless"], ["assistant_nextcloud", "brand-nextcloud"]];
 const fieldIcon = (key) => FIELD_ICONS.find(([prefix]) => key.startsWith(prefix))?.[1];
@@ -72,7 +72,8 @@ function read(field, el) {
 export async function render(main, params = [], opts = {}) {
   const data = await api("/api/settings");
   const inputs = new Map();
-  const fields = data.fields.filter((f) => !opts.groups || opts.groups.includes(f.group));
+  const wanted = (group) => state.session?.modules?.[group] !== false;  // switched off under Add-ons
+  const fields = data.fields.filter((f) => (!opts.groups || opts.groups.includes(f.group)) && wanted(f.group));
   const groups = [...new Set(fields.map((f) => f.group))];
   const save = h("button", { class: "primary big", onclick: async () => {
     const changed = {};
@@ -92,7 +93,7 @@ export async function render(main, params = [], opts = {}) {
   fill(main,
     opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t("web.nav_settings")), save),
     data.overrides.length && !opts.embedded ? h("p", { class: "notice" }, t("web.overrides_note")) : null,
-    h("div", { class: "grid wide" }, groups.map((group) => h("section", { class: "panel" },
+    h("div", { class: "grid wide" }, groups.map((group) => h("section", { class: "panel", dataset: { foldDefault: data.values[`${group}_enabled`] === false ? "closed" : "open" } },
       h("h2", {}, GROUP_ICONS[group] ? [icon(GROUP_ICONS[group]), " "] : null, t(`web.group_${group}`)),
       fields.filter((f) => f.group === group).map((field) => {
         const el = control(field, data.values[field.key]);

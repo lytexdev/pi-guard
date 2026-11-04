@@ -59,6 +59,17 @@ class Settings(BaseSettings):
     discord_admin_user_ids: StrList = Field(default_factory=list)
     discord_viewer_user_ids: StrList = Field(default_factory=list)
 
+    # Email (optional, alerts and exports only; see docs/email.md)
+    email_enabled: bool = False
+    email_host: str = ""
+    email_port: int = Field(587, ge=1, le=65535)
+    email_security: Literal["starttls", "tls"] = "starttls"
+    email_username: str = ""
+    email_password: SecretStr | None = None
+    email_from: str = ""
+    email_recipients: StrList = Field(default_factory=list)
+    email_export: Literal["off", "weekly", "monthly"] = "off"
+
     signal_enabled: bool = False
     signal_phone_number: str | None = None
     signal_admin_numbers: StrList = Field(default_factory=list)
@@ -185,6 +196,7 @@ class Settings(BaseSettings):
         "emergency_discord_user_ids",
         "discord_admin_user_ids",
         "discord_viewer_user_ids",
+        "email_recipients",
         "dashboard_tls_names",
         mode="before",
     )
@@ -219,6 +231,14 @@ class Settings(BaseSettings):
         for value in values:
             if not value.isdigit():
                 raise ValueError("Discord user IDs are numbers; copy them with developer mode")
+        return values
+
+    @field_validator("email_recipients")
+    @classmethod
+    def _check_recipients(cls, values: list[str]) -> list[str]:
+        for value in values:
+            if "@" not in value or any(c in value for c in " ,;<>\r\n"):
+                raise ValueError("recipients must be plain email addresses")
         return values
 
     @field_validator("signal_phone_number")
@@ -338,6 +358,10 @@ class Settings(BaseSettings):
                 raise ValueError("PI_GUARD_DISCORD_BOT_TOKEN is required when Discord is enabled")
             if not self.discord_admin_user_ids:
                 raise ValueError("PI_GUARD_DISCORD_ADMIN_USER_IDS needs at least one user ID")
+        if self.email_enabled and not (
+            self.email_host and "@" in self.email_from and self.email_recipients
+        ):
+            raise ValueError("email needs a server, a sender address and at least one recipient")
         if self.signal_enabled:
             if not self.signal_phone_number:
                 raise ValueError("PI_GUARD_SIGNAL_PHONE_NUMBER is required when Signal is enabled")

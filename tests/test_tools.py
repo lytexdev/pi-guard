@@ -6,9 +6,11 @@ import asyncio
 import json
 import os
 import shutil
+import subprocess
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -17,6 +19,9 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 
+from pi_guard.addons import plugin_updates
+from pi_guard.addons.plugin import check_manifest
+from pi_guard.addons.plugin_updates import PluginGitError, PluginUpdater
 from pi_guard.audio import check
 from pi_guard.audio.devices import AudioDevice
 from pi_guard.audio.service import AudioError
@@ -31,6 +36,8 @@ from pi_guard.messaging.discord.provider import (
     chunks,
     components,
 )
+from pi_guard.messaging.email import provider as email_provider
+from pi_guard.messaging.email.provider import EXPORT_KEY, EmailProvider, Mailbox
 from pi_guard.messaging.signal.provider import SignalProvider, parse_envelope
 from pi_guard.network.fritzbox import FritzBox, FritzError, Wlan
 from pi_guard.web import api_tools
@@ -612,3 +619,201 @@ def test_a_discord_client_secret_is_not_taken_for_the_token() -> None:
     with pytest.raises(ValueError, match="bad_token"):
         to_env(field, "a" * 32)
     assert to_env(field, "aaa.bbb.ccc") == "aaa.bbb.ccc"
+
+
+# --- modules, email, plugin updates, donations -----------------------------------------------
+
+
+async def test_modules_can_be_switched_off(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        headers = {"X-CSRF-Token": await _login(client)}
+        state = {m["id"]: m["enabled"] for m in await (await client.get("/api/modules")).json()}
+        assert state == {"discord": False, "whatsapp": False, "email": False}
+        on = await client.put("/api/modules/whatsapp", json={"enabled": True}, headers=headers)
+        assert on.status == 200
+        session = await (await client.get("/api/session")).json()
+        assert session["modules"]["whatsapp"] is True
+        assert (await client.put("/api/modules/x", json={}, headers=headers)).status == 404
+
+        app.settings.discord_enabled = True  # in use: off writes the setting too
+        await client.put("/api/modules/discord", json={"enabled": False}, headers=headers)
+        assert (
+            "PI_GUARD_DISCORD_ENABLED=false"
+            in (app.settings.data_dir / "dashboard.env").read_text()
+        )
+    finally:
+        await client.close()
+        app.db.close()
+
+
+def _provider(db: Any, sent: list[Any], interval: str = "off") -> EmailProvider:
+    box = Mailbox("mail.example", 587, "starttls", "u", "p", "guard@example.org")
+    return EmailProvider(box, ["a@example.org", "b@example.org"], db, interval, lambda: b'{"x": 1}')
+
+
+async def test_email_alert_with_photo_and_export(
+    db: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[Any] = []
+    monkeypatch.setattr(email_provider, "deliver", lambda box, message: sent.append(message))
+    provider = _provider(db, sent)
+    photo = tmp_path / "alarm.jpg"
+    photo.write_bytes(b"jpeg")
+    await provider.send("a@example.org", Reply("Bewegung im Flur\nDetails", photo=photo))
+    assert sent[0]["Subject"] == "Bewegung im Flur" and sent[0]["To"] == "a@example.org"
+    assert [p.get_filename() for p in sent[0].iter_attachments()] == ["alarm.jpg"]
+    assert await provider.send_export() == 2
+    assert next(sent[-1].iter_attachments()).get_filename().endswith(".json")
+
+
+def test_email_export_comes_on_schedule(db: Any) -> None:
+    provider = _provider(db, [], "weekly")
+    assert provider._export_due() is False  # the first one after a full period
+    assert provider._export_due() is False
+    db.set(EXPORT_KEY, (datetime.now(UTC) - timedelta(days=8)).isoformat())
+    assert provider._export_due() is True
+    assert _provider(db, [], "off")._export_due() is False
+
+
+def test_mail_never_goes_out_unencrypted(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    class Client:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            calls.append("connect")
+
+        def __enter__(self) -> Client:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+        def starttls(self, context: Any) -> None:
+            calls.append("starttls")
+
+        def login(self, user: str, password: str) -> None:
+            calls.append("login")
+
+        def send_message(self, message: Any) -> None:
+            calls.append("send")
+
+    monkeypatch.setattr(email_provider.smtplib, "SMTP", Client)
+    box = Mailbox("mail.example", 587, "starttls", "u", "p", "guard@example.org")
+    email_provider.deliver(box, email_provider.compose(box.sender, "a@example.org", Reply("x")))
+    assert calls == ["connect", "starttls", "login", "send"]
+
+
+def test_email_settings_are_checked(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="plain email"):
+        Settings(_env_file=None, data_dir=tmp_path, email_recipients="x y")  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="server"):
+        Settings(_env_file=None, data_dir=tmp_path, email_enabled=True,  # type: ignore[call-arg]
+                 telegram_enabled=False)  # fmt: skip
+
+
+def _git(cwd: Path, *args: str) -> str:
+    done = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=cwd,
+                          check=True, capture_output=True, text=True)  # fmt: skip
+    return done.stdout.strip()
+
+
+def _plugin_repo(path: Path, **extra: Any) -> str:
+    path.mkdir()
+    _git(path, "init", "-q", "-b", "main")
+    manifest = {"id": "doorbell", "name": "Doorbell", "version": "1", **extra}
+    (path / "plugin.json").write_text(json.dumps(manifest))
+    (path / "plugin.py").write_text("# one\n")
+    _git(path, "add", ".")
+    _git(path, "commit", "-qm", "one")
+    return f"file://{path}"
+
+
+class UpdaterApp:
+    def __init__(self, db: Any, data_dir: Path) -> None:
+        self.db = db
+        self.settings = SimpleNamespace(data_dir=data_dir)
+        self.notes: list[str] = []
+        self.messenger = SimpleNamespace(notify_admins=self._note)
+
+    async def _note(self, text: str) -> None:
+        self.notes.append(text)
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
+async def test_git_plugins_update_only_if_chosen(
+    db: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(plugin_updates, "PROTOCOL", "file")
+    url = _plugin_repo(tmp_path / "repo")
+    app = UpdaterApp(db, tmp_path / "data")
+    updater = PluginUpdater(app)
+    await updater.install(url)
+    installed = updater.root / "doorbell" / "plugin.py"
+    assert installed.read_text() == "# one\n" and not (updater.root / "doorbell" / ".git").exists()
+
+    (tmp_path / "repo" / "plugin.py").write_text("# two\n")
+    _git(tmp_path / "repo", "commit", "-qam", "two")
+    await updater._pass()  # found, not installed: nobody asked for that
+    record = updater.record("doorbell")
+    assert record is not None and record["latest"] != record["commit"]
+    assert installed.read_text() == "# one\n" and not app.notes
+
+    assert updater.set_auto("doorbell", True)
+    await updater._pass()
+    assert installed.read_text() == "# two\n" and len(app.notes) == 1
+    record = updater.record("doorbell")
+    assert record is not None and record["latest"] == record["commit"]
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
+async def test_git_plugins_follow_their_release_branch(
+    db: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(plugin_updates, "PROTOCOL", "file")
+    url = _plugin_repo(tmp_path / "repo", release_branch="stable")
+    repo = tmp_path / "repo"
+    _git(repo, "checkout", "-qb", "stable")
+    (repo / "plugin.py").write_text("# stable\n")
+    _git(repo, "commit", "-qam", "stable")
+    _git(repo, "checkout", "-q", "main")
+    updater = PluginUpdater(UpdaterApp(db, tmp_path / "data"))
+    await updater.install(url)
+    assert (updater.root / "doorbell" / "plugin.py").read_text() == "# stable\n"
+    record = updater.record("doorbell")
+    assert record is not None and record["branch"] == "stable"
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
+async def test_a_repository_cannot_replace_another_plugin(
+    db: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(plugin_updates, "PROTOCOL", "file")
+    repo = tmp_path / "repo"
+    url = _plugin_repo(repo)
+    updater = PluginUpdater(UpdaterApp(db, tmp_path / "data"))
+    await updater.install(url)
+    (repo / "plugin.json").write_text(json.dumps({"id": "other", "name": "Other"}))
+    _git(repo, "commit", "-qam", "takeover")
+    with pytest.raises(PluginGitError):
+        await updater.update("doorbell")
+    assert (updater.root / "doorbell" / "plugin.json").exists()
+    assert not (updater.root / "other").exists()
+
+
+def test_a_bad_release_branch_is_refused() -> None:
+    with pytest.raises(ValueError, match="release_branch"):
+        check_manifest({"id": "ab", "name": "x", "release_branch": "--upload-pack=evil"})
+
+
+async def test_donation_addresses_are_shown_with_codes(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        await _login(client)
+        coins = await (await client.get("/api/support/donate")).json()
+        assert [c["id"] for c in coins] == ["monero", "bitcoin", "litecoin"]
+        assert coins[1]["address"] == "3B8PdpJnmL7rQyHhBytKtvUT7NgQfraBEH"
+        assert all(c["qr"].startswith("data:image/svg+xml") for c in coins)
+    finally:
+        await client.close()
+        app.db.close()

@@ -124,6 +124,7 @@ pi-guard logs -f
 | [Docker](docs/docker.md) | optional container deployment |
 | [Dashboard](docs/dashboard.md) | web dashboard, certificates, app and push |
 | [Discord](docs/discord.md) | commands and alerts through a Discord bot |
+| [Email](docs/email.md) | alerts and exports by email |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
 | [Add-ons](docs/addons.md) | Service watcher, network analysis, smart home, remote commands, AI assistant |
 | [WhatsApp](docs/whatsapp.md) | Official Cloud API setup and its limits |
@@ -151,3 +152,13 @@ default and need deliberate configuration.
 Licensed under the [MIT LICENSE](LICENSE).
 
 The software is provided "AS IS", without warranty of any kind, to the maximum extent permitted by applicable law.
+
+## Support
+
+pi-guard is free. If you want to support it, donations are welcome and entirely optional.
+
+| | |
+|---|---|
+| Monero (XMR) | `89udnKEYMZCBCaoaTYwSLuJBnQRMVPWxW4kNanra4d4GCdgKN5UNjHKU9zk77jvrU726YQYQqeM2PAUhR8jTMrYU6d5cLMp` |
+| Bitcoin (BTC) | `3B8PdpJnmL7rQyHhBytKtvUT7NgQfraBEH` |
+| Litecoin (LTC) | `MShzshtse85i6ZkwiB1VKNGRNmEL5Dc3VX` |

@@ -1,6 +1,7 @@
 // Settings: one place with sections, search and a save bar that appears when it is needed.
 import { api, attempt, fill, h, icon, t, toast, when } from "../api.js";
 import { state } from "../app.js";
+import { installFolds, unfold } from "../folds.js";
 import { searchToggle, supportNote } from "../widgets.js";
 import { restartPrompt } from "./settings.js";
 
@@ -23,7 +24,7 @@ const fold = (text) => text.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "o
 
 const SECTIONS = [
   ["general", "settings", ["general"]], ["recording", "video", ["recording"]], ["detection", "users", ["detection"]],
-  ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "discord", "whatsapp", "signal"]],
+  ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "discord", "email", "whatsapp", "signal"]],
   ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]], ["appearance", "palette", null],
   ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null],
   ["security", "shield-check", null], ["storage", "database", null], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
@@ -104,7 +105,7 @@ async function updateSection(box) {
   await draw();
 }
 
-function supportSection(box) {
+async function supportSection(box) {
   const saved = state.session.support || {};
   const input = (key, type = "text") => h("input", { id: `sp_${key}`, type, value: saved[key] || "" });
   const fields = { name: input("name"), phone: input("phone", "tel"), email: input("email", "email"), address: h("textarea", { id: "sp_address", rows: 3 }, saved.address || "") };
@@ -114,7 +115,21 @@ function supportSection(box) {
       const values = Object.fromEntries(Object.entries(fields).map(([key, el]) => [key, el.value]));
       const result = await attempt(() => api("/api/support", { method: "PUT", body: values }), t("web.saved"));
       if (result) state.session.support = result;
-    } }, icon("check"), t("web.save"))));
+    } }, icon("check"), t("web.save"))),
+    await donationPanel());
+}
+
+async function donationPanel() {
+  // Entirely optional, and only here.
+  const coins = await api("/api/support/donate");
+  return h("section", { class: "panel stack" }, h("h2", {}, t("web.donate_title")), h("p", { class: "muted" }, t("web.donate_text")),
+    h("ul", { class: "list" }, coins.map((coin) => {
+      const qr = h("img", { class: "qr light hidden", src: coin.qr, alt: t("web.donate_qr", { name: coin.name }) });
+      return h("li", { class: "donate-row" }, icon(`brand-${coin.id}`),
+        h("div", { class: "grow clip" }, h("div", {}, coin.name), h("small", { class: "mono wrap" }, coin.address)),
+        h("button", { class: "icon-only", title: t("web.donate_copy"), onclick: () => navigator.clipboard?.writeText(coin.address).then(() => toast(t("web.copied"))) }, icon("copy")),
+        h("button", { class: "icon-only", title: t("web.donate_show_qr"), onclick: () => qr.classList.toggle("hidden") }, icon("qrcode")), qr);
+    })));
 }
 
 function searchIndex(fields) {
@@ -132,6 +147,7 @@ function jumpTo(target) {
   const found = document.getElementById(target)?.closest(".switch-row, .field") || document.getElementById(target)
     || [...document.querySelectorAll(".hub-body h2, .hub-body h3, .hub-extra h2, .hub-extra h3, .hub-body label")].find((el) => el.textContent.trim() === t(target));
   if (!found) return;
+  unfold(found);
   found.scrollIntoView({ block: "center" });
   found.classList.add("flash");
   setTimeout(() => found.classList.remove("flash"), 2200);
@@ -165,6 +181,7 @@ export async function render(main, params = []) {
   });
   fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search)), results, hub);
   tabs.querySelector(".active")?.scrollIntoView({ inline: "center", block: "nearest" });
+  installFolds(hub);
   let save = null;
   let stop = null;
   const showSave = () => {
@@ -179,8 +196,11 @@ export async function render(main, params = []) {
     body.addEventListener("input", showSave);
     body.addEventListener("change", showSave);
     if (current === "messaging") {
-      const { discordPanel, signalPanel } = await import("./signal.js");
-      extra.append(await discordPanel(), await signalPanel());
+      const { discordPanel, emailPanel, signalPanel } = await import("./signal.js");
+      const modules = state.session.modules || {};
+      if (modules.discord) extra.append(await discordPanel());
+      if (modules.email) extra.append(emailPanel());
+      extra.append(await signalPanel());
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
   } else if (current === "devices") {
@@ -198,7 +218,7 @@ export async function render(main, params = []) {
   } else if (current === "storage") {
     await (await import("./storage.js")).render(body);
   } else if (current === "support") {
-    supportSection(body);
+    await supportSection(body);
   } else if (current === "access") {
     await (await import("./access.js")).render(body);
     await apiSection(extra);

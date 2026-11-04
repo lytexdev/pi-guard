@@ -33,6 +33,9 @@ pi-guard plugin pack my_addon     # ZIP for the dashboard
 }
 ```
 
+`release_branch` names the branch that holds releases. Without it, updates follow the repository's main
+branch, usually `main` or `master`.
+
 `id` and `name` are required. `icon` is a name from the dashboard's icon set, `settings` become
 a form on the add-on's page and arrive in `self.settings`, with types `text`, `number`, `bool`
 and `secret`. `permissions` are shown to the person installing it. They are a declaration, not
@@ -130,3 +133,12 @@ addons:
 
 A plugin that fails to load is skipped and logged; pi-guard keeps running. **Plugins run with
 the rights of pi-guard and can see your cameras and data. Only install code you trust.**
+
+## Updates
+
+A plugin installed from a Git link shows its branch and commit under *Add-ons*. **Check** looks for a new
+commit and **Update** installs it, with the same checks as a first install. It takes effect after a restart.
+
+**Update automatically** checks once a day. It is off by default and asks for your password, because new code
+from that repository then runs with all of pi-guard's rights without anyone having looked at it. Add-ons marked
+*Verified* are part of pi-guard; plugins never are.

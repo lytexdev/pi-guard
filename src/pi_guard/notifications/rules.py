@@ -22,7 +22,7 @@ class Rule:
     recipients: Literal["all", "admins"]
     cooldown_seconds: int
     attach: Literal["none", "snapshot", "clip"] = "none"
-    providers: tuple[str, ...] = ("telegram", "signal", "whatsapp", "discord")
+    providers: tuple[str, ...] = ("telegram", "signal", "whatsapp", "discord", "email")
 
     @property
     def bypasses_quiet_hours(self) -> bool:

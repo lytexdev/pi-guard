@@ -11,6 +11,7 @@ from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from pi_guard.addons.plugin import Plugin, load_plugins
+from pi_guard.addons.plugin_updates import PluginUpdater
 from pi_guard.core.events import Event
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ class Addons:
         self._app = app
         settings = app.config.file.addons
         s = app.settings
+        self.updates = PluginUpdater(app)
         self.heartbeat: HeartbeatWatcher | None = None
         self.analytics: NetworkAnalytics | None = None
         self.smarthome: SmartHome | None = None
@@ -86,7 +88,7 @@ class Addons:
         self.plugins = load_plugins(app, settings.plugins)
 
     def components(self) -> dict[str, Callable[[], Awaitable[None]]]:
-        parts: dict[str, Callable[[], Awaitable[None]]] = {}
+        parts: dict[str, Callable[[], Awaitable[None]]] = {"addon:plugin-updates": self.updates.run}
         if self.heartbeat is not None:
             parts["addon:heartbeat"] = self.heartbeat.run
         if self.smarthome is not None:

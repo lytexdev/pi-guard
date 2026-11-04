@@ -57,6 +57,15 @@ FIELDS = (
     Field("discord_bot_token", "discord", "secret"),
     Field("discord_admin_user_ids", "discord", "list"),
     Field("discord_viewer_user_ids", "discord", "list"),
+    Field("email_enabled", "email", "bool"),
+    Field("email_host", "email", "text"),
+    Field("email_port", "email", "int", 1, 65535),
+    Field("email_security", "email", "choice", options=("starttls", "tls")),
+    Field("email_username", "email", "text"),
+    Field("email_password", "email", "secret"),
+    Field("email_from", "email", "text"),
+    Field("email_recipients", "email", "list"),
+    Field("email_export", "email", "choice", options=("off", "weekly", "monthly")),
     Field("signal_enabled", "signal", "bool"),
     Field("signal_phone_number", "signal", "text"),
     Field("signal_admin_numbers", "signal", "list"),
@@ -105,7 +114,8 @@ BY_KEY = {f.key: f for f in FIELDS}
 SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password", "dashboard_secret_key",
            "assistant_api_key", "assistant_deepl_key", "assistant_paperless_token",
            "assistant_nextcloud_password", "whatsapp_access_token",
-           "whatsapp_app_secret", "whatsapp_verify_token", "discord_bot_token")  # fmt: skip
+           "whatsapp_app_secret", "whatsapp_verify_token", "discord_bot_token",
+           "email_password")  # fmt: skip
 
 
 def to_env(field_: Field, value: Any) -> str:

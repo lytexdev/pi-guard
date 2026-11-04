@@ -70,6 +70,15 @@ Der Browser bietet einen Schlüssel nur an, wenn beides stimmt:
 Die Schritte stehen auch unter *Zugang → Hardware-Schlüssel einrichten*. Klappt es nicht, zeigt das
 Dashboard die Fehlermeldung des Browsers.
 
+## Add-ons und Module
+
+Discord, WhatsApp und E-Mail sind Module unter *Add-ons*. Ein ausgeschaltetes Modul verschwindet aus *Einstellungen →
+Messenger* und stoppt beim nächsten Neustart; seine Einträge bleiben erhalten. Was zu pi-guard gehört, trägt das
+Abzeichen *Verifiziert*. Das Plus neben der Suche fügt eigene Add-ons hinzu.
+
+Abschnitte in den Einstellungen klappst du per Klick auf die Überschrift auf und zu; das bleibt in diesem Browser so.
+Messenger, die aus sind, starten zugeklappt.
+
 ## Vertraute Personen
 
 Ein Balken zeigt, wie gut jede Person eingeprägt ist, mit den Bildern je Blickrichtung und dem nächsten

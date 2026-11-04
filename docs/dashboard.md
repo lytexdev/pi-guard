@@ -84,6 +84,15 @@ Browsers only offer a YubiKey or passkey when both of these are true:
 *Access → Set up a hardware key* shows these steps, and a failed attempt shows the browser's own
 error message.
 
+## Add-ons and modules
+
+Discord, WhatsApp and email are modules under *Add-ons*. A module that is off disappears from *Settings →
+Messenger* and stops at the next restart; its entries are kept. Modules that are part of pi-guard carry a
+*Verified* badge. The plus beside the search adds your own add-ons, see [plugins](plugins.md).
+
+Panels in the settings fold by clicking their headline, and stay that way in this browser. Messengers that
+are off start folded.
+
 ## Trusted people
 
 A bar shows how well each person is learned, with the pictures per viewing direction and the next

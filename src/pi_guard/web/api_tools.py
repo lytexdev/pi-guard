@@ -33,10 +33,17 @@ from pi_guard.network.fritzbox import FritzError
 from pi_guard.network.lan import neighbour_table
 from pi_guard.network.pihole import PiholeError
 from pi_guard.web.api_account import _qr_svg
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.api_manage import apply_settings
+from pi_guard.web.server import MODULES, current, dashboard, read_json
 
 log = logging.getLogger(__name__)
 
+DONATIONS = (
+    ("monero", "Monero (XMR)", "monero",
+     "89udnKEYMZCBCaoaTYwSLuJBnQRMVPWxW4kNanra4d4GCdgKN5UNjHKU9zk77jvrU726YQYQqeM2PAUhR8jTMrYU6d5cLMp"),
+    ("bitcoin", "Bitcoin (BTC)", "bitcoin", "3B8PdpJnmL7rQyHhBytKtvUT7NgQfraBEH"),
+    ("litecoin", "Litecoin (LTC)", "litecoin", "MShzshtse85i6ZkwiB1VKNGRNmEL5Dc3VX"),
+)  # fmt: skip
 LINK_SECONDS = 300
 TEST_SECONDS = 3
 SUPPORT_FIELDS = {"name": 100, "phone": 40, "email": 100, "address": 300}
@@ -52,6 +59,11 @@ def routes() -> list[web.RouteDef]:
     return [
         web.post("/api/devices/test/speaker", test_speaker),
         web.post("/api/devices/test/microphone", test_microphone),
+        web.get("/api/modules", modules_get),
+        web.put("/api/modules/{id}", module_set),
+        web.get("/api/support/donate", donate),
+        web.post("/api/email/test", email_test),
+        web.post("/api/email/export", email_export),
         web.get("/api/discord", discord_status),
         web.post("/api/discord/test", discord_test),
         web.get("/api/signal", signal_status),
@@ -156,6 +168,73 @@ async def test_microphone(request: web.Request) -> web.StreamResponse:
         "X-Peak-Db": "" if peak is None or peak == float("-inf") else f"{peak:.1f}",
         "X-Silent": "1" if silent else "0", "Cache-Control": "no-store",
     })  # fmt: skip
+
+
+# --- modules --------------------------------------------------------------------------------
+
+
+async def modules_get(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    return web.json_response([{"id": m, "enabled": on, "running": m in d.app.providers}
+                              for m, on in d.modules().items()])  # fmt: skip
+
+
+async def module_set(request: web.Request) -> web.Response:
+    """Off also stops the messenger at the next start; its entries are kept for later."""
+    d = dashboard(request)
+    module = request.match_info["id"]
+    if module not in MODULES:
+        raise web.HTTPNotFound()
+    enabled = (await read_json(request)).get("enabled") is True
+    if not enabled and getattr(d.settings, f"{module}_enabled"):
+        await apply_settings(d, {f"{module}_enabled": False}, _actor(request))
+    saved = d.app.db.get("web.modules") or {}
+    d.app.db.set("web.modules", {**saved, module: enabled})
+    d.app.db.audit(_actor(request), "module", f"{module} {'on' if enabled else 'off'}")
+    return web.json_response({"ok": True, "restart": not enabled and module in d.app.providers})
+
+
+# --- donations ------------------------------------------------------------------------------
+
+
+async def donate(request: web.Request) -> web.Response:
+    return web.json_response([
+        {"id": coin, "name": name, "address": address, "qr": _qr_svg(f"{scheme}:{address}")}
+        for coin, name, scheme, address in DONATIONS
+    ])  # fmt: skip
+
+
+# --- email ----------------------------------------------------------------------------------
+
+
+def _email(request: web.Request) -> Any:
+    provider = dashboard(request).app.providers.get("email")
+    if provider is None:
+        raise web.HTTPConflict(text="web.email_off")
+    return provider
+
+
+async def email_test(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    provider = _email(request)
+    text = t("email.test", d.settings.language)
+    try:
+        for recipient in d.settings.email_recipients:
+            await provider.send(recipient, Reply(text))
+    except ProviderUnavailableError:
+        raise web.HTTPBadGateway(text="web.email_failed") from None
+    return web.json_response({"ok": True})
+
+
+async def email_export(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    _confirm(request, await read_json(request))
+    try:
+        sent = await _email(request).send_export()
+    except ProviderUnavailableError:
+        raise web.HTTPBadGateway(text="web.email_failed") from None
+    d.app.db.audit(_actor(request), "export.email", str(sent))
+    return web.json_response({"sent": sent})
 
 
 # --- Discord --------------------------------------------------------------------------------

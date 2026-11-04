@@ -119,6 +119,12 @@ def _plain(value: Any) -> Any:
 async def put_settings(request: web.Request) -> web.Response:
     d = dashboard(request)
     data = await read_json(request)
+    await apply_settings(d, data, _actor(request))
+    return web.json_response({"ok": True, "restart_required": True})
+
+
+async def apply_settings(d: Any, data: dict[str, Any], actor: str) -> None:
+    """Check and write changes; they take effect at the next start."""
     current_overrides = read_overrides(d.settings.data_dir)
     rendered = dict(current_overrides)
     try:
@@ -142,8 +148,7 @@ async def put_settings(request: web.Request) -> web.Response:
     lines += [f"PI_GUARD_{key.upper()}={value}" for key, value in sorted(rendered.items())]
     path = d.settings.data_dir / OVERRIDE_ENV
     await asyncio.to_thread(atomic_write, path, ("\n".join(lines) + "\n").encode())
-    d.app.db.audit(_actor(request), "settings", ",".join(sorted(data)))
-    return web.json_response({"ok": True, "restart_required": True})
+    d.app.db.audit(actor, "settings", ",".join(sorted(data)))
 
 
 def _base_values(settings: Settings) -> dict[str, Any]:

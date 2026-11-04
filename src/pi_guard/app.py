@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import time
 from collections.abc import Awaitable, Callable
@@ -94,6 +95,7 @@ class App:
                 | {n: Role.ADMIN for n in s.signal_admin_numbers},
                 "whatsapp": {n.lstrip("+"): Role.VIEWER for n in s.whatsapp_allowed_numbers}
                 | {n.lstrip("+"): Role.ADMIN for n in s.whatsapp_admin_numbers},
+                "email": {n: Role.VIEWER for n in s.email_recipients} if s.email_enabled else {},
                 "discord": {n: Role.VIEWER for n in s.discord_viewer_user_ids}
                 | {n: Role.ADMIN for n in s.discord_admin_user_ids},
             },
@@ -379,6 +381,22 @@ def build_app(config: Config) -> App:
                 config.file.audio.max_upload_bytes,
                 may_upload_discord,
             )
+    if s.email_enabled:
+        from pi_guard.messaging.email.provider import EmailProvider, Mailbox
+
+        def export() -> bytes | None:
+            if app.dashboard is None:
+                return None
+            from pi_guard.web.api_export import collect_all
+
+            return json.dumps(collect_all(app.dashboard), indent=2, ensure_ascii=False).encode()
+
+        password = s.email_password.get_secret_value() if s.email_password else ""
+        app.providers["email"] = EmailProvider(
+            Mailbox(s.email_host, s.email_port, s.email_security, s.email_username, password,
+                    s.email_from),
+            s.email_recipients, app.db, s.email_export, export,
+        )  # fmt: skip
     if s.signal_enabled and s.signal_phone_number:
         from pi_guard.messaging.signal.provider import SignalProvider
 

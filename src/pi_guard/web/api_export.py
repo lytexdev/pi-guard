@@ -44,8 +44,11 @@ def _rows(app: Any, sql: str) -> list[dict[str, Any]]:
 
 
 def collect(request: web.Request) -> dict[str, list[dict[str, Any]]]:
+    return collect_all(dashboard(request))
+
+
+def collect_all(d: Any) -> dict[str, list[dict[str, Any]]]:
     """Everything stored about this home. Keys, tokens and face prints stay out."""
-    d = dashboard(request)
     app = d.app
     data = {
         "events": _rows(app, "SELECT ts, type, camera, data FROM events ORDER BY id LIMIT 100000"),

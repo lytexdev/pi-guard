@@ -326,6 +326,31 @@ async function knowledgePanel(info) {
 
 const PROVIDERS = { mistral: "brand-mistral", openai: "brand-openai", anthropic: "brand-anthropic", gemini: "brand-gemini", grok: "brand-x", ollama: "brand-ollama", custom: "settings" };
 
+const verified = () => h("span", { class: "badge ok verified", title: t("web.verified_tip") }, icon("rosette-check"), t("web.verified"));
+
+function gitRow(p, redraw) {
+  // Installed from a link: which branch, and how it stays current.
+  const auto = h("input", { type: "checkbox", checked: p.git.auto });
+  auto.addEventListener("change", async () => {
+    const body = { enabled: auto.checked };
+    if (auto.checked) {
+      if (!await confirmDialog(t("web.pm_auto_confirm", { name: p.name }), t("web.pm_auto"), true)) { auto.checked = false; return; }
+      body.password = prompt(t("web.confirm_password"));
+      if (!body.password) { auto.checked = false; return; }
+    }
+    if (!await attempt(() => api(`/api/plugin-manager/${p.id}/auto`, { method: "PUT", body }), t("web.saved"))) auto.checked = !auto.checked;
+  });
+  return h("div", { class: "row wrap git-row" },
+    h("small", { class: "mono" }, `${p.git.branch || t("web.pm_default_branch")} · ${p.git.commit}`),
+    p.git.update ? h("span", { class: "badge accent" }, t("web.pm_update_available")) : null,
+    h("label", { class: "check", title: t("web.pm_auto_tip") }, auto, t("web.pm_auto")),
+    h("button", { class: "ghost", onclick: async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}/check`, { method: "POST" }))) redraw(); } }, icon("refresh"), t("web.pm_check")),
+    p.git.update ? h("button", { class: "primary", onclick: async () => {
+      const password = prompt(t("web.confirm_password"));
+      if (password && await attempt(() => api(`/api/plugin-manager/${p.id}/update`, { method: "POST", body: { password } }), t("web.addon_restart"))) redraw();
+    } }, t("web.pm_update")) : null);
+}
+
 function providerChoice(selected) {
   const box = h("div", { class: "choice provider-choice", role: "radiogroup" });
   box.value = selected;
@@ -497,28 +522,46 @@ export async function render(main, params = []) {
     toggle.addEventListener("change", () => setEnabled(addon.id, toggle.checked));
     const star = h("button", { class: `icon-only pin${pinned.has(addon.id) ? " on" : ""}`, title: t("web.pm_pin"), onclick: () => pin(addon.id, star) }, icon("list-details"));
     return h("section", { class: "panel stack" },
-      h("div", { class: "row between" }, h("h2", {}, icon(ADDONS[addon.id]), " ", t(`addons.${addon.id}`)), h("div", { class: "row" }, star, toggle)),
+      h("div", { class: "row between" }, h("h2", {}, icon(ADDONS[addon.id]), " ", t(`addons.${addon.id}`), verified()), h("div", { class: "row" }, star, toggle)),
       h("p", { class: "muted" }, t(`web.addon_${addon.id}_text`)),
       addon.needs ? h("p", { class: "notice" }, t(addon.needs)) : null,
       addon.enabled !== addon.running ? h("p", { class: "notice" }, t("web.addon_restart")) : null,
       h("a", { class: "button", href: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")));
   }));
-  cards.append(h("section", { class: "panel stack" }, h("h2", {}, icon("brand-discord"), " Discord"), h("p", { class: "muted" }, t("web.addon_discord_text")),
-    h("a", { class: "button", href: "#/settings/messaging" }, icon("settings"), t("web.addon_open"))));
-  const ownPanel = h("section", { class: "panel stack" });
+  const modules = await api("/api/modules");
+  const MODULE_ICONS = { discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail" };
+  modules.forEach((module) => {
+    const toggle = h("input", { type: "checkbox", checked: module.enabled, "aria-label": t(`web.addon_${module.id}`) });
+    const link = h("a", { class: `button${module.enabled ? "" : " hidden"}`, href: "#/settings/messaging" }, icon("settings"), t("web.addon_open"));
+    toggle.addEventListener("change", async () => {
+      const done = await attempt(() => api(`/api/modules/${module.id}`, { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
+      if (!done) { toggle.checked = !toggle.checked; return; }
+      state.session.modules = { ...state.session.modules, [module.id]: toggle.checked };
+      link.classList.toggle("hidden", !toggle.checked);
+      if (done.restart) restartPrompt();
+    });
+    cards.append(h("section", { class: "panel stack" },
+      h("div", { class: "row between" }, h("h2", {}, icon(MODULE_ICONS[module.id]), " ", t(`web.addon_${module.id}`), verified()), toggle),
+      h("p", { class: "muted" }, t(`web.addon_${module.id}_text`)), link));
+  });
+  const ownPanel = h("section", { class: "panel stack hidden" });
+  const installed = h("section", { class: "panel stack hidden" });
   const drawOwn = async () => {
     const list = await api("/api/plugin-manager");
     const zip = h("input", { type: "file", accept: ".zip", "aria-label": t("web.pm_upload") });
     const name = h("input", { placeholder: t("web.pm_new_name"), "aria-label": t("web.pm_new_name") });
     const gitUrl = h("input", { type: "url", placeholder: "https://github.com/…", "aria-label": t("web.pm_git") });
-    fill(ownPanel, h("h2", {}, t("web.pm_title")), h("p", { class: "notice" }, t("web.pm_warning")),
-      h("ul", { class: "list" }, list.length ? list.map((p) => {
+    installed.classList.toggle("hidden", !list.length);
+    fill(installed, h("h2", {}, t("web.pm_installed")),
+      h("ul", { class: "list" }, list.map((p) => {
         const on = h("input", { type: "checkbox", checked: p.enabled, "aria-label": p.name });
         on.addEventListener("change", async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}/enabled`, { method: "PUT", body: { enabled: on.checked } }), t("web.saved"))) restartPrompt(); });
-        return h("li", {}, on, icon(p.icon), h("div", { class: "grow clip" }, h("div", {}, h("a", { href: `#/addons/plugin/${p.id}` }, p.name), " ", h("small", { class: "muted" }, `v${p.version}${p.authors.length ? ` · ${p.authors.join(", ")}` : ""}`)), h("small", {}, p.description || p.id)),
+        return h("li", { class: "person-row" }, on, icon(p.icon), h("div", { class: "grow clip" }, h("div", {}, h("a", { href: `#/addons/plugin/${p.id}` }, p.name), " ", h("small", { class: "muted" }, `v${p.version}${p.authors.length ? ` · ${p.authors.join(", ")}` : ""}`)), h("small", {}, p.description || p.id)),
           h("button", { class: "icon-only", title: t("web.pm_edit"), onclick: () => editSource(p) }, icon("pencil")),
-          h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}`, { method: "DELETE" }), t("web.saved"))) drawOwn(); } }, icon("trash")));
-      }) : h("li", { class: "empty" }, t("web.nothing"))),
+          h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}`, { method: "DELETE" }), t("web.saved"))) drawOwn(); } }, icon("trash")),
+          p.git ? gitRow(p, drawOwn) : null);
+      })));
+    fill(ownPanel, h("h2", {}, t("web.pm_title")), h("p", { class: "notice" }, t("web.pm_warning")),
       h("h3", {}, t("web.pm_upload")), h("p", { class: "muted" }, h("small", {}, t("web.pm_upload_hint"))),
       h("div", { class: "row" }, zip, h("button", { onclick: async () => {
         if (!zip.files.length) return;
@@ -542,9 +585,10 @@ export async function render(main, params = []) {
       } }, icon("plus"), t("web.pm_create_button"))));
   };
   const search = searchToggle(t("web.pm_search"), (q) => {
-    [...cards.children, ...ownPanel.querySelectorAll(".list li")].forEach((el) => el.classList.toggle("hidden", q && !el.textContent.toLowerCase().includes(q)));
+    [...cards.children, ...installed.querySelectorAll(".list li")].forEach((el) => el.classList.toggle("hidden", q && !el.textContent.toLowerCase().includes(q)));
   });
-  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_addons")), search)), cards, ownPanel);
+  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_addons")), search,
+    h("button", { class: "icon-only", title: t("web.pm_add_tip"), "aria-label": t("web.pm_add_tip"), onclick: () => { ownPanel.classList.toggle("hidden"); ownPanel.scrollIntoView({ block: "nearest" }); } }, icon("plus")))), cards, installed, ownPanel);
   await drawOwn();
 }
 

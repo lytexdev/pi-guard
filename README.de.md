@@ -45,7 +45,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   WLAN-QR-Codes. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
 - **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-Status,
   feste IP-Adresse. Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
-- **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), Personenerkennung,
+- **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md), Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
   Home Assistant.
 - **Keine Cloud.** Kein Benutzerkonto bei einem Anbieter, keine offenen Ports,
@@ -72,3 +72,13 @@ der Installation [docs/de/datenschutz.md](docs/de/datenschutz.md).
 
 MIT, siehe [LICENSE](LICENSE). Die technische Dokumentation ist auf Englisch
 im Ordner [docs](docs).
+
+## Unterstützen
+
+pi-guard ist kostenlos. Wer es unterstützen möchte, kann freiwillig spenden.
+
+| | |
+|---|---|
+| Monero (XMR) | `89udnKEYMZCBCaoaTYwSLuJBnQRMVPWxW4kNanra4d4GCdgKN5UNjHKU9zk77jvrU726YQYQqeM2PAUhR8jTMrYU6d5cLMp` |
+| Bitcoin (BTC) | `3B8PdpJnmL7rQyHhBytKtvUT7NgQfraBEH` |
+| Litecoin (LTC) | `MShzshtse85i6ZkwiB1VKNGRNmEL5Dc3VX` |
