@@ -289,6 +289,9 @@ OWNER="$(stat -c %U "$REPO")"
 printf 'REPO=%q\nOWNER=%q\n' "$REPO" "$OWNER" > "$CONF/update.conf"
 runuser -u "$OWNER" -- git -C "$REPO" rev-parse HEAD > "$PREFIX/commit" 2>/dev/null || true
 install -m 0755 "$REPO/scripts/update.sh" /usr/local/sbin/pi-guard-update
+if [[ -e /usr/local/sbin/pi-guard-wg-status ]]; then  # an update of it comes with every install
+    install -m 0755 "$REPO/deploy/wireguard/pi-guard-wg-status" /usr/local/sbin/pi-guard-wg-status
+fi
 install -m 0644 "$REPO/deploy/update/pi-guard-update.path" "$REPO/deploy/update/pi-guard-update.service" /etc/systemd/system/
 install -m 0755 "$REPO/deploy/maint/pi-guard-maint" /usr/local/sbin/pi-guard-maint
 install -m 0644 "$REPO/deploy/maint/pi-guard-maint.path" "$REPO/deploy/maint/pi-guard-maint.service" /etc/systemd/system/

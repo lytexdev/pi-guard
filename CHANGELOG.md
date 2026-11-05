@@ -98,6 +98,8 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Root jobs no longer write into folders of the unprivileged user: the WireGuard status and the update report could
+  have been turned into overwriting any file, by someone who already broke into pi-guard.
 - Voice messages to the assistant and talking through the speaker were cut off after the first part of the upload.
 - Speech input of the assistant was often nonsense: the language was not given, so short sentences were guessed as
   anything, and silence came out as imagined subtitles. It now names the language, uses a better model with OpenAI, and

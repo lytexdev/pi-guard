@@ -36,7 +36,7 @@ from pi_guard.network.reach import (
     tailscale_way,
 )
 from pi_guard.network.wgpeers import PQ_FOLDER, SERVER_ADDRESS, PeerError, PeerStore, Server
-from pi_guard.network.wireguard import read_status
+from pi_guard.network.wireguard import read_status, status_file
 from pi_guard.security.files import atomic_write
 from pi_guard.web.server import current, dashboard, read_json
 
@@ -113,7 +113,7 @@ async def overview(request: web.Request) -> web.Response:
     names = await reverse_names(ips)
     devices = merge(neighbours, pihole_devices, trusted, names)
     wlans, hosts = await _router(app)
-    wireguard = read_status(s.runtime_dir / "wireguard.status") if s.wireguard_enabled else None
+    wireguard = read_status(status_file(s, "wireguard.status")) if s.wireguard_enabled else None
     store = dashboard(request).wg_peers
     if wireguard is not None and store is not None:
         stored = {p["public_key"]: p for p in store.list()}
@@ -388,7 +388,7 @@ async def topology(request: web.Request) -> web.Response:
             pihole_devices = await app.pihole.devices()
     trusted = {x.mac_address: x.name for x in app.config.file.presence.devices}
     lan = [d for d in merge(neighbours, pihole_devices, trusted, {}) if not _internal(d.ips)]
-    status = read_status(s.runtime_dir / "wireguard.status") if s.wireguard_enabled else None
+    status = read_status(status_file(s, "wireguard.status")) if s.wireguard_enabled else None
     peers = list((status or {}).get("peers", []))
     store = d.wg_peers
     if store is not None:
@@ -483,7 +483,7 @@ def _store(request: web.Request) -> PeerStore:
 
 def _server(request: web.Request) -> Server:
     s = dashboard(request).settings
-    status = read_status(s.runtime_dir / "wireguard.status") or {}
+    status = read_status(status_file(s, "wireguard.status")) or {}
     public_key = (status.get("interface") or {}).get("public_key")
     if not public_key:
         raise web.HTTPConflict(text="web.wireguard_no_status")
@@ -542,8 +542,8 @@ async def reach(request: web.Request) -> web.Response:
     from pi_guard.web.api_addons import home_ip
 
     s = dashboard(request).settings
-    status = read_status(s.runtime_dir / "wireguard.status") if s.wireguard_enabled else None
-    relay = read_status(s.runtime_dir / "relay.status") if s.wireguard_relay else None
+    status = read_status(status_file(s, "wireguard.status")) if s.wireguard_enabled else None
+    relay = read_status(status_file(s, "relay.status")) if s.wireguard_relay else None
     public = await home_ip() if request.query.get("check") else None
     used = carried(status, public)
     v4, _ = await asyncio.to_thread(resolve, s.wireguard_endpoint or "")

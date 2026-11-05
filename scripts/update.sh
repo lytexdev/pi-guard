@@ -9,6 +9,7 @@ PREFIX=/opt/pi-guard
 CONF=/etc/pi-guard/update.conf
 DATA=/var/lib/pi-guard
 STATE="$DATA/update"
+REPORTS=/var/lib/pi-guard-scan
 ENV_FILE=/etc/pi-guard/pi-guard.env
 
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
@@ -19,8 +20,12 @@ mkdir -p "$STATE"
 rm -f "$STATE/request"
 
 report() {  # report STATE MESSAGE
-    printf '{"state": "%s", "message": "%s", "time": "%s"}\n' "$1" "$2" "$(date -u +%FT%TZ)" > "$STATE/status.json"
-    chown -R pi-guard:pi-guard "$STATE"
+    # In root's own folder: pi-guard must not be able to leave a link where root writes.
+    install -d -m 0750 -o root -g pi-guard "$REPORTS"
+    printf '{"state": "%s", "message": "%s", "time": "%s"}\n' "$1" "$2" "$(date -u +%FT%TZ)" > "$REPORTS/update.tmp"
+    chgrp pi-guard "$REPORTS/update.tmp"
+    chmod 0640 "$REPORTS/update.tmp"
+    mv -f "$REPORTS/update.tmp" "$REPORTS/update.json"
     echo "$1: $2"
 }
 git_as_owner() { runuser -u "$OWNER" -- git -C "$REPO" "$@"; }

@@ -2,10 +2,12 @@
 # Writes WireGuard status for the pi-guard dashboard. Runs as root (wg needs
 # CAP_NET_ADMIN); pi-guard itself only reads the result. Private and preshared
 # keys are never written.
+#
+# Its folder belongs to root: pi-guard must not be able to leave a link where root writes.
 set -eu
 IFACE="${1:-wg0}"
-DIR=/run/pi-guard
-[ -d "$DIR" ] || exit 0
+DIR=/run/pi-guard-status
+install -d -m 0750 -o root -g pi-guard "$DIR"
 OUT="$DIR/wireguard.status"
 TMP="$OUT.tmp"
 {

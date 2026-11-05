@@ -28,7 +28,7 @@ from pi_guard.i18n import remove_extra
 from pi_guard.messaging.commands.addons import known_names
 from pi_guard.network.pihole import PiholeError
 from pi_guard.network.wgpeers import SUBNET
-from pi_guard.network.wireguard import read_status
+from pi_guard.network.wireguard import read_status, status_file
 from pi_guard.web.api_manage import saved_config, write_config
 from pi_guard.web.server import current, dashboard, read_body, read_json
 
@@ -556,7 +556,7 @@ async def connection(request: web.Request) -> web.Response:
         else:
             kind = "tor" if ip in await tor_exits() else "public"
     status = (
-        read_status(d.settings.runtime_dir / "wireguard.status")
+        read_status(status_file(d.settings, "wireguard.status"))
         if d.settings.wireguard_enabled
         else None
     )

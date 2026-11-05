@@ -3,9 +3,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import string
+import subprocess
 from datetime import UTC, datetime, timedelta
 from importlib import resources
+from pathlib import Path
 
 import pytest
 
@@ -165,3 +168,34 @@ def test_database_kv_and_events(db: Database) -> None:
 
 def test_database_file_is_private(db: Database) -> None:
     assert db.path.stat().st_mode & 0o077 == 0
+
+
+def test_build_output_never_enters_the_repository() -> None:
+    """It happened twice: a new build folder that .gitignore did not know yet."""
+    root = Path(__file__).parents[1]
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True
+    )
+    folders = {"target", "dist", "dist-pack", "node_modules", "__pycache__"}
+    wrong = [f for f in tracked.stdout.splitlines() if folders & set(Path(f).parts)]
+    assert not wrong, wrong[:5]
+    secrets = [
+        f for f in tracked.stdout.splitlines() if f.endswith((".pem", ".sk", ".jks", ".keystore"))
+    ]
+    assert not secrets, secrets[:5]
+
+
+def test_root_jobs_never_write_where_pi_guard_can() -> None:
+    """A link left there would make root overwrite any file."""
+    root = Path(__file__).parents[1]
+    jobs = [root / "deploy/wireguard/pi-guard-wg-status", root / "scripts/update.sh"]
+    for job in jobs:
+        for line in job.read_text().splitlines():
+            if ">" in line and not line.lstrip().startswith("#"):
+                assert not re.search(r'>\s*"?\$(STATE|DATA)\b', line), line
+                assert "/run/pi-guard/" not in line and "/var/lib/pi-guard/" not in line, line
+    assert "DIR=/run/pi-guard-status" in jobs[0].read_text()
+    server = (root / "vpn/src/server.rs").read_text().split("#[cfg(test)]")[0]
+    for line in server.splitlines():
+        if "fs::write" in line or "fs::copy" in line or "File::create" in line:
+            assert "DATA" not in line, line

@@ -3,7 +3,7 @@
 Reading WireGuard state needs CAP_NET_ADMIN, which the pi-guard service does
 not have. `deploy/wireguard/pi-guard-wg-status` runs as root on a timer and
 writes `wg show <interface> dump` (without private keys) plus PiVPN client
-names to /run/pi-guard/wireguard.status.
+names to /run/pi-guard-status/wireguard.status, a folder pi-guard can read but not write.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 HANDSHAKE_ACTIVE_SECONDS = 180
+STATUS_FOLDER = Path("/run/pi-guard-status")
 
 
 @dataclass(frozen=True)
@@ -56,6 +57,12 @@ def parse_status(text: str, now: datetime | None = None) -> dict[str, Any]:
                 bool(when and (now - when).total_seconds() < HANDSHAKE_ACTIVE_SECONDS),
             ))  # fmt: skip
     return {"interface": interface, "peers": [asdict(p) for p in peers], "written": written}
+
+
+def status_file(settings: Any, name: str) -> Path:
+    """From the root job's folder; the runtime folder holds it in containers and tests."""
+    path = STATUS_FOLDER / name
+    return path if path.exists() else Path(settings.runtime_dir) / name
 
 
 def read_status(path: Path) -> dict[str, Any] | None:

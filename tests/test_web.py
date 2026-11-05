@@ -623,3 +623,31 @@ async def test_a_long_voice_message_arrives_whole(tmp_path: Path) -> None:
         assert (await client.post("/", data=b"x" * 6_000_000)).status == 413
     finally:
         await client.close()
+
+
+async def test_a_voice_message_reaches_the_assistant_whole(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, app = await _client(tmp_path)
+    heard: list[int] = []
+
+    class Assistant:
+        async def transcribe(self, path: Path, language: str = "de") -> str:
+            heard.append(path.stat().st_size)
+            return ""
+
+    app.addons.assistant = Assistant()
+    try:
+        headers = {"X-CSRF-Token": await _login(client)}
+
+        async def recording() -> Any:
+            for _ in range(10):
+                yield b"o" * 100_000
+                await asyncio.sleep(0)
+
+        await client.post("/api/assistant/chat/voice", data=recording(), headers=headers)
+        assert heard == [1_000_000]
+    finally:
+        app.addons.assistant = None
+        await client.close()
+        app.db.close()

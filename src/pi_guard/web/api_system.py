@@ -30,6 +30,7 @@ from pi_guard.config.files import FileConfig
 from pi_guard.web.api_manage import saved_config, write_config
 from pi_guard.web.server import current, dashboard, read_json
 
+UPDATE_REPORT = Path("/var/lib/pi-guard-scan/update.json")  # root writes it, pi-guard reads
 REPOSITORY = "lytexdev/pi-guard"
 CHECK_SECONDS = 3600
 MAX_ZIP = 2_000_000
@@ -91,7 +92,7 @@ async def _remote() -> dict[str, Any]:
 async def update_status(request: web.Request) -> web.Response:
     directory = _update_dir(request)
     state: dict[str, Any] = {}
-    status = directory / "status.json"
+    status = UPDATE_REPORT if UPDATE_REPORT.exists() else directory / "status.json"
     if status.exists():
         try:
             state = json.loads(status.read_text())

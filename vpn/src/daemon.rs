@@ -334,6 +334,7 @@ fn serve(stream: UnixStream, service: &Arc<Mutex<Service>>) {
         let _ = writeln!(writer, "{}", json!({ "error": "not allowed" }));
         return;
     }
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
     let mut line = String::new();
     if BufReader::new(stream.take(MAX_REQUEST)).read_line(&mut line).is_err() {
         return;

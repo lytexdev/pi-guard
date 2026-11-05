@@ -184,7 +184,7 @@ pi-guard runs without root rights and never changes the network itself:
 | `scripts/wireguard.sh setup` | root, once | server key in `/etc/wireguard/wg0.base`, IP forwarding, NAT for 10.8.0.0/24, ufw rules, systemd units |
 | dashboard | pi-guard | creates device keys (private keys stored AES-GCM encrypted with the dashboard secret key), writes public key, preshared key and address per device to `/var/lib/pi-guard/wireguard/peers` |
 | `pi-guard-wg-apply` (path unit) | root | accepts only lines of the form `key<TAB>key<TAB>10.8.0.N/32`, writes `wg0.conf`, `wg syncconf` |
-| `pi-guard-wg-status` (timer) | root | status for the dashboard (no keys) every 30 s |
+| `pi-guard-wg-status` (timer) | root | status for the dashboard (no keys) every 30 s, in `/run/pi-guard-status`, which pi-guard can only read |
 
 The VPN uses 10.8.0.0/24; the Pi is 10.8.0.1 and the DNS server of the devices
 when Pi-hole is enabled. If `PI_GUARD_DASHBOARD_SECRET_KEY` changes, stored
