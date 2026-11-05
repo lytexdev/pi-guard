@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 
 _INVITE_RE = re.compile(r"^[0-9a-f]{12}$")
 _UNKNOWN_REPLY_INTERVAL = 3600.0
+NEVER = float("-inf")  # the monotonic clock starts at boot, so 0 would mean "just now" after one
 _EXPECT_SECONDS = 600.0
 _INTENT_LABELS = {
     "photo": "menu.photo",
@@ -177,7 +178,7 @@ class Messenger:
             await self._redeem(msg, code, sender)
             return
         if self._app.escalation.is_contact(msg.provider, msg.sender_id) and not msg.is_group:
-            last = self._unknown_replied.get(sender, 0.0)
+            last = self._unknown_replied.get(sender, NEVER)
             if time.monotonic() - last > _UNKNOWN_REPLY_INTERVAL:
                 self._unknown_replied[sender] = time.monotonic()
                 lang = self._app.settings.language
@@ -188,7 +189,7 @@ class Messenger:
         self._app.db.audit(sender, "rejected", msg.provider)
         if len(self._unknown_replied) > 1000:  # bound memory if many strangers write
             self._unknown_replied.clear()
-        last = self._unknown_replied.get(sender, 0.0)
+        last = self._unknown_replied.get(sender, NEVER)
         if not msg.is_group and time.monotonic() - last > _UNKNOWN_REPLY_INTERVAL:
             self._unknown_replied[sender] = time.monotonic()
             lang = self._app.settings.language

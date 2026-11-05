@@ -100,6 +100,8 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- In the first hour after a restart, unknown senders and emergency contacts got no answer: a limit took the time since
+  boot for the time since the last answer.
 - In the desktop app, everything that asked a question did nothing: clearing storage, renaming, and every password
   confirmation. It relied on a browser feature the app does not have. A dialog of its own replaces it, which also no
   longer shows passwords in plain text.

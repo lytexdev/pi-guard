@@ -146,7 +146,11 @@ async def overview(request: web.Request) -> web.Response:
 
 LABEL_PREFIX = "lan.label."
 ROUTER_SECONDS = 30
-_router_cache: tuple[float, list[dict[str, Any]], dict[str, dict[str, Any]]] = (0.0, [], {})
+_router_cache: tuple[float, list[dict[str, Any]], dict[str, dict[str, Any]]] = (
+    float("-inf"),
+    [],
+    {},
+)
 
 
 async def _router(app: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
