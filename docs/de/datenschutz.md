@@ -75,7 +75,9 @@ Stichwörtern verstanden; es wird kein Text an einen Sprachdienst geschickt.
 
 **Nicht länger aufbewahren als nötig.** 7 Tage sind ein Ausgangswert. Wenn
 Ihnen weniger reicht, stellen Sie weniger ein
-(`PI_GUARD_RECORDING_RETENTION_DAYS`).
+(`PI_GUARD_RECORDING_RETENTION_DAYS`). Wird der Speicher vorher knapp, löscht
+pi-guard früher: zuerst die ältesten Aufnahmen ohne Bewegung, dann die ältesten
+mit Bewegung, damit immer Platz für neue Aufnahmen bleibt.
 
 Mehr Details (Englisch): [privacy.md](../privacy.md).
 

@@ -6,13 +6,18 @@ Rules, applied per camera directory:
     overlap a motion event for the retention period, others only for the buffer
   * PI_GUARD_RECORDING_FULL_HOURS: the same, with that many hours instead of the buffer
   * camera with `recording: false`: keep the short buffer used for /video
-Then, if disk usage is still above the limit, the oldest segments of any camera
-go first. The segment being written is never deleted.
+Then, if disk usage is still above the limit, footage goes in this order so
+there is always room for new recordings, oldest first within each step:
+  1. segments in which nothing happened
+  2. segments with motion or a person
+  3. the last few minutes (the buffer used for /video)
+The segment being written is never deleted.
 """
 
 from __future__ import annotations
 
 import asyncio
+import bisect
 import logging
 import shutil
 import time
@@ -29,6 +34,7 @@ from pi_guard.storage.db import Database
 log = logging.getLogger(__name__)
 
 EVENT_PADDING = timedelta(seconds=60)
+WORTH_KEEPING = ["motion_detected", "person_detected", "known_person", "unknown_person"]
 SWEEP_INTERVAL_SECONDS = 300
 CLIP_RETENTION = timedelta(days=1)
 EVIDENCE_RETENTION_DAYS = 90  # kept longer than normal footage, deleted like everything else
@@ -101,34 +107,30 @@ class Retention:
             return report
         buffer = timedelta(minutes=self._settings.recording_buffer_minutes)
         full = timedelta(hours=self._settings.recording_full_hours)
-        candidates: list[Segment] = []
+        candidates: list[tuple[bool, bool, Segment]] = []  # sorted: first one goes first
         for directory in sorted(p for p in self.root.iterdir() if p.is_dir()):
             segments = list_segments(directory)
             active = self._active(segments, time.time())
             keep, events_only = self._keep_for(directory.name)
             trim_after = buffer if events_only else full
             trimming = events_only or (bool(full) and keep > buffer)
-            event_times = (
+            event_times = sorted(
                 self._db.events_between(
-                    now - keep - EVENT_PADDING, now, ["motion_detected"], directory.name
+                    now - keep - EVENT_PADDING, now, WORTH_KEEPING, directory.name
                 )
-                if trimming
-                else []
             )
             for index, segment in enumerate(segments):
                 if segment.path in active:
                     continue
                 end = segments[index + 1].start if index + 1 < len(segments) else now
+                eventful = self._has_event(event_times, segment.start, end)
                 expired = segment.start < now - keep
                 if trimming and not expired and segment.start < now - trim_after:
-                    expired = not any(
-                        segment.start - EVENT_PADDING <= t <= end + EVENT_PADDING
-                        for t in event_times
-                    )
+                    expired = not eventful
                 if expired or self._empty(segment.path):
                     self._delete(segment.path, report)
                 else:
-                    candidates.append(segment)
+                    candidates.append((segment.start >= now - buffer, eventful, segment))
 
         self._sweep_media(now, report)
         self._relieve_pressure(sorted(candidates), report)
@@ -142,6 +144,11 @@ class Retention:
         self.last_report = report
         return report
 
+    @staticmethod
+    def _has_event(times: list[datetime], start: datetime, end: datetime) -> bool:
+        index = bisect.bisect_left(times, start - EVENT_PADDING)
+        return index < len(times) and times[index] <= end + EVENT_PADDING
+
     def _over_limit(self, report: SweepReport) -> bool:
         usage = shutil.disk_usage(self.root)
         report.used_percent = usage.used / usage.total * 100
@@ -151,15 +158,18 @@ class Retention:
             or usage.free < self._settings.recording_min_free_mb * 1_000_000
         )
 
-    def _relieve_pressure(self, candidates: list[Segment], report: SweepReport) -> None:
-        for segment in candidates:
+    def _relieve_pressure(
+        self, candidates: list[tuple[bool, bool, Segment]], report: SweepReport
+    ) -> None:
+        for _, _, segment in candidates:
             if not self._over_limit(report):
                 break
             self._delete(segment.path, report)
             report.pressure_deletions += 1
         report.over_limit = self._over_limit(report)
         if report.pressure_deletions:
-            log.warning("disk above limit: removed %d recordings early", report.pressure_deletions)
+            # Normal once the disk has filled up; a real problem raises STORAGE_LOW.
+            log.info("disk above limit: removed %d recordings early", report.pressure_deletions)
 
     def _sweep_media(self, now: datetime, report: SweepReport) -> None:
         keep_snapshots = timedelta(days=self._settings.recording_retention_days)

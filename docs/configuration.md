@@ -71,7 +71,7 @@ ID; group IDs are negative).
 | `RECORDING_CONTINUOUS` | `true` | `false`: segments without motion are kept only for the buffer time |
 | `RECORDING_RETENTION_DAYS` | `7` | per camera override: `retention_days` |
 | `RECORDING_FULL_HOURS` | `0` | keep everything this long, then only what is around events; 0 keeps everything until retention |
-| `RECORDING_MAX_STORAGE_PERCENT` | `85` | oldest recordings are deleted above this |
+| `RECORDING_MAX_STORAGE_PERCENT` | `85` | above this, recordings are deleted: oldest without motion first, then oldest with motion, the last few minutes last |
 | `RECORDING_MIN_FREE_MB` | `1024` | …or below this much free space |
 | `RECORDING_SEGMENT_SECONDS` | `300` | |
 | `RECORDING_BUFFER_MINUTES` | `15` | for cameras with `recording: false` and event-only recording |

@@ -75,8 +75,11 @@ sudo journalctl -u pi-guard -n 100
 
 ## Storage
 
-- "storage almost full": pi-guard is deleting recordings earlier than the
-  retention period. Lower bitrate or retention, or use a larger disk.
+- Recordings are gone before the retention period is over: the disk reached
+  its limit, so pi-guard made room, oldest recordings without motion first.
+  This is normal. To keep footage longer, lower the bitrate or use a larger disk.
+- "storage almost full": even after deleting recordings the disk is above its
+  limit, so something else is filling it. Find out what with the storage page.
 - Check with `df -h /var/lib/pi-guard`.
 
 ## Audio

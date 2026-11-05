@@ -71,10 +71,12 @@ sudo sed -i 's|^PI_GUARD_RECORDINGS_DIR=.*|PI_GUARD_RECORDINGS_DIR=/mnt/recordin
 sudo ./scripts/install.sh --yes   # creates the directory and the systemd permission drop-in
 ```
 
-pi-guard deletes the oldest recordings when the filesystem is fuller than
+pi-guard deletes recordings when the filesystem is fuller than
 `PI_GUARD_RECORDING_MAX_STORAGE_PERCENT` or has less than
 `PI_GUARD_RECORDING_MIN_FREE_MB` free, so recordings on the root filesystem
-cannot fill it up.
+cannot fill it up and there is always room for new ones. The oldest recordings
+in which nothing happened go first, then the oldest with motion or a person,
+and the last few minutes last.
 
 ## Optional features
 

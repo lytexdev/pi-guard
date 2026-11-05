@@ -15,7 +15,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
 
 - **Records 24/7** to five-minute MP4 segments, using the camera's own H.264
   or the Pi's hardware encoder. Old footage is deleted after a retention
-  period or when the disk gets full; the root filesystem is protected.
+  period, or earlier when the disk fills up: oldest footage without motion
+  first, so there is always room for new recordings.
 - **Detects motion** on small low-resolution frames, with zones, schedules and
   filters for light switches and sensor noise.
 - **HOME and AWAY modes.** At home, movement is logged but nobody is woken up.

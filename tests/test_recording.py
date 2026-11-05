@@ -213,6 +213,48 @@ def test_disk_pressure_removes_oldest_first(
     assert not report.over_limit
 
 
+def _pressure_scene(tmp_path: Path, db: Database, event: str) -> dict[str, Path]:
+    cam = tmp_path / "recordings" / "cam"
+    scene = {
+        "event": _touch(cam, 600),
+        "quiet_old": _touch(cam, 595),
+        "quiet_new": _touch(cam, 300),
+        "recent": _touch(cam, 10),
+        "writing": _touch(cam, 1),
+    }
+    db.add_event(NOW - timedelta(minutes=598), event, "cam", {})
+    return scene
+
+
+@pytest.mark.parametrize("event", ["motion_detected", "person_detected", "unknown_person"])
+def test_disk_pressure_spares_recordings_with_events(
+    tmp_path: Path, db: Database, monkeypatch: pytest.MonkeyPatch, event: str
+) -> None:
+    config = _config(tmp_path, recording_max_storage_percent=80)
+    scene = _pressure_scene(tmp_path, db, event)
+    used = iter([95e9, 90e9, 70e9, 70e9])
+    monkeypatch.setattr(
+        retention_module.shutil, "disk_usage", lambda p: Usage(100e9, (u := next(used)), 100e9 - u)
+    )
+    Retention(config, db, None).sweep(NOW)
+    assert not scene["quiet_old"].exists() and not scene["quiet_new"].exists()
+    assert scene["event"].exists() and scene["recent"].exists()
+
+
+def test_disk_pressure_takes_the_last_minutes_last(
+    tmp_path: Path, db: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _config(tmp_path, recording_max_storage_percent=80)
+    scene = _pressure_scene(tmp_path, db, "motion_detected")
+    used = iter([95e9, 90e9, 85e9, 70e9, 70e9])
+    monkeypatch.setattr(
+        retention_module.shutil, "disk_usage", lambda p: Usage(100e9, (u := next(used)), 100e9 - u)
+    )
+    Retention(config, db, None).sweep(NOW)
+    assert not scene["event"].exists()
+    assert scene["recent"].exists() and scene["writing"].exists()
+
+
 def test_disk_pressure_reports_when_unfixable(
     tmp_path: Path, db: Database, monkeypatch: pytest.MonkeyPatch
 ) -> None:

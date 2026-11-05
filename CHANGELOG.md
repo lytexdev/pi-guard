@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- When the disk reaches its limit, the oldest recordings without motion go first, then the oldest with motion or a
+  person, and the last few minutes last. Before, age alone decided.
 - People are cards with picture and quality, and the network overview starts with the numbers that matter.
 - The web dashboard and the phone app are on by default.
 - The add-on for connected computers is now called Home servers.
