@@ -102,6 +102,10 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- VPN on the computer: if the kernel refused the split tunneling rule, it took the kill switch rules down with it,
+  because the kernel loads rules all at once. Now split tunneling gives way, the kill switch stays, and the app says
+  why. This happened after a kernel update without a restart. The modules the VPN needs now load at boot, so such an
+  update no longer gets in the way.
 - In the first hour after a restart, unknown senders and emergency contacts got no answer: a limit took the time since
   boot for the time since the last answer.
 - In the desktop app, everything that asked a question did nothing: clearing storage, renaming, and every password

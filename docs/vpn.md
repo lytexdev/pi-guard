@@ -67,6 +67,10 @@ pi-guard-vpn run -- firefox
 
 Everything it starts stays outside as well. It uses a cgroup, so it is tied to the running program, not to its name.
 
+If the app says *Split tunneling is off*, the kernel could not load `nft_socket`, usually because it was updated and
+the computer has not restarted since. The VPN and the kill switch keep working, and programs simply use the tunnel.
+Restart the computer. `install-vpn.sh` also has the modules load at every boot, so later updates cannot cause this.
+
 ## Quantum-resistant tunnel
 
 WireGuard alone relies on Curve25519, which a future quantum computer could break, so traffic recorded today could be

@@ -66,6 +66,20 @@ pub fn apply(plan: &Plan) -> Result<(), String> {
     run_input("nft", &["-f", "-"], render(plan).as_bytes())
 }
 
+/// Loads a plan and returns what is in force. The kernel takes a rule set whole or not at all, so
+/// a split rule it cannot load would cost the kill switch too. Split tunneling gives way: its
+/// programs then use the tunnel, which is the safe side.
+pub fn apply_or_without_split(plan: &Plan, load: impl Fn(&Plan) -> Result<(), String>) -> Result<Plan, String> {
+    match load(plan) {
+        Ok(()) => Ok(plan.clone()),
+        Err(error) if !plan.split => Err(error),
+        Err(_) => {
+            let without = Plan { split: false, ..plan.clone() };
+            load(&without).map(|()| without)
+        }
+    }
+}
+
 /// Only for a deliberate step: everything open again.
 pub fn clear() -> Result<(), String> {
     run_input("nft", &["-f", "-"], format!("add table inet {TABLE}\ndelete table inet {TABLE}\n").as_bytes())
@@ -99,6 +113,40 @@ mod tests {
     #[test]
     fn without_a_plan_nothing_is_blocked() {
         assert!(!render(&Plan::default()).contains("policy drop"));
+    }
+
+    #[test]
+    fn a_refused_split_rule_does_not_cost_the_kill_switch() {
+        let plan = Plan { block: true, split: true, ..Plan::default() };
+        let refuses_split = |p: &Plan| if p.split { Err("no nft_socket".to_string()) } else { Ok(()) };
+        let in_force = apply_or_without_split(&plan, refuses_split).unwrap();
+        assert!(in_force.block && !in_force.split);
+    }
+
+    #[test]
+    fn split_stays_when_the_kernel_can_do_it() {
+        let plan = Plan { block: true, split: true, ..Plan::default() };
+        assert_eq!(apply_or_without_split(&plan, |_| Ok(())).unwrap(), plan);
+    }
+
+    #[test]
+    fn a_real_failure_is_reported() {
+        let refuses_all = |_: &Plan| Err("no nft".to_string());
+        let with_split = Plan { block: true, split: true, ..Plan::default() };
+        assert!(apply_or_without_split(&with_split, refuses_all).is_err());
+        assert!(apply_or_without_split(&Plan::default(), refuses_all).is_err());
+    }
+
+    /// Against the real kernel, in a network of its own: `unshare -Urn <test binary> --ignored`
+    #[test]
+    #[ignore = "needs its own network namespace"]
+    fn the_kernel_ends_up_with_the_kill_switch() {
+        let plan = Plan { block: true, split: true, ..Plan::default() };
+        let in_force = apply_or_without_split(&plan, apply).unwrap();
+        let rules = std::process::Command::new("nft").args(["list", "table", "inet", TABLE]).output().unwrap();
+        let rules = String::from_utf8_lossy(&rules.stdout);
+        assert_eq!(rules.matches("policy drop").count(), 3, "{rules}");
+        println!("split in force: {}", in_force.split);
     }
 
     #[test]

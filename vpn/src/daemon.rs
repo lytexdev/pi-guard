@@ -21,6 +21,8 @@ pub const SOCKET: &str = "/run/pi-guard-vpn.sock";
 const STATE: &str = "/var/lib/pi-guard-vpn";
 const USERS: &str = "/etc/pi-guard-vpn/users";
 const CGROUP: &str = "/sys/fs/cgroup";
+const NO_SPLIT: &str = "Split tunneling is off, the kill switch is not affected. \
+    The kernel could not load nft_socket: if it was just updated, restart this computer.";
 const HANDSHAKE_FRESH: u64 = 180;
 const TRY_SECONDS: u64 = 12;
 const MAX_REQUEST: u64 = 2_000_000;
@@ -60,6 +62,8 @@ struct Service {
     way: Option<Way>,
     pq: Option<pq::Client>,
     error: Option<String>,
+    /// The kernel refused the split rule. Until this service restarts, it stays that way.
+    no_split: bool,
     applied: Option<Plan>,
 }
 
@@ -84,7 +88,7 @@ impl Service {
         Plan {
             block: o.lockdown || (o.kill_switch && self.stored.wanted),
             allow_lan: o.allow_lan,
-            split: tunnel::exists() && Path::new(CGROUP).join(SPLIT_GROUP).is_dir(),
+            split: !self.no_split && tunnel::exists() && Path::new(CGROUP).join(SPLIT_GROUP).is_dir(),
             resolving,
         }
     }
@@ -94,8 +98,11 @@ impl Service {
         if self.applied.as_ref() == Some(&plan) {
             return;
         }
-        match firewall::apply(&plan) {
-            Ok(()) => self.applied = Some(plan),
+        match firewall::apply_or_without_split(&plan, firewall::apply) {
+            Ok(in_force) => {
+                self.no_split |= plan.split && !in_force.split;
+                self.applied = Some(in_force);
+            }
             Err(error) => self.error = Some(error),
         }
     }
@@ -207,7 +214,7 @@ impl Service {
             "blocking": self.plan(false).block, "configured": self.stored.config.is_some(),
             "quantum": { "active": shared > 0 && now().saturating_sub(shared) < 300, "last": shared,
                          "ready": folder().join("server.pk").exists() },
-            "error": self.error,
+            "error": self.error.as_deref().or(self.no_split.then_some(NO_SPLIT)),
         })
     }
 
@@ -244,6 +251,7 @@ impl Service {
                 Ok(data) => json!({ "key": b64::encode(&data) }),
                 Err(_) => json!({ "error": "no key" }),
             },
+            "split" if self.no_split => json!({ "error": NO_SPLIT }),
             "split" => split(peer_pid),
             _ => json!({ "error": "unknown command" }),
         }
@@ -359,7 +367,7 @@ pub fn run(rosenpass: String) -> ! {
     }
     let _ = fs::create_dir_all(Path::new(CGROUP).join(SPLIT_GROUP));
     let mut service = Service {
-        stored, rosenpass, attempt: 0, tried_at: 0, way: None, pq: None, error: None, applied: None,
+        stored, rosenpass, attempt: 0, tried_at: 0, way: None, pq: None, error: None, no_split: false, applied: None,
     };
     // First thing at every start, before the network is up: lockdown must never have a gap.
     service.firewall(false);

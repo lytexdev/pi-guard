@@ -2,7 +2,7 @@
 Description=pi-guard VPN: tunnel, kill switch, split tunneling
 # Before the network comes up: with lockdown on, there must be no gap at boot.
 DefaultDependencies=no
-After=local-fs.target
+After=local-fs.target systemd-modules-load.service
 Before=network-pre.target
 Wants=network-pre.target
 

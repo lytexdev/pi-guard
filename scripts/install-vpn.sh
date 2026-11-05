@@ -21,7 +21,7 @@ if [[ "${1:-}" == remove ]]; then
     /usr/local/sbin/pi-guard-vpn unlock 2>/dev/null || true
     systemctl disable --now pi-guard-vpn 2>/dev/null || true
     /usr/local/sbin/pi-guard-vpn unlock 2>/dev/null || true
-    rm -rf /etc/systemd/system/pi-guard-vpn.service /usr/local/sbin/pi-guard-vpn /usr/local/lib/pi-guard-vpn /etc/pi-guard-vpn /var/lib/pi-guard-vpn
+    rm -rf /etc/modules-load.d/pi-guard-vpn.conf /etc/systemd/system/pi-guard-vpn.service /usr/local/sbin/pi-guard-vpn /usr/local/lib/pi-guard-vpn /etc/pi-guard-vpn /var/lib/pi-guard-vpn
     systemctl daemon-reload
     echo "removed"
     exit 0
@@ -52,6 +52,12 @@ install -m 0755 "$work/bin/rosenpass" /usr/local/lib/pi-guard-vpn/rosenpass
 install -d -m 0755 /etc/pi-guard-vpn
 id -u "${SUDO_USER:-root}" > /etc/pi-guard-vpn/users
 install -m 0644 "$REPO/deploy/vpn/pi-guard-vpn.service" /etc/systemd/system/
+# Loaded at boot: a kernel update removes the running kernel's modules from the disk, and what is
+# not in memory by then cannot be loaded until the next restart.
+install -m 0644 "$REPO/deploy/vpn/pi-guard-vpn-modules.conf" /etc/modules-load.d/pi-guard-vpn.conf
+for module in $(grep -v '^#' "$REPO/deploy/vpn/pi-guard-vpn-modules.conf"); do
+    modprobe "$module" 2>/dev/null || echo "$module cannot be loaded yet: restart this computer if its kernel was just updated"
+done
 systemctl daemon-reload
 systemctl enable --now pi-guard-vpn
 echo "running. Open the VPN page in the desktop app."
