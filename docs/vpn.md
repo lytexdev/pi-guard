@@ -78,7 +78,7 @@ works. It is on by default. It uses some memory and processor time on the Pi, so
 under **Network › VPN** or per computer in the app.
 
 ```bash
-sudo ./scripts/vpn-server.sh install BINARY ROSENPASS   # on the Pi, once
+sudo ./scripts/vpn-server.sh install   # on the Pi, once; takes both programs from ~/pi-guard-vpn
 ```
 
 What to know:

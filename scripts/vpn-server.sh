@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Post-quantum keys for the VPN on your pi-guard (Rosenpass).
 #
-#   sudo ./scripts/vpn-server.sh install BINARY ROSENPASS   # both for this device's processor
+#   sudo ./scripts/vpn-server.sh install     # takes both programs from ~/pi-guard-vpn
+#   sudo ./scripts/vpn-server.sh install /path/to/pi-guard-vpn /path/to/rosenpass
 #   sudo ./scripts/vpn-server.sh remove
 #
 # What install changes on this system:
@@ -15,7 +16,13 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
 
 install_all() {
-    local binary="${1:?usage: $0 install BINARY ROSENPASS}" rosenpass="${2:?rosenpass binary}"
+    local home folder binary rosenpass
+    home="$(getent passwd "${SUDO_USER:-root}" | cut -d: -f6)"
+    folder="$home/pi-guard-vpn"
+    binary="${1:-$folder/pi-guard-vpn}"
+    rosenpass="${2:-$folder/rosenpass}"
+    [[ -f "$binary" ]] || die "$binary not found. Both programs must be built for this processor, see docs/vpn.md"
+    [[ -f "$rosenpass" ]] || die "$rosenpass not found. Both programs must be built for this processor, see docs/vpn.md"
     [[ -f /etc/wireguard/wg0.base ]] || die "set up WireGuard first: scripts/wireguard.sh setup"
     install -m 0755 "$binary" /usr/local/sbin/pi-guard-vpn
     install -d -m 0755 /usr/local/lib/pi-guard-vpn
@@ -40,5 +47,5 @@ remove() {
 case "${1:-}" in
     install) shift; install_all "$@" ;;
     remove) remove ;;
-    *) die "usage: $0 install BINARY ROSENPASS | remove" ;;
+    *) die "usage: $0 install [PI-GUARD-VPN ROSENPASS] | remove" ;;
 esac
