@@ -1410,6 +1410,8 @@
   "web.ap_device": "This device",
   "web.ap_color": "Accent colour",
   "web.ap_font": "Font",
+  "web.ap_name": "Name of the app",
+  "web.ap_name_hint": "Shown in the browser tab, the installed app and the desktop app, for example to keep it inconspicuous. On the phone, choose name and icon in the app under App settings.",
   "web.ap_font_system": "System font",
   "web.ap_font_readable": "Easy to read",
   "web.ap_font_rounded": "Rounded",

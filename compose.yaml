@@ -17,7 +17,7 @@ services:
       - ./data:/data
       - ./recordings:/recordings
     ports:
-      # Web dashboard; only listens when PI_GUARD_DASHBOARD_ENABLED=true.
+      # Web dashboard; on by default, off with PI_GUARD_DASHBOARD_ENABLED=false.
       - "${DASHBOARD_PORT:-8443}:8443"
     devices:
       - ${CAMERA_DEVICE:-/dev/video0}:${CAMERA_DEVICE:-/dev/video0}

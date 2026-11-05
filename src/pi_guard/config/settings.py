@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     discord_viewer_user_ids: StrList = Field(default_factory=list)
 
     # Phones with the pi-guard app (see docs/mobile.md)
-    mobile_enabled: bool = False
+    mobile_enabled: bool = True
 
     # Email (optional, alerts and exports only; see docs/email.md)
     email_enabled: bool = False
@@ -160,7 +160,7 @@ class Settings(BaseSettings):
     blockpage_ip: str | None = None
 
     # Web dashboard (optional)
-    dashboard_enabled: bool = False
+    dashboard_enabled: bool = True
     dashboard_host: str = "0.0.0.0"  # noqa: S104 - the dashboard is meant for the LAN
     dashboard_port: int = Field(8443, ge=1, le=65535)
     dashboard_tls: bool = True

@@ -1410,6 +1410,8 @@
   "web.ap_device": "Dieses Gerät",
   "web.ap_color": "Akzentfarbe",
   "web.ap_font": "Schriftart",
+  "web.ap_name": "Name der App",
+  "web.ap_name_hint": "Steht im Browser-Tab, in der installierten App und in der Desktop-App, zum Beispiel um unauffällig zu bleiben. Auf dem Handy wählst du Name und Symbol in der App unter App-Einstellungen.",
   "web.ap_font_system": "Systemschrift",
   "web.ap_font_readable": "Gut lesbar",
   "web.ap_font_rounded": "Abgerundet",

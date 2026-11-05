@@ -59,7 +59,7 @@ class GuardService : Service() {
         store = Store(this)
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, CHANNEL_SERVICE)
-            .setSmallIcon(R.drawable.ic_shield).setContentTitle(getString(R.string.service_title))
+            .setSmallIcon(R.drawable.ic_shield).setContentTitle(if (Disguise.isDefault(this)) getString(R.string.service_title) else getString(Disguise.current(this).name))
             .setContentIntent(open).setOngoing(true).build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(SERVICE_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)

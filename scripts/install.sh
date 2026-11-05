@@ -223,13 +223,16 @@ install -d -m 0700 -o "$USER_NAME" -g "$USER_NAME" "$RECORDINGS"
 
 # optional: dashboard, Pi-hole, WireGuard status, fixed address ----------------------
 
-if ! grep -q '^PI_GUARD_DASHBOARD_ENABLED=true' "$ENV_FILE" \
-    && yes_no "Enable the web dashboard (https://<pi>:8443)?" n; then
+# On unless someone switched them off: most people use pi-guard through these two.
+if ! grep -q '^PI_GUARD_DASHBOARD_ENABLED=' "$ENV_FILE"; then
     set_env PI_GUARD_DASHBOARD_ENABLED true
+    say "first login: admin / admin123 - the dashboard then asks for your own password"
+    say "dashboard: https://<pi>:8443; install the certificate from https://<pi>:8443/ca.crt on your devices"
+fi
+grep -q '^PI_GUARD_MOBILE_ENABLED=' "$ENV_FILE" || set_env PI_GUARD_MOBILE_ENABLED true
+if grep -q '^PI_GUARD_DASHBOARD_ENABLED=true' "$ENV_FILE"; then
     grep -q '^PI_GUARD_DASHBOARD_SECRET_KEY=..' "$ENV_FILE" \
         || set_env PI_GUARD_DASHBOARD_SECRET_KEY "$(openssl rand -hex 32)"
-    say "first login: admin / admin123 - the dashboard then asks for your own password"
-    say "dashboard enabled; install the certificate from https://<pi>:8443/ca.crt on your devices"
 fi
 
 if ! command -v pihole >/dev/null && yes_no "Install Pi-hole (network-wide ad blocking, official installer from pi-hole.net)?" n; then

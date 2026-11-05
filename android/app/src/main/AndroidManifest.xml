@@ -26,12 +26,14 @@
         android:label="PiGuard"
         android:supportsRtl="true"
         android:theme="@style/Theme.PiGuard">
-        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity-alias android:name=".LookPiGuard" android:targetActivity=".MainActivity" android:exported="true" android:enabled="true" android:label="PiGuard" android:icon="@mipmap/ic_launcher"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
+        <activity-alias android:name=".LookCalculator" android:targetActivity=".MainActivity" android:exported="true" android:enabled="false" android:label="@string/look_calculator" android:icon="@mipmap/ic_look_calculator"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
+        <activity-alias android:name=".LookNotes" android:targetActivity=".MainActivity" android:exported="true" android:enabled="false" android:label="@string/look_notes" android:icon="@mipmap/ic_look_notes"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
+        <activity-alias android:name=".LookWeather" android:targetActivity=".MainActivity" android:exported="true" android:enabled="false" android:label="@string/look_weather" android:icon="@mipmap/ic_look_weather"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
+        <activity-alias android:name=".LookClock" android:targetActivity=".MainActivity" android:exported="true" android:enabled="false" android:label="@string/look_clock" android:icon="@mipmap/ic_look_clock"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
+        <activity-alias android:name=".LookFiles" android:targetActivity=".MainActivity" android:exported="true" android:enabled="false" android:label="@string/look_files" android:icon="@mipmap/ic_look_files"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
+        <activity-alias android:name=".LookMusic" android:targetActivity=".MainActivity" android:exported="true" android:enabled="false" android:label="@string/look_music" android:icon="@mipmap/ic_look_music"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
         <activity android:name=".SetupActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".LockActivity" android:exported="false" />
         <activity android:name=".EmergencyActivity" android:exported="false" android:showWhenLocked="true" android:turnScreenOn="true" />

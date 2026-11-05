@@ -35,7 +35,7 @@ def test_malformed_token_is_rejected() -> None:
 
 def test_telegram_requires_admin() -> None:
     with pytest.raises(ValidationError, match="ADMIN_USER_IDS"):
-        Settings(telegram_bot_token=TOKEN)
+        Settings(telegram_bot_token=TOKEN, dashboard_enabled=False)
 
 
 def test_env_lists_and_mode_parse(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

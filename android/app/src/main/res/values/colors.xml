@@ -13,4 +13,10 @@
     <color name="danger">#FF6B6B</color>
     <color name="sos">#D32F2F</color>
     <color name="emergency">#7A1414</color>
+    <color name="look_calculator">#37474F</color>
+    <color name="look_notes">#F9A825</color>
+    <color name="look_weather">#1E88E5</color>
+    <color name="look_clock">#263238</color>
+    <color name="look_files">#00897B</color>
+    <color name="look_music">#8E24AA</color>
 </resources>

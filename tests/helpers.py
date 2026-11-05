@@ -50,6 +50,8 @@ def make_settings(tmp_path: Path, **overrides: Any) -> Settings:
         "data_dir": tmp_path / "data",
         "runtime_dir": tmp_path / "run",
         "config_file": tmp_path / "config.yaml",
+        "dashboard_enabled": False,
+        "mobile_enabled": False,
     }
     values.update(overrides)
     return Settings(**values)

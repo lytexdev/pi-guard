@@ -6,11 +6,12 @@ per Portfreigabe ins Internet stellen.
 
 ## Einschalten
 
-In `/etc/pi-guard/pi-guard.env`:
+Dashboard und Handy-App sind standardmäßig an, die Installation richtet sie ein. Ausschalten in
+`/etc/pi-guard/pi-guard.env`:
 
 ```
-PI_GUARD_DASHBOARD_ENABLED=true
-PI_GUARD_DASHBOARD_SECRET_KEY=<Ausgabe von: openssl rand -hex 32>
+PI_GUARD_DASHBOARD_ENABLED=false
+PI_GUARD_MOBILE_ENABLED=false
 ```
 
 `sudo systemctl restart pi-guard`, dann `https://<Adresse-des-Pi>:8443`

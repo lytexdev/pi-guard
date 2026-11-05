@@ -8,6 +8,7 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- The web dashboard and the phone app are on by default.
 - The add-on for connected computers is now called Home servers.
 - Cameras sending H.264 are now recorded at the set bitrate with the hardware encoder. They ignored it before: one
   camera wrote 80 GB a day instead of about 20. Without a hardware encoder they are still copied, and codec `copy` keeps
@@ -23,6 +24,10 @@ All notable changes are documented here. The format follows
 - Four ways home from outside, shown with their state under Network › VPN: IPv4, IPv6, a rented server and
   Tailscale. The app tries them in turn and finds the dashboard at other addresses. `scripts/relay.sh` sets up a
   server that passes the VPN on without being able to read it, optionally with the dashboard through Caddy.
+- The phone app can look like a calculator, notes and more, and can get a shortcut with any name and picture. The
+  dashboard's name can be changed under Appearance, also for installed apps.
+- Desktop app for Windows, Linux and macOS (`desktop/`, `scripts/build-desktop.sh`): the dashboard in its own window,
+  trusting only your pi-guard's certificate authority.
 - Connect calendars: besides the phone's calendar, any calendar with an iCal link such as Google, Proton or Nextcloud.
   Repeats and time zones are worked out, and only start and end of busy times are stored.
 - Trusted people can have a picture, birthday, address, email and phone number, all optional.

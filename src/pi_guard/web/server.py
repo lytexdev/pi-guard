@@ -344,10 +344,13 @@ class Dashboard:
         response.headers["Service-Worker-Allowed"] = "/"
         return response
 
-    async def _manifest(self, request: web.Request) -> web.FileResponse:
-        response = web.FileResponse(STATIC / "manifest.webmanifest")
-        response.content_type = "application/manifest+json"
-        return response
+    async def _manifest(self, request: web.Request) -> web.Response:
+        """With the name chosen under Appearance, which also goes for the installed app."""
+        manifest = json.loads((STATIC / "manifest.webmanifest").read_text())
+        name = (self.app.db.get("web.appearance") or {}).get("name")
+        if name:
+            manifest.update(name=name, short_name=name)
+        return web.Response(text=json.dumps(manifest), content_type="application/manifest+json")
 
     async def _robots(self, request: web.Request) -> web.Response:
         return web.Response(text="User-agent: *\nDisallow: /\n")

@@ -1,0 +1,63 @@
+{
+  "name": "pi-guard-desktop",
+  "productName": "PiGuard",
+  "version": "1.0.0",
+  "description": "The pi-guard dashboard as an app for Windows, Linux and macOS",
+  "author": "lytex",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "de.lytex.piguard",
+    "files": [
+      "main.js",
+      "preload.js",
+      "trust.js",
+      "pages/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "artifactName": "PiGuard-${version}-${os}-${arch}.${ext}",
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Security",
+      "maintainer": "lytex"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities",
+      "identity": null
+    }
+  },
+  "homepage": "https://github.com/lytexdev/pi-guard"
+}

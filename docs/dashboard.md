@@ -6,9 +6,11 @@ internet with a port forwarding.
 
 ## Enable
 
+The dashboard and the phone app are on by default, and the installer sets them up. To switch them off:
+
 ```dotenv
-PI_GUARD_DASHBOARD_ENABLED=true
-PI_GUARD_DASHBOARD_SECRET_KEY=<openssl rand -hex 32>
+PI_GUARD_DASHBOARD_ENABLED=false
+PI_GUARD_MOBILE_ENABLED=false
 ```
 
 Restart pi-guard and open `https://<pi-address>:8443`. Telegram does not need

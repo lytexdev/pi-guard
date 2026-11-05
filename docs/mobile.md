@@ -30,6 +30,10 @@ app* and its token stops working at once.
 - **Find a phone:** from *Add-ons → Mobile app* or `/findphone name` in chat. It rings at full volume and
   vibrates. Location, map and details are only sent if the phone's owner switched on *Share location*. The phone
   shows that someone is looking for it. The Pi fetches map tiles from OpenStreetMap, and only when someone opens the map.
+- **Name and icon:** *App settings → App name and icon* turns the app into Calculator, Notes, Weather, Clock, Files or
+  Music, with a matching icon, for example to keep it inconspicuous. Android fixes these names when the app is built,
+  so for any other name and picture create your own shortcut on the home screen. The app cannot be hidden completely:
+  since Android 10 every app with permissions shows up in the app list. Under the chosen look it does so inconspicuously.
 - **Calendar:** busy entries of the phone's calendar count as away. Other calendars such as Google or Proton are
   connected in the dashboard under Settings › At home & away, also without the app.
 - **SOS:** one tap starts a 10-second countdown; tapping again cancels. Then all emergency contacts and admins

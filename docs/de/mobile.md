@@ -30,6 +30,11 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
   vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
   zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
+- **Name und Symbol:** *App-Einstellungen → App-Name und Symbol* macht aus der App einen Rechner, Notizen, Wetter, Uhr,
+  Dateien oder Musik mit passendem Symbol, zum Beispiel um unauffällig zu bleiben. Android legt diese Namen beim Bauen der
+  App fest. Für jeden anderen Namen und ein eigenes Bild erstellst du eine Verknüpfung auf dem Startbildschirm. Ganz
+  verstecken lässt sich die App nicht: Seit Android 10 steht jede App mit Berechtigungen in der App-Liste, mit dem
+  gewählten Aussehen aber unauffällig.
 - **Kalender:** Belegte Einträge des Handy-Kalenders zählen als abwesend. Andere Kalender wie Google oder Proton verbindest
   du im Dashboard unter Einstellungen › Zuhause & Abwesend, auch ohne die App.
 - **SOS:** Ein Tippen startet 10 Sekunden Countdown, nochmal tippen bricht ab. Danach bekommen alle Notfallkontakte und

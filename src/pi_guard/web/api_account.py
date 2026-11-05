@@ -177,6 +177,7 @@ async def user_delete(request: web.Request) -> web.Response:
 # --- appearance -----------------------------------------------------------------------------
 
 FONTS = ("system", "serif", "rounded", "mono", "readable")
+MAX_APP_NAME = 30
 _COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 LOGO_TYPES = {
     b"\x89PNG": "png",
@@ -203,8 +204,9 @@ async def appearance(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(text="web.error")
     if font not in FONTS:
         raise web.HTTPBadRequest(text="web.error")
+    name = " ".join(str(data.get("name", "")).split())[:MAX_APP_NAME]
     saved = d.app.db.get("web.appearance") or {}
-    d.app.db.set("web.appearance", {**saved, "accent": accent, "font": font,
+    d.app.db.set("web.appearance", {**saved, "accent": accent, "font": font, "name": name,
                                     "animations": data.get("animations") is not False})  # fmt: skip
     return web.json_response({"ok": True})
 

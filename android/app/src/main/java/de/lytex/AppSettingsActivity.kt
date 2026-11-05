@@ -30,6 +30,8 @@ class AppSettingsActivity : AppCompatActivity() {
         if (store.shareLocation) askBackground.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
     }
     private val askBackground = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    private var shortcutPicture: android.net.Uri? = null
+    private val pickPicture = registerForActivityResult(ActivityResultContracts.GetContent()) { shortcutPicture = it }
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -38,6 +40,8 @@ class AppSettingsActivity : AppCompatActivity() {
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         vpnState = findViewById(R.id.vpn_state)
         findViewById<Button>(R.id.vpn_toggle).setOnClickListener { startActivity(Intent(this, VpnActivity::class.java)) }
+        findViewById<Button>(R.id.look_choose).setOnClickListener { chooseLook() }
+        findViewById<Button>(R.id.look_shortcut).setOnClickListener { makeShortcut() }
         check(R.id.location, store.shareLocation) {
             if (it) askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) else store.shareLocation = false
         }
@@ -71,6 +75,34 @@ class AppSettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         vpnState.setText(if (Vpn.running) R.string.vpn_on else R.string.vpn_off)
+    }
+
+    private fun chooseLook() {
+        val names = Disguise.looks.map { getString(it.name) }.toTypedArray()
+        val now = Disguise.looks.indexOf(Disguise.current(this))
+        MaterialAlertDialogBuilder(this).setTitle(R.string.look_choose).setSingleChoiceItems(names, now) { dialog, chosen ->
+            Disguise.apply(this, Disguise.looks[chosen])
+            dialog.dismiss()
+            Toast.makeText(this, R.string.look_done, Toast.LENGTH_LONG).show()
+        }.setNegativeButton(R.string.cancel, null).show()
+    }
+
+    private fun makeShortcut() {
+        shortcutPicture = null
+        val name = EditText(this).apply { setHint(R.string.look_shortcut_name); setText(Disguise.current(this@AppSettingsActivity).name) }
+        val side = (24 * resources.displayMetrics.density).toInt()
+        val hint = TextView(this).apply { setText(R.string.look_shortcut_hint) }
+        val pick = Button(this).apply { setText(R.string.look_shortcut_image); setOnClickListener { pickPicture.launch("image/*") } }
+        val box = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(side, side / 3, side, 0)
+            addView(hint); addView(name); addView(pick)
+        }
+        MaterialAlertDialogBuilder(this).setTitle(R.string.look_shortcut).setView(box)
+            .setPositiveButton(R.string.look_shortcut_create) { _, _ ->
+                val label = name.text.toString().trim()
+                if (label.isNotEmpty()) Disguise.pinShortcut(this, label, shortcutPicture)
+            }.setNegativeButton(R.string.cancel, null).show()
     }
 
     private fun setPin() {

@@ -60,6 +60,8 @@ class MainActivity : AppCompatActivity() {
             return finish()
         }
         setContentView(R.layout.activity_main)
+        findViewById<TextView>(R.id.app_title).setText(Disguise.current(this).name)
+        if (!Disguise.isDefault(this)) findViewById<View>(R.id.app_logo).visibility = View.GONE
         web = findViewById(R.id.web)
         offline = findViewById(R.id.offline)
         findViewById<Button>(R.id.sos).setOnClickListener { startActivity(Intent(this, EmergencyActivity::class.java)) }

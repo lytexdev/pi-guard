@@ -17,6 +17,17 @@
     <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_settings" app:tint="@color/accent" android:importantForAccessibility="no" />
+                <TextView style="@style/Heading" android:text="@string/look_title" />
+            </LinearLayout>
+            <TextView style="@style/Hint" android:layout_marginBottom="8dp" android:text="@string/look_hint" />
+            <Button android:id="@+id/look_choose" style="@style/Button" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/look_choose" />
+            <Button android:id="@+id/look_shortcut" style="@style/Button.Tonal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/look_shortcut" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
                 <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_map_pin" app:tint="@color/accent" android:importantForAccessibility="no" />
                 <TextView style="@style/Heading" android:text="@string/location_section" />
             </LinearLayout>

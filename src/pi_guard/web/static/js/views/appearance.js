@@ -11,8 +11,9 @@ export function sharedDesign(box) {
   const color = h("input", { id: "apcolor", type: "color", value: saved.accent || DEFAULT_ACCENT });
   const font = h("select", { id: "apfont" }, Object.keys(FONTS).map((f) => h("option", { value: f, selected: f === (saved.font || "system") }, t(`web.ap_font_${f}`))));
   const motion = h("input", { type: "checkbox", checked: saved.animations !== false });
+  const appName = h("input", { id: "apname", maxlength: 30, value: saved.name || "", placeholder: "pi-guard" });
   const logoFile = h("input", { id: "aplogo", type: "file", accept: "image/png,image/jpeg,image/webp" });
-  const current = () => ({ ...state.session.appearance, accent: color.value, font: font.value, animations: motion.checked });
+  const current = () => ({ ...state.session.appearance, accent: color.value, font: font.value, animations: motion.checked, name: appName.value.trim() });
   const preview = () => applyAppearance(current());
   const save = async () => {
     const body = current();
@@ -33,6 +34,7 @@ export function sharedDesign(box) {
   [color, font, motion].forEach((input) => input.addEventListener("input", preview));
   fill(box,
     h("section", { class: "panel stack" }, h("h2", {}, t("web.ap_everyone")), h("p", { class: "muted" }, t("web.ap_everyone_hint")),
+      h("div", { class: "field" }, h("label", { for: "apname" }, t("web.ap_name")), appName, h("small", { class: "muted" }, t("web.ap_name_hint"))),
       h("div", { class: "field" }, h("label", { for: "apcolor" }, t("web.ap_color")),
         h("div", { class: "row" }, color, SWATCHES.map(swatch))),
       h("div", { class: "field" }, h("label", { for: "apfont" }, t("web.ap_font")), font),

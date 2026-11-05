@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
+  <title>PiGuard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1 data-t="title"></h1>
+    <p data-t="intro"></p>
+    <form id="find">
+      <label for="address" data-t="address"></label>
+      <input id="address" placeholder="https://192.168.178.109:8443" autofocus required>
+      <button type="submit" data-t="connect"></button>
+    </form>
+    <p class="error" id="problem" role="alert"></p>
+    <section id="confirm" class="hidden">
+      <p data-t="check"></p>
+      <code id="print"></code>
+      <button id="trust" data-t="trust"></button>
+      <button id="back" class="second" data-t="cancel"></button>
+    </section>
+  </main>
+  <script src="setup.js"></script>
+</body>
+</html>

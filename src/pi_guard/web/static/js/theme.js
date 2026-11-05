@@ -22,6 +22,7 @@ function inkFor(hex) {
 // What the admin chose for everybody. The high-contrast theme keeps its own colours.
 export function applyAppearance(appearance = shared) {
   shared = appearance || {};
+  document.title = shared.name || "pi-guard";
   const root = document.documentElement;
   if (shared.accent && root.dataset.theme !== "contrast") {
     root.style.setProperty("--accent", shared.accent);
