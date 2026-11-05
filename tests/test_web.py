@@ -574,3 +574,22 @@ async def test_settings_tell_which_ones_are_for_experts(tmp_path: Path) -> None:
     finally:
         await client.close()
         app.db.close()
+
+
+async def test_releases_are_handed_out_without_a_login(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        assert await (await client.get("/api/updates/agent/linux-x86_64")).json() == {}
+        folder = app.settings.data_dir / "apps" / "agent" / "linux-x86_64"
+        folder.mkdir(parents=True)
+        (folder / "latest.json").write_text('{"version": "1.0.0"}')
+        (folder / "latest.bin").write_bytes(b"binary")
+        answer = await client.get("/api/updates/agent/linux-x86_64")
+        assert (await answer.json())["version"] == "1.0.0"
+        assert await (await client.get("/api/updates/agent/linux-x86_64/file")).read() == b"binary"
+        assert (await client.get("/api/updates/passwords/linux-x86_64")).status == 404
+        assert (await client.get("/api/updates/agent/..%2F..%2Ftls")).status == 404
+        assert (await client.post("/api/updates/agent/linux-x86_64", json={})).status in (403, 405)
+    finally:
+        await client.close()
+        app.db.close()

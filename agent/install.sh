@@ -28,6 +28,8 @@ CA_FILE=$CONF/ca.crt
 # Set to false to forbid shutdown and reboot, or Docker control, from pi-guard.
 ALLOW_POWER=true
 ALLOW_DOCKER=true
+# Signed new versions from your pi-guard install themselves. Set to false to update by hand.
+AUTO_UPDATE=true
 CONFIG
 install -m 0755 "$BIN" /usr/local/bin/pi-guard-agent
 install -m 0644 "$HERE/pi-guard-agent.service" /etc/systemd/system/pi-guard-agent.service

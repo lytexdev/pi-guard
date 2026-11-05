@@ -7,6 +7,7 @@
 
 mod commands;
 mod config;
+mod update;
 
 use std::net::TcpStream;
 use std::sync::Arc;
@@ -25,7 +26,7 @@ const REPORT_EVERY: Duration = Duration::from_secs(30);
 const MAX_BACKOFF: u64 = 60;
 type Socket = WebSocket<MaybeTlsStream<TcpStream>>;
 
-fn tls_connector(config: &Config) -> Result<Option<Connector>, String> {
+pub fn tls_config(config: &Config) -> Result<Option<Arc<rustls::ClientConfig>>, String> {
     let Some(path) = &config.ca_file else { return Ok(None) };
     let pem = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
     let mut roots = rustls::RootCertStore::empty();
@@ -33,10 +34,14 @@ fn tls_connector(config: &Config) -> Result<Option<Connector>, String> {
         roots.add(cert.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     }
     let tls = rustls::ClientConfig::builder().with_root_certificates(roots).with_no_client_auth();
-    Ok(Some(Connector::Rustls(Arc::new(tls))))
+    Ok(Some(Arc::new(tls)))
 }
 
-fn host_and_port(url: &str) -> Result<(String, u16), String> {
+fn tls_connector(config: &Config) -> Result<Option<Connector>, String> {
+    Ok(tls_config(config)?.map(Connector::Rustls))
+}
+
+pub fn host_and_port(url: &str) -> Result<(String, u16), String> {
     let (scheme, rest) = url.split_once("://").ok_or("URL without scheme")?;
     let authority = rest.split('/').next().unwrap_or(rest);
     let default = if scheme == "wss" { 443 } else { 80 };
@@ -110,6 +115,10 @@ fn session(config: &Config) -> Result<(), String> {
 fn main() {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let path = std::env::args().nth(1).unwrap_or_else(|| "/etc/pi-guard-agent/agent.conf".into());
+    if path == "--version" {
+        println!("{}", env!("CARGO_PKG_VERSION")); // a new version must answer this before it is used
+        return;
+    }
     let config = match Config::load(&path) {
         Ok(config) => config,
         Err(error) => {
@@ -117,6 +126,9 @@ fn main() {
             std::process::exit(2);
         }
     };
+    if config.auto_update {
+        update::start(config.clone());
+    }
     let mut backoff = 2;
     loop {
         let started = Instant::now();

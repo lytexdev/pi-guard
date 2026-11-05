@@ -158,7 +158,7 @@ mod tests {
     use super::*;
 
     fn config(power: bool, docker: bool) -> Config {
-        Config { url: "https://x".into(), token: "t".into(), ca_file: None,
+        Config { url: "https://x".into(), token: "t".into(), ca_file: None, auto_update: true,
                  allow_power: power, allow_docker: docker }
     }
 

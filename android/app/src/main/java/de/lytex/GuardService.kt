@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -76,17 +77,13 @@ class GuardService : Service() {
         return START_STICKY
     }
 
-    /** Android asks before installing an app that does not come from a store, so this only offers. */
+    /** On Wi-Fi only: an app update is no reason to use up someone's mobile data. */
     private fun offerUpdate() {
         if (System.currentTimeMillis() - checkedUpdate < UPDATE_EVERY) return
+        if (getSystemService(ConnectivityManager::class.java).isActiveNetworkMetered) return
         checkedUpdate = System.currentTimeMillis()
         val meta = Updater.latest(store) ?: return
-        if (!Updater.isNewer(this, meta)) return
-        val open = PendingIntent.getActivity(this, 3, Intent(this, AppSettingsActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        val notification = NotificationCompat.Builder(this, CHANNEL_ALERTS).setSmallIcon(R.drawable.ic_shield)
-            .setContentTitle(getString(R.string.update_found, meta.getString("version_name")))
-            .setContentIntent(open).setAutoCancel(true).build()
-        getSystemService(NotificationManager::class.java).notify(UPDATE_ID, notification)
+        if (Updater.isNewer(this, meta)) Updater.install(this, store, meta)
     }
 
     private fun connect() {
@@ -201,7 +198,7 @@ class GuardService : Service() {
         const val CHANNEL_FIND = "find"
         private const val SERVICE_ID = 1
         private const val FIND_ID = 2
-        private const val UPDATE_ID = 3
+        const val UPDATE_ID = 3
         private const val UPDATE_EVERY = 24 * 3600_000L
         private const val ALERT_BASE = 100
         private const val RETRY_AFTER = 15_000L
@@ -230,6 +227,7 @@ class GuardService : Service() {
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) GuardService.start(context)
+        // After an update Android does not start anything by itself.
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) GuardService.start(context)
     }
 }

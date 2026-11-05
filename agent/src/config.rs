@@ -7,6 +7,7 @@ pub struct Config {
     pub ca_file: Option<String>,
     pub allow_power: bool,
     pub allow_docker: bool,
+    pub auto_update: bool,
 }
 
 fn is_local(url: &str) -> bool {
@@ -17,7 +18,7 @@ fn is_local(url: &str) -> bool {
 impl Config {
     pub fn parse(text: &str) -> Result<Config, String> {
         let (mut url, mut token, mut ca_file) = (String::new(), String::new(), None);
-        let (mut allow_power, mut allow_docker) = (true, true);
+        let (mut allow_power, mut allow_docker, mut auto_update) = (true, true, true);
         for line in text.lines() {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
@@ -31,6 +32,7 @@ impl Config {
                 "CA_FILE" => ca_file = Some(value),
                 "ALLOW_POWER" => allow_power = value == "true",
                 "ALLOW_DOCKER" => allow_docker = value == "true",
+                "AUTO_UPDATE" => auto_update = value == "true",
                 other => return Err(format!("unknown setting {other}")),
             }
         }
@@ -40,7 +42,7 @@ impl Config {
         if url.starts_with("http://") && !is_local(&url) {
             return Err("plain http is only allowed on this computer; use https".into());
         }
-        Ok(Config { url, token, ca_file, allow_power, allow_docker })
+        Ok(Config { url, token, ca_file, allow_power, allow_docker, auto_update })
     }
 
     pub fn load(path: &str) -> Result<Config, String> {

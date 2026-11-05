@@ -30,6 +30,8 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
   vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
   zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
+- **Updates:** kommen einmal am Tag im WLAN von deinem pi-guard. Das erste fragt nach einem Tippen, danach aktualisiert
+  sich die App ab Android 12 selbst.
 - **Name und Symbol:** *App-Einstellungen → App-Name und Symbol* macht aus der App einen Rechner, Notizen, Wetter, Uhr,
   Dateien oder Musik mit passendem Symbol, zum Beispiel um unauffällig zu bleiben. Android legt diese Namen beim Bauen der
   App fest. Für jeden anderen Namen und ein eigenes Bild erstellst du eine Verknüpfung auf dem Startbildschirm. Ganz

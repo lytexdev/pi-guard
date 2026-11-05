@@ -60,6 +60,7 @@
     <string name="look_shortcut_image">Bild wählen</string>
     <string name="look_shortcut_create">Erstellen</string>
     <string name="look_done">Geändert. Es kann einen Moment dauern, bis es erscheint.</string>
+    <string name="update_ready">Tippen, um das Update zu installieren</string>
     <string name="vpn_open">VPN öffnen</string>
     <string name="vpn_connecting">Verbinde …</string>
     <string name="vpn_no_answer">Dein Zuhause antwortet nicht</string>

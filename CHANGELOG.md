@@ -21,6 +21,9 @@ All notable changes are documented here. The format follows
 - Four ways home from outside, shown with their state under Network › VPN: IPv4, IPv6, a rented server and
   Tailscale. The app tries them in turn and finds the dashboard at other addresses. `scripts/relay.sh` sets up a
   server that passes the VPN on without being able to read it, optionally with the dashboard through Caddy.
+- Agents, desktop apps and the phone app update themselves from your pi-guard. Agents and desktop apps only accept
+  releases signed with a key that never comes to the Pi, and never an older version. The phone app needs no tap from the
+  second update on (Android 12 and newer).
 - The phone app can look like a calculator, notes and more, and can get a shortcut with any name and picture. The
   dashboard's name can be changed under Appearance, also for installed apps.
 - Desktop app for Windows, Linux and macOS (`desktop/`, `scripts/build-desktop.sh`): the dashboard in its own window,

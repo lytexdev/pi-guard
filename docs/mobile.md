@@ -30,6 +30,8 @@ app* and its token stops working at once.
 - **Find a phone:** from *Add-ons → Mobile app* or `/findphone name` in chat. It rings at full volume and
   vibrates. Location, map and details are only sent if the phone's owner switched on *Share location*. The phone
   shows that someone is looking for it. The Pi fetches map tiles from OpenStreetMap, and only when someone opens the map.
+- **Updates:** come from your pi-guard once a day on Wi-Fi. The first one asks for a tap, after that the app updates
+  itself on Android 12 and newer. See [updates.md](updates.md).
 - **Name and icon:** *App settings → App name and icon* turns the app into Calculator, Notes, Weather, Clock, Files or
   Music, with a matching icon, for example to keep it inconspicuous. Android fixes these names when the app is built,
   so for any other name and picture create your own shortcut on the home screen. The app cannot be hidden completely:

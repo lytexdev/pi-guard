@@ -1,5 +1,7 @@
 # Home servers
 
+Agents update themselves with signed releases from your pi-guard, see [updates.md](updates.md).
+
 The pi-guard agent connects a home server, NAS or any other computer to pi-guard: see its status, shut it down safely, and
 manage its Docker containers, on the dashboard and on the network map. It is a single small
 program written in Rust (1.5 MB).

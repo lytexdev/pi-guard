@@ -60,6 +60,7 @@
     <string name="look_shortcut_image">Choose a picture</string>
     <string name="look_shortcut_create">Create</string>
     <string name="look_done">Changed. It can take a moment to appear.</string>
+    <string name="update_ready">Tap to install the update</string>
     <string name="vpn_open">Open VPN</string>
     <string name="vpn_connecting">Connecting…</string>
     <string name="vpn_no_answer">Your home does not answer</string>

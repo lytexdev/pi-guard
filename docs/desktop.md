@@ -7,7 +7,8 @@ certificate warning. It shows what runs on your Pi, so it never needs its own up
 
 | System | File | Note |
 | --- | --- | --- |
-| Linux | `PiGuard-*-linux-x86_64.AppImage` or `.deb` | make the AppImage executable and start it |
+| Linux, recommended | `PiGuard-*-linux-x64.tar.gz` | `./scripts/install-desktop.sh FILE`: for your user, on Arch too, starts fastest and updates itself |
+| Linux | `PiGuard-*-linux-x86_64.AppImage` or `.deb` | no automatic updates |
 | Windows | `PiGuard-*-win-x64.exe` | Windows warns because the file is not signed: *More info › Run anyway* |
 | macOS | `PiGuard-*-mac-*.zip` | not signed or notarized, see below |
 
@@ -20,6 +21,10 @@ Build them yourself with:
 Results land in `desktop/dist`. Windows needs wine on Linux. On macOS, build there for a working Apple Silicon version:
 Apple requires a signature, and without a paid developer account macOS blocks the app at first. Open it with a right
 click, *Open*, or under *System Settings › Privacy & Security*.
+
+## Updates
+
+The app updates itself, signed and verified. See [updates.md](updates.md).
 
 ## Performance
 
