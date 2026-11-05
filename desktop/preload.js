@@ -8,5 +8,6 @@ if (location.protocol === "file:") {
     retry: () => ipcRenderer.invoke("retry"),
     change: () => ipcRenderer.invoke("change"),
     address: () => ipcRenderer.invoke("address"),
+    vpn: (command, value) => ipcRenderer.invoke("vpn", command, value),
   });
 }

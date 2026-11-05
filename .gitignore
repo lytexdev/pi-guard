@@ -45,4 +45,5 @@ config/config.yaml
 !docs/**/*.jpg
 /data/
 agent/target/
+vpn/target/
 desktop/dist-pack/

@@ -593,3 +593,33 @@ async def test_releases_are_handed_out_without_a_login(tmp_path: Path) -> None:
     finally:
         await client.close()
         app.db.close()
+
+
+async def test_a_long_voice_message_arrives_whole(tmp_path: Path) -> None:
+    """It used to be cut off after the first part, which came out as nonsense."""
+    from aiohttp import web
+
+    from pi_guard.web.server import read_body
+
+    got: list[int] = []
+
+    async def handler(request: web.Request) -> web.Response:
+        got.append(len(await read_body(request, 5_000_000)))
+        return web.Response()
+
+    application = web.Application(client_max_size=10_000_000)
+    application.router.add_post("/", handler)
+    client = TestClient(TestServer(application))
+    await client.start_server()
+    try:
+
+        async def slowly() -> Any:
+            for _ in range(20):
+                yield b"x" * 100_000
+                await asyncio.sleep(0)
+
+        assert (await client.post("/", data=slowly())).status == 200
+        assert got == [2_000_000]
+        assert (await client.post("/", data=b"x" * 6_000_000)).status == 413
+    finally:
+        await client.close()

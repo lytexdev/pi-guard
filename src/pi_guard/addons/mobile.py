@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS mobile_devices (
 """
 MAX_NAME = 40
 MAX_PHOTO = 700_000  # a photo has to fit into one message
-PLATFORMS = ("android", "ios")
+PLATFORMS = ("android", "ios", "linux", "windows", "macos")
 REPORT_FIELDS = {"latitude": float, "longitude": float, "accuracy": float, "altitude": float,
                  "speed": float, "located_at": str, "battery": int, "charging": bool,
                  "network": str, "ssid": str, "ip": str, "model": str, "os": str, "app": str,

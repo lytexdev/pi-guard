@@ -1,0 +1,22 @@
+[Unit]
+Description=pi-guard VPN: tunnel, kill switch, split tunneling
+# Before the network comes up: with lockdown on, there must be no gap at boot.
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+ExecStart=/usr/local/sbin/pi-guard-vpn daemon
+Restart=always
+RestartSec=1
+StateDirectory=pi-guard-vpn
+StateDirectoryMode=0700
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_DAC_OVERRIDE CAP_NET_RAW CAP_SYS_ADMIN CAP_KILL
+
+[Install]
+WantedBy=sysinit.target

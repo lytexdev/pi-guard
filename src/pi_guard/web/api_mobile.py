@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
 import hashlib
 import ipaddress
@@ -28,13 +29,15 @@ from pi_guard.network.reach import addresses, endpoints, tailscale
 from pi_guard.network.wgpeers import PeerError
 from pi_guard.network.wireguard import read_status
 from pi_guard.security.files import atomic_write
-from pi_guard.web.api_network import _config, _server, _store
-from pi_guard.web.server import COOKIE, current, dashboard, read_json
+from pi_guard.web.api_network import _config, _server, _store, quantum_public_key
+from pi_guard.web.server import COOKIE, current, dashboard, read_body, read_json
 
 log = logging.getLogger(__name__)
 
 MAX_MESSAGE = 1_000_000
 MAX_ZOOM = 19
+PQ_KEY_SIZE = 524160
+MAX_PQ_REQUEST = 800_000
 MAX_TILES = 200
 USER_AGENT = f"pi-guard/{__version__} (+https://github.com/lytexdev/pi-guard)"
 EMERGENCY_PHOTO_SECONDS = 4
@@ -54,6 +57,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/mobile/emergency", emergency),
         web.post("/api/mobile/calendar", calendar),
         web.post("/api/mobile/vpn", vpn),
+        web.post("/api/mobile/vpn/pq", vpn_quantum),
         web.get("/api/mobile/reach", reach),
         web.get("/api/mobile/map/{z:\\d+}/{x:\\d+}/{y:\\d+}.png", map_tile),
         web.get("/api/mobile/app/latest", app_latest),
@@ -256,6 +260,31 @@ async def vpn(request: web.Request) -> web.Response:
     port = (status.get("interface") or {}).get("listen_port")
     return web.json_response({"config": config, "name": name, "ways": endpoints(d.settings, port)},
                              headers={"Cache-Control": "no-store"})  # fmt: skip
+
+
+async def vpn_quantum(request: web.Request) -> web.Response:
+    """Swaps public Rosenpass keys. The connection is only for delivery: Rosenpass itself checks."""
+    d = dashboard(request)
+    device = _device(request)
+    store = _store(request)
+    body = await read_body(request, MAX_PQ_REQUEST)
+    try:
+        key = base64.b64decode(json.loads(body)["key"], validate=True)
+    except (ValueError, KeyError, TypeError):
+        raise web.HTTPBadRequest(text="web.error") from None
+    if len(key) != PQ_KEY_SIZE:
+        raise web.HTTPBadRequest(text="web.error")
+    peer = next((p for p in store.list() if p["id"] == device.get("vpn_peer")), None)
+    if peer is None:
+        raise web.HTTPConflict(text="web.vpn_no_access")
+    server = quantum_public_key()
+    if server is None:
+        raise web.HTTPConflict(text="web.pq_not_installed")
+    path = store.pq_path(peer["public_key"])
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    await asyncio.to_thread(atomic_write, path, key)
+    d.app.db.audit(f"mobile:{device['id']}", "wireguard.quantum", device["name"])
+    return web.json_response({"server_key": base64.b64encode(server).decode()})
 
 
 async def reach(request: web.Request) -> web.Response:

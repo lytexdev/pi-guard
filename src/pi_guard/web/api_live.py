@@ -25,7 +25,7 @@ from pi_guard.cameras.pipeline import CameraPipeline, SnapshotUnavailableError
 from pi_guard.core.timeutil import utcnow
 from pi_guard.messaging.commands.images import parse_region
 from pi_guard.security.files import is_within
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.server import current, dashboard, read_body, read_json
 
 BOUNDARY = "frame"
 LISTEN_LIMIT = 600
@@ -199,9 +199,9 @@ async def talk(request: web.Request) -> web.Response:
     audio = app.audio
     if audio is None or not audio.playback_enabled:
         raise web.HTTPServiceUnavailable(text="no speaker configured")
-    body = await request.content.read(TALK_MAX_BYTES + 1)
-    if not body or len(body) > TALK_MAX_BYTES:
-        raise web.HTTPRequestEntityTooLarge(max_size=TALK_MAX_BYTES, actual_size=len(body))
+    body = await read_body(request, TALK_MAX_BYTES)
+    if not body:
+        raise web.HTTPBadRequest(text="web.error")
     path = Path(tempfile.gettempdir()) / f"pi-guard-talk-{uuid.uuid4().hex}"
     path.write_bytes(body)
     try:

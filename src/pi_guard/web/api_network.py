@@ -5,9 +5,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import ipaddress
+import json
 import logging
 import re
 import time
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -33,12 +35,15 @@ from pi_guard.network.reach import (
     tailscale,
     tailscale_way,
 )
-from pi_guard.network.wgpeers import SERVER_ADDRESS, PeerError, PeerStore, Server
+from pi_guard.network.wgpeers import PQ_FOLDER, SERVER_ADDRESS, PeerError, PeerStore, Server
 from pi_guard.network.wireguard import read_status
 from pi_guard.security.files import atomic_write
 from pi_guard.web.server import current, dashboard, read_json
 
 log = logging.getLogger(__name__)
+
+QUANTUM_KEY = "vpn.quantum"
+QUANTUM_FOLDER = Path("/run/pi-guard-vpn-public")
 
 _MAC_RE = re.compile(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$")
 
@@ -61,6 +66,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/network/blocklists/update", blocklist_update),
         web.get("/api/topology", topology),
         web.get("/api/network/reach", reach),
+        web.get("/api/network/quantum", quantum_get),
+        web.put("/api/network/quantum", quantum_put),
         web.post("/api/network/wireguard/peers", wg_add),
         web.get("/api/network/wireguard/peers/{id:\\d+}", wg_show),
         web.get("/api/network/wireguard/peers/{id:\\d+}/file", wg_file),
@@ -486,6 +493,48 @@ def _server(request: web.Request) -> Server:
     dns = str(SERVER_ADDRESS) if s.pihole_enabled else None
     return Server(public_key, ways[0]["endpoint"], dns, s.wireguard_home_network,
                   ways[0].get("mtu"))  # fmt: skip
+
+
+def quantum_public_key() -> bytes | None:
+    try:
+        return (QUANTUM_FOLDER / "server.pub").read_bytes()
+    except OSError:
+        return None
+
+
+def quantum_flag(settings: Any) -> Path:
+    return Path(settings.data_dir) / PQ_FOLDER / "enabled"
+
+
+def apply_quantum(d: Any) -> bool:
+    """On unless switched off. The flag is what the root job goes by."""
+    enabled = d.app.db.get(QUANTUM_KEY) is not False
+    flag = quantum_flag(d.settings)
+    flag.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if enabled:
+        flag.touch()
+    else:
+        flag.unlink(missing_ok=True)
+    return enabled
+
+
+async def quantum_get(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    try:
+        active = int(json.loads((QUANTUM_FOLDER / "status").read_text())["active"])
+    except (OSError, ValueError, KeyError):
+        active = 0
+    return web.json_response({"enabled": d.app.db.get(QUANTUM_KEY) is not False, "active": active,
+                              "installed": quantum_public_key() is not None})  # fmt: skip
+
+
+async def quantum_put(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    enabled = (await read_json(request)).get("enabled") is True
+    d.app.db.set(QUANTUM_KEY, enabled)
+    apply_quantum(d)
+    d.app.db.audit(f"web:{current(request).username}", "wireguard.quantum", str(enabled))
+    return web.json_response({"ok": True})
 
 
 async def reach(request: web.Request) -> web.Response:

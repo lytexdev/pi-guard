@@ -29,6 +29,7 @@ SUBNET = ipaddress.ip_network("10.8.0.0/24")
 SERVER_ADDRESS = ipaddress.ip_address("10.8.0.1")
 DEFAULT_PORT = 51820
 PEERS_FILE = Path("wireguard") / "peers"
+PQ_FOLDER = Path("wireguard") / "pq"
 MAX_NAME = 32
 
 _TABLE = """
@@ -146,13 +147,22 @@ class PeerStore:
         row = self._db.execute("SELECT name FROM wg_peers WHERE id = ?", (peer_id,)).fetchone()
         if row is None:
             return None
+        key = self._db.execute(
+            "SELECT public_key FROM wg_peers WHERE id = ?", (peer_id,)
+        ).fetchone()
         self._db.execute("DELETE FROM wg_peers WHERE id = ?", (peer_id,))
         self.write_file()
+        if key:
+            self.pq_path(key[0]).unlink(missing_ok=True)
         return str(row["name"])
 
     def name(self, peer_id: int) -> str | None:
         row = self._db.execute("SELECT name FROM wg_peers WHERE id = ?", (peer_id,)).fetchone()
         return str(row["name"]) if row else None
+
+    def pq_path(self, public_key: str) -> Path:
+        name = base64.b64decode(public_key).hex()
+        return self._file.parent.parent / PQ_FOLDER / "peers" / f"{name}.pub"
 
     def write_file(self) -> None:
         """Public part for the root job: `public-key<TAB>preshared-key<TAB>address/32`."""

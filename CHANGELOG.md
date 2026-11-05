@@ -27,6 +27,9 @@ All notable changes are documented here. The format follows
   second update on (Android 12 and newer).
 - The phone app can look like a calculator, notes and more, and can get a shortcut with any name and picture. The
   dashboard's name can be changed under Appearance, also for installed apps.
+- VPN in the desktop app on Linux, by a small Rust service: kill switch and lockdown that stay closed if the service
+  crashes, split tunneling per program, auto-connect, all ways home.
+- Quantum-resistant tunnel with Rosenpass through the VPN itself, on by default, switchable under Network › VPN.
 - VPN in the phone app: split tunneling per app and connecting automatically.
 - Desktop packages for Arch Linux, Debian, Ubuntu, Linux Mint, Fedora and openSUSE.
 - Add-on for Slack, Matrix, Rocket.Chat and Mastodon: alerts as cards, send-only and without pictures.
@@ -95,6 +98,7 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Voice messages to the assistant and talking through the speaker were cut off after the first part of the upload.
 - Speech input of the assistant was often nonsense: the language was not given, so short sentences were guessed as
   anything, and silence came out as imagined subtitles. It now names the language, uses a better model with OpenAI, and
   records with noise suppression.

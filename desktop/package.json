@@ -1,7 +1,7 @@
 {
   "name": "pi-guard-desktop",
   "productName": "PiGuard",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "The pi-guard dashboard as an app for Windows, Linux and macOS",
   "author": "lytex",
   "license": "MIT",
@@ -21,6 +21,7 @@
       "preload.js",
       "trust.js",
       "updates.js",
+      "vpn.js",
       "pages/**",
       "build/icon.png"
     ],

@@ -29,6 +29,10 @@ Results land in `desktop/dist`. Windows needs wine on Linux. On macOS, build the
 Apple requires a signature, and without a paid developer account macOS blocks the app at first. Open it with a right
 click, *Open*, or under *System Settings › Privacy & Security*.
 
+## VPN
+
+On Linux the app is a VPN client too, see [vpn.md](vpn.md). PiGuard › VPN, or Ctrl+Shift+V.
+
 ## Updates
 
 The app updates itself, signed and verified. See [updates.md](updates.md).

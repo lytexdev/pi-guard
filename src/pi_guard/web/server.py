@@ -45,6 +45,7 @@ PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.c
           "/api/login/webauthn/finish", "/api/agent/ws", "/api/hello",
           "/api/mobile/session", "/api/mobile/ws", "/api/mobile/report",
           "/api/mobile/emergency", "/api/mobile/calendar", "/api/mobile/vpn", "/api/mobile/reach",
+          "/api/mobile/vpn/pq",
           "/api/mobile/app/latest", "/api/mobile/app/apk"}  # fmt: skip
 # Reachable while the default password has not been changed yet.
 SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",
@@ -90,6 +91,16 @@ def json_body_limit(limit: int) -> Callable[[web.Request], Awaitable[dict[str, A
 read_json = json_body_limit(64_000)
 
 
+async def read_body(request: web.Request, limit: int) -> bytes:
+    """All of it. One read only returns what has arrived so far, often just the first part."""
+    body = bytearray()
+    async for part in request.content.iter_chunked(1 << 16):
+        body += part
+        if len(body) > limit:
+            raise web.HTTPRequestEntityTooLarge(max_size=limit, actual_size=len(body))
+    return bytes(body)
+
+
 class Dashboard:
     def __init__(self, app: App) -> None:
         self.app = app
@@ -131,6 +142,9 @@ class Dashboard:
 
             self.wg_peers = PeerStore(app.db, s.data_dir, self._secret_key())
             self.wg_peers.write_file()
+            from pi_guard.web.api_network import apply_quantum
+
+            apply_quantum(self)
         self.web = self._build()
 
     def tls_names(self) -> list[str]:
@@ -229,7 +243,7 @@ class Dashboard:
         from pi_guard.messaging.whatsapp.provider import WhatsAppProvider, valid_signature
 
         secret = self.settings.whatsapp_app_secret
-        body = await request.content.read(1_000_000)
+        body = await read_body(request, 1_000_000)
         signature = request.headers.get("X-Hub-Signature-256", "")
         if secret is None or not valid_signature(secret.get_secret_value(), body, signature):
             raise web.HTTPForbidden()

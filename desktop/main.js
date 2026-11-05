@@ -1,5 +1,5 @@
 // The dashboard in its own window. It runs on the Pi; this is only the frame around it.
-const { app, BrowserWindow, Menu, Notification, dialog, ipcMain, session, shell } = require("electron");
+const { app, BrowserWindow, Menu, Notification, dialog, ipcMain, safeStorage, session, shell } = require("electron");
 const { execFile, spawn } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
@@ -10,6 +10,7 @@ const { Readable } = require("node:stream");
 const { promisify } = require("node:util");
 const { cleanAddress, fingerprint, issuedByPinned } = require("./trust.js");
 const { newer, platformName, signed } = require("./updates.js");
+const vpn = require("./vpn.js");
 
 const german = () => app.getLocale().startsWith("de");
 const page = (name) => path.join(__dirname, "pages", name);
@@ -87,6 +88,47 @@ ipcMain.handle("change", (event) => {
 
 ipcMain.handle("address", () => config?.url || "");
 
+const VPN_BINARY = "/usr/local/sbin/pi-guard-vpn";
+const fetcher = (...args) => session.defaultSession.fetch(...args);
+
+function storedToken() {
+  if (!config.device) return null;
+  return safeStorage.decryptString(Buffer.from(config.device, "base64"));
+}
+
+async function vpnLink() {
+  let token = storedToken();
+  if (!token) {
+    token = await vpn.pair(fetcher, config.url);
+    saveConfig({ ...config, device: safeStorage.encryptString(token).toString("base64") });
+  }
+  return vpn.link(fetcher, config.url, token);
+}
+
+const VPN_COMMANDS = {
+  status: () => vpn.ask({ cmd: "status" }),
+  connect: () => vpn.ask({ cmd: "connect" }),
+  disconnect: () => vpn.ask({ cmd: "disconnect" }),
+  link: vpnLink,
+  options: (options) => vpn.ask({ cmd: "options", options }),
+  split: (program) => {
+    const parts = String(program).trim().split(/\s+/).filter(Boolean);
+    if (parts.length) spawn(VPN_BINARY, ["run", "--", ...parts], { detached: true, stdio: "ignore" }).unref();
+    return {};
+  },
+};
+
+ipcMain.handle("vpn", async (event, command, value) => {
+  if (!fromOwnPage(event) || !VPN_COMMANDS[command]) throw new Error("refused");
+  if (process.platform !== "linux") return { unsupported: true };
+  try {
+    return await VPN_COMMANDS[command](value);
+  } catch (error) {
+    if (error.code === "ENOENT" || error.code === "ECONNREFUSED") return { missing: true };
+    throw error;
+  }
+});
+
 function open() {
   if (!config) return window.loadFile(page("setup.html"));
   return window.loadURL(config.url).catch(() => {}); // did-fail-load below shows what happened
@@ -112,7 +154,7 @@ function openOutside(url) {
 function create() {
   window = new BrowserWindow({
     width: 1280, height: 860, minWidth: 360, minHeight: 500, backgroundColor: "#121418",
-    title: "PiGuard", icon: path.join(__dirname, "build", "icon.png"), autoHideMenuBar: true,
+    title: "PiGuard", icon: path.join(__dirname, "build", "icon.png"), autoHideMenuBar: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false,
       spellcheck: false, // it would fetch dictionaries from Google
@@ -238,6 +280,8 @@ function menu() {
     ...(process.platform === "darwin" ? [{ role: "appMenu" }] : []),
     { label: "PiGuard", submenu: [
       { label: de ? "Adresse ändern" : "Change address", click: change },
+      { label: "VPN", accelerator: "CmdOrCtrl+Shift+V", click: () => window.loadFile(page("vpn.html")) },
+      { label: de ? "Dashboard" : "Dashboard", click: open },
       { label: de ? "Nach Updates suchen" : "Check for updates", click: () => checkForUpdate(true) },
       { type: "separator" },
       { role: "quit", label: de ? "Beenden" : "Quit" },

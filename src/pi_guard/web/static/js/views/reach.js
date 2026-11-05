@@ -18,6 +18,26 @@ function row(way) {
         h("code", {}, t(`web.reach_cmd_${way.id}`)))));
 }
 
+// Post-quantum keys cost a little memory and processor time, so they can be switched off.
+export function quantumPanel() {
+  const panel = h("section", { class: "panel stack" });
+  const draw = async () => {
+    const q = await attempt(() => api("/api/network/quantum"));
+    if (!q) return;
+    const toggle = h("input", { id: "pqon", type: "checkbox", checked: q.enabled });
+    toggle.addEventListener("change", async () => {
+      await attempt(() => api("/api/network/quantum", { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
+      draw();
+    });
+    fill(panel, h("h2", {}, icon("shield-lock"), " ", t("web.pq_title")), h("p", { class: "muted" }, t("web.pq_intro")),
+      h("label", { class: "check", for: "pqon" }, toggle, t("web.pq_toggle")),
+      !q.installed ? h("p", { class: "notice" }, t("web.pq_not_installed")) : h("small", { class: "muted" }, t("web.pq_active", { count: q.active })),
+      !q.installed ? h("pre", { class: "mono wrap" }, "sudo ./scripts/vpn-server.sh install") : null);
+  };
+  draw();
+  return panel;
+}
+
 export function reachPanel() {
   const list = h("ul", { class: "list reach" });
   const note = h("p", { class: "muted", "aria-live": "polite" });

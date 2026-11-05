@@ -11,3 +11,13 @@ button.second { background: #22262e; color: #e7e9ec; }
 code { display: block; padding: 10px; margin: 8px 0; background: #121418; border-radius: 8px; font-size: 13px; overflow-wrap: anywhere; color: #e7e9ec; }
 .error { color: #ff6b6b; min-height: 1.5em; }
 .hidden { display: none; }
+main.wide { width: min(520px, 100%); text-align: center; }
+main.wide section, main.wide form { text-align: left; }
+.state { width: 84px; height: 84px; margin: 0 auto 14px; border-radius: 50%; border: 6px solid #98a1ad; }
+.state.on { border-color: #3ddc97; }
+.state.connecting { border-color: #ffc857; }
+.switch { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0; cursor: pointer; }
+.switch input { width: 18px; height: 18px; margin-top: 3px; flex: none; accent-color: #5cb3ff; }
+h2 { font-size: 16px; margin: 20px 0 4px; }
+#split { display: flex; gap: 8px; }
+#split button { width: auto; margin-top: 0; }

@@ -30,7 +30,7 @@ from pi_guard.network.pihole import PiholeError
 from pi_guard.network.wgpeers import SUBNET
 from pi_guard.network.wireguard import read_status
 from pi_guard.web.api_manage import saved_config, write_config
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.server import current, dashboard, read_body, read_json
 
 log = logging.getLogger(__name__)
 
@@ -302,9 +302,9 @@ async def assistant_ask(request: web.Request) -> web.Response:
 
 async def assistant_voice(request: web.Request) -> web.Response:
     assistant = _running(request, "assistant")
-    body = await request.content.read(MAX_VOICE_BYTES + 1)
-    if not body or len(body) > MAX_VOICE_BYTES:
-        raise web.HTTPRequestEntityTooLarge(max_size=MAX_VOICE_BYTES, actual_size=len(body))
+    body = await read_body(request, MAX_VOICE_BYTES)
+    if not body:
+        raise web.HTTPBadRequest(text="web.error")
     path = Path(tempfile.gettempdir()) / f"pi-guard-ask-{uuid.uuid4().hex}.webm"
     path.write_bytes(body)
     try:
@@ -344,9 +344,9 @@ async def assistant_chat(request: web.Request) -> web.Response:
 
 async def assistant_chat_voice(request: web.Request) -> web.Response:
     assistant = _running(request, "assistant")
-    body = await request.content.read(MAX_VOICE_BYTES + 1)
-    if not body or len(body) > MAX_VOICE_BYTES:
-        raise web.HTTPRequestEntityTooLarge(max_size=MAX_VOICE_BYTES, actual_size=len(body))
+    body = await read_body(request, MAX_VOICE_BYTES)
+    if not body:
+        raise web.HTTPBadRequest(text="web.error")
     path = Path(tempfile.gettempdir()) / f"pi-guard-chat-{uuid.uuid4().hex}.webm"
     path.write_bytes(body)
     try:

@@ -1,0 +1,23 @@
+[Unit]
+Description=pi-guard: post-quantum keys for the VPN (Rosenpass)
+After=wg-quick@wg0.service
+Requires=wg-quick@wg0.service
+
+[Service]
+ExecStart=/usr/local/sbin/pi-guard-vpn pq-server
+Restart=always
+RestartSec=5
+ConfigurationDirectory=pi-guard-vpn
+ConfigurationDirectoryMode=0700
+RuntimeDirectory=pi-guard-vpn-server pi-guard-vpn-public
+RuntimeDirectoryMode=0755
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/etc/pi-guard-vpn
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_DAC_OVERRIDE
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

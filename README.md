@@ -56,7 +56,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | --- | --- |
 | **Web dashboard** | Live picture and sound, people, events, weekly plan with calendars, network, settings in a normal and an expert view. On by default at `https://<pi>:8443`. |
 | **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, SOS with camera pictures, finding phones, and an inconspicuous look if you want one. |
-| **Desktop app** | The dashboard in its own window for Linux, Windows and macOS, trusting only your pi-guard's certificate. |
+| **Desktop app** | The dashboard in its own window for Linux, Windows and macOS, trusting only your pi-guard's certificate. On Linux also a VPN with kill switch, lockdown, split tunneling and a quantum-resistant tunnel. |
 | **Home servers** | A small Rust agent connects a PC or NAS: status, safe shutdown, Docker. |
 | **Add-ons** | Service watcher, network analysis, smart home, remote commands, AI assistant with its costs, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
 | **Plugins** | Your own add-ons with commands, pages and API routes, from a ZIP or a Git link, checked before they run. See [plugins](docs/plugins.md). |
@@ -155,6 +155,7 @@ pi-guard logs -f
 | [Mobile app](docs/mobile.md) | Android app with VPN, alerts, finding phones and SOS |
 | [Desktop app](docs/desktop.md) | The dashboard as an app for Windows, Linux and macOS |
 | [Updates](docs/updates.md) | How agents and apps update themselves, signed and verified |
+| [VPN](docs/vpn.md) | Kill switch, lockdown, split tunneling, quantum-resistant tunnel |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
 | [Add-ons](docs/addons.md) | Service watcher, network analysis, smart home, remote commands, AI assistant |
 | [WhatsApp](docs/whatsapp.md) | Official Cloud API setup and its limits |

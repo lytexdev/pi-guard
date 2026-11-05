@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import zipfile
 from datetime import UTC, datetime, timedelta
@@ -50,7 +51,7 @@ async def test_tokens_are_hashed_and_revocable(db: Any) -> None:
     assert token not in str(db.execute("SELECT token FROM mobile_devices").fetchone()[0])
     assert hub.authenticate(token)["id"] == device_id and "token" not in hub.get(device_id)
     with pytest.raises(ValueError, match="platform"):
-        hub.create("x", "windows", "admin")
+        hub.create("x", "commodore", "admin")
     hub.delete(device_id)
     assert hub.authenticate(token) is None
 
@@ -501,6 +502,71 @@ async def test_map_tiles_come_through_the_pi(
         assert "openstreetmap" not in answer.headers.get("Content-Security-Policy", "")
         client.session.cookie_jar.clear()
         assert (await client.get("/api/mobile/map/16/34000/22000.png")).status == 401
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_computer_gets_its_quantum_keys_swapped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pi_guard.web import api_mobile
+
+    client, app, headers, _ = await _paired(tmp_path)
+    try:
+        await _with_vpn(tmp_path, app)
+        answer = await client.post(
+            "/api/mobile/pair", json={"name": "Arch PC", "platform": "linux"}, headers=headers
+        )
+        bearer = {"Authorization": f"Bearer {(await answer.json())['token']}"}
+        await client.post("/api/mobile/vpn", json={}, headers=bearer)
+        monkeypatch.setattr(api_mobile, "quantum_public_key", lambda: b"s" * 524160)
+        key = base64.b64encode(b"c" * 524160).decode()
+        response = await client.post("/api/mobile/vpn/pq", json={"key": key}, headers=bearer)
+        assert response.status == 200
+        assert base64.b64decode((await response.json())["server_key"]) == b"s" * 524160
+        peer = app.dashboard.wg_peers.list()[0]
+        path = app.dashboard.wg_peers.pq_path(peer["public_key"])
+        assert path.read_bytes() == b"c" * 524160
+        app.dashboard.wg_peers.remove(peer["id"])
+        assert not path.exists()  # gone with the device
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_only_a_key_of_the_right_size_is_taken(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pi_guard.web import api_mobile
+
+    client, app, _, bearer = await _paired(tmp_path)
+    try:
+        await _with_vpn(tmp_path, app)
+        await client.post("/api/mobile/vpn", json={}, headers=bearer)
+        monkeypatch.setattr(api_mobile, "quantum_public_key", lambda: b"s" * 524160)
+        short = base64.b64encode(b"c" * 10).decode()
+        for body in ({"key": short}, {"key": "not base64!"}, {}):
+            assert (
+                await client.post("/api/mobile/vpn/pq", json=body, headers=bearer)
+            ).status == 400
+        assert (await client.post("/api/mobile/vpn/pq", json={"key": short})).status == 401
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_quantum_keys_are_on_by_default_and_can_be_switched_off(tmp_path: Path) -> None:
+    from pi_guard.web.api_network import apply_quantum, quantum_flag
+
+    client, app, headers, _ = await _paired(tmp_path)
+    try:
+        apply_quantum(app.dashboard)
+        flag = quantum_flag(app.settings)
+        assert flag.exists()
+        assert (await (await client.get("/api/network/quantum")).json())["enabled"] is True
+        off = await client.put("/api/network/quantum", json={"enabled": False}, headers=headers)
+        assert off.status == 200 and not flag.exists()
     finally:
         await client.close()
         app.db.close()
