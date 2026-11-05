@@ -254,7 +254,7 @@ function menu() {
 
 // Native Wayland where there is one: sharper, and the GPU stays in use. Elsewhere it does nothing.
 app.commandLine.appendSwitch("ozone-platform-hint", "auto");
-app.setDesktopName("pi-guard.desktop"); // the entry with the icon, also on Wayland
+app.setDesktopName("pi-guard-desktop.desktop"); // the taskbar finds name and icon through this
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", () => { if (window) { window.show(); window.focus(); } });
 app.whenReady().then(() => {

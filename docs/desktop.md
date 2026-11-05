@@ -28,13 +28,24 @@ The app updates itself, signed and verified. See [updates.md](updates.md).
 
 ## Performance
 
-Measured on Linux with the dashboard open: about 160 MB of memory in total, unchanged after 280 page changes, so nothing
-piles up. There is one window and no timers in the app itself, hardware acceleration stays on, and a hidden window is
-throttled by Chromium. Spell checking is off, because it would load dictionaries from Google.
+Measured on Arch with KDE and an NVIDIA card: about 330 MB of memory in total with the GPU in use, and unchanged after
+280 page changes in a test without a GPU, so nothing piles up. There is one window, hardware acceleration stays on, and a
+hidden window is throttled by Chromium. Spell checking is off, because it would load dictionaries from Google.
 
 Electron stays the choice over a smaller Rust frame such as Tauri, which uses the system's web view. That would save
 disk space, but certificates, camera and microphone would then work differently on every system, and pinning your
 pi-guard's certificate is what this app is for.
+
+## Icon and search on Linux
+
+`scripts/install-desktop.sh` adds the entry for your applications menu and search, and the icon. The taskbar finds them
+through the app id `pi-guard-desktop`, so the file must be called `pi-guard-desktop.desktop`. An AppImage started by hand
+has no such entry, which is why it shows the Electron icon and cannot be found.
+
+## Logging in
+
+All ways of the dashboard work: password, key file, and Telegram with the code word if you set one. Passkeys depend on
+the system: Electron has no dialog for them on Linux, so use a browser there.
 
 ## First start
 

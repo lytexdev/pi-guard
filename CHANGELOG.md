@@ -26,6 +26,7 @@ All notable changes are documented here. The format follows
   second update on (Android 12 and newer).
 - The phone app can look like a calculator, notes and more, and can get a shortcut with any name and picture. The
   dashboard's name can be changed under Appearance, also for installed apps.
+- The desktop app uses Electron 45, which closes the reported security advisories; `npm audit` is clean.
 - Desktop app for Windows, Linux and macOS (`desktop/`, `scripts/build-desktop.sh`): the dashboard in its own window,
   trusting only your pi-guard's certificate authority.
 - Connect calendars: besides the phone's calendar, any calendar with an iCal link such as Google, Proton or Nextcloud.

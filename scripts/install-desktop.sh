@@ -25,26 +25,28 @@ for size in 512 256 128 64 48; do
     folder="$SHARE/icons/hicolor/${size}x${size}/apps"
     mkdir -p "$folder"
     if command -v magick >/dev/null; then
-        magick "$HERE/src/pi_guard/web/static/img/icon-512.png" -resize "${size}x${size}" "$folder/pi-guard.png"
+        magick "$HERE/src/pi_guard/web/static/img/icon-512.png" -resize "${size}x${size}" "$folder/pi-guard-desktop.png"
     elif [[ $size == 512 ]]; then
-        cp "$HERE/src/pi_guard/web/static/img/icon-512.png" "$folder/pi-guard.png"
+        cp "$HERE/src/pi_guard/web/static/img/icon-512.png" "$folder/pi-guard-desktop.png"
     fi
 done
 
 mkdir -p "$SHARE/applications" "$HOME/.local/bin"
-cat > "$SHARE/applications/pi-guard.desktop" <<DESKTOP
+# The file name must be the app id: that is how the taskbar finds name and icon.
+cat > "$SHARE/applications/pi-guard-desktop.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=PiGuard
 Comment=Your home, in your hand
 Exec=$ROOT/current/pi-guard-desktop
-Icon=pi-guard
+Icon=pi-guard-desktop
 Terminal=false
-Categories=Network;Security;
+Categories=Network;System;Security;
 StartupWMClass=pi-guard-desktop
 StartupNotify=true
 DESKTOP
 ln -sfn "$ROOT/current/pi-guard-desktop" "$HOME/.local/bin/piguard"
 command -v update-desktop-database >/dev/null && update-desktop-database -q "$SHARE/applications" || true
+for tool in kbuildsycoca6 kbuildsycoca5; do command -v "$tool" >/dev/null && "$tool" >/dev/null 2>&1 && break; done || true  # KDE search
 command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t "$SHARE/icons/hicolor" 2>/dev/null || true
 echo "PiGuard $VERSION installed. Start it from your applications menu, or with: piguard"
