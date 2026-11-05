@@ -21,7 +21,9 @@ from pi_guard.core.permissions import Role, User
 from pi_guard.core.schedule import CALENDAR_KEY, clean_calendar
 from pi_guard.i18n import t
 from pi_guard.messaging.base import ProviderUnavailableError, Reply
+from pi_guard.network.reach import addresses, endpoints, tailscale
 from pi_guard.network.wgpeers import PeerError
+from pi_guard.network.wireguard import read_status
 from pi_guard.security.files import atomic_write
 from pi_guard.web.api_network import _config, _server, _store
 from pi_guard.web.server import COOKIE, current, dashboard, read_json
@@ -43,6 +45,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/mobile/emergency", emergency),
         web.post("/api/mobile/calendar", calendar),
         web.post("/api/mobile/vpn", vpn),
+        web.get("/api/mobile/reach", reach),
         web.get("/api/mobile/app/latest", app_latest),
         web.get("/api/mobile/app/apk", app_apk),
         web.post("/api/mobile/app", app_upload),
@@ -209,8 +212,18 @@ async def vpn(request: web.Request) -> web.Response:
         _hub(request).set_vpn_peer(device["id"], peer)
         d.app.db.audit(f"mobile:{device['id']}", "wireguard.add", device["name"])
     name, config = _config(request, peer)
-    return web.json_response({"config": config, "name": name},
+    status = read_status(d.settings.runtime_dir / "wireguard.status") or {}
+    port = (status.get("interface") or {}).get("listen_port")
+    return web.json_response({"config": config, "name": name, "ways": endpoints(d.settings, port)},
                              headers={"Cache-Control": "no-store"})  # fmt: skip
+
+
+async def reach(request: web.Request) -> web.Response:
+    """Where else the app finds the dashboard, for example over Tailscale."""
+    d = dashboard(request)
+    _device(request)
+    net = await asyncio.to_thread(tailscale)
+    return web.json_response({"addresses": addresses(d.settings, net)})
 
 
 def _apk_dir(request: web.Request) -> Path:

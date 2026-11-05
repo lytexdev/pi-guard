@@ -86,6 +86,7 @@ FIELDS = (
     Field("fritzbox_password", "network", "secret"),
     Field("wireguard_enabled", "network", "bool"),
     Field("wireguard_endpoint", "network", "text"),
+    Field("wireguard_endpoint_v6", "network", "text"),
     Field("assistant_api_key", "assistant", "secret"),
     Field("assistant_deepl_key", "assistant", "secret"),
     Field("assistant_paperless_token", "assistant", "secret"),

@@ -115,6 +115,58 @@ settings.
 Then forward **UDP 51820** in the router to the Pi (FRITZ!Box: *Internet ›
 Freigaben › Portfreigaben › Gerät für Freigaben hinzufügen*).
 
+### Ways home from outside
+
+Dashboard › **Network › VPN** shows four ways with their state. Which ones work depends on your
+internet connection, not on the router brand. Set up several: the app tries them in turn and
+remembers the one that answered.
+
+| Way | Needs | Fits |
+| --- | --- | --- |
+| **IPv4** | a public IPv4 address, a DynDNS name, UDP 51820 forwarded in the router | most DSL lines |
+| **IPv6** | a name with the Pi's own IPv6 address, UDP 51820 allowed in the router, IPv6 on the phone's network | DS-Lite and CGNAT with IPv6 |
+| **Rented server** | a small Debian or Ubuntu server | every connection, also LTE and Starlink |
+| **Tailscale** | a Tailscale account, the Tailscale app on the phone | every connection, no router change |
+
+Many cable and fibre lines have no IPv4 address of their own (DS-Lite, CGNAT), and port forwarding
+then does nothing. If the router's WAN address differs from what the internet sees, or starts with
+`100.64`–`100.127`, this applies to you. *Check now* compares what it can. From inside, pi-guard
+cannot see whether a router really lets packets through: a way counts as confirmed only when a
+device connected over it from outside.
+
+**IPv4:** `sudo ./scripts/wireguard.sh endpoint name.example.org`. Any router works, the menu is
+usually called port forwarding or port sharing. The name must follow your public address: the
+router's DynDNS or a service like DuckDNS. pi-guard does not update the name itself.
+
+**IPv6:** `sudo ./scripts/wireguard.sh endpoint6 pi.name.example.org`. The name must lead to the Pi
+itself, not to the router, and follow its address when the prefix changes. FRITZ!Box gives every
+shared device its own MyFRITZ! name. Open UDP 51820 for the Pi over IPv6.
+
+**Rented server:**
+
+```bash
+sudo ./scripts/wireguard.sh setup --no-endpoint   # only if WireGuard is not set up yet
+sudo ./scripts/relay.sh setup root@vps.example.org
+```
+
+You need ssh access as root and a Debian or Ubuntu server. The Pi dials out, so nothing changes at
+home. The server passes the VPN on: it cannot read it, because the encryption runs from the phone
+to the Pi. It also gets nothing else. Of everything arriving through its tunnel the Pi accepts only
+the VPN port and forwards nothing, so a broken-into server does not reach your network.
+Only IPv4 is passed on, and the double packaging costs a little speed.
+`sudo ./scripts/relay.sh remove root@vps.example.org` takes it away from both sides.
+
+With `--domain guard.example.org` the server also serves the dashboard at that address through
+Caddy, with a real certificate. **There the server does see your traffic, including passwords**, as
+any reverse proxy does. Use a server you trust and read [public-access.md](public-access.md). The
+VPN alone needs no such trust.
+
+**Tailscale:** `sudo ./scripts/tailscale.sh setup`, then the Tailscale app on the phone with the
+same account. Android runs one VPN at a time, so the VPN inside PiGuard stays off, and the PiGuard
+app finds the dashboard at its Tailscale address by itself. Open the app once at home first.
+Tailscale is a company's service in between; its connections stay end-to-end encrypted, but your
+devices are listed there.
+
 ### Devices
 
 Dashboard › **Network › VPN access › Add device**: enter a name ("Anna's

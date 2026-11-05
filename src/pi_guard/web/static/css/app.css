@@ -564,3 +564,8 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 .panel.stack > small { display: block; }
 .capture-buttons button { padding: 0 8px; min-height: 56px; font-size: 1rem; }
 .capture .row.end { flex-wrap: nowrap; justify-content: flex-end; }
+
+/* Ways home from outside */
+.list .reach-way { align-items: flex-start; }
+.reach-way p { margin: 4px 0; }
+.reach-way code { display: block; padding: 8px; border-radius: 6px; background: var(--bg); overflow-wrap: anywhere; }

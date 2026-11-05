@@ -55,6 +55,7 @@ class Server:
     endpoint: str  # host or host:port
     dns: str | None
     home_network: str | None
+    mtu: int | None = None
 
     def endpoint_with_port(self) -> str:
         host = self.endpoint
@@ -184,6 +185,8 @@ class PeerStore:
         ]
         if server.dns:
             lines.append(f"DNS = {server.dns}")
+        if server.mtu:
+            lines.append(f"MTU = {server.mtu}")
         lines += [
             "",
             "[Peer]",

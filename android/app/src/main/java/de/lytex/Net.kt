@@ -110,6 +110,13 @@ object Net {
         null
     }
 
+    /** Away from home the dashboard may answer elsewhere, for example over Tailscale. Blocks. */
+    fun pick(store: Store) {
+        val now = store.url ?: return
+        if (isPiGuard(now)) return
+        store.addresses.firstOrNull { it != now && isPiGuard(it) }?.let { store.url = it }
+    }
+
     /** Looks for pi-guard in this phone's /24 network. */
     fun discover(context: Context): String? {
         val manager = context.getSystemService(ConnectivityManager::class.java)

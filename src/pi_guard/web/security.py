@@ -29,6 +29,7 @@ HONEYPOT_PATHS = (
     "/pma", "/admin.php", "/administrator", "/cgi-bin", "/boaform", "/actuator",
     "/vendor/phpunit", "/server-status", "/config.json", "/.aws",
 )  # fmt: skip
+TAILNET = ipaddress.ip_network("100.64.0.0/10")
 LOGIN_FAILURES = 8
 LOGIN_WINDOW = 900.0
 TARPIT_SECONDS = 3.0
@@ -103,7 +104,8 @@ class Guard:
             address = ipaddress.ip_address(name.strip("[]").split("]")[0])
         except ValueError:
             return False
-        return address.is_private or address.is_loopback  # direct access in the home network
+        # Direct access in the home network, or over Tailscale.
+        return address.is_private or address.is_loopback or address in TAILNET
 
     def login_allowed(self, ip: str) -> bool:
         return self._login_limiter.allow(ip)

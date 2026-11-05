@@ -42,7 +42,7 @@ PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.c
           "/api/login/telegram", "/api/login/telegram/poll", "/api/login/webauthn/begin",
           "/api/login/webauthn/finish", "/api/agent/ws", "/api/hello",
           "/api/mobile/session", "/api/mobile/ws", "/api/mobile/report",
-          "/api/mobile/emergency", "/api/mobile/calendar", "/api/mobile/vpn",
+          "/api/mobile/emergency", "/api/mobile/calendar", "/api/mobile/vpn", "/api/mobile/reach",
           "/api/mobile/app/latest", "/api/mobile/app/apk"}  # fmt: skip
 # Reachable while the default password has not been changed yet.
 SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",

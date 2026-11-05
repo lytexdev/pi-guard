@@ -59,6 +59,18 @@ class Store(context: Context) {
     var vpnConfig: String?
         get() = secret("vpn")
         set(value) = putSecret("vpn", value)
+    /** The ways home pi-guard named, as it sent them; see [Vpn.ways]. */
+    var vpnWays: String?
+        get() = prefs.getString("vpn_ways", null)
+        set(value) = prefs.edit().putString("vpn_ways", value).apply()
+    /** The way that answered last, tried first. */
+    var vpnEndpoint: String?
+        get() = prefs.getString("vpn_endpoint", null)
+        set(value) = prefs.edit().putString("vpn_endpoint", value).apply()
+    /** Every address the dashboard was found at or named. */
+    var addresses: List<String>
+        get() = prefs.getString("addresses", null)?.split('\n').orEmpty()
+        set(value) = prefs.edit().putString("addresses", value.joinToString("\n")).apply()
     var vpnName: String?
         get() = prefs.getString("vpn_name", null)
         set(value) = prefs.edit().putString("vpn_name", value).apply()

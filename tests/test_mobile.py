@@ -351,3 +351,34 @@ async def test_a_vpn_access_needs_a_paired_phone_and_wireguard(tmp_path: Path) -
     finally:
         await client.close()
         app.db.close()
+
+
+async def test_the_app_learns_every_way_home(tmp_path: Path) -> None:
+    client, app, _, bearer = await _paired(tmp_path)
+    try:
+        await _with_vpn(tmp_path, app)
+        app.settings.wireguard_endpoint_v6 = "pi.example:51820"
+        app.settings.wireguard_relay = "vps.example:51820"
+        body = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
+        assert [w["kind"] for w in body["ways"]] == ["ipv4", "ipv6", "relay"]
+        assert body["ways"][2]["mtu"] == 1340 and "mtu" not in body["ways"][0]
+        assert (await client.get("/api/mobile/reach")).status == 401
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_phone_only_reachable_through_the_relay_gets_a_working_access(
+    tmp_path: Path,
+) -> None:
+    client, app, _, bearer = await _paired(tmp_path)
+    try:
+        await _with_vpn(tmp_path, app)
+        app.settings.wireguard_endpoint = None
+        app.settings.wireguard_relay = "vps.example:51820"
+        body = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
+        assert "Endpoint = vps.example:51820" in body["config"]
+        assert "MTU = 1340" in body["config"]
+    finally:
+        await client.close()
+        app.db.close()

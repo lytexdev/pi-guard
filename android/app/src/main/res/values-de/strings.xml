@@ -40,6 +40,10 @@
     <string name="vpn_on">Mit deinem Zuhause verbunden</string>
     <string name="vpn_off">Nicht verbunden</string>
     <string name="vpn_failed">VPN fehlgeschlagen. Ist WireGuard auf pi-guard eingerichtet?</string>
+    <string name="vpn_way">Verbunden über</string>
+    <string name="vpn_way_ipv4">Direkt, IPv4</string>
+    <string name="vpn_way_ipv6">Direkt, IPv6</string>
+    <string name="vpn_way_relay">Über deinen Mietserver</string>
     <string name="vpn_open">VPN öffnen</string>
     <string name="vpn_connecting">Verbinde …</string>
     <string name="vpn_no_answer">Dein Zuhause antwortet nicht</string>

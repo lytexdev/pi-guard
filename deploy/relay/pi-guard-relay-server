@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# Runs on the rented server, sent there by scripts/relay.sh over ssh.
+#
+#   bash -s -- setup PI_KEY PUBLIC_PORT TUNNEL_PORT PI_PORT [DOMAIN DASHBOARD_PORT CA_BASE64]
+#   bash -s -- remove
+#
+# The server only passes packets on. The VPN stays encrypted from the phone to the Pi, it has
+# no keys for it. With a DOMAIN, Caddy serves the dashboard: there the server does see the
+# traffic, which docs/network.md says plainly.
+set -euo pipefail
+IFACE=pgrelay
+DIR=/etc/wireguard
+SERVER=10.9.0.1
+PI=10.9.0.2
+
+die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die "needs root on the server"
+
+packages() {
+    command -v apt-get >/dev/null || die "only Debian and Ubuntu are supported on the server"
+    apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$@" >/dev/null
+}
+
+setup() {
+    local pi_key="$1" public="$2" tunnel="$3" pi_port="$4" domain="${5:-}" web="${6:-}" ca="${7:-}"
+    [[ "$pi_key" =~ ^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$ ]] || die "bad key"
+    for number in "$public" "$tunnel" "$pi_port"; do
+        [[ "$number" =~ ^[0-9]{1,5}$ ]] || die "bad port"
+    done
+    command -v wg >/dev/null && command -v iptables >/dev/null && command -v conntrack >/dev/null \
+        || packages wireguard-tools iptables conntrack
+    local dev
+    dev="$(ip -4 route show default | awk '{for (i = 1; i < NF; i++) if ($i == "dev") {print $(i + 1); exit}}')"
+    [[ -n "$dev" ]] || die "no default route"
+    install -d -m 0700 "$DIR"
+    [[ -f "$DIR/$IFACE.key" ]] || (umask 077; wg genkey > "$DIR/$IFACE.key")
+    # Only the VPN port is passed on, and only to the Pi.
+    local rules=(
+        "iptables -t nat %s PREROUTING -i $dev -p udp --dport $public -j DNAT --to-destination $PI:$pi_port"
+        "iptables -t nat %s POSTROUTING -o $IFACE -j MASQUERADE"
+        "iptables %s FORWARD -i $dev -o $IFACE -p udp -d $PI --dport $pi_port -j ACCEPT"
+        "iptables %s FORWARD -i $IFACE -o $dev -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+    )
+    (
+        umask 077
+        {
+            printf '# Written by pi-guard scripts/relay.sh.\n[Interface]\n'
+            printf 'Address = %s/30\nListenPort = %s\nPrivateKey = %s\nMTU = 1420\n' \
+                "$SERVER" "$tunnel" "$(cat "$DIR/$IFACE.key")"
+            for rule in "${rules[@]}"; do
+                # shellcheck disable=SC2059
+                printf "PostUp = $rule\n" "-I"
+            done
+            # A phone keeps sending while this is down. Without this its packets would stay
+            # remembered as "not passed on" for as long as it keeps sending.
+            printf 'PostUp = conntrack -D -p udp --orig-port-dst %s || true\n' "$public"
+            for rule in "${rules[@]}"; do
+                # shellcheck disable=SC2059
+                printf "PostDown = $rule\n" "-D"
+            done
+            printf '\n[Peer]\nPublicKey = %s\nAllowedIPs = %s/32\n' "$pi_key" "$PI"
+        } > "$DIR/$IFACE.conf"
+    )
+    printf 'net.ipv4.ip_forward = 1\n' > /etc/sysctl.d/90-pi-guard-relay.conf
+    sysctl -q -w net.ipv4.ip_forward=1
+    if command -v ufw >/dev/null && ufw status | grep -q '^Status: active'; then
+        ufw allow "$public"/udp comment 'pi-guard VPN' >/dev/null
+        ufw allow "$tunnel"/udp comment 'pi-guard relay tunnel' >/dev/null
+    fi
+    systemctl enable --quiet wg-quick@"$IFACE"
+    systemctl restart wg-quick@"$IFACE"
+
+    if [[ -n "$domain" ]]; then
+        [[ "$domain" =~ ^[A-Za-z0-9.-]{1,253}$ && "$web" =~ ^[0-9]{1,5}$ ]] || die "bad domain"
+        command -v caddy >/dev/null || packages caddy
+        printf '%s' "$ca" | base64 -d > /etc/caddy/pi-guard-ca.crt
+        [[ -f /etc/caddy/Caddyfile.before-pi-guard ]] || cp -a /etc/caddy/Caddyfile /etc/caddy/Caddyfile.before-pi-guard 2>/dev/null || true
+        cat > /etc/caddy/Caddyfile <<CADDY
+# Written by pi-guard scripts/relay.sh.
+$domain {
+    reverse_proxy https://$PI:$web {
+        flush_interval -1
+        transport http {
+            tls_trusted_ca_certs /etc/caddy/pi-guard-ca.crt
+            tls_server_name pi-guard.relay
+        }
+    }
+}
+CADDY
+        if command -v ufw >/dev/null && ufw status | grep -q '^Status: active'; then
+            ufw allow 80/tcp comment 'certificates' >/dev/null
+            ufw allow 443/tcp comment 'pi-guard dashboard' >/dev/null
+        fi
+        systemctl restart caddy
+    fi
+    printf 'RELAY_KEY=%s\n' "$(wg pubkey < "$DIR/$IFACE.key")"
+}
+
+remove() {
+    systemctl disable --now --quiet wg-quick@"$IFACE" 2>/dev/null || true
+    rm -f "$DIR/$IFACE.conf" "$DIR/$IFACE.key" /etc/sysctl.d/90-pi-guard-relay.conf
+    if [[ -f /etc/caddy/Caddyfile.before-pi-guard ]]; then
+        mv /etc/caddy/Caddyfile.before-pi-guard /etc/caddy/Caddyfile
+        rm -f /etc/caddy/pi-guard-ca.crt
+        systemctl restart caddy || true
+    fi
+}
+
+case "${1:-}" in
+    setup) shift; setup "$@" ;;
+    remove) remove ;;
+    *) die "usage: setup ... | remove" ;;
+esac

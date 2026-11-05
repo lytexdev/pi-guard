@@ -22,6 +22,17 @@ from pi_guard.network.fritzbox import FritzError, as_dicts
 from pi_guard.network.inspect import inspect_device
 from pi_guard.network.lan import merge, neighbour_table, reverse_names
 from pi_guard.network.pihole import PiholeError
+from pi_guard.network.reach import (
+    carried,
+    endpoints,
+    ipv4_way,
+    ipv6_way,
+    own_ipv6,
+    relay_way,
+    resolve,
+    tailscale,
+    tailscale_way,
+)
 from pi_guard.network.wgpeers import SERVER_ADDRESS, PeerError, PeerStore, Server
 from pi_guard.network.wireguard import read_status
 from pi_guard.security.files import atomic_write
@@ -49,6 +60,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/network/blocklists/upload", blocklist_upload),
         web.post("/api/network/blocklists/update", blocklist_update),
         web.get("/api/topology", topology),
+        web.get("/api/network/reach", reach),
         web.post("/api/network/wireguard/peers", wg_add),
         web.get("/api/network/wireguard/peers/{id:\\d+}", wg_show),
         web.get("/api/network/wireguard/peers/{id:\\d+}/file", wg_file),
@@ -114,6 +126,8 @@ async def overview(request: web.Request) -> web.Response:
         "wireguard_enabled": s.wireguard_enabled,
         "wireguard": wireguard,
         "wireguard_endpoint": s.wireguard_endpoint,
+        "wireguard_endpoint_v6": s.wireguard_endpoint_v6,
+        "wireguard_relay": s.wireguard_relay,
         "wireguard_home_network": s.wireguard_home_network,
         "devices": [_with_details(app, d.as_dict(), hosts) for d in devices
                     if not _internal(d.ips)],
@@ -466,14 +480,35 @@ def _server(request: web.Request) -> Server:
     public_key = (status.get("interface") or {}).get("public_key")
     if not public_key:
         raise web.HTTPConflict(text="web.wireguard_no_status")
-    if not s.wireguard_endpoint:
+    ways = endpoints(s, (status.get("interface") or {}).get("listen_port"))
+    if not ways:
         raise web.HTTPConflict(text="web.wg_no_endpoint")
-    port = (status.get("interface") or {}).get("listen_port")
-    endpoint = s.wireguard_endpoint
-    if port and port != "51820" and ":" not in endpoint:
-        endpoint = f"{endpoint}:{port}"
     dns = str(SERVER_ADDRESS) if s.pihole_enabled else None
-    return Server(public_key, endpoint, dns, s.wireguard_home_network)
+    return Server(public_key, ways[0]["endpoint"], dns, s.wireguard_home_network,
+                  ways[0].get("mtu"))  # fmt: skip
+
+
+async def reach(request: web.Request) -> web.Response:
+    """All ways home. Asks the internet for the public address only with ?check=1."""
+    from pi_guard.web.api_addons import home_ip
+
+    s = dashboard(request).settings
+    status = read_status(s.runtime_dir / "wireguard.status") if s.wireguard_enabled else None
+    relay = read_status(s.runtime_dir / "relay.status") if s.wireguard_relay else None
+    public = await home_ip() if request.query.get("check") else None
+    used = carried(status, public)
+    v4, _ = await asyncio.to_thread(resolve, s.wireguard_endpoint or "")
+    _, v6 = await asyncio.to_thread(resolve, s.wireguard_endpoint_v6 or "")
+    return web.json_response({
+        "enabled": s.wireguard_enabled,
+        "public": public,
+        "ways": [
+            ipv4_way(s.wireguard_endpoint, v4, public, used["ipv4"]),
+            ipv6_way(s.wireguard_endpoint_v6, v6, own_ipv6(), used["ipv6"]),
+            relay_way(s.wireguard_relay, relay, used["relay"]),
+            tailscale_way(await asyncio.to_thread(tailscale)),
+        ],
+    }, headers={"Cache-Control": "no-store"})  # fmt: skip
 
 
 def _peer_id(request: web.Request) -> int:

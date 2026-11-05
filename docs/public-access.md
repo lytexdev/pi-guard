@@ -6,6 +6,9 @@ If you still want `https://guard.example.org`, follow all of this.
 **Before you start:** set up two-factor codes with recovery codes or a passkey, and a strong
 password. The security analysis under Logs warns if a public dashboard has neither.
 
+A rented server can do all of this for you: see [network.md](network.md#ways-home-from-outside).
+There the proxy is another machine, so it sees your traffic.
+
 ## Settings
 
 ```ini

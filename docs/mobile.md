@@ -23,6 +23,8 @@ app* and its token stops working at once.
   then *Connect VPN*. It works from anywhere, shows the device, address, data and last contact, and comes back after
   a restart. Android runs one VPN at a time: connecting replaces the WireGuard app, and if that app is set to
   always-on, Android refuses and the app explains how to turn that off. PiGuard can be the always-on VPN itself.
+  With several [ways home](network.md#ways-home-from-outside) set up, it tries them in turn and shows which one
+  it uses. With Tailscale, it finds the dashboard at that address by itself.
   The first access needs the app opened once at home or through another VPN. WireGuard must be set up on pi-guard.
   Do this once at home. All traffic then goes through your home.
 - **Find a phone:** from *Add-ons → Mobile app* or `/findphone name` in chat. It rings at full volume and

@@ -23,7 +23,8 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
   dann auf *VPN verbinden*. Das geht von überall, zeigt Gerät, Adresse, Datenmenge und letzten Kontakt und verbindet
   sich nach einem Neustart wieder. Android erlaubt nur ein VPN gleichzeitig: Verbinden ersetzt die WireGuard-App. Ist
   diese auf „durchgehend aktiv“ gestellt, lehnt Android ab, und die App erklärt, wie du das ausschaltest. PiGuard kann
-  auch selbst das durchgehend aktive VPN sein. Für den ersten Zugang muss die App einmal zu Hause oder über ein
+  auch selbst das durchgehend aktive VPN sein. Sind mehrere [Wege](netzwerk.md#wege-von-unterwegs) eingerichtet, probiert sie diese der Reihe nach und zeigt, welcher gerade
+  läuft. Mit Tailscale findet sie das Dashboard selbst unter dieser Adresse. Für den ersten Zugang muss die App einmal zu Hause oder über ein
   anderes VPN geöffnet werden. WireGuard muss auf pi-guard eingerichtet sein.
   Mach das einmal zu Hause. Der gesamte Verkehr läuft dann über dein Zuhause.
 - **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und

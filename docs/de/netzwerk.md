@@ -64,6 +64,46 @@ Freigaben › Portfreigaben › Gerät für Freigaben hinzufügen*).
 
 ### Geräte verwalten
 
+### Wege von unterwegs
+
+Im Dashboard unter **Netzwerk › VPN** stehen vier Wege mit ihrem Zustand. Was funktioniert, hängt
+vom Internetanschluss ab, nicht von der Router-Marke. Richten Sie gern mehrere ein: Die App probiert
+sie der Reihe nach und merkt sich den, der geantwortet hat.
+
+| Weg | Braucht | Passt zu |
+| --- | --- | --- |
+| **IPv4** | eigene öffentliche IPv4-Adresse, DynDNS-Name, UDP 51820 im Router freigegeben | den meisten DSL-Anschlüssen |
+| **IPv6** | Namen mit der IPv6-Adresse des Pi, UDP 51820 im Router erlaubt, IPv6 im Handynetz | DS-Lite und CGNAT mit IPv6 |
+| **Mietserver** | kleinen Debian- oder Ubuntu-Server | jedem Anschluss, auch LTE und Starlink |
+| **Tailscale** | Tailscale-Konto, Tailscale-App auf dem Handy | jedem Anschluss, ohne Router-Änderung |
+
+Viele Kabel- und Glasfaseranschlüsse (zum Beispiel oft bei Vodafone) haben keine eigene IPv4-Adresse
+(DS-Lite, CGNAT). Eine Portfreigabe bewirkt dann nichts. Das trifft Sie, wenn die WAN-Adresse im
+Router von der abweicht, die das Internet sieht, oder mit `100.64` bis `100.127` beginnt. *Jetzt
+prüfen* vergleicht, was von innen möglich ist. Ob ein Router wirklich etwas durchlässt, sieht
+pi-guard nicht: Als bestätigt gilt ein Weg erst, wenn ein Gerät von außen darüber verbunden war.
+
+```bash
+sudo ./scripts/wireguard.sh endpoint name.example.org        # IPv4
+sudo ./scripts/wireguard.sh endpoint6 pi.name.example.org    # IPv6, Name führt zum Pi selbst
+sudo ./scripts/relay.sh setup root@vps.example.org           # Mietserver
+sudo ./scripts/tailscale.sh setup                            # Tailscale
+```
+
+**Mietserver:** Der Pi wählt sich selbst ein, zu Hause ändert sich nichts. Der Server kann das VPN
+nicht mitlesen, weil die Verschlüsselung vom Handy bis zum Pi reicht. Der Pi nimmt von ihm nur den
+VPN-Port an und leitet nichts weiter, ein gehackter Server erreicht also Ihr Heimnetz nicht. Mit
+`--domain guard.example.org` zeigt er zusätzlich das Dashboard unter dieser Adresse. **Dabei sieht
+der Server Ihren Verkehr samt Passwörtern**, wie jeder Reverse-Proxy. Das VPN allein braucht dieses
+Vertrauen nicht.
+
+**Tailscale:** Android erlaubt nur ein VPN gleichzeitig. Das VPN in PiGuard bleibt also aus, und die
+PiGuard-App findet das Dashboard selbst unter der Tailscale-Adresse. Öffnen Sie die App vorher einmal
+zu Hause. Tailscale ist ein Dienst einer Firma: Die Verbindungen sind Ende-zu-Ende verschlüsselt,
+Ihre Geräte stehen aber dort in einer Liste.
+
+Details: [network.md](../network.md#ways-home-from-outside).
+
 Dashboard › **Netzwerk › VPN-Zugang › Gerät hinzufügen**: Namen eingeben
 („Handy Anna“), wählen, ob der gesamte Internetverkehr über Zuhause läuft
 (Werbeblocker überall, sicherer in fremden WLANs) oder nur das Heimnetz, und

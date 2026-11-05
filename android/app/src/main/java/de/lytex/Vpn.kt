@@ -9,8 +9,12 @@ import com.wireguard.android.backend.BackendException
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.net.Inet6Address
+import java.net.InetAddress
+import kotlin.concurrent.thread
 
 /** The phone's own WireGuard connection home: this app is its VPN client. */
 object Vpn {
@@ -18,9 +22,13 @@ object Vpn {
     class Failed(val problem: Problem) : Exception(problem.name)
     class Status(val received: Long, val sent: Long, val handshake: Long)
     class Access(val address: String, val server: String)
+    class Way(val kind: String, val endpoint: String, val mtu: Int)
 
     var upSince = 0L
         private set
+    var way: Way? = null
+        private set
+    private var hunt = 0
     private var backend: GoBackend? = null
     private val tunnel = object : Tunnel {
         override fun getName() = "piguard"
@@ -35,8 +43,17 @@ object Vpn {
     @Synchronized
     fun up(context: Context, store: Store) {
         val text = store.vpnConfig ?: fetch(store)
+        val all = ways(store)
+        val first = all.firstOrNull { it.endpoint == store.vpnEndpoint } ?: all.firstOrNull()
+        start(context, text, first)
+        store.vpnWanted = true
+        if (all.size > 1) watch(context.applicationContext, store, text, listOfNotNull(first) + all.filter { it !== first })
+    }
+
+    private fun start(context: Context, text: String, chosen: Way?) {
         try {
-            backend(context).setState(tunnel, Tunnel.State.UP, Config.parse(text.byteInputStream()))
+            val config = Config.parse(prepared(text, chosen).byteInputStream())
+            backend(context).setState(tunnel, Tunnel.State.UP, config)
         } catch (e: BackendException) {
             Log.w(TAG, "tunnel refused: ${e.reason}")
             throw Failed(when (e.reason) {
@@ -48,12 +65,73 @@ object Vpn {
             Log.w(TAG, "tunnel failed: ${e.javaClass.simpleName}")
             throw Failed(Problem.FAILED)
         }
+        way = chosen
         upSince = System.currentTimeMillis()
-        store.vpnWanted = true
     }
+
+    /** The access with one way filled in. WireGuard prefers IPv4, so IPv6 is named by its address. */
+    private fun prepared(text: String, chosen: Way?): String {
+        chosen ?: return text
+        var target = chosen.endpoint
+        if (chosen.kind == "ipv6" && !target.startsWith("[")) {
+            val host = target.substringBeforeLast(':')
+            val address = InetAddress.getAllByName(host).firstOrNull { it is Inet6Address }?.hostAddress?.substringBefore('%')
+                ?: throw BackendException(BackendException.Reason.DNS_RESOLUTION_FAILURE)
+            target = "[$address]:${target.substringAfterLast(':')}"
+        }
+        val lines = text.lines().filterNot { it.startsWith("MTU") }.map { if (it.startsWith("Endpoint")) "Endpoint = $target" else it }
+        if (chosen.mtu == 0) return lines.joinToString("\n")
+        val at = lines.indexOfFirst { it.startsWith("PrivateKey") } + 1
+        return (lines.take(at) + "MTU = ${chosen.mtu}" + lines.drop(at)).joinToString("\n")
+    }
+
+    /** Like a VPN app with several servers: moves on while a way does not answer, also later. */
+    private fun watch(context: Context, store: Store, text: String, order: List<Way>) {
+        val run = ++hunt
+        thread(isDaemon = true) {
+            var turn = 0
+            while (run == hunt) {
+                if (answered(run)) {
+                    store.vpnEndpoint = way?.endpoint
+                    while (run == hunt && fresh()) Thread.sleep(CHECK_EVERY)
+                }
+                if (run != hunt || !running) return@thread
+                turn++
+                synchronized(this) {
+                    if (run == hunt) next(context, text, order[turn % order.size])
+                }
+            }
+        }
+    }
+
+    /** A new tunnel, because the name of the next way can only be looked up outside the old one. */
+    private fun next(context: Context, text: String, chosen: Way) {
+        runCatching { backend(context).setState(tunnel, Tunnel.State.DOWN, null) }
+        runCatching { start(context, text, chosen) }.onFailure { Log.i(TAG, "${chosen.kind} not usable: ${it.message}") }
+    }
+
+    private fun answered(run: Int): Boolean {
+        val until = System.currentTimeMillis() + WAY_WAIT
+        while (run == hunt && System.currentTimeMillis() < until) {
+            if ((status()?.handshake ?: 0) > 0) return true
+            Thread.sleep(POLL)
+        }
+        return false
+    }
+
+    private fun fresh(): Boolean {
+        val handshake = status()?.handshake ?: return false
+        return System.currentTimeMillis() - handshake < STALE
+    }
+
+    fun ways(store: Store): List<Way> = runCatching {
+        val list = JSONArray(store.vpnWays ?: "[]")
+        (0 until list.length()).map { list.getJSONObject(it) }.map { Way(it.getString("kind"), it.getString("endpoint"), it.optInt("mtu")) }
+    }.getOrDefault(emptyList())
 
     @Synchronized
     fun down(context: Context, store: Store) {
+        hunt++
         store.vpnWanted = false
         if (running) backend(context).setState(tunnel, Tunnel.State.DOWN, null)
     }
@@ -66,6 +144,16 @@ object Vpn {
     /** Whenever pi-guard is in reach: creates the access, or picks up one renewed in the dashboard. */
     fun sync(store: Store) {
         runCatching { fetch(store) }.onFailure { Log.i(TAG, "no access yet: ${it.message}") }
+        runCatching { learnAddresses(store) }
+    }
+
+    private fun learnAddresses(store: Store) {
+        val known = Net.client(store).newCall(Net.request(store, "/api/mobile/reach").build()).execute().use {
+            if (!it.isSuccessful) return
+            JSONObject(it.body!!.string()).getJSONArray("addresses")
+        }
+        val named = (0 until known.length()).map(known::getString)
+        store.addresses = (listOfNotNull(store.url) + store.addresses + named).distinct()
     }
 
     /** Asked again, pi-guard answers with the same access. */
@@ -82,6 +170,7 @@ object Vpn {
             throw Failed(Problem.AWAY)
         }
         store.vpnName = answer.optString("name").ifEmpty { null }
+        store.vpnWays = answer.optJSONArray("ways")?.toString()
         return answer.getString("config").also { store.vpnConfig = it }
     }
 
@@ -103,4 +192,8 @@ object Vpn {
     }
 
     private const val TAG = "PiGuardVpn"
+    private const val WAY_WAIT = 12_000L
+    private const val POLL = 500L
+    private const val CHECK_EVERY = 20_000L
+    private const val STALE = 180_000L
 }

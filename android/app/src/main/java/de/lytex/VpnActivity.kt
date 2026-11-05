@@ -126,7 +126,14 @@ class VpnActivity : AppCompatActivity() {
         val access = Vpn.access(store)
         row(R.id.device, store.vpnName ?: if (access == null) getString(R.string.vpn_waiting) else null)
         row(R.id.address, access?.address)
-        row(R.id.server, access?.server)
+        row(R.id.server, Vpn.way?.takeIf { status != null }?.endpoint?.substringBeforeLast(':')?.trim('[', ']') ?: access?.server)
+        row(R.id.way, Vpn.way?.takeIf { fresh }?.let {
+            getString(when (it.kind) {
+                "ipv6" -> R.string.vpn_way_ipv6
+                "relay" -> R.string.vpn_way_relay
+                else -> R.string.vpn_way_ipv4
+            })
+        })
         row(R.id.traffic, status?.let {
             "↓ ${Formatter.formatShortFileSize(this, it.received)}   ↑ ${Formatter.formatShortFileSize(this, it.sent)}"
         })

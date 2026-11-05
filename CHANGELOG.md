@@ -12,6 +12,9 @@ All notable changes are documented here. The format follows
   the browser and in the app.
 - The app creates its own VPN access when a phone is paired and has a VPN screen behind the shield at the top:
   one button, device, address, data, last contact, reconnects after a restart, works as always-on VPN.
+- Four ways home from outside, shown with their state under Network › VPN: IPv4, IPv6, a rented server and
+  Tailscale. The app tries them in turn and finds the dashboard at other addresses. `scripts/relay.sh` sets up a
+  server that passes the VPN on without being able to read it, optionally with the dashboard through Caddy.
 - Linking Signal shows steps and the time left, and stores the number from the phone.
 - A new login page with a way to show the password.
 - Android app PiGuard (`android/`) with the add-on `mobile`: dashboard, alerts without Google, WireGuard

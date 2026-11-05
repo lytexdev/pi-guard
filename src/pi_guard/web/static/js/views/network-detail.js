@@ -3,6 +3,7 @@ import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../a
 import { topologyPanel } from "./topology.js";
 import { meter } from "./overview.js";
 import { restartPrompt } from "./settings.js";
+import { reachPanel } from "./reach.js";
 
 function piholePanel(p, redraw) {
   if (!p) return h("section", { class: "panel" }, h("h2", {}, icon("brand-pihole"), " Pi-hole"), h("p", { class: "muted" }, t("web.pihole_off")));
@@ -91,11 +92,12 @@ function wireguardPanel(d, redraw) {
   if (!d.wireguard_enabled) { panel.append(h("p", { class: "muted" }, t("web.wireguard_off"))); return panel; }
   if (!wg) { panel.append(h("p", { class: "notice" }, t("web.wireguard_no_status"))); return panel; }
   const peers = wg.peers;
+  const outside = d.wireguard_endpoint || d.wireguard_endpoint_v6 || d.wireguard_relay;
   panel.append(
     h("p", { class: "muted" }, t("web.wg_intro")),
     h("p", { class: "muted" }, h("small", {}, t("web.wg_app_hint"))),
-    d.wireguard_endpoint
-      ? h("p", { class: "muted" }, h("small", {}, t("web.wg_reachable", { endpoint: d.wireguard_endpoint, port: wg.interface.listen_port || "51820" })))
+    outside
+      ? h("p", { class: "muted" }, h("small", {}, t("web.wg_reachable", { endpoint: outside, port: wg.interface.listen_port || "51820" })))
       : h("p", { class: "notice" }, t("web.wg_no_endpoint")),
     h("ul", { class: "list" }, peers.length ? peers.map((p) => h("li", {},
       h("span", { class: `dot ${p.active ? "ok" : ""}` }),
@@ -346,7 +348,7 @@ export async function render(main, data, params = []) {
   if (tab === "devices") fill(body, devicesPanel(data.devices, redraw));
   if (tab === "blocks") fill(body, await blocksPanel(data));
   if (tab === "lists") fill(body, await blockPanel(data.pihole_enabled));
-  if (tab === "vpn") fill(body, wireguardPanel(data, redraw));
+  if (tab === "vpn") fill(body, reachPanel(), wireguardPanel(data, redraw));
   if (tab === "map") fill(body, await topologyPanel(deviceDialog));
   if (tab === "analysis") {
     const view = await import("./addons.js");

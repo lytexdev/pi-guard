@@ -130,6 +130,10 @@ class Settings(BaseSettings):
     wireguard_interface: str = "wg0"
     # Where phones reach home from outside: MyFRITZ!/DynDNS name or public IP, optional :port.
     wireguard_endpoint: str | None = None
+    # A name with an IPv6 address of this device itself, for connections without IPv4.
+    wireguard_endpoint_v6: str | None = None
+    # A rented server that passes the VPN on; written by scripts/relay.sh.
+    wireguard_relay: str | None = None
     # The home network, reachable for VPN devices set to "home network only".
     wireguard_home_network: str | None = None
 
@@ -284,7 +288,7 @@ class Settings(BaseSettings):
             raise ValueError("expected a URL like https://guard.example.org")
         return value
 
-    @field_validator("wireguard_endpoint")
+    @field_validator("wireguard_endpoint", "wireguard_endpoint_v6", "wireguard_relay")
     @classmethod
     def _check_endpoint(cls, value: str | None) -> str | None:
         if value is None or not value.strip():

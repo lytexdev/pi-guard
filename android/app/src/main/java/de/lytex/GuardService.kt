@@ -118,8 +118,12 @@ class GuardService : Service() {
 
     private fun retry() {
         main.removeCallbacks(reconnect)
-        main.postDelayed(reconnect, retryAfter)
+        val wait = retryAfter
         retryAfter = minOf(retryAfter * 2, RETRY_MAX) // away from home this saves the battery
+        work.execute {
+            runCatching { Net.pick(store) }
+            main.postDelayed(reconnect, wait)
+        }
     }
 
     private fun send(report: JSONObject) {

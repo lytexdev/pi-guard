@@ -136,6 +136,7 @@ class MainActivity : AppCompatActivity() {
         offline.visibility = View.GONE
         if (store.token == null) return web.loadUrl(store.url!!)
         thread {
+            runCatching { Net.pick(store) }
             val cookie = runCatching {
                 val request = Net.request(store, "/api/mobile/session").post(ByteArray(0).toRequestBody()).build()
                 Net.client(store).newCall(request).execute().use {
