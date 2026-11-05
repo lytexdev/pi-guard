@@ -23,6 +23,9 @@ All notable changes are documented here. The format follows
 - Four ways home from outside, shown with their state under Network › VPN: IPv4, IPv6, a rented server and
   Tailscale. The app tries them in turn and finds the dashboard at other addresses. `scripts/relay.sh` sets up a
   server that passes the VPN on without being able to read it, optionally with the dashboard through Caddy.
+- Connect calendars: besides the phone's calendar, any calendar with an iCal link such as Google, Proton or Nextcloud.
+  Repeats and time zones are worked out, and only start and end of busy times are stored.
+- Trusted people can have a picture, birthday, address, email and phone number, all optional.
 - Each kind of notification can go to chosen ways only, for example only Signal, or Telegram and the app.
 - Keep everything for some hours and after that only what is around events (`PI_GUARD_RECORDING_FULL_HOURS`).
 - Storage shows what the cameras write per day, how long the space lasts and how to save some; recording quality can

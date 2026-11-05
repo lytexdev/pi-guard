@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 PLAN_KEY = "schedule.plan"
 STATE_KEY = "schedule.state"
 CALENDAR_KEY = "schedule.calendar"
+FEEDS_KEY = "schedule.feeds"
 MAX_EVENTS = 500
 ACTOR = "schedule"
 DAY_MINUTES = 24 * 60
@@ -62,6 +63,12 @@ def clean_calendar(raw: Any) -> list[dict[str, str]]:
     return events
 
 
+def all_busy(db: Any) -> list[dict[str, str]]:
+    """From the phones and from calendars on the web."""
+    feeds = [e for feed in db.get(FEEDS_KEY) or [] for e in feed["events"]]
+    return [*(db.get(CALENDAR_KEY) or []), *feeds]
+
+
 def busy_at(events: list[dict[str, str]], now: datetime) -> bool:
     return any(datetime.fromisoformat(e["start"]) <= now < datetime.fromisoformat(e["end"])
                for e in events)  # fmt: skip
@@ -88,7 +95,7 @@ class ScheduleRunner:
         plan = self.plan()
         state = self._db.get(STATE_KEY) or {"active": False, "applied": None}
         moment = now or utcnow()
-        busy = busy_at(self._db.get(CALENDAR_KEY) or [], moment)
+        busy = busy_at(all_busy(self._db), moment)
         planned = bool(plan["enabled"] and block_at(plan, moment.astimezone(self._tz)))
         active = planned or busy
         applied = state["applied"]

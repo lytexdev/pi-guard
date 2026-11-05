@@ -65,11 +65,12 @@ export async function render(main, params = [], opts = {}) {
     const people = await api("/api/people");
     fill(listPanel, h("h2", {}, t("faces.list_button")),
       h("ul", { class: "list" }, people.length ? people.map((p) => h("li", { class: "person-row" },
-        icon("user-check", "lg"),
+        p.profile?.picture ? h("img", { class: "avatar", src: `/api/people/${encodeURIComponent(p.name)}/picture?${Date.now()}`, alt: "" }) : icon("user-check", "lg"),
         h("div", { class: "grow" }, h("div", {}, p.name), h("small", {}, t("web.samples_since", { samples: p.samples, date: when(p.enrolled) })),
           p.similar_to ? h("small", { class: "warn-text" }, h("br"), t("web.similar_warning", { other: p.similar_to })) : null,
         ),
         h("button", { class: "icon-only", title: t("faces.more_button", { name: p.name }), onclick: () => { enrollForm(p.name); formPanel.scrollIntoView({ behavior: "smooth" }); } }, icon("plus")),
+        h("button", { class: "icon-only", title: t("web.pp_profile"), onclick: () => profileDialog(p, drawList) }, icon("user")),
         h("button", { class: "icon-only", title: t("web.pp_details"), onclick: () => detailsDialog(p, drawList) }, icon("list-details")),
         h("button", { class: "icon-only", title: t("web.rename"), onclick: async () => {
           const next = prompt(t("web.new_name"), p.name);
@@ -140,6 +141,40 @@ function testPanel() {
     h("p", { class: "muted" }, t("web.test_hint")),
     h("div", { class: "row" }, file, button),
     out);
+}
+
+// Picture and contact details, all optional. Only for finding your way around, recognition does not use them.
+function profileDialog(person, redraw) {
+  const url = `/api/people/${encodeURIComponent(person.name)}`;
+  const profile = person.profile || {};
+  const input = (id, type, autocomplete) => h("input", { id: `pf_${id}`, type, autocomplete, value: profile[id] || "" });
+  const fields = { birthday: input("birthday", "date", "off"), address: input("address", "text", "off"), email: input("email", "email", "off"), phone: input("phone", "tel", "off") };
+  const picture = h("div", { class: "avatar-box" });
+  const file = h("input", { class: "hidden", type: "file", accept: "image/*" });
+  const showPicture = () => fill(picture, profile.picture ? h("img", { class: "avatar big", src: `${url}/picture?${Date.now()}`, alt: "" }) : h("span", { class: "avatar big empty" }, icon("user", "lg")),
+    h("div", { class: "row" }, h("button", { type: "button", onclick: () => file.click() }, icon("upload"), t("web.pp_picture")),
+      profile.picture ? h("button", { type: "button", class: "danger", onclick: async () => {
+        if (await attempt(() => api(`${url}/picture`, { method: "DELETE" }))) { profile.picture = false; showPicture(); redraw(); }
+      } }, icon("trash"), t("web.delete")) : null));
+  file.addEventListener("change", async () => {
+    if (!file.files.length) return;
+    const form = new FormData();
+    form.append("file", file.files[0], file.files[0].name);
+    if (await attempt(() => api(`${url}/picture`, { method: "POST", body: form }))) { profile.picture = true; showPicture(); redraw(); }
+    file.value = "";
+  });
+  showPicture();
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, person.name), picture, file,
+    Object.entries(fields).map(([id, el]) => h("div", { class: "field" }, h("label", { for: el.id }, t(`web.pp_${id}`)), el)),
+    h("p", { class: "muted" }, h("small", {}, t("web.pp_profile_note"))),
+    h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
+      h("button", { class: "primary", onclick: async () => {
+        const body = Object.fromEntries(Object.entries(fields).map(([id, el]) => [id, el.value]));
+        if (await attempt(() => api(`${url}/profile`, { method: "PUT", body }), t("web.saved"))) { dialog.close(); redraw(); }
+      } }, t("web.save"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 async function detailsDialog(person, redraw) {

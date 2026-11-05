@@ -30,8 +30,10 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
   vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
   zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
+- **Kalender:** Belegte Einträge des Handy-Kalenders zählen als abwesend. Andere Kalender wie Google oder Proton verbindest
+  du im Dashboard unter Einstellungen › Zuhause & Abwesend, auch ohne die App.
 - **SOS:** Ein Tippen startet 10 Sekunden Countdown, nochmal tippen bricht ab. Danach bekommen alle Notfallkontakte und
-  Admins eine Nachricht mit Standort, Modus, Akku und Netz. **Das ersetzt nicht die 112.** Es braucht eine Verbindung zu
+  Admins eine Nachricht mit Standort, Modus, Akku und Netz sowie ein aktuelles Bild jeder Kamera. **Das ersetzt nicht die 112.** Es braucht eine Verbindung zu
   pi-guard, und pi-guard muss laufen.
 - **Anrufen:** Auf der Live-Seite schickt *Anrufen* dein Mikrofon an den Lautsprecher, während du die Kamera hörst. Das
   geht auch im normalen Browser. Rechne mit ein bis zwei Sekunden Verzögerung.

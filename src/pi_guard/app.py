@@ -22,6 +22,7 @@ from pi_guard.cameras import discovery
 from pi_guard.cameras.pipeline import CameraPipeline
 from pi_guard.config import Config
 from pi_guard.config.files import CameraConfig
+from pi_guard.core.calendars import Feeds
 from pi_guard.core.events import Event, EventBus, EventType
 from pi_guard.core.lifecycle import ComponentState, supervise
 from pi_guard.core.modes import Mode, mode_controller
@@ -295,6 +296,7 @@ class App:
             "events": partial(self.bus.consume, self._event_log, "event-log", self._record_events),
             "heartbeat": self._heartbeat,
             "retention": self.retention.run,
+            "calendars": Feeds(self.db).run,
             "notifier": self.notifier.run,
         }
         if self.presence is not None:

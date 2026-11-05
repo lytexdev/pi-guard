@@ -116,6 +116,36 @@ export async function render(box) {
     h("label", { class: "check", title: t("web.plan_on_tip") }, enabled, t("web.plan_on")),
     plan.presence ? h("label", { class: "check", title: t("web.plan_presence_tip") }, presence, t("web.plan_presence")) : null,
     h("button", { class: "primary", onclick: () => edit({ days: [0, 1, 2, 3, 4], start: 480, end: 1020, label: t("web.plan_work") }) }, icon("plus"), t("web.plan_add")),
-    h("div", {}, head, grid), h("p", { class: "muted" }, h("small", {}, t("web.plan_hint")))));
+    h("div", {}, head, grid), h("p", { class: "muted" }, h("small", {}, t("web.plan_hint")))), await calendarsPanel());
   drawGrid();
+}
+
+// Calendars count as "not at home" during busy times. Only start and end ever reach the Pi.
+async function calendarsPanel() {
+  const panel = h("section", { class: "panel stack" });
+  const draw = async () => {
+    const { feeds, phone } = await api("/api/calendars");
+    const name = h("input", { id: "calname", maxlength: 40, placeholder: t("web.cal_name_placeholder") });
+    const link = h("input", { id: "callink", type: "url", autocomplete: "off", placeholder: "https://…" });
+    const add = h("form", { class: "stack", onsubmit: async (event) => {
+      event.preventDefault();
+      const done = await attempt(() => api("/api/calendars", { method: "POST", body: { name: name.value, link: link.value } }), t("web.saved"));
+      if (done) draw();
+    } }, h("div", { class: "field" }, h("label", { for: "calname" }, t("web.name")), name),
+      h("div", { class: "field" }, h("label", { for: "callink" }, t("web.cal_link")), link),
+      h("button", { class: "primary", type: "submit" }, icon("plus"), t("web.cal_add")));
+    fill(panel, h("h2", {}, icon("calendar"), " ", t("web.cal_title")),
+      h("p", { class: "muted" }, t("web.cal_intro")),
+      h("p", {}, icon("device-mobile"), " ", phone ? t("web.cal_phone_on", { count: phone }) : t("web.cal_phone_off")),
+      feeds.length ? h("ul", { class: "list" }, feeds.map((f) => h("li", {}, icon("calendar"),
+        h("div", { class: "grow" }, h("div", {}, f.name), h("small", { class: f.error ? "warn-text" : "muted" }, f.error ? t(f.error) : t("web.cal_feed_state", { host: f.host, count: f.events }))),
+        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+          if (await attempt(() => api(`/api/calendars/${f.id}`, { method: "DELETE" }), t("web.deleted"))) draw();
+        } }, icon("trash"))))) : null,
+      feeds.length ? h("button", { onclick: async () => { await attempt(() => api("/api/calendars/refresh", { method: "POST", body: {} }), t("web.saved")); draw(); } }, icon("refresh"), t("web.cal_refresh")) : null,
+      ["google", "proton", "other"].map((id) => h("details", { class: "guide" }, h("summary", {}, t(`web.cal_how_${id}`)), h("p", { class: "muted" }, t(`web.cal_how_${id}_text`)))),
+      add, h("p", { class: "muted" }, h("small", {}, t("web.cal_privacy"))));
+  };
+  await draw();
+  return panel;
 }

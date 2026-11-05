@@ -320,7 +320,7 @@ pre.codes { background: var(--surface-2); padding: 12px; border-radius: 8px; col
 
 /* Tables and lists */
 .notif { flex-wrap: wrap; }
-.notif select { width: auto; min-width: 130px; }
+.notif select { width: auto; min-width: 130px; flex: 1 1 130px; }
 .clip { min-width: 0; overflow: hidden; }
 .clip .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row.wrap { flex-wrap: wrap; }
@@ -580,3 +580,9 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 
 /* Normal and expert */
 .mode-switch { margin-bottom: 4px; }
+
+/* Pictures of people */
+.avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; }
+.avatar.big { width: 96px; height: 96px; }
+.avatar.empty { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--muted); }
+.avatar-box { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }

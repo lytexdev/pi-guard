@@ -212,3 +212,61 @@ def test_context_survives_the_upload_checks() -> None:
     samples = [with_context(v, "right", 100.0) for v in views(base, 4)]
     kept, _ = consistent(samples)
     assert all(getattr(s, "pose", None) == "right" for s in kept)
+
+
+def test_a_profile_lives_and_dies_with_the_person(tmp_path: Path) -> None:
+    store = BiometricStore(tmp_path / "bio.db")
+    store.add("Ben", identity(), "test", 10)
+    assert store.profile("Ben") == {"picture": False}
+    assert store.set_profile("Ben", {"email": "ben@example.org"})
+    assert store.set_picture("Ben", b"jpeg")
+    assert store.profile("ben") == {"email": "ben@example.org", "picture": True}
+    assert store.rename("Ben", "Benjamin") and store.picture("Benjamin") == b"jpeg"
+    assert not store.set_profile("Niemand", {})
+    assert store.delete("Benjamin")
+    assert store.picture("Benjamin") is None
+    store.close()
+
+
+def test_people_from_before_profiles_are_upgraded(tmp_path: Path) -> None:
+    import sqlite3
+
+    path = tmp_path / "bio.db"
+    conn = sqlite3.connect(path)
+    conn.executescript("""
+        CREATE TABLE people (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
+            enrolled_at TEXT NOT NULL, enrolled_by TEXT NOT NULL);
+        CREATE TABLE samples (id INTEGER PRIMARY KEY, person_id INTEGER NOT NULL,
+            embedding BLOB NOT NULL, created_at TEXT NOT NULL);
+        INSERT INTO people VALUES (1, 'Oma', 'x', 'y');
+    """)
+    conn.close()
+    store = BiometricStore(path)
+    assert store.profile("Oma") == {"picture": False}
+    store.close()
+
+
+def test_profile_fields_are_checked() -> None:
+    from aiohttp import web
+
+    from pi_guard.web.api_manage import clean_profile
+
+    assert clean_profile({"email": " a@b.de ", "phone": "", "evil": "x"}) == {"email": "a@b.de"}
+    assert clean_profile({"birthday": "1950-02-03"}) == {"birthday": "1950-02-03"}
+    for bad in ({"birthday": "morgen"}, {"birthday": "2999-01-01"}, {"email": "kein at"}):
+        with pytest.raises(web.HTTPBadRequest):
+            clean_profile(bad)
+
+
+def test_a_picture_loses_its_hidden_data_and_gets_small() -> None:
+    import cv2
+
+    from pi_guard.web.api_manage import PICTURE_SIZE, small_picture
+
+    photo = (RNG.random((600, 900, 3)) * 255).astype(np.uint8)
+    raw = bytes(cv2.imencode(".jpg", photo)[1])
+    gps = b"\xff\xe1\x00\x10Exif\x00\x00GPSDATA!"  # an EXIF block right after the start
+    small = small_picture(raw[:2] + gps + raw[2:])
+    assert b"GPSDATA" not in small
+    image = cv2.imdecode(np.frombuffer(small, np.uint8), cv2.IMREAD_COLOR)
+    assert image.shape[:2] == (PICTURE_SIZE, PICTURE_SIZE)

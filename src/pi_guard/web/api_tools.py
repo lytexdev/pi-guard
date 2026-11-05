@@ -22,8 +22,9 @@ from aiohttp import web
 from pi_guard.audio import check
 from pi_guard.audio import devices as audio_devices
 from pi_guard.audio.service import AudioError
+from pi_guard.core.calendars import CalendarError, Feeds
 from pi_guard.core.permissions import Role
-from pi_guard.core.schedule import PLAN_KEY, clean_plan
+from pi_guard.core.schedule import CALENDAR_KEY, PLAN_KEY, clean_plan
 from pi_guard.diagnostics import storage as disk
 from pi_guard.diagnostics.scan import HELPER, read_report, request_root
 from pi_guard.i18n import t
@@ -77,6 +78,10 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/network/internet/{ip}", internet_state),
         web.post("/api/network/internet/{ip}", internet_set),
         web.get("/api/network/exposure", exposure),
+        web.get("/api/calendars", calendars_list),
+        web.post("/api/calendars", calendars_add),
+        web.post("/api/calendars/refresh", calendars_refresh),
+        web.delete("/api/calendars/{id}", calendars_remove),
         web.get("/api/schedule", schedule_get),
         web.put("/api/schedule", schedule_put),
         web.put("/api/support", support_put),
@@ -373,6 +378,39 @@ async def signal_link(request: web.Request) -> web.Response:
     _links.update(state="waiting", task=asyncio.create_task(_finish_link(d, uri, actor)))
     d.app.db.audit(actor, "signal.link")
     return web.json_response({"qr": _qr_svg(uri), "seconds": LINK_VALID})
+
+
+# --- calendars ------------------------------------------------------------------------------
+
+
+async def calendars_list(request: web.Request) -> web.Response:
+    db = dashboard(request).app.db
+    return web.json_response({"feeds": Feeds(db).public(),
+                              "phone": len(db.get(CALENDAR_KEY) or [])})  # fmt: skip
+
+
+async def calendars_add(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await read_json(request)
+    try:
+        await Feeds(d.app.db).add(str(data.get("name", "")), str(data.get("link", "")))
+    except CalendarError as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from None
+    d.app.db.audit(_actor(request), "calendar.add", str(data.get("name", ""))[:40])
+    return web.json_response({"ok": True})
+
+
+async def calendars_refresh(request: web.Request) -> web.Response:
+    await Feeds(dashboard(request).app.db).refresh()
+    return web.json_response({"ok": True})
+
+
+async def calendars_remove(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    if not Feeds(d.app.db).remove(request.match_info["id"]):
+        raise web.HTTPNotFound()
+    d.app.db.audit(_actor(request), "calendar.remove")
+    return web.json_response({"ok": True})
 
 
 # --- Wi-Fi ----------------------------------------------------------------------------------

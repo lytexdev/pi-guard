@@ -19,6 +19,7 @@ How mistakes are kept out (family members often look alike):
 
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 from dataclasses import dataclass, field
@@ -204,6 +205,35 @@ class BiometricStore:
         for column, kind in (("pose", "TEXT"), ("light", "REAL")):
             if column not in columns:
                 self._conn.execute(f"ALTER TABLE samples ADD COLUMN {column} {kind}")
+        columns = {row[1] for row in self._conn.execute("PRAGMA table_info(people)")}
+        for column, kind in (("profile", "TEXT"), ("picture", "BLOB")):
+            if column not in columns:
+                self._conn.execute(f"ALTER TABLE people ADD COLUMN {column} {kind}")
+
+    def profile(self, name: str) -> dict[str, Any]:
+        row = self._conn.execute(
+            "SELECT profile, picture IS NOT NULL FROM people WHERE name = ? COLLATE NOCASE", (name,)
+        ).fetchone()
+        return {**json.loads(row[0] or "{}"), "picture": bool(row[1])} if row else {}
+
+    def set_profile(self, name: str, values: dict[str, str]) -> bool:
+        cursor = self._conn.execute(
+            "UPDATE people SET profile = ? WHERE name = ? COLLATE NOCASE",
+            (json.dumps(values), name),
+        )
+        return cursor.rowcount > 0
+
+    def picture(self, name: str) -> bytes | None:
+        row = self._conn.execute(
+            "SELECT picture FROM people WHERE name = ? COLLATE NOCASE", (name,)
+        ).fetchone()
+        return bytes(row[0]) if row and row[0] else None
+
+    def set_picture(self, name: str, jpeg: bytes | None) -> bool:
+        cursor = self._conn.execute(
+            "UPDATE people SET picture = ? WHERE name = ? COLLATE NOCASE", (jpeg, name)
+        )
+        return cursor.rowcount > 0
 
     def add(self, name: str, embedding: Embedding, actor: str, max_samples: int) -> int:
         now = utcnow().isoformat()

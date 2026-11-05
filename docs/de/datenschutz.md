@@ -90,3 +90,15 @@ OpenStreetMap erfährt dadurch ungefähr, wo das Handy ist, aber nicht, wer scha
 ## Vertraute Personen
 
 Pro Bild werden neben den 128 Zahlen auch Blickrichtung und Helligkeit gespeichert, nicht das Bild selbst.
+
+## Kalender
+
+Kalender-Links (Google, Proton und andere) wirken wie Passwörter: Sie bleiben auf dem Pi und werden nie wieder angezeigt,
+protokolliert oder exportiert. pi-guard fragt diese Dienste stündlich ab, sie sehen also die Adresse Ihres Zuhauses.
+Gespeichert werden nur Beginn und Ende der Belegt-Zeiten der nächsten zwei Wochen, keine Titel, Orte oder Personen.
+
+## Profile vertrauter Personen
+
+Bild, Geburtstag, Adresse, E-Mail und Telefon sind freiwillig und personenbezogene Daten dieser Person: Tragen Sie sie nur
+mit deren Einverständnis ein. Sie liegen bei den Gesichtsdaten, werden mit der Person gelöscht und sind Teil des
+Datenexports. Bilder werden verkleinert und neu geschrieben, Standort und Zeit der Originaldatei fallen dabei weg.

@@ -30,8 +30,10 @@ app* and its token stops working at once.
 - **Find a phone:** from *Add-ons → Mobile app* or `/findphone name` in chat. It rings at full volume and
   vibrates. Location, map and details are only sent if the phone's owner switched on *Share location*. The phone
   shows that someone is looking for it. The Pi fetches map tiles from OpenStreetMap, and only when someone opens the map.
+- **Calendar:** busy entries of the phone's calendar count as away. Other calendars such as Google or Proton are
+  connected in the dashboard under Settings › At home & away, also without the app.
 - **SOS:** one tap starts a 10-second countdown; tapping again cancels. Then all emergency contacts and admins
-  get a message with location, mode, battery and network. **This does not replace 112.** It needs a connection
+  get a message with location, mode, battery and network, and a current picture of each camera. **This does not replace 112.** It needs a connection
   to pi-guard, and pi-guard must be running.
 - **Call:** on the Live page, *Call* streams your microphone to the speaker while you hear the camera. It also
   works in a normal browser. Expect a delay of a second or two.

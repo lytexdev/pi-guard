@@ -58,7 +58,8 @@ def collect_all(d: Any) -> dict[str, list[dict[str, Any]]]:
                     for c in app.config.file.cameras],
     }  # fmt: skip
     if app.faces is not None:
-        data["people"] = [{"name": n, "samples": c, "enrolled": e}
+        data["people"] = [{"name": n, "samples": c, "enrolled": e,
+                           "profile": app.faces.store.profile(n)}
                           for n, c, e in app.faces.store.people()]  # fmt: skip
     if d.wg_peers is not None:
         data["vpn_devices"] = [{k: p[k] for k in ("name", "address", "created")}

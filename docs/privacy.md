@@ -148,3 +148,15 @@ replaced by each new report. Admins can see it, so ask before switching it on fo
 location to the emergency contacts, also through their messengers. It also sends a current picture of each camera (up
 to four) to them, so whoever is an emergency contact can see inside the home in that moment. Map tiles are fetched by
 the Pi when someone opens a map, which tells OpenStreetMap roughly where the phone is, but not who is looking.
+
+## Calendars
+
+Calendar links (Google, Proton and others) work like passwords: they stay on the Pi, are never shown again, logged or
+exported. pi-guard asks those services once an hour, so they see the address of your home. Only start and end of busy
+times are stored, no titles, places or people, and only for the next two weeks.
+
+## Profiles of trusted people
+
+Picture, birthday, address, email and phone number are optional and are personal data of that person: only enter them
+with their consent. They are stored with the face data, deleted with the person and part of the data export. Pictures
+are reduced to a small square and written anew, which removes the location and time in the original file.

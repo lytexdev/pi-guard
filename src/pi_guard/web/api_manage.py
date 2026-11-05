@@ -5,12 +5,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import shutil
 import tempfile
 import uuid
+from datetime import date
 from pathlib import Path
 from typing import Any, get_args
 
+import numpy as np
 import yaml
 from aiohttp import web
 from pydantic import ValidationError
@@ -34,6 +37,8 @@ from pi_guard.security.files import atomic_write
 from pi_guard.web.server import current, dashboard, read_json
 from pi_guard.web.settings_schema import BY_KEY, EXPERT, FIELDS, SECRETS, to_env
 
+PROFILE_FIELDS = {"birthday": 10, "address": 200, "email": 120, "phone": 40}
+PICTURE_SIZE = 256
 VIDEO_SUFFIXES = (".mp4", ".mov", ".webm", ".mkv", ".m4v")
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
 MAX_UPLOAD = 50 * 1024 * 1024
@@ -60,6 +65,10 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/evidence", evidence_list),
         web.post("/api/evidence", evidence_start),
         web.get("/api/people/{name}", person_details),
+        web.put("/api/people/{name}/profile", person_profile),
+        web.get("/api/people/{name}/picture", person_picture),
+        web.post("/api/people/{name}/picture", person_picture_save),
+        web.delete("/api/people/{name}/picture", person_picture_delete),
         web.delete("/api/people-samples/{id:\\d+}", delete_sample),
         web.patch("/api/people/{name}", rename_person),
         web.delete("/api/people/{name}", delete_person),
@@ -280,8 +289,77 @@ async def people(request: web.Request) -> web.Response:
             "name": name, "samples": count, "enrolled": enrolled,
             "similar_to": other if other and score >= warn_at else None,
             "quality": faces.quality(name, similar),
+            "profile": faces.store.profile(name),
         })  # fmt: skip
     return web.json_response(rows)
+
+
+def clean_profile(data: dict[str, Any]) -> dict[str, str]:
+    """Everything is optional. Empty fields are not kept."""
+    values = {
+        key: str(data.get(key) or "").strip()[:limit] for key, limit in PROFILE_FIELDS.items()
+    }
+    birthday, email = values["birthday"], values["email"]
+    if birthday:
+        try:
+            if date.fromisoformat(birthday) > date.today():
+                raise ValueError(birthday)
+        except ValueError:
+            raise web.HTTPBadRequest(text="web.pp_bad_birthday") from None
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise web.HTTPBadRequest(text="web.pp_bad_email")
+    return {key: value for key, value in values.items() if value}
+
+
+async def person_profile(request: web.Request) -> web.Response:
+    faces = _faces(request)
+    if not faces.store.set_profile(_name(request), clean_profile(await read_json(request))):
+        raise web.HTTPNotFound()
+    dashboard(request).app.db.audit(_actor(request), "faces.profile")
+    return web.json_response({"ok": True})
+
+
+async def person_picture(request: web.Request) -> web.Response:
+    picture = _faces(request).store.picture(_name(request))
+    if picture is None:
+        raise web.HTTPNotFound()
+    return web.Response(body=picture, content_type="image/jpeg",
+                        headers={"Cache-Control": "no-store"})  # fmt: skip
+
+
+def small_picture(raw: bytes) -> bytes:
+    """A square thumbnail. Written anew, so the place and time in a photo's data do not stay."""
+    import cv2
+
+    image = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise web.HTTPBadRequest(text="web.pp_bad_picture")
+    height, width = image.shape[:2]
+    side = min(height, width)
+    top, left = (height - side) // 2, (width - side) // 2
+    square = image[top : top + side, left : left + side]
+    small = cv2.resize(square, (PICTURE_SIZE, PICTURE_SIZE), interpolation=cv2.INTER_AREA)
+    return bytes(cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 85])[1])
+
+
+async def person_picture_save(request: web.Request) -> web.Response:
+    faces = _faces(request)
+    name = _name(request)
+    reader = await request.multipart()
+    part = await reader.next()
+    if part is None:
+        raise web.HTTPBadRequest(text="web.pp_bad_picture")
+    raw = await part.read()  # type: ignore[union-attr]
+    picture = await asyncio.to_thread(small_picture, bytes(raw))
+    if not faces.store.set_picture(name, picture):
+        raise web.HTTPNotFound()
+    return web.json_response({"ok": True})
+
+
+async def person_picture_delete(request: web.Request) -> web.Response:
+    if not _faces(request).store.set_picture(_name(request), None):
+        raise web.HTTPNotFound()
+    return web.json_response({"ok": True})
 
 
 async def _receive(request: web.Request, workdir: Path) -> tuple[dict[str, str], list[Path]]:
