@@ -93,6 +93,7 @@ function wireguardPanel(d, redraw) {
   const peers = wg.peers;
   panel.append(
     h("p", { class: "muted" }, t("web.wg_intro")),
+    h("p", { class: "muted" }, h("small", {}, t("web.wg_app_hint"))),
     d.wireguard_endpoint
       ? h("p", { class: "muted" }, h("small", {}, t("web.wg_reachable", { endpoint: d.wireguard_endpoint, port: wg.interface.listen_port || "51820" })))
       : h("p", { class: "notice" }, t("web.wg_no_endpoint")),

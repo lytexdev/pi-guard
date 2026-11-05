@@ -600,6 +600,7 @@
   "web.totp_disable_confirm": "Geben Sie Ihr Passwort ein, um die Zwei-Faktor-Anmeldung auszuschalten.",
   "web.wg_title": "VPN-Zugang (WireGuard)",
   "web.wg_intro": "Handys und Laptops mit Zugang erreichen von überall euer Zuhause: Dashboard, Kameras und Werbeblocker – als wären sie im WLAN.",
+  "web.wg_app_hint": "Handys mit der PiGuard-App brauchen hier nichts: Die App legt ihren Zugang selbst an. Tippe in der App oben auf das Schild.",
   "web.wg_reachable": "Von außen erreichbar unter {endpoint}, UDP-Port {port} (der Router muss diesen Port weiterleiten).",
   "web.wg_no_endpoint": "Keine Adresse für unterwegs eingetragen. Trag deinen MyFRITZ!/DynDNS-Namen unter Einstellungen › Netzwerk ein.",
   "web.wg_add": "Gerät hinzufügen",

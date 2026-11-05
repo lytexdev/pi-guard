@@ -35,6 +35,7 @@
         <activity android:name=".SetupActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".LockActivity" android:exported="false" />
         <activity android:name=".EmergencyActivity" android:exported="false" android:showWhenLocked="true" android:turnScreenOn="true" />
+        <activity android:name=".VpnActivity" android:exported="false" />
         <activity android:name=".AppSettingsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
 
         <service android:name=".GuardService" android:exported="false" android:foregroundServiceType="specialUse">

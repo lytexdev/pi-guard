@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
@@ -45,9 +46,6 @@ class MainActivity : AppCompatActivity() {
         chosen?.onReceiveValue(it.toTypedArray())
         chosen = null
     }
-    private val askVpn = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == RESULT_OK) connectVpn()
-    }
     private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         asked?.let { (request, wanted) -> if (granted) request.grant(wanted) else request.deny() }
         asked = null
@@ -67,7 +65,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.sos).setOnClickListener { startActivity(Intent(this, EmergencyActivity::class.java)) }
         findViewById<ImageButton>(R.id.settings).setOnClickListener { startActivity(Intent(this, AppSettingsActivity::class.java)) }
         findViewById<Button>(R.id.retry).setOnClickListener { open() }
-        findViewById<Button>(R.id.vpn).setOnClickListener { connectVpn() }
+        findViewById<Button>(R.id.vpn).setOnClickListener { openVpn() }
+        findViewById<ImageButton>(R.id.vpn_open).setOnClickListener { openVpn() }
         prepareWeb()
         val wanted = mutableListOf(Manifest.permission.RECORD_AUDIO)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) wanted += Manifest.permission.POST_NOTIFICATIONS
@@ -141,6 +140,7 @@ class MainActivity : AppCompatActivity() {
                 val request = Net.request(store, "/api/mobile/session").post(ByteArray(0).toRequestBody()).build()
                 Net.client(store).newCall(request).execute().use {
                     if (it.code == 401) { // removed in the dashboard
+                        runCatching { Vpn.down(this, store) }
                         store.forgetLogin()
                         runOnUiThread { CookieManager.getInstance().removeAllCookies(null) }
                     }
@@ -151,6 +151,7 @@ class MainActivity : AppCompatActivity() {
                 if (cookie != null) CookieManager.getInstance().setCookie(store.url, cookie)
                 web.loadUrl(store.url!!)
             }
+            if (cookie != null) Vpn.sync(store) // the access is ready before the phone leaves home
         }
     }
 
@@ -171,6 +172,7 @@ class MainActivity : AppCompatActivity() {
                     check(it.isSuccessful)
                     store.token = JSONObject(it.body!!.string()).getString("token")
                 }
+                Vpn.sync(store)
             }.isSuccess
             pairing = false
             runOnUiThread {
@@ -180,17 +182,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun connectVpn() {
-        val permission = android.net.VpnService.prepare(this)
-        if (permission != null) return askVpn.launch(permission)
-        thread {
-            val done = runCatching { Vpn.up(this, store) }.isSuccess
-            runOnUiThread { if (done) open() else Toast.makeText(this, R.string.vpn_failed, Toast.LENGTH_LONG).show() }
-        }
-    }
+    private fun openVpn() = startActivity(Intent(this, VpnActivity::class.java))
 
     override fun onResume() {
         super.onResume()
+        findViewById<ImageButton>(R.id.vpn_open).imageTintList = ColorStateList.valueOf(getColor(if (Vpn.running) R.color.ok else R.color.text))
+        if (Vpn.running && offline.visibility == View.VISIBLE) open()
         val app = application as PiGuardApp
         if (store.locked && SystemClock.elapsedRealtime() - app.leftAt > LOCK_AFTER) {
             startActivity(Intent(this, LockActivity::class.java))

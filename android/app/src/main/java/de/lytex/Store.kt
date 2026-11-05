@@ -59,6 +59,13 @@ class Store(context: Context) {
     var vpnConfig: String?
         get() = secret("vpn")
         set(value) = putSecret("vpn", value)
+    var vpnName: String?
+        get() = prefs.getString("vpn_name", null)
+        set(value) = prefs.edit().putString("vpn_name", value).apply()
+    /** On when the person connected, so a restart of the phone or the app comes back connected. */
+    var vpnWanted: Boolean
+        get() = prefs.getBoolean("vpn_wanted", false)
+        set(value) = prefs.edit().putBoolean("vpn_wanted", value).apply()
     var useBiometric: Boolean
         get() = prefs.getBoolean("biometric", false)
         set(value) = prefs.edit().putBoolean("biometric", value).apply()
@@ -98,6 +105,7 @@ class Store(context: Context) {
     fun forgetLogin() {
         token = null
         vpnConfig = null
+        vpnWanted = false
     }
 
     fun clear() = prefs.edit().clear().apply()

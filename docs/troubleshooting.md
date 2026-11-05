@@ -100,6 +100,14 @@ sudo journalctl -u pi-guard -n 100
 - Live picture black: `PI_GUARD_DASHBOARD_LIVE_FPS` is 0, or the camera is
   reconnecting (see Overview).
 
+## VPN in the app
+
+- *Android did not allow the connection*: another VPN app is set to always-on. Turn that off under the phone's VPN
+  settings. A dialog in the app leads there.
+- *This phone has no access yet*: open the app once at home, the access is created then.
+- *Your home does not answer*: check the internet at both ends and the port forwarding for UDP 51820. If the access
+  was removed in the dashboard, disconnect and open the app once at home to get a new one.
+
 ## Signal
 
 - `pi-guard signal test` must report a version.

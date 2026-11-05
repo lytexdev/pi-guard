@@ -11,7 +11,7 @@
                 <TextView style="@style/Heading" android:text="@string/vpn_title" />
             </LinearLayout>
             <TextView android:id="@+id/vpn_state" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:textColor="@color/muted" />
-            <Button android:id="@+id/vpn_toggle" style="@style/Button" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/connect_vpn" app:icon="@drawable/ic_shield_lock" />
+            <Button android:id="@+id/vpn_toggle" style="@style/Button" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/vpn_open" app:icon="@drawable/ic_shield_lock" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
     <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">

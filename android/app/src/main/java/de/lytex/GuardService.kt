@@ -68,6 +68,7 @@ class GuardService : Service() {
         }
         connect()
         main.post(periodic)
+        work.execute { Vpn.resume(this, store) }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

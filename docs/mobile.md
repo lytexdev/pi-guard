@@ -18,7 +18,12 @@ app* and its token stops working at once.
 - **Dashboard** with all pages and settings, also from outside through the VPN or a public address.
 - **Alerts** arrive over the app's own encrypted connection to pi-guard, with no Google or Apple service in
   between. A permanent notification keeps it alive, which uses some battery.
-- **VPN:** the app is a WireGuard client. *App settings → Connect VPN* creates an access for this phone.
+- **VPN:** the app is a WireGuard client with its own access per phone, like a VPN app with a device list. pi-guard
+  creates the access when the phone is paired, so there is no QR code to scan. Tap the shield at the top of the app,
+  then *Connect VPN*. It works from anywhere, shows the device, address, data and last contact, and comes back after
+  a restart. Android runs one VPN at a time: connecting replaces the WireGuard app, and if that app is set to
+  always-on, Android refuses and the app explains how to turn that off. PiGuard can be the always-on VPN itself.
+  The first access needs the app opened once at home or through another VPN. WireGuard must be set up on pi-guard.
   Do this once at home. All traffic then goes through your home.
 - **Find a phone:** from *Add-ons → Mobile app* or `/findphone name` in chat. It rings at full volume and
   vibrates. Location, map and details are only sent if the phone's owner switched on *Share location*. The phone

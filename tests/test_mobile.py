@@ -277,3 +277,77 @@ async def test_the_login_that_paired_ends_with_the_phone(tmp_path: Path) -> None
     finally:
         await client.close()
         app.db.close()
+
+
+async def _with_vpn(tmp_path: Path, app: Any) -> None:
+    from pi_guard.network.wgpeers import PeerStore, generate_keypair
+
+    app.settings.wireguard_enabled = True
+    app.settings.wireguard_endpoint = "home.example:51820"
+    app.settings.runtime_dir.mkdir(parents=True, exist_ok=True)
+    (app.settings.runtime_dir / "wireguard.status").write_text(
+        f"written\t2026-11-02T10:00:00Z\n(hidden)\t{generate_keypair()[1]}\t51820\toff\n"
+    )
+    app.dashboard.wg_peers = PeerStore(app.db, tmp_path, b"k" * 32)
+
+
+async def test_the_app_gets_its_own_vpn_access_and_keeps_it(tmp_path: Path) -> None:
+    client, app, _, bearer = await _paired(tmp_path)
+    try:
+        await _with_vpn(tmp_path, app)
+        first = await client.post("/api/mobile/vpn", json={"full_tunnel": True}, headers=bearer)
+        assert first.status == 200 and first.headers["Cache-Control"] == "no-store"
+        body = await first.json()
+        assert body["name"] == "App 1 Handy Lena"
+        assert "Endpoint = home.example:51820" in body["config"]
+        again = await client.post("/api/mobile/vpn", json={}, headers=bearer)
+        assert (await again.json())["config"] == body["config"]
+        assert len(app.dashboard.wg_peers.list()) == 1
+        assert app.mobile.get(1)["vpn_peer"] == app.dashboard.wg_peers.list()[0]["id"]
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_an_access_removed_in_the_dashboard_is_replaced(tmp_path: Path) -> None:
+    client, app, _, bearer = await _paired(tmp_path)
+    try:
+        await _with_vpn(tmp_path, app)
+        first = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
+        app.dashboard.wg_peers.remove(app.mobile.get(1)["vpn_peer"])
+        second = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
+        assert second["config"] != first["config"]
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_two_phones_with_a_long_equal_name_both_get_an_access(tmp_path: Path) -> None:
+    client, app, headers, _ = await _paired(tmp_path)
+    try:
+        await _with_vpn(tmp_path, app)
+        names = set()
+        for _ in range(2):
+            body = {"name": "samsung SM-A226B Galaxy A22 5G Dual", "platform": "android"}
+            paired = await (
+                await client.post("/api/mobile/pair", json=body, headers=headers)
+            ).json()
+            bearer = {"Authorization": f"Bearer {paired['token']}"}
+            response = await client.post("/api/mobile/vpn", json={}, headers=bearer)
+            assert response.status == 200
+            names.add((await response.json())["name"])
+        assert len(names) == 2
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_vpn_access_needs_a_paired_phone_and_wireguard(tmp_path: Path) -> None:
+    client, app, _, bearer = await _paired(tmp_path)
+    try:
+        wrong = {"Authorization": "Bearer null"}
+        assert (await client.post("/api/mobile/vpn", json={}, headers=wrong)).status == 401
+        assert (await client.post("/api/mobile/vpn", json={}, headers=bearer)).status == 409
+    finally:
+        await client.close()
+        app.db.close()

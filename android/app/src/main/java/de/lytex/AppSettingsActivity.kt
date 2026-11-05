@@ -2,7 +2,6 @@ package de.lytex
 
 import android.Manifest
 import android.content.Intent
-import android.net.VpnService
 import android.os.Bundle
 import android.webkit.CookieManager
 import android.widget.Button
@@ -30,9 +29,6 @@ class AppSettingsActivity : AppCompatActivity() {
         findViewById<CompoundButton>(R.id.location).isChecked = store.shareLocation
         if (store.shareLocation) askBackground.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
     }
-    private val askVpn = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == RESULT_OK) toggleVpn()
-    }
     private val askBackground = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     override fun onCreate(state: Bundle?) {
@@ -41,8 +37,7 @@ class AppSettingsActivity : AppCompatActivity() {
         store = Store(this)
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         vpnState = findViewById(R.id.vpn_state)
-        showVpn()
-        findViewById<Button>(R.id.vpn_toggle).setOnClickListener { toggleVpn() }
+        findViewById<Button>(R.id.vpn_toggle).setOnClickListener { startActivity(Intent(this, VpnActivity::class.java)) }
         check(R.id.location, store.shareLocation) {
             if (it) askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) else store.shareLocation = false
         }
@@ -60,6 +55,7 @@ class AppSettingsActivity : AppCompatActivity() {
         findViewById<Button>(R.id.address_save).setOnClickListener { store.url = address.text.toString().trim().trimEnd('/') }
         findViewById<Button>(R.id.unpair).setOnClickListener {
             stopService(Intent(this, GuardService::class.java))
+            thread { runCatching { Vpn.down(this, store) } }
             CookieManager.getInstance().removeAllCookies(null)
             store.clear()
             startActivity(Intent(this, SetupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -72,20 +68,9 @@ class AppSettingsActivity : AppCompatActivity() {
         box.setOnCheckedChangeListener { _, on -> changed(on) }
     }
 
-    private fun showVpn() {
+    override fun onResume() {
+        super.onResume()
         vpnState.setText(if (Vpn.running) R.string.vpn_on else R.string.vpn_off)
-        findViewById<Button>(R.id.vpn_toggle).setText(if (Vpn.running) R.string.disconnect_vpn else R.string.connect_vpn)
-    }
-
-    private fun toggleVpn() {
-        VpnService.prepare(this)?.let { return askVpn.launch(it) }
-        thread {
-            val done = runCatching { if (Vpn.running) Vpn.down(this) else Vpn.up(this, store) }.isSuccess
-            runOnUiThread {
-                showVpn()
-                if (!done) Toast.makeText(this, R.string.vpn_failed, Toast.LENGTH_LONG).show()
-            }
-        }
     }
 
     private fun setPin() {

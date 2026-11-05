@@ -18,7 +18,13 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **Dashboard** mit allen Seiten und Einstellungen, von unterwegs über das VPN oder eine öffentliche Adresse.
 - **Alarme** kommen über eine eigene verschlüsselte Verbindung zu pi-guard, ohne Google oder Apple dazwischen. Eine
   dauerhafte Benachrichtigung hält sie offen; das kostet etwas Akku.
-- **VPN:** Die App ist ein WireGuard-Client. *App-Einstellungen → VPN verbinden* erstellt einen Zugang für dieses Handy.
+- **VPN:** Die App ist ein WireGuard-Client mit eigenem Zugang pro Handy, wie eine VPN-App mit Geräteliste. pi-guard
+  legt den Zugang beim Koppeln an, du musst also keinen QR-Code scannen. Tippe oben in der App auf das Schild und
+  dann auf *VPN verbinden*. Das geht von überall, zeigt Gerät, Adresse, Datenmenge und letzten Kontakt und verbindet
+  sich nach einem Neustart wieder. Android erlaubt nur ein VPN gleichzeitig: Verbinden ersetzt die WireGuard-App. Ist
+  diese auf „durchgehend aktiv“ gestellt, lehnt Android ab, und die App erklärt, wie du das ausschaltest. PiGuard kann
+  auch selbst das durchgehend aktive VPN sein. Für den ersten Zugang muss die App einmal zu Hause oder über ein
+  anderes VPN geöffnet werden. WireGuard muss auf pi-guard eingerichtet sein.
   Mach das einmal zu Hause. Der gesamte Verkehr läuft dann über dein Zuhause.
 - **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
   vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy

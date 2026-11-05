@@ -202,14 +202,15 @@ async def vpn(request: web.Request) -> web.Response:
     peer: int = device.get("vpn_peer") or 0
     if not any(p["id"] == peer for p in store.list()):
         try:
-            peer = await asyncio.to_thread(store.add, f"App {device['name']} {device['id']}"[:32],
+            peer = await asyncio.to_thread(store.add, f"App {device['id']} {device['name']}"[:32],
                                            data.get("full_tunnel") is not False)  # fmt: skip
         except PeerError as exc:
             raise web.HTTPBadRequest(text=str(exc)) from None
         _hub(request).set_vpn_peer(device["id"], peer)
         d.app.db.audit(f"mobile:{device['id']}", "wireguard.add", device["name"])
-    _, config = _config(request, peer)
-    return web.json_response({"config": config}, headers={"Cache-Control": "no-store"})
+    name, config = _config(request, peer)
+    return web.json_response({"config": config, "name": name},
+                             headers={"Cache-Control": "no-store"})  # fmt: skip
 
 
 def _apk_dir(request: web.Request) -> Path:

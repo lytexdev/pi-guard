@@ -10,6 +10,8 @@ All notable changes are documented here. The format follows
 
 - Adding a trusted person explains what works best and can take guided photos or a video on the spot, in
   the browser and in the app.
+- The app creates its own VPN access when a phone is paired and has a VPN screen behind the shield at the top:
+  one button, device, address, data, last contact, reconnects after a restart, works as always-on VPN.
 - Linking Signal shows steps and the time left, and stores the number from the phone.
 - A new login page with a way to show the password.
 - Android app PiGuard (`android/`) with the add-on `mobile`: dashboard, alerts without Google, WireGuard
@@ -57,6 +59,9 @@ All notable changes are documented here. The format follows
   details; link in the credit.
 
 ### Fixed
+
+- The app's VPN button did nothing when Android refused it, for example with another VPN set to always-on. It now
+  says why and leads to the settings. Two phones with the same long name no longer share a VPN name.
 
 - The Signal link code vanished after four seconds and was never renewed, although a code only works for
   two minutes.
