@@ -1,5 +1,5 @@
 // A person's own login: password and second factor. All that viewers can change.
-import { api, attempt, fill, h, icon, t, toast } from "../api.js";
+import { askDialog, api, attempt, fill, h, icon, t, toast } from "../api.js";
 
 export async function render(main) {
   const draw = async () => {
@@ -10,7 +10,7 @@ export async function render(main) {
     if (account.totp) {
       totp.append(h("p", {}, h("span", { class: "badge ok" }, icon("shield-check"), t("web.totp_on"))),
         h("button", { class: "danger", onclick: async () => {
-          const password = prompt(t("web.confirm_password"));
+          const password = await askDialog(t("web.confirm_password"), { type: "password" });
           if (password && await attempt(() => api("/api/account/totp/disable", { method: "POST", body: { password } }), t("web.saved"))) draw();
         } }, t("web.totp_disable")));
     } else {

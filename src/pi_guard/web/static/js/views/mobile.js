@@ -1,5 +1,5 @@
 // Phones with the app: finding them, where they are, and the app itself for updates.
-import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
 
 const ZOOM = 16;
 const TILE = "/api/mobile/map"; // through the Pi, see map_tile
@@ -59,7 +59,7 @@ export async function render(main) {
         h("h3", {}, t("web.mob_upload")), h("p", { class: "muted" }, h("small", {}, t("web.mob_upload_hint"))),
         h("div", { class: "row" }, file, code, version, h("button", { onclick: async () => {
           if (!file.files.length || !code.value || !version.value) { toast(t("web.mob_upload_missing"), true); return; }
-          const password = prompt(t("web.confirm_password"));
+          const password = await askDialog(t("web.confirm_password"), { type: "password" });
           if (!password) return;
           const form = new FormData();
           form.append("password", password);

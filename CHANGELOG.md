@@ -100,6 +100,9 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- In the desktop app, everything that asked a question did nothing: clearing storage, renaming, and every password
+  confirmation. It relied on a browser feature the app does not have. A dialog of its own replaces it, which also no
+  longer shows passwords in plain text.
 - Root jobs no longer write into folders of the unprivileged user: the WireGuard status and the update report could
   have been turned into overwriting any file, by someone who already broke into pi-guard.
 - Voice messages to the assistant and talking through the speaker were cut off after the first part of the upload.

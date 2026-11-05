@@ -1,5 +1,5 @@
 // Storage: what takes up the space, and clearing what can go.
-import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
 import { meter } from "./overview.js";
 
 const size = (bytes) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`);
@@ -14,7 +14,7 @@ export async function render(box) {
       if (item.id === "database") {
         if (!await confirmDialog(t("web.st_vacuum_confirm"), t("web.st_clean"))) return;
       } else {
-        const days = Number(prompt(t("web.st_days", { name }), String(s.retention_days)));
+        const days = Number(await askDialog(t("web.st_days", { name }), { type: "number", value: String(s.retention_days) }));
         if (!days || days < 1) return;
         if (!await confirmDialog(t("web.st_confirm", { name, days }), t("web.st_clean"), true)) return;
         body = { ...body, days };

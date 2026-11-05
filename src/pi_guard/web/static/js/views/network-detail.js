@@ -1,5 +1,5 @@
 // Pi-hole statistics and blocking, WireGuard peers, devices in the LAN.
-import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
 import { topologyPanel } from "./topology.js";
 import { meter } from "./overview.js";
 import { restartPrompt } from "./settings.js";
@@ -132,7 +132,7 @@ async function internetControl(ip) {
   const draw = (allowed) => fill(box, h("h3", {}, t("web.ia_title")), h("p", { class: "muted" }, t(allowed ? "web.ia_allowed" : "web.ia_blocked")),
     h("button", { class: allowed ? "danger" : "primary", title: t("web.ia_tip"), onclick: async () => {
       if (allowed && !await confirmDialog(t("web.ia_confirm", { ip }), t("web.ia_block"), true)) return;
-      const password = prompt(t("web.confirm_password"));
+      const password = await askDialog(t("web.confirm_password"), { type: "password" });
       if (!password) return;
       const done = await attempt(() => api(url, { method: "POST", body: { allowed: !allowed, password } }), t("web.saved"));
       if (done) draw(done.allowed);
@@ -232,7 +232,7 @@ function devicesPanel(devices, redraw) {
         h("td", {}, d.last_query ? when(d.last_query) : d.state ? d.state.toLowerCase() : "–"),
         h("td", { class: "actions" }, h("button", { class: "icon-only", title: t("web.dev_details"), onclick: () => deviceDialog(d) }, icon("zoom-in")),
           d.trusted ? null : h("button", { class: "icon-only", title: t("web.trust_device"), onclick: async () => {
-          const name = prompt(t("web.trust_device_name"), d.name || "");
+          const name = await askDialog(t("web.trust_device_name"), { value: d.name || "" });
           if (!name) return;
           if (await attempt(() => api("/api/network/trust", { method: "POST", body: { mac: d.mac, name } }), t("web.saved"))) restartPrompt();
         } }, icon("user-check")))))))));
@@ -256,7 +256,7 @@ function wifiDialog(wifi, index) {
 async function renewWifi(index) {
   const text = t(index === 3 ? "web.wifi_renew_guest_confirm" : "web.wifi_renew_confirm");
   if (!await confirmDialog(text, t("web.wifi_renew"), true)) return;
-  const password = prompt(t("web.confirm_password"));
+  const password = await askDialog(t("web.confirm_password"), { type: "password" });
   if (!password) return;
   const wifi = await attempt(() => api(`/api/network/wifi/${index}/renew`, { method: "POST", body: { password } }), t("web.saved"));
   if (wifi) wifiDialog(wifi, index);

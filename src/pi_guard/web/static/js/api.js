@@ -123,6 +123,25 @@ export function confirmDialog(message, confirmLabel, danger = false) {
   });
 }
 
+// A question with an answer. window.prompt does not exist in the desktop app, and it shows
+// passwords in plain text everywhere else. Resolves to null on cancel.
+export function askDialog(message, { value = "", type = "text", confirmLabel } = {}) {
+  return new Promise((resolve) => {
+    const input = h("input", { type, value, "aria-label": message, autocomplete: type === "password" ? "current-password" : "off" });
+    let answer = null;
+    const dialog = h("dialog", {},
+      h("form", { method: "dialog", class: "stack", onsubmit: () => { answer = input.value; } },
+        h("label", {}, message), input,
+        h("div", { class: "row end" },
+          h("button", { type: "button", onclick: () => dialog.close() }, t("web.cancel")),
+          h("button", { class: "primary", type: "submit" }, confirmLabel || t("web.ok")))));
+    dialog.addEventListener("close", () => { dialog.remove(); resolve(answer); });
+    document.body.append(dialog);
+    dialog.showModal();
+    input.select();
+  });
+}
+
 export function when(iso) {
   const date = new Date(iso);
   const today = new Date().toDateString() === date.toDateString();

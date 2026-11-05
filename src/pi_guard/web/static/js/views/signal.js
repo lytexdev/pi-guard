@@ -1,6 +1,6 @@
 // Connections of the messengers: what is missing, linking Signal, trying out Discord.
 import { restartPrompt } from "./settings.js";
-import { api, attempt, fill, h, icon, t } from "../api.js";
+import { askDialog, api, attempt, fill, h, icon, t } from "../api.js";
 
 export async function discordPanel() {
   const s = await api("/api/discord");
@@ -15,7 +15,7 @@ export function emailPanel() {
     h("div", { class: "row" },
       h("button", { title: t("web.email_test_tip"), onclick: () => attempt(() => api("/api/email/test", { method: "POST" }), t("web.email_sent")) }, icon("mail"), t("web.email_test")),
       h("button", { title: t("web.email_export_tip"), onclick: async () => {
-        const password = prompt(t("web.confirm_password"));
+        const password = await askDialog(t("web.confirm_password"), { type: "password" });
         if (password) await attempt(() => api("/api/email/export", { method: "POST", body: { password } }), t("web.email_sent"));
       } }, icon("download"), t("web.email_export"))));
 }

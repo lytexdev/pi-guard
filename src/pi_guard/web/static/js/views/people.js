@@ -1,5 +1,5 @@
 // Trusted people: add, add more pictures, rename, delete.
-import { api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
 import { captureDialog } from "./capture.js";
 
 // What makes recognition work, in the order it matters when adding someone.
@@ -94,7 +94,7 @@ function personCard(p, redraw, openForm) {
     h("div", { class: "card-menu-list" },
       h("button", { onclick: () => detailsDialog(p, redraw) }, icon("photo"), t("web.pp_details")),
       h("button", { onclick: async () => {
-        const next = prompt(t("web.new_name"), p.name);
+        const next = await askDialog(t("web.new_name"), { value: p.name });
         if (next && next.trim() !== p.name && await attempt(() => api(url, { method: "PATCH", body: { name: next.trim() } }), t("web.saved"))) redraw();
       } }, icon("pencil"), t("web.rename")),
       h("button", { class: "danger", onclick: async () => {

@@ -1,5 +1,5 @@
 // Settings: one place with sections, search and a save bar that appears when it is needed.
-import { api, attempt, fill, h, icon, t, toast, when, expertMode, setExpertMode } from "../api.js";
+import { askDialog, api, attempt, fill, h, icon, t, toast, when, expertMode, setExpertMode } from "../api.js";
 import { state } from "../app.js";
 import { installFolds, unfold } from "../folds.js";
 import { searchToggle, supportNote } from "../widgets.js";
@@ -65,7 +65,7 @@ async function apiSection(box) {
 }
 
 async function download(path, body) {
-  const password = prompt(t("web.confirm_password"));
+  const password = await askDialog(t("web.confirm_password"), { type: "password" });
   if (!password) return;
   const response = await attempt(() => api(path, { method: "POST", body: { ...body, password }, raw: true }));
   if (!response) return;
@@ -89,7 +89,7 @@ function dataSection(box) {
         if (!file.files.length) return;
         let config;
         try { config = JSON.parse(await file.files[0].text()); } catch { toast(t("web.ex_bad_file"), true); return; }
-        const password = prompt(t("web.confirm_password"));
+        const password = await askDialog(t("web.confirm_password"), { type: "password" });
         if (password && await attempt(() => api("/api/import/config", { method: "POST", body: { config, password } }), t("web.saved"))) restartPrompt();
       } }, icon("upload"), t("web.ex_import_button")))));
 }

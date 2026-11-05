@@ -1,5 +1,5 @@
 // Who can use pi-guard: chat users, invitations, key files, sessions, bans.
-import { api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
 import { brandIcon } from "../widgets.js";
 import { createCredential, explainKeyError } from "../webauthn.js";
 
@@ -79,20 +79,20 @@ async function loginPanel(account, draw) {
     h("h3", {}, t("web.recovery_title")),
     account.totp ? h("p", { class: "muted" }, t("web.recovery_left", { count: account.recovery_left })) : h("p", { class: "muted" }, t("web.recovery_needs_totp")),
     account.totp ? h("button", { onclick: async () => {
-      const password = prompt(t("web.confirm_password"));
+      const password = await askDialog(t("web.confirm_password"), { type: "password" });
       if (!password) return;
       const result = await attempt(() => api("/api/account/recovery", { method: "POST", body: { password } }));
       if (result) { showCodes(result.codes); draw(); }
     } }, icon("refresh"), t("web.recovery_new")) : null,
     h("h3", {}, t("web.codeword")), h("p", { class: "muted" }, t("web.codeword_hint")),
     h("div", { class: "row" }, h("button", { onclick: async () => {
-      const codeword = prompt(t("web.codeword_new"));
+      const codeword = await askDialog(t("web.codeword_new"), { type: "password" });
       if (!codeword) return;
-      const password = prompt(t("web.confirm_password"));
+      const password = await askDialog(t("web.confirm_password"), { type: "password" });
       if (password && await attempt(() => api("/api/account/codeword", { method: "POST", body: { password, codeword } }), t("web.saved"))) draw();
     } }, icon("key"), account.codeword ? t("web.codeword_change") : t("web.codeword_set")),
     account.codeword ? h("button", { class: "danger", onclick: async () => {
-      const password = prompt(t("web.confirm_password"));
+      const password = await askDialog(t("web.confirm_password"), { type: "password" });
       if (password && await attempt(() => api("/api/account/codeword", { method: "POST", body: { password, codeword: "" } }), t("web.saved"))) draw();
     } }, t("web.codeword_remove")) : null));
 }
@@ -114,7 +114,7 @@ export async function render(main) {
           h("div", { class: "row" },
             h("a", { class: "button", href: "#/setup/account" }, icon("key"), t("web.account_change")),
             account.totp ? h("button", { class: "danger", onclick: async () => {
-              const password = prompt(t("web.totp_disable_confirm"));
+              const password = await askDialog(t("web.totp_disable_confirm"), { type: "password" });
               if (password && await attempt(() => api("/api/account/totp/disable", { method: "POST", body: { password } }), t("web.saved"))) draw();
             } }, t("web.totp_disable")) : null)),
         security,

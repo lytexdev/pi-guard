@@ -1,5 +1,5 @@
 // Live: picture, sound, push-to-talk, image tools, sounds and alarm.
-import { api, attempt, confirmDialog, h, icon, t, toast, fill } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, h, icon, t, toast, fill } from "../api.js";
 import { liveSwitch } from "../widgets.js";
 import { state } from "../app.js";
 
@@ -204,7 +204,7 @@ async function soundsPanel(features) {
         h("button", { class: "icon-only", title: t("web.play"), onclick: () => attempt(() => api(`/api/sounds/${name}/play`, { method: "POST" })) }, icon("player-play")),
         h("button", { class: "icon-only", title: t("web.use_as_alarm"), onclick: async () => { await attempt(() => api("/api/sounds/alarm", { method: "PUT", body: { name } }), t("web.saved")); draw(); } }, icon("alarm")),
         h("button", { class: "icon-only", title: t("web.rename"), onclick: async () => {
-          const next = prompt(t("web.new_name"), name);
+          const next = await askDialog(t("web.new_name"), { value: name });
           if (next && next !== name && await attempt(() => api(`/api/sounds/${name}`, { method: "PATCH", body: { name: next } }), t("web.saved"))) draw();
         } }, icon("pencil")),
         h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
@@ -284,7 +284,7 @@ export async function render(main, params) {
           h("button", { title: t("web.tip_fullscreen"), onclick: () => stage.requestFullscreen?.() }, icon("maximize"), t("web.fullscreen")),
           viewer ? null : h("button", { title: t("web.tip_photo"), onclick: photo }, icon("photo"), t("web.photo")),
           viewer ? null : h("button", { onclick: async () => {
-            const minutes = Number(prompt(t("web.ev_minutes"), "5"));
+            const minutes = Number(await askDialog(t("web.ev_minutes"), { type: "number", value: "5" }));
             if (minutes && await attempt(() => api("/api/evidence", { method: "POST", body: { camera: camera.id, minutes } }))) toast(t("web.ev_started", { minutes }));
           } }, icon("video"), t("web.ev_button")),
           viewer ? null : sharperButton)),

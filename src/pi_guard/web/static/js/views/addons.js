@@ -1,6 +1,6 @@
 // Add-ons: overview with on/off switches, and one detail page per add-on.
 // renderDetail() is also used by the setup assistant.
-import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
 import { searchToggle } from "../widgets.js";
 import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
@@ -336,7 +336,7 @@ function gitRow(p, redraw) {
     const body = { enabled: auto.checked };
     if (auto.checked) {
       if (!await confirmDialog(t("web.pm_auto_confirm", { name: p.name }), t("web.pm_auto"), true)) { auto.checked = false; return; }
-      body.password = prompt(t("web.confirm_password"));
+      body.password = await askDialog(t("web.confirm_password"), { type: "password" });
       if (!body.password) { auto.checked = false; return; }
     }
     if (!await attempt(() => api(`/api/plugin-manager/${p.id}/auto`, { method: "PUT", body }), t("web.saved"))) auto.checked = !auto.checked;
@@ -347,7 +347,7 @@ function gitRow(p, redraw) {
     h("label", { class: "check", title: t("web.pm_auto_tip") }, auto, t("web.pm_auto")),
     h("button", { class: "ghost", onclick: async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}/check`, { method: "POST" }))) redraw(); } }, icon("refresh"), t("web.pm_check")),
     p.git.update ? h("button", { class: "primary", onclick: async () => {
-      const password = prompt(t("web.confirm_password"));
+      const password = await askDialog(t("web.confirm_password"), { type: "password" });
       if (password && await attempt(() => api(`/api/plugin-manager/${p.id}/update`, { method: "POST", body: { password } }), t("web.addon_restart"))) redraw();
     } }, t("web.pm_update")) : null);
 }
@@ -592,7 +592,7 @@ export async function render(main, params = []) {
       h("h3", {}, t("web.pm_upload")), h("p", { class: "muted" }, h("small", {}, t("web.pm_upload_hint"))),
       h("div", { class: "row" }, zip, h("button", { onclick: async () => {
         if (!zip.files.length) return;
-        const password = prompt(t("web.confirm_password"));
+        const password = await askDialog(t("web.confirm_password"), { type: "password" });
         if (!password) return;
         const form = new FormData();
         form.append("password", password);
@@ -601,13 +601,13 @@ export async function render(main, params = []) {
       } }, icon("upload"), t("web.upload"))),
       h("h3", {}, icon("brand-github"), " ", t("web.pm_git")),
       h("div", { class: "row" }, gitUrl, h("button", { onclick: async () => {
-        const password = gitUrl.value && prompt(t("web.confirm_password"));
+        const password = gitUrl.value && await askDialog(t("web.confirm_password"), { type: "password" });
         if (password && await attempt(() => api("/api/plugin-manager/git", { method: "POST", body: { url: gitUrl.value.trim(), password } }), t("web.saved"))) drawOwn();
       } }, icon("download"), t("web.pm_install"))),
       h("h3", {}, t("web.pm_create")),
       h("div", { class: "row" }, name, h("button", { onclick: async () => {
         const id = slug(name.value);
-        const password = name.value && prompt(t("web.confirm_password"));
+        const password = name.value && await askDialog(t("web.confirm_password"), { type: "password" });
         if (password && await attempt(() => api("/api/plugin-manager/create", { method: "POST", body: { id, name: name.value, password } }), t("web.saved"))) drawOwn();
       } }, icon("plus"), t("web.pm_create_button"))));
   };
@@ -662,7 +662,7 @@ async function editSource(plugin) {
   const dialog = h("dialog", { class: "editor" }, h("h2", {}, `${plugin.name} · ${data.entry}`), text,
     h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
       h("button", { class: "primary", onclick: async () => {
-        const password = prompt(t("web.confirm_password"));
+        const password = await askDialog(t("web.confirm_password"), { type: "password" });
         if (password && await attempt(() => api(`/api/plugin-manager/${plugin.id}/source`, { method: "PUT", body: { source: text.value, password } }), t("web.saved"))) { dialog.close(); restartPrompt(); }
       } }, t("web.save"))));
   dialog.addEventListener("close", () => dialog.remove());

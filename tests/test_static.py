@@ -65,3 +65,10 @@ def test_line_height_does_not_overwrite_the_border_colour() -> None:
 def test_icons_do_not_depend_on_a_request_per_use() -> None:
     for script in STATIC.rglob("*.js"):
         assert "sprite.svg#" not in script.read_text(), script.name
+
+
+def test_no_window_prompt_anywhere() -> None:
+    """It does not exist in the desktop app, so everything behind it silently does nothing."""
+    static = Path(__file__).parents[1] / "src/pi_guard/web/static/js"
+    for script in static.rglob("*.js"):
+        assert not re.search(r"(?<![\w.])prompt\(", script.read_text()), script.name
