@@ -459,3 +459,11 @@ async def test_plugin_commands_and_routes(tmp_path: Path, monkeypatch: Any) -> N
     await app.messenger.handle(msg("/hello", ADMIN))
     app.db.close()
     assert load_plugins(make_app(tmp_path / "b"), {"hello": {"enabled": False}}) == []
+
+
+def test_what_speech_models_imagine_in_silence_is_dropped() -> None:
+    from pi_guard.addons.assistant import imagined
+
+    assert imagined("Untertitel der Amara.org-Community") and imagined("  ")
+    assert imagined("Vielen Dank fürs Zuschauen!")
+    assert not imagined("Mach das Licht im Flur an")

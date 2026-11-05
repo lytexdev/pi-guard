@@ -55,7 +55,7 @@ VIEWER_GET = {"/api/overview", "/api/events", "/api/stats", "/api/alerts", "/api
 VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check", "/api/mobile/pair",
                "/api/account/totp/begin", "/api/account/totp/confirm",
                "/api/account/totp/disable"}  # fmt: skip
-MODULES = ("discord", "whatsapp", "email", "mobile")
+MODULES = ("discord", "whatsapp", "email", "mobile", "chatapps")
 SETUP_DONE_KEY = "web.setup_done"
 TLS_NAMES_KEY = "web.tls_names"
 MAX_TLS_NAMES = 16

@@ -19,6 +19,7 @@ from typing import Any
 
 from aiohttp import web
 
+from pi_guard.app import CHAT_APPS
 from pi_guard.audio import check
 from pi_guard.audio import devices as audio_devices
 from pi_guard.audio.service import AudioError
@@ -45,7 +46,7 @@ DONATIONS = (
     ("bitcoin", "Bitcoin (BTC)", "bitcoin", "3B8PdpJnmL7rQyHhBytKtvUT7NgQfraBEH"),
     ("litecoin", "Litecoin (LTC)", "litecoin", "MShzshtse85i6ZkwiB1VKNGRNmEL5Dc3VX"),
 )  # fmt: skip
-NEEDS_NO_SETUP = ("mobile",)  # the others start only once their settings are filled in
+NEEDS_NO_SETUP = ("mobile", "chatapps")  # the others start only once their settings are filled in
 LINK_SECONDS = 300
 LINK_VALID = 110  # signal-cli gives up on a code after 120 s; a new one comes just before
 TEST_SECONDS = 3
@@ -184,7 +185,9 @@ async def test_microphone(request: web.Request) -> web.StreamResponse:
 
 async def modules_get(request: web.Request) -> web.Response:
     d = dashboard(request)
-    return web.json_response([{"id": m, "enabled": on, "running": m in d.app.providers}
+    chat_apps = any(name in d.app.providers for name in CHAT_APPS)
+    return web.json_response([{"id": m, "enabled": on,
+                               "running": m in d.app.providers or (m == "chatapps" and chat_apps)}
                               for m, on in d.modules().items()])  # fmt: skip
 
 
@@ -201,7 +204,9 @@ async def module_set(request: web.Request) -> web.Response:
     saved = d.app.db.get("web.modules") or {}
     d.app.db.set("web.modules", {**saved, module: enabled})
     d.app.db.audit(_actor(request), "module", f"{module} {'on' if enabled else 'off'}")
-    return web.json_response({"ok": True, "restart": enabled != (module in d.app.providers)
+    chat_apps = module == "chatapps" and any(name in d.app.providers for name in CHAT_APPS)
+    running = module in d.app.providers or chat_apps
+    return web.json_response({"ok": True, "restart": enabled != running
                               and (not enabled or module in NEEDS_NO_SETUP)})  # fmt: skip
 
 

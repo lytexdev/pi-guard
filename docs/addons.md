@@ -170,3 +170,26 @@ browser asks `api.ipify.org` for its public address; the Pi compares that with y
 address and Tor's list of exit nodes, and asks `ipwho.is` who owns an unknown address.
 "Probably another VPN" is an estimate based on the owner's name. Tor Browser usually
 cannot reach a dashboard inside your home at all.
+
+## Slack, Matrix, Rocket.Chat, Mastodon
+
+Alerts as cards in other services, with a title and a colour by urgency. Switch it on under Add-ons and fill in what you
+use under Settings › Messenger:
+
+- **Slack and Rocket.Chat:** the address of an incoming webhook. It works like a password.
+- **Matrix:** server, room ID and an access token. Use a room without encryption, the bot writes plainly.
+- **Mastodon:** server and an access token with the right to post. Alerts go out as direct messages, never publicly.
+
+These are send-only and carry no pictures: what your cameras see does not belong in a team chat. Under Settings ›
+Notifications you choose per kind of message whether it goes there.
+
+## Removing an add-on
+
+*Remove* on an add-on's card switches it off and deletes its settings and data, and shows how much space that frees.
+The assistant loses its stored knowledge, the language add-on its translations. Installing it again starts from nothing.
+
+## Costs of the assistant
+
+The assistant page shows tokens per day and month. Enter the prices of your model from your provider's price list to see
+them in euros or dollars, and your budget to see what is left. Providers do not tell a normal API key its balance, so
+this is counted by pi-guard and leaves out speech; your provider's bill is what counts.

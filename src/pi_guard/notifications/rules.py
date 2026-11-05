@@ -23,7 +23,8 @@ class Rule:
     cooldown_seconds: int
     attach: Literal["none", "snapshot", "clip"] = "none"
     providers: tuple[str, ...] = (
-        "telegram", "signal", "whatsapp", "discord", "email", "mobile", "push",
+        "telegram", "signal", "whatsapp", "discord", "email", "mobile", "push", "slack",
+        "rocketchat", "matrix", "mastodon",
     )  # fmt: skip
 
     @property

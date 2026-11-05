@@ -271,10 +271,11 @@ function askPanel(info) {
   mic.addEventListener("click", async () => {
     if (recorder) { recorder.stop(); return; }
     let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
     catch { toast(t("web.mic_denied"), true); return; }
     const chunks = [];
-    recorder = new MediaRecorder(stream);
+    const opus = "audio/webm;codecs=opus";
+    recorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(opus) ? { mimeType: opus, audioBitsPerSecond: 64000 } : {});
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     recorder.onstop = async () => {
       stream.getTracks().forEach((track) => track.stop());
@@ -363,6 +364,17 @@ function providerChoice(selected) {
   return box;
 }
 
+function usagePanel(info) {
+  const u = info.usage;
+  const money = (value) => (value === null ? "–" : new Intl.NumberFormat(undefined, { style: "currency", currency: u.currency, maximumFractionDigits: value < 1 ? 4 : 2 }).format(value));
+  const tile = (label, value) => h("div", { class: "tile" }, h("div", {}, h("strong", {}, value), h("small", {}, label)));
+  const tokens = u.month.input + u.month.output;
+  return h("section", { class: "panel stack" }, h("h2", {}, icon("chart-bar"), " ", t("web.as_spend")),
+    h("div", { class: "tiles" }, tile(t("web.as_usage_today"), info.tokens_today.toLocaleString()), tile(t("web.as_usage_month"), tokens.toLocaleString()),
+      tile(t("web.as_usage_cost"), money(u.cost_month)), tile(t("web.as_usage_left"), money(u.left))),
+    h("small", { class: "muted" }, t("web.as_usage_note", { model: info.model })));
+}
+
 async function assistant(box, data, opts) {
   const section = data.config.assistant;
   const info = await status("/api/addons/assistant/status");
@@ -380,16 +392,24 @@ async function assistant(box, data, opts) {
   const paperless = h("input", { type: "url", value: section.paperless_url || "", placeholder: "http://192.168.178.20:8000" });
   const nextcloud = h("input", { type: "url", value: section.nextcloud_url || "", placeholder: "https://cloud.example.org" });
   const nextUser = h("input", { value: section.nextcloud_user || "" });
+  const number = (value) => h("input", { type: "number", min: 0, step: "0.01", value: value ?? "" });
+  const priceIn = number(section.price_input), priceOut = number(section.price_output), budget = number(section.budget);
+  const currency = h("select", {}, ["USD", "EUR"].map((c) => h("option", { value: c, selected: c === section.currency }, c)));
+  const amount = (input) => (input.value === "" ? null : Number(input.value));
   const keys = h("div");
   let saveKeys = null;
   const button = h("button", { class: "primary", onclick: async () => {
     if (saveKeys) saveKeys();
     await save("assistant", { ...section, provider: provider.value, model: model.value.trim(), base_url: url.value.trim() || null, location: location.value.trim(),
+      price_input: amount(priceIn), price_output: amount(priceOut), budget: amount(budget), currency: currency.value,
       daily_token_limit: Number(limit.value), max_answer_tokens: Number(length.value), history_turns: Number(turns.value), speech_output: speech.checked,
       share_documents: share.checked, ai_actions: actions.checked, allow_vision: vision.checked, paperless_url: paperless.value.trim() || null, nextcloud_url: nextcloud.value.trim() || null, nextcloud_user: nextUser.value.trim() }, opts);
   } }, icon("check"), t("web.save"));
   fill(box,
     info ? askPanel(info) : null,
+    info ? usagePanel(info) : null,
+    h("section", { class: "panel stack" }, h("h2", {}, t("web.as_usage_prices")), h("p", { class: "muted" }, t("web.as_usage_prices_hint")),
+      field(t("web.as_price_input"), priceIn), field(t("web.as_price_output"), priceOut), field(t("web.as_budget"), budget, t("web.as_budget_hint")), field(t("web.as_currency"), currency)),
     h("section", { class: "panel stack" }, h("h2", {}, t("web.nav_settings")),
       field(t("web.as_provider"), provider), field(t("web.as_model"), model, t("web.as_model_hint")), field(t("web.as_base_url"), url),
       field(t("web.as_location"), location, t("web.as_location_hint")), field(t("web.as_limit"), limit, t("web.as_limit_hint")),
@@ -420,10 +440,11 @@ function agentDialog(agent) {
       h("td", {}, h("span", { class: `dot ${c.state === "running" ? "ok" : ""}` })),
       h("td", {}, c.name, h("small", { class: "muted block" }, c.image)), h("td", {}, h("small", {}, c.status)),
       h("td", { class: "actions" },
-        c.state === "running" ? [act("stop", "player-stop", c), act("restart", "refresh", c)] : act("start", "player-play", c),
+        c.state === "running" ? [act("stop", "player-stop", c), act("restart", "refresh", c)] : act("start", "player-play", c), act("remove", "trash", c),
         h("button", { class: "icon-only", title: t("web.ag_logs"), onclick: () => logs(c) }, icon("file-text")))))))));
   };
-  const act = (action, ic, c) => h("button", { class: "icon-only", title: t(`web.ag_docker_${action}`), onclick: async () => {
+  const act = (action, ic, c) => h("button", { class: `icon-only${action === "remove" ? " danger" : ""}`, title: t(`web.ag_docker_${action}`), onclick: async () => {
+    if (action === "remove" && !await confirmDialog(t("web.ag_docker_remove_confirm", { name: c.name }), t("web.delete"), true)) return;
     if (await attempt(() => api(`/api/agents/${agent.id}/docker`, { method: "POST", body: { action, container: c.name } }), t("web.saved"))) draw();
   } }, icon(ic));
   const logs = async (c) => {
@@ -527,10 +548,15 @@ export async function render(main, params = []) {
       h("p", { class: "muted" }, t(`web.addon_${addon.id}_text`)),
       addon.needs ? h("p", { class: "notice" }, t(addon.needs)) : null,
       addon.enabled !== addon.running ? h("p", { class: "notice" }, t("web.addon_restart")) : null,
-      h("a", { class: "button", href: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")));
+      h("div", { class: "row" }, h("a", { class: "button", href: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")),
+        h("button", { class: "danger", title: t("web.addon_remove_tip"), onclick: async () => {
+          if (!await confirmDialog(t("web.addon_remove_confirm", { name: t(`addons.${addon.id}`) }), t("web.addon_remove"), true)) return;
+          const done = await attempt(() => api(`/api/addons/${addon.id}`, { method: "DELETE" }));
+          if (done) { toast(t("web.addon_removed", { size: `${(done.freed / 1e6).toFixed(1)} MB` })); restartPrompt(); }
+        } }, icon("trash"), t("web.addon_remove"), addon.size ? ` (${(addon.size / 1e6).toFixed(1)} MB)` : "")));
   }));
   const modules = await api("/api/modules");
-  const MODULE_ICONS = { discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", mobile: "device-mobile" };
+  const MODULE_ICONS = { discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", mobile: "device-mobile", chatapps: "message" };
   modules.forEach((module) => {
     const toggle = h("input", { type: "checkbox", checked: module.enabled, "aria-label": t(`web.addon_${module.id}`) });
     const link = h("a", { class: `button${module.enabled ? "" : " hidden"}`, href: module.id === "mobile" ? "#/addons/mobile" : "#/settings/messaging" }, icon("settings"), t("web.addon_open"));

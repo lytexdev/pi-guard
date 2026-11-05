@@ -632,7 +632,8 @@ async def test_modules_can_be_switched_off(tmp_path: Path) -> None:
     try:
         headers = {"X-CSRF-Token": await _login(client)}
         state = {m["id"]: m["enabled"] for m in await (await client.get("/api/modules")).json()}
-        assert state == {"discord": False, "whatsapp": False, "email": False, "mobile": False}
+        assert state == {"discord": False, "whatsapp": False, "email": False, "mobile": False,
+                         "chatapps": False}  # fmt: skip
         on = await client.put("/api/modules/whatsapp", json={"enabled": True}, headers=headers)
         assert on.status == 200
         session = await (await client.get("/api/session")).json()

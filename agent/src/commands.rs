@@ -111,6 +111,8 @@ fn docker(request: &Value) -> Result<Value, String> {
     }
     match action {
         "start" | "stop" | "restart" => output("docker", &[action, container]).map(|_| json!(true)),
+        // The container only: named volumes keep their data, images stay.
+        "remove" => output("docker", &["rm", "--force", container]).map(|_| json!(true)),
         "logs" => {
             let out = Command::new("docker").args(["logs", "--tail", "200", container]).output()
                 .map_err(|e| e.to_string())?;

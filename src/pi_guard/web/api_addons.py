@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
+import shutil
 import tempfile
 import time
 import uuid
@@ -34,6 +35,11 @@ from pi_guard.web.server import current, dashboard, read_json
 log = logging.getLogger(__name__)
 
 ADDONS = ("heartbeat", "analytics", "smarthome", "remote", "assistant", "agents", "languages")
+# What an add-on leaves on the disk.
+ADDON_FILES = {
+    "assistant": ("knowledge.db", "knowledge.db-wal", "knowledge.db-shm"),
+    "languages": ("i18n",),
+}
 MAX_VOICE_BYTES = 5_000_000
 HOME_IP_SECONDS = 600
 TOR_LIST_SECONDS = 6 * 3600
@@ -49,6 +55,7 @@ def routes() -> list[web.RouteDef]:
     return [
         web.get("/api/addons", catalog),
         web.put("/api/addons/{addon:[a-z]+}", save_addon),
+        web.delete("/api/addons/{addon}", remove_addon),
         web.get("/api/addons/heartbeat/status", heartbeat_status),
         web.get("/api/addons/analytics/overview", analytics_overview),
         web.get("/api/addons/analytics/device/{ip}", analytics_device),
@@ -100,6 +107,7 @@ async def catalog(request: web.Request) -> web.Response:
         "addons": [{
             "id": addon, "enabled": config[addon]["enabled"],
             "running": bool(getattr(app.addons, addon)), "needs": needs.get(addon),
+            "size": sum(_size(p) for p in _removable(d, addon)),
         } for addon in ADDONS],
         "config": config,
         "secrets": {
@@ -109,6 +117,36 @@ async def catalog(request: web.Request) -> web.Response:
         "plugins": [{"id": p.id, "title": p.title, "description": p.description}
                     for p in app.addons.plugins],
     })  # fmt: skip
+
+
+def _removable(d: Any, addon: str) -> list[Path]:
+    return [d.settings.data_dir / name for name in ADDON_FILES.get(addon, ())]
+
+
+def _size(path: Path) -> int:
+    if path.is_file():
+        return path.stat().st_size
+    return sum(p.stat().st_size for p in path.rglob("*") if p.is_file()) if path.is_dir() else 0
+
+
+async def remove_addon(request: web.Request) -> web.Response:
+    """Off, with its settings and data gone. Installing it again starts from nothing."""
+    addon = request.match_info["addon"]
+    if addon not in ADDONS:
+        raise web.HTTPNotFound()
+    d = dashboard(request)
+    config = _saved_config(request)
+    config.setdefault("addons", {}).pop(addon, None)
+    await write_config(d, FileConfig.model_validate(config))
+    freed = 0
+    for path in _removable(d, addon):
+        freed += _size(path)
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            path.unlink(missing_ok=True)
+    d.app.db.audit(_actor(request), "addon.remove", addon)
+    return web.json_response({"ok": True, "freed": freed, "restart_required": True})
 
 
 async def save_addon(request: web.Request) -> web.Response:
@@ -270,7 +308,7 @@ async def assistant_voice(request: web.Request) -> web.Response:
     path = Path(tempfile.gettempdir()) / f"pi-guard-ask-{uuid.uuid4().hex}.webm"
     path.write_bytes(body)
     try:
-        question = await assistant.transcribe(path)
+        question = await assistant.transcribe(path, dashboard(request).settings.language)
         return await _reply(request, question, request.query.get("speak") == "1")
     except AssistantError as exc:
         raise web.HTTPConflict(text=exc.key) from None
@@ -312,7 +350,7 @@ async def assistant_chat_voice(request: web.Request) -> web.Response:
     path = Path(tempfile.gettempdir()) / f"pi-guard-chat-{uuid.uuid4().hex}.webm"
     path.write_bytes(body)
     try:
-        text = await assistant.transcribe(path)
+        text = await assistant.transcribe(path, dashboard(request).settings.language)
     except AssistantError as exc:
         raise web.HTTPConflict(text=exc.key) from None
     finally:

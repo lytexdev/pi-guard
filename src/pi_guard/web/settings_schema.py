@@ -68,6 +68,14 @@ FIELDS = (
     Field("email_from", "email", "text"),
     Field("email_recipients", "email", "list"),
     Field("email_export", "email", "choice", options=("off", "weekly", "monthly")),
+    Field("chatapps_enabled", "chatapps", "bool"),
+    Field("slack_webhook_url", "chatapps", "secret"),
+    Field("rocketchat_webhook_url", "chatapps", "secret"),
+    Field("matrix_homeserver", "chatapps", "text"),
+    Field("matrix_room", "chatapps", "text"),
+    Field("matrix_token", "chatapps", "secret"),
+    Field("mastodon_instance", "chatapps", "text"),
+    Field("mastodon_token", "chatapps", "secret"),
     Field("signal_enabled", "signal", "bool"),
     Field("signal_phone_number", "signal", "text"),
     Field("signal_admin_numbers", "signal", "list"),
@@ -130,7 +138,8 @@ SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password", "dashboard_s
            "assistant_api_key", "assistant_deepl_key", "assistant_paperless_token",
            "assistant_nextcloud_password", "whatsapp_access_token",
            "whatsapp_app_secret", "whatsapp_verify_token", "discord_bot_token",
-           "email_password")  # fmt: skip
+           "email_password", "slack_webhook_url", "rocketchat_webhook_url", "matrix_token",
+           "mastodon_token")  # fmt: skip
 
 
 def to_env(field_: Field, value: Any) -> str:

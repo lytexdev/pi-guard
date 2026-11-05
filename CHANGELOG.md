@@ -26,6 +26,10 @@ All notable changes are documented here. The format follows
   second update on (Android 12 and newer).
 - The phone app can look like a calculator, notes and more, and can get a shortcut with any name and picture. The
   dashboard's name can be changed under Appearance, also for installed apps.
+- Add-on for Slack, Matrix, Rocket.Chat and Mastodon: alerts as cards, send-only and without pictures.
+- Add-ons can be removed with their data, which shows how much space that frees.
+- The assistant shows its use per day and month, in euros or dollars once you enter prices, and what is left of a budget.
+- Docker containers on home servers can be removed.
 - The desktop app uses Electron 45, which closes the reported security advisories; `npm audit` is clean.
 - Desktop app for Windows, Linux and macOS (`desktop/`, `scripts/build-desktop.sh`): the dashboard in its own window,
   trusting only your pi-guard's certificate authority.
@@ -88,6 +92,9 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Speech input of the assistant was often nonsense: the language was not given, so short sentences were guessed as
+  anything, and silence came out as imagined subtitles. It now names the language, uses a better model with OpenAI, and
+  records with noise suppression.
 - Changes to notification rules take effect at once, as the page says. They only did after a restart.
 - A home server connecting by a local name such as `lytex.system` was refused, because the certificate did not list it.
   Creating a home server now adds the name in use to the certificate.

@@ -32,10 +32,13 @@
       "target": [
         "tar.gz",
         "AppImage",
-        "deb"
+        "deb",
+        "rpm",
+        "pacman"
       ],
       "category": "Security",
-      "maintainer": "lytex"
+      "maintainer": "lytex",
+      "executableName": "pi-guard-desktop"
     },
     "win": {
       "target": [

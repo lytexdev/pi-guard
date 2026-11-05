@@ -135,7 +135,7 @@ async def _ask_by_voice(ctx: CommandContext, path: Path) -> Reply:
     if assistant is None:
         return Reply(ctx.t("audio.upload_expired"), buttons=(menu_row(ctx),))
     try:
-        question = await assistant.transcribe(path)
+        question = await assistant.transcribe(path, ctx.lang)
         result = await assistant.ask(question, ctx.lang, ctx.chat_key, ctx.user.role is Role.ADMIN)
         spoken = await assistant.speak(result.text)
     except AssistantError as exc:

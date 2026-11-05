@@ -45,3 +45,4 @@ config/config.yaml
 !docs/**/*.jpg
 /data/
 agent/target/
+desktop/dist-pack/

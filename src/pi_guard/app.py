@@ -13,6 +13,8 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from pydantic import SecretStr
+
 from pi_guard import CREDIT, __version__
 from pi_guard.addons import Addons
 from pi_guard.addons.mobile import MobileHub, MobileProvider
@@ -55,6 +57,8 @@ if TYPE_CHECKING:
     from pi_guard.web.server import Dashboard
 
 log = logging.getLogger(__name__)
+
+CHAT_APPS = ("slack", "rocketchat", "matrix", "mastodon")
 
 HEARTBEAT_SECONDS = 5
 MAX_PARALLEL_CLIPS = 2
@@ -100,6 +104,7 @@ class App:
                 "email": {n: Role.VIEWER for n in s.email_recipients} if s.email_enabled else {},
                 "discord": {n: Role.VIEWER for n in s.discord_viewer_user_ids}
                 | {n: Role.ADMIN for n in s.discord_admin_user_ids},
+                **dict.fromkeys(CHAT_APPS, {"default": Role.VIEWER} if s.chatapps_enabled else {}),
             },
         )
         self.modes = mode_controller(self.db, self.bus, config)
@@ -404,6 +409,22 @@ def build_app(config: Config) -> App:
                     s.email_from),
             s.email_recipients, app.db, s.email_export, export,
         )  # fmt: skip
+    if s.chatapps_enabled:
+        from pi_guard.messaging.chatapps import Mastodon, Matrix, Webhook
+
+        def secret(value: SecretStr | None) -> str:
+            return value.get_secret_value() if value else ""
+
+        if s.slack_webhook_url:
+            app.providers["slack"] = Webhook("slack", secret(s.slack_webhook_url))
+        if s.rocketchat_webhook_url:
+            app.providers["rocketchat"] = Webhook("rocketchat", secret(s.rocketchat_webhook_url))
+        if s.matrix_homeserver and s.matrix_room and s.matrix_token:
+            app.providers["matrix"] = Matrix(
+                s.matrix_homeserver, s.matrix_room, secret(s.matrix_token)
+            )
+        if s.mastodon_instance and s.mastodon_token:
+            app.providers["mastodon"] = Mastodon(s.mastodon_instance, secret(s.mastodon_token))
     if s.signal_enabled and s.signal_phone_number:
         from pi_guard.messaging.signal.provider import SignalProvider
 

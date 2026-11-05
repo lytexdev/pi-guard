@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 REQUEST_SECONDS = 20
 POWER_COMMANDS = ("shutdown", "reboot", "suspend", "lock")
-DOCKER_ACTIONS = ("start", "stop", "restart")
+DOCKER_ACTIONS = ("start", "stop", "restart", "remove")
 _TABLE = """
 CREATE TABLE IF NOT EXISTS agents (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, token_hash TEXT NOT NULL,

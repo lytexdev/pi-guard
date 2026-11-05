@@ -139,6 +139,16 @@ class Settings(BaseSettings):
     # The home network, reachable for VPN devices set to "home network only".
     wireguard_home_network: str | None = None
 
+    # Alerts into other services (optional, send-only; see docs/addons.md)
+    chatapps_enabled: bool = False
+    slack_webhook_url: SecretStr | None = None
+    rocketchat_webhook_url: SecretStr | None = None
+    matrix_homeserver: str | None = None
+    matrix_room: str | None = None
+    matrix_token: SecretStr | None = None
+    mastodon_instance: str | None = None
+    mastodon_token: SecretStr | None = None
+
     # WhatsApp (optional, official Cloud API; see docs/whatsapp.md)
     whatsapp_enabled: bool = False
     whatsapp_phone_number_id: str | None = None

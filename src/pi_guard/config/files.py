@@ -191,7 +191,22 @@ class NotificationRule(_Model):
     modes: list[Literal["HOME", "AWAY"]] | None = None
     recipients: Literal["all", "admins"] | None = None
     providers: (
-        list[Literal["telegram", "signal", "whatsapp", "discord", "email", "mobile", "push"]] | None
+        list[
+            Literal[
+                "telegram",
+                "signal",
+                "whatsapp",
+                "discord",
+                "email",
+                "mobile",
+                "push",
+                "slack",
+                "rocketchat",
+                "matrix",
+                "mastodon",
+            ]
+        ]
+        | None
     ) = None
     cooldown_seconds: int | None = Field(None, ge=0, le=86400)
     attach: Literal["none", "snapshot", "clip"] | None = None
@@ -352,6 +367,11 @@ class AssistantAddon(_Model):
     nextcloud_user: str = ""
     # Spending limit: answers stop for the day when this many tokens are used.
     daily_token_limit: int = Field(50000, ge=1000, le=10_000_000)
+    # For the cost shown under Usage: per million tokens, and what you put on your account.
+    price_input: float | None = Field(None, ge=0, le=1000)
+    price_output: float | None = Field(None, ge=0, le=1000)
+    budget: float | None = Field(None, ge=0, le=1_000_000)
+    currency: Literal["USD", "EUR"] = "USD"
     max_answer_tokens: int = Field(300, ge=50, le=2000)
     history_turns: int = Field(3, ge=0, le=10)
     # Weather without any AI tokens (Open-Meteo, no key).
