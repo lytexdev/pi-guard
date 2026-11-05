@@ -62,7 +62,6 @@ All notable changes are documented here. The format follows
 
 - The app's VPN button did nothing when Android refused it, for example with another VPN set to always-on. It now
   says why and leads to the settings. Two phones with the same long name no longer share a VPN name.
-
 - The Signal link code vanished after four seconds and was never renewed, although a code only works for
   two minutes.
 - Phones no longer scroll sideways: pages were wider than the screen, the network pages on every phone.
