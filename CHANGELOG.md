@@ -30,6 +30,8 @@ All notable changes are documented here. The format follows
 - VPN in the desktop app on Linux, by a small Rust service: kill switch and lockdown that stay closed if the service
   crashes, split tunneling per program, auto-connect, all ways home.
 - Quantum-resistant tunnel with Rosenpass through the VPN itself, on by default, switchable under Network › VPN.
+- Windows preview of the desktop VPN, driving the official WireGuard client with its kill switch. Not yet tested on Windows.
+- The desktop app as a Flatpak.
 - VPN in the phone app: split tunneling per app and connecting automatically.
 - Desktop packages for Arch Linux, Debian, Ubuntu, Linux Mint, Fedora and openSUSE.
 - Add-on for Slack, Matrix, Rocket.Chat and Mastodon: alerts as cards, send-only and without pictures.

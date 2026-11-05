@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=PiGuard
+Comment=Your home, in your hand
+Exec=pi-guard
+Icon=de.lytex.PiGuard
+Terminal=false
+Categories=Network;System;Security;
+StartupWMClass=de.lytex.PiGuard

@@ -47,3 +47,4 @@ config/config.yaml
 agent/target/
 vpn/target/
 desktop/dist-pack/
+desktop/.flatpak.*/

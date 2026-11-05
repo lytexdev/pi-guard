@@ -113,14 +113,14 @@ const VPN_COMMANDS = {
   options: (options) => vpn.ask({ cmd: "options", options }),
   split: (program) => {
     const parts = String(program).trim().split(/\s+/).filter(Boolean);
-    if (parts.length) spawn(VPN_BINARY, ["run", "--", ...parts], { detached: true, stdio: "ignore" }).unref();
+    if (parts.length && process.platform === "linux") spawn(VPN_BINARY, ["run", "--", ...parts], { detached: true, stdio: "ignore" }).unref();
     return {};
   },
 };
 
 ipcMain.handle("vpn", async (event, command, value) => {
   if (!fromOwnPage(event) || !VPN_COMMANDS[command]) throw new Error("refused");
-  if (process.platform !== "linux") return { unsupported: true };
+  if (process.platform === "darwin" || process.env.FLATPAK_ID) return { unsupported: true };
   try {
     return await VPN_COMMANDS[command](value);
   } catch (error) {
@@ -301,7 +301,9 @@ function menu() {
 
 // Native Wayland where there is one: sharper, and the GPU stays in use. Elsewhere it does nothing.
 app.commandLine.appendSwitch("ozone-platform-hint", "auto");
-app.setDesktopName("pi-guard-desktop.desktop"); // the taskbar finds name and icon through this
+// The taskbar finds name and icon through this.
+app.setDesktopName(process.env.FLATPAK_ID ? `${process.env.FLATPAK_ID}.desktop` : "pi-guard-desktop.desktop");
+if (process.env.FLATPAK_ID) app.commandLine.appendSwitch("class", process.env.FLATPAK_ID);
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", () => { if (window) { window.show(); window.focus(); } });
 app.whenReady().then(() => {

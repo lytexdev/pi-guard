@@ -70,7 +70,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | Arch Linux | `.pacman`, or `scripts/install-desktop.sh` with automatic updates |
 | Debian, Ubuntu, Linux Mint | `.deb` |
 | Fedora, openSUSE | `.rpm` |
-| Other Linux | `.AppImage` |
+| Other Linux | `.AppImage`, Flatpak |
 | Windows | `.exe` installer |
 | macOS | `.zip` |
 | Android | `.apk` from the dashboard under Add-ons › Phone app |

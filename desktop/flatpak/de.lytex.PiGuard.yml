@@ -1,0 +1,37 @@
+app-id: de.lytex.PiGuard
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '25.08'
+command: pi-guard
+separate-locales: false
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  - --talk-name=org.freedesktop.Notifications
+modules:
+  - name: pi-guard
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/lib/pi-guard
+      - tar -xzf PiGuard.tar.gz -C /app/lib/pi-guard --strip-components=1
+      - install -Dm755 pi-guard.sh /app/bin/pi-guard
+      - install -Dm644 de.lytex.PiGuard.desktop /app/share/applications/de.lytex.PiGuard.desktop
+      - install -Dm644 de.lytex.PiGuard.metainfo.xml /app/share/metainfo/de.lytex.PiGuard.metainfo.xml
+      - install -Dm644 icon.png /app/share/icons/hicolor/512x512/apps/de.lytex.PiGuard.png
+    sources:
+      - type: file
+        path: PiGuard.tar.gz
+      - type: file
+        path: pi-guard.sh
+      - type: file
+        path: de.lytex.PiGuard.desktop
+      - type: file
+        path: de.lytex.PiGuard.metainfo.xml
+      - type: file
+        path: icon.png

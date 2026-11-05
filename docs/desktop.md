@@ -13,6 +13,7 @@ certificate warning. It shows what runs on your Pi, so it never needs its own up
 | openSUSE | `.rpm`: `sudo zypper install ./FILE` | |
 | Any Linux, updates itself | `.tar.gz`: `./scripts/install-desktop.sh FILE` | for your user, no root, starts fastest |
 | Any Linux | `.AppImage` | no entry in the menu; start it by hand |
+| Flatpak | `.flatpak`: `flatpak install --user FILE` | sandboxed, updates through Flatpak, no VPN |
 | Windows | `PiGuard-*-win-x64.exe` | Windows warns because the file is not signed: *More info › Run anyway* |
 | macOS | `PiGuard-*-mac-*.zip` | not signed or notarized, see below |
 
@@ -31,7 +32,7 @@ click, *Open*, or under *System Settings › Privacy & Security*.
 
 ## VPN
 
-On Linux the app is a VPN client too, see [vpn.md](vpn.md). PiGuard › VPN, or Ctrl+Shift+V.
+On Linux and, as a preview, on Windows the app is a VPN client too, see [vpn.md](vpn.md). PiGuard › VPN, or Ctrl+Shift+V.
 
 ## Updates
 

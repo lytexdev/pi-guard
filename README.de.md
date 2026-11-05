@@ -71,7 +71,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 | Arch Linux | `.pacman`, oder `scripts/install-desktop.sh` mit automatischen Updates |
 | Debian, Ubuntu, Linux Mint | `.deb` |
 | Fedora, openSUSE | `.rpm` |
-| Andere Linux-Systeme | `.AppImage` |
+| Andere Linux-Systeme | `.AppImage`, Flatpak |
 | Windows | `.exe`-Installer |
 | macOS | `.zip` |
 | Android | `.apk` im Dashboard unter Add-ons › Handy-App |

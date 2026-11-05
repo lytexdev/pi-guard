@@ -3,7 +3,7 @@ const T = de ? {
   on: "Verbunden", off: "Nicht verbunden", connecting: "Verbinde …", connect: "Verbinden", disconnect: "Trennen", back: "Zum Dashboard",
   onText: "Dein Verkehr läuft verschlüsselt über dein Zuhause.", offText: "Verbinde dich, um von überall dein Zuhause zu erreichen.",
   blocked: "Lockdown ist an: Ohne VPN geht nichts ins Internet.", quantum: "Quantenresistent: Schlüssel zuletzt erneuert um {time}.", classic: "Noch ohne quantenresistenten Schlüssel.",
-  missing: "Für das VPN braucht dieser Computer einen kleinen Dienst. Führe das einmal aus:", unsupported: "Das VPN gibt es in der Desktop-App bisher nur für Linux.",
+  missing: "Für das VPN braucht dieser Computer einen kleinen Dienst. Führe das einmal aus:", unsupported: "Das VPN gibt es in der Desktop-App für Linux und Windows.", always: "Kill Switch ist immer an: WireGuard sperrt alles, was am Tunnel vorbei ginge.",
   kill: "Kill Switch: Fällt das VPN aus, geht nichts am Tunnel vorbei", lock: "Lockdown: Ohne VPN geht nie etwas ins Internet, auch nach dem Neustart", auto: "Beim Start automatisch verbinden", lan: "Geräte im lokalen Netz bleiben erreichbar", pq: "Quantenresistenter Tunnel (Rosenpass)",
   splitTitle: "Am VPN vorbei (Split-Tunneling)", splitText: "Dieses Programm startet außerhalb des VPN, alles andere bleibt drin.", splitGo: "Starten", login: "Melde dich zuerst im Dashboard an.",
   way: { ipv4: "direkt über IPv4", ipv6: "direkt über IPv6", relay: "über deinen Mietserver" },
@@ -11,19 +11,26 @@ const T = de ? {
   on: "Connected", off: "Not connected", connecting: "Connecting…", connect: "Connect", disconnect: "Disconnect", back: "To the dashboard",
   onText: "Your traffic goes encrypted through your home.", offText: "Connect to reach your home from anywhere.",
   blocked: "Lockdown is on: nothing reaches the internet without the VPN.", quantum: "Quantum-resistant: key last renewed at {time}.", classic: "No quantum-resistant key yet.",
-  missing: "The VPN needs a small service on this computer. Run this once:", unsupported: "In the desktop app, the VPN is only available on Linux so far.",
+  missing: "The VPN needs a small service on this computer. Run this once:", unsupported: "In the desktop app, the VPN is available on Linux and Windows.", always: "The kill switch is always on: WireGuard blocks everything past the tunnel.",
   kill: "Kill switch: if the VPN fails, nothing goes past the tunnel", lock: "Lockdown: nothing ever reaches the internet without the VPN, also after a restart", auto: "Connect automatically at start", lan: "Devices in the local network stay reachable", pq: "Quantum-resistant tunnel (Rosenpass)",
   splitTitle: "Past the VPN (split tunneling)", splitText: "This program starts outside the VPN, everything else stays inside.", splitGo: "Start", login: "Log in to the dashboard first.",
   way: { ipv4: "directly over IPv4", ipv6: "directly over IPv6", relay: "through your rented server" },
 };
 const $ = (id) => document.getElementById(id);
 const OPTIONS = ["kill_switch", "lockdown", "auto_connect", "allow_lan", "quantum"];
-Object.entries({ l_kill: T.kill, l_lock: T.lock, l_auto: T.auto, l_lan: T.lan, l_pq: T.pq, "split-title": T.splitTitle, "split-text": T.splitText, "split-go": T.splitGo, back: T.back }).forEach(([id, text]) => { $(id).textContent = text; });
+Object.entries({ always: T.always, l_kill: T.kill, l_lock: T.lock, l_auto: T.auto, l_lan: T.lan, l_pq: T.pq, "split-title": T.splitTitle, "split-text": T.splitText, "split-go": T.splitGo, back: T.back }).forEach(([id, text]) => { $(id).textContent = text; });
 
 let status = null;
 
 function show(s) {
   status = s;
+  // Windows has fewer switches: what cannot work is not offered.
+  const features = s.features || OPTIONS;
+  OPTIONS.forEach((id) => { $(id).closest("label").classList.toggle("hidden", !features.includes(id)); });
+  $("split").classList.toggle("hidden", Boolean(s.features));
+  $("split-title").classList.toggle("hidden", Boolean(s.features));
+  $("split-text").classList.toggle("hidden", Boolean(s.features));
+  $("always").classList.toggle("hidden", !s.features);
   const on = s.state === "on";
   $("dot").className = `state ${s.state}`;
   $("title").textContent = T[s.state] || T.off;
@@ -44,6 +51,7 @@ async function refresh() {
     $("missing").classList.remove("hidden");
     $("missing-text").textContent = s.unsupported ? T.unsupported : T.missing;
     if (s.unsupported) document.querySelector("#missing code").classList.add("hidden");
+    if (navigator.platform.startsWith("Win")) document.querySelector("#missing code").textContent = "powershell -ExecutionPolicy Bypass -File install-vpn.ps1 -Exe .\\pi-guard-vpn.exe";
     return;
   }
   $("settings").classList.remove("hidden");

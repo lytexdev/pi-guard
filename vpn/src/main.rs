@@ -6,22 +6,38 @@
 //!   pi-guard-vpn run -- PROGRAM ...  start a program past the VPN
 //!   pi-guard-vpn unlock              emergency: remove tunnel and firewall rules, as root
 
-mod b64;
 mod config;
+#[cfg(windows)]
+mod windows;
+
+#[cfg(unix)]
+mod b64;
+#[cfg(unix)]
 mod daemon;
+#[cfg(unix)]
 mod firewall;
+#[cfg(unix)]
 mod pq;
+#[cfg(unix)]
 mod server;
+#[cfg(unix)]
 mod sys;
+#[cfg(unix)]
 mod tunnel;
 
+#[cfg(unix)]
 use std::io::{BufRead, BufReader, Write};
+#[cfg(unix)]
 use std::os::unix::net::UnixStream;
+#[cfg(unix)]
 use std::os::unix::process::CommandExt;
+#[cfg(unix)]
 use std::process::{exit, Command};
 
+#[cfg(unix)]
 const ROSENPASS: &str = "/usr/local/lib/pi-guard-vpn/rosenpass";
 
+#[cfg(unix)]
 fn ask(request: &str) -> Result<String, String> {
     let mut stream = UnixStream::connect(daemon::SOCKET).map_err(|e| format!("the service: {e}"))?;
     writeln!(stream, "{request}").map_err(|e| e.to_string())?;
@@ -30,6 +46,12 @@ fn ask(request: &str) -> Result<String, String> {
     Ok(line)
 }
 
+#[cfg(windows)]
+fn main() {
+    windows::main();
+}
+
+#[cfg(unix)]
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let binary = std::env::var("PI_GUARD_ROSENPASS").unwrap_or_else(|_| ROSENPASS.into());

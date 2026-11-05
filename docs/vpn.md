@@ -2,15 +2,15 @@
 
 The VPN connects phones and computers to your home, like a commercial VPN app, but your Pi is the server.
 
-| | Android | Desktop app (Linux) | Windows, macOS |
-| --- | --- | --- | --- |
-| One-button connect, own access | yes | yes | not yet |
-| Tries all [ways home](network.md#ways-home-from-outside) | yes | yes | |
-| Auto-connect | when pi-guard is out of reach | at start | |
-| Kill switch | through Android | yes | |
-| Lockdown | through Android | yes | |
-| Split tunneling | per app | per program | |
-| Quantum-resistant tunnel | no | yes | |
+| | Android | Desktop app (Linux) | Desktop app (Windows) | macOS |
+| --- | --- | --- | --- | --- |
+| One-button connect, own access | yes | yes | yes | not yet |
+| Tries all [ways home](network.md#ways-home-from-outside) | yes | yes | yes | |
+| Auto-connect | when pi-guard is out of reach | at start | at start | |
+| Kill switch | through Android | yes | always on, by WireGuard | |
+| Lockdown | through Android | yes | no | |
+| Split tunneling | per app | per program | no | |
+| Quantum-resistant tunnel | no | yes | no | |
 
 ## Installing on Linux
 
@@ -23,6 +23,23 @@ sudo ./scripts/install-vpn.sh
 
 Then open **PiGuard › VPN** in the app, and log in to the dashboard first. Only the user who ran this may control the
 service.
+
+## Installing on Windows
+
+**Not tested on a real Windows yet.** It is built and its logic runs under Wine, but tunnels and services were never run on
+Windows. Treat it as a preview.
+
+The service drives the official, signed WireGuard client instead of bringing a driver of its own. For a tunnel of all
+traffic that client blocks everything past it by itself, through the Windows Filtering Platform: that is the kill switch.
+It has no lockdown or split tunneling, and Rosenpass has no Windows version, so the app does not offer them.
+
+In an administrator PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install-vpn.ps1 -Exe .\pi-guard-vpn.exe
+```
+
+It installs WireGuard if needed, after checking its signature. Only the user who runs this may control the service.
 
 ## Kill switch and lockdown
 
