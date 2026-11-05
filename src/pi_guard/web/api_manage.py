@@ -32,7 +32,7 @@ from pi_guard.recording.evidence import MAX_MINUTES, evidence_files, record_evid
 from pi_guard.recording.segments import ClipError
 from pi_guard.security.files import atomic_write
 from pi_guard.web.server import current, dashboard, read_json
-from pi_guard.web.settings_schema import BY_KEY, FIELDS, SECRETS, to_env
+from pi_guard.web.settings_schema import BY_KEY, EXPERT, FIELDS, SECRETS, to_env
 
 VIDEO_SUFFIXES = (".mp4", ".mov", ".webm", ".mkv", ".m4v")
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
@@ -100,7 +100,7 @@ async def get_settings(request: web.Request) -> web.Response:
     s = dashboard(request).settings
     return web.json_response({
         "values": {f.key: "" if f.kind == "secret" else _plain(getattr(s, f.key)) for f in FIELDS},
-        "fields": [{"key": f.key, "group": f.group,
+        "fields": [{"key": f.key, "group": f.group, "expert": f.key in EXPERT,
                     "kind": "choice" if f.kind == "language" else f.kind, "min": f.minimum,
                     "max": f.maximum,
                     "options": list(LANGUAGES) if f.kind == "language" else list(f.options)}
@@ -186,8 +186,10 @@ async def notification_rules(request: web.Request) -> web.Response:
             "event": event.value, "enabled": rule.enabled, "priority": rule.priority,
             "modes": [m.value for m in rule.modes], "recipients": rule.recipients,
             "cooldown": rule.cooldown_seconds, "attach": rule.attach,
+            "providers": list(rule.providers),
         })  # fmt: skip
-    return web.json_response(rows)
+    ways = [*d.app.providers, *(["push"] if d.app.webpush is not None else [])]
+    return web.json_response({"rules": rows, "ways": ways})
 
 
 async def save_notification_rule(request: web.Request) -> web.Response:

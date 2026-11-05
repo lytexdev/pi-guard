@@ -73,7 +73,8 @@ Rough storage use per camera at the default 2 Mbit/s:
 | 1 day | ~21 GB |
 | 7 days | ~150 GB |
 
-Lower `bitrate` (e.g. `1M` for 720p) halves this. Continuous writing wears out
+This needs the hardware encoder for cameras sending H.264, which pi-guard uses when there is one. Lower `bitrate`
+(e.g. `1M` for 720p) halves this. Continuous writing wears out
 ordinary SD cards; use a **High Endurance** card or a USB SSD.
 
 ## Hardware test checklist

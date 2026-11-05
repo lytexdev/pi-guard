@@ -220,3 +220,24 @@ def test_disk_pressure_reports_when_unfixable(
     _touch(tmp_path / "recordings" / "a", 5)
     monkeypatch.setattr(retention_module.shutil, "disk_usage", lambda p: Usage(100e9, 99e9, 1e9))
     assert Retention(config, db, None).sweep(NOW).over_limit
+
+
+def test_after_the_full_hours_only_events_stay(tmp_path: Path, db: Database, roomy: None) -> None:
+    config = _config(tmp_path, recording_retention_days=7, recording_full_hours=24)
+    cam = tmp_path / "recordings" / "cam"
+    quiet = _touch(cam, 60 * 48)
+    with_event = _touch(cam, 60 * 47)
+    fresh = _touch(cam, 60 * 2)
+    _touch(cam, 1)
+    db.add_event(NOW - timedelta(hours=46, minutes=58), "motion_detected", "cam", {})
+    Retention(config, db, None).sweep(NOW)
+    assert not quiet.exists() and with_event.exists() and fresh.exists()
+
+
+def test_without_full_hours_nothing_changes(tmp_path: Path, db: Database, roomy: None) -> None:
+    config = _config(tmp_path, recording_retention_days=7)
+    cam = tmp_path / "recordings" / "cam"
+    quiet = _touch(cam, 60 * 48)
+    _touch(cam, 1)
+    Retention(config, db, None).sweep(NOW)
+    assert quiet.exists()

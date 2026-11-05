@@ -70,6 +70,7 @@ ID; group IDs are negative).
 | `RECORDING_ENABLED` | `true` | `false`: nothing is written to disk; `/video` is unavailable |
 | `RECORDING_CONTINUOUS` | `true` | `false`: segments without motion are kept only for the buffer time |
 | `RECORDING_RETENTION_DAYS` | `7` | per camera override: `retention_days` |
+| `RECORDING_FULL_HOURS` | `0` | keep everything this long, then only what is around events; 0 keeps everything until retention |
 | `RECORDING_MAX_STORAGE_PERCENT` | `85` | oldest recordings are deleted above this |
 | `RECORDING_MIN_FREE_MB` | `1024` | …or below this much free space |
 | `RECORDING_SEGMENT_SECONDS` | `300` | |
@@ -165,7 +166,8 @@ cameras:
   can point to a different device after a reboot.
 - `input_format: auto` prefers the camera's own H.264, then MJPEG, then raw
   YUYV. `codec: auto` copies camera H.264 or encodes with the Pi's hardware
-  encoder (`h264_v4l2m2m`), falling back to `libx264`.
+  encoder (`h264_v4l2m2m`), falling back to `libx264`. Cameras sending H.264 are also recoded to `bitrate` with the
+  hardware encoder, because they ignore it otherwise; without one they are copied. `codec: copy` always copies.
 - Zone points are fractions of the image (0 = left/top, 1 = right/bottom), so
   they keep working when the resolution changes. Without include zones the
   whole image is watched; exclude zones are cut out afterwards.

@@ -10,8 +10,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import secrets
 import socket
+import ssl
 from collections.abc import Awaitable, Callable, Coroutine
 from importlib import resources
 from pathlib import Path
@@ -55,6 +57,8 @@ VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check", "/api
                "/api/account/totp/disable"}  # fmt: skip
 MODULES = ("discord", "whatsapp", "email", "mobile")
 SETUP_DONE_KEY = "web.setup_done"
+TLS_NAMES_KEY = "web.tls_names"
+MAX_TLS_NAMES = 16
 TOTP_LENGTH = 6
 STATIC = Path(str(resources.files("pi_guard.web").joinpath("static")))
 
@@ -120,6 +124,7 @@ class Dashboard:
         self.gravity_state = False
         self.evidence_running: set[str] = set()
         self._tasks: set[asyncio.Task[None]] = set()
+        self._ssl: ssl.SSLContext | None = None
         self.wg_peers = None
         if s.wireguard_enabled:
             from pi_guard.network.wgpeers import PeerStore
@@ -127,6 +132,25 @@ class Dashboard:
             self.wg_peers = PeerStore(app.db, s.data_dir, self._secret_key())
             self.wg_peers.write_file()
         self.web = self._build()
+
+    def tls_names(self) -> list[str]:
+        return [*self.settings.dashboard_tls_names, *(self.app.db.get(TLS_NAMES_KEY) or [])]
+
+    async def learn_name(self, host: str | None) -> None:
+        """A name this device is reached by but cannot see itself, like one from a local DNS.
+
+        Programs check the certificate against the name they use, so it must be listed there.
+        New connections get the new certificate at once.
+        """
+        known = self.tls_names()
+        custom = self.settings.dashboard_tls_cert and self.settings.dashboard_tls_key
+        if self._ssl is None or custom or not host or host in known or len(known) >= MAX_TLS_NAMES:
+            return
+        if not re.fullmatch(r"[A-Za-z0-9.-]{1,253}", host):
+            return
+        self.app.db.set(TLS_NAMES_KEY, [*(self.app.db.get(TLS_NAMES_KEY) or []), host])
+        _, cert, key = await asyncio.to_thread(ensure_certificates, self.tls_dir, self.tls_names())
+        self._ssl.load_cert_chain(cert, key)
 
     def background(self, work: Coroutine[Any, Any, None]) -> None:
         """Run something longer than a request; a reference keeps the task alive."""
@@ -219,8 +243,8 @@ class Dashboard:
             if self.settings.dashboard_tls_cert and self.settings.dashboard_tls_key:
                 cert, key = self.settings.dashboard_tls_cert, self.settings.dashboard_tls_key
             else:
-                _, cert, key = ensure_certificates(self.tls_dir, self.settings.dashboard_tls_names)
-            ssl_context = server_context(cert, key)
+                _, cert, key = ensure_certificates(self.tls_dir, self.tls_names())
+            ssl_context = self._ssl = server_context(cert, key)
         runner = web.AppRunner(self.web, access_log=None, shutdown_timeout=5)
         await runner.setup()
         site = web.TCPSite(runner, self.settings.dashboard_host, self.settings.dashboard_port,

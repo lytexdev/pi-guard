@@ -9,6 +9,10 @@ All notable changes are documented here. The format follows
 ### Changed
 
 - The add-on for connected computers is now called Home servers.
+- Cameras sending H.264 are now recorded at the set bitrate with the hardware encoder. They ignored it before: one
+  camera wrote 80 GB a day instead of about 20. Without a hardware encoder they are still copied, and codec `copy` keeps
+  the old way.
+- Settings open in a normal view with what most people need; a switch shows everything for experts.
 
 ### Added
 
@@ -19,6 +23,10 @@ All notable changes are documented here. The format follows
 - Four ways home from outside, shown with their state under Network › VPN: IPv4, IPv6, a rented server and
   Tailscale. The app tries them in turn and finds the dashboard at other addresses. `scripts/relay.sh` sets up a
   server that passes the VPN on without being able to read it, optionally with the dashboard through Caddy.
+- Each kind of notification can go to chosen ways only, for example only Signal, or Telegram and the app.
+- Keep everything for some hours and after that only what is around events (`PI_GUARD_RECORDING_FULL_HOURS`).
+- Storage shows what the cameras write per day, how long the space lasts and how to save some; recording quality can
+  be set per camera.
 - An emergency from the app now comes with a current picture of each camera (up to four). If a picture fails,
   the words still go out.
 - Discord messages are embeds with a title, a colour by urgency and the picture inside.
@@ -71,6 +79,9 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Changes to notification rules take effect at once, as the page says. They only did after a restart.
+- A home server connecting by a local name such as `lytex.system` was refused, because the certificate did not list it.
+  Creating a home server now adds the name in use to the certificate.
 - Linking Signal now shows success right away. Waiting on a busy signal-cli kept the code on screen, and a busy
   signal-cli was reported as not installed.
 - The map of a phone failed with "403 Access blocked": OpenStreetMap refuses browsers without a referrer. Tiles now

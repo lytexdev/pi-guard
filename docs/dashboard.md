@@ -208,6 +208,17 @@ compare it. The CA key never leaves the device. You can use your own
 certificate instead (`PI_GUARD_DASHBOARD_TLS_CERT`, `…_TLS_KEY`), e.g. from a
 reverse proxy with a real domain.
 
+## Normal and expert view
+
+Settings open in the normal view with what most people need. The switch at the top shows everything, also the complex
+settings and the sections Integrations, Dashboard, Security and Data. It is remembered per device and works the same
+in the phone app. Nothing is lost by switching: hidden settings keep their values.
+
+## Where notifications go
+
+Under Settings › Notifications every kind of message has its own ways: tap *All ways* below it and pick, for example,
+only Signal, or Telegram and the PiGuard app. Changes work at once.
+
 ## Install as an app (PWA) and push notifications
 
 - **Android / Chrome / Edge:** browser menu → *Install app*.

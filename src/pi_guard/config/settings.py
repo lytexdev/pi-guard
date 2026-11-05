@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     recording_enabled: bool = True
     recording_continuous: bool = True
     recording_retention_days: int = Field(7, ge=1, le=365)
+    # Keep everything this long, then only what is around events. 0: everything until retention.
+    recording_full_hours: int = Field(0, ge=0, le=720)
     recording_max_storage_percent: int = Field(85, ge=30, le=98)
     recording_min_free_mb: int = Field(1024, ge=100)
     recording_segment_seconds: int = Field(300, ge=30, le=3600)

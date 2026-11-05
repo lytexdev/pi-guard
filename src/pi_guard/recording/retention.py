@@ -4,6 +4,7 @@ Rules, applied per camera directory:
   * continuous recording: keep segments for the retention period
   * event recording (PI_GUARD_RECORDING_CONTINUOUS=false): keep segments that
     overlap a motion event for the retention period, others only for the buffer
+  * PI_GUARD_RECORDING_FULL_HOURS: the same, with that many hours instead of the buffer
   * camera with `recording: false`: keep the short buffer used for /video
 Then, if disk usage is still above the limit, the oldest segments of any camera
 go first. The segment being written is never deleted.
@@ -99,16 +100,19 @@ class Retention:
         if not self.root.is_dir():
             return report
         buffer = timedelta(minutes=self._settings.recording_buffer_minutes)
+        full = timedelta(hours=self._settings.recording_full_hours)
         candidates: list[Segment] = []
         for directory in sorted(p for p in self.root.iterdir() if p.is_dir()):
             segments = list_segments(directory)
             active = self._active(segments, time.time())
             keep, events_only = self._keep_for(directory.name)
+            trim_after = buffer if events_only else full
+            trimming = events_only or (bool(full) and keep > buffer)
             event_times = (
                 self._db.events_between(
                     now - keep - EVENT_PADDING, now, ["motion_detected"], directory.name
                 )
-                if events_only
+                if trimming
                 else []
             )
             for index, segment in enumerate(segments):
@@ -116,7 +120,7 @@ class Retention:
                     continue
                 end = segments[index + 1].start if index + 1 < len(segments) else now
                 expired = segment.start < now - keep
-                if events_only and not expired and segment.start < now - buffer:
+                if trimming and not expired and segment.start < now - trim_after:
                     expired = not any(
                         segment.start - EVENT_PADDING <= t <= end + EVENT_PADDING
                         for t in event_times

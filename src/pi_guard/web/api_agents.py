@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from urllib.parse import urlsplit
 
 from aiohttp import WSMsgType, web
 
@@ -80,7 +81,10 @@ async def agents_create(request: web.Request) -> web.Response:
         agent_id, token = hub.create(str((await read_json(request)).get("name", "")))
     except AgentError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
-    dashboard(request).app.db.audit(_actor(request), "agent.add", hub.name(agent_id) or "")
+    d = dashboard(request)
+    d.app.db.audit(_actor(request), "agent.add", hub.name(agent_id) or "")
+    # The agent connects by the name in this browser's address bar, and checks it.
+    await d.learn_name(urlsplit(f"//{request.host}").hostname)
     return web.json_response({"id": agent_id, "token": token})
 
 

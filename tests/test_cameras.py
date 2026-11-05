@@ -49,8 +49,21 @@ def test_metadata_node_has_no_formats() -> None:
     assert parse_formats("ioctl(VIDIOC_G_INPUT): Inappropriate ioctl for device") == ()
 
 
-def test_camera_h264_is_copied(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_camera_h264_is_recoded_to_the_set_bitrate(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pi_guard.cameras.ffmpeg.encoder_works", lambda _: True)
     choice = choose_capture(cam(), device(YUYV, MJPEG, H264))
+    assert choice == CaptureChoice("h264", "h264_v4l2m2m")
+
+
+def test_camera_h264_is_copied_without_a_hardware_encoder(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pi_guard.cameras.ffmpeg.encoder_works", lambda _: False)
+    choice = choose_capture(cam(), device(YUYV, MJPEG, H264))
+    assert choice == CaptureChoice("h264", "copy")
+
+
+def test_copying_stays_possible_on_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pi_guard.cameras.ffmpeg.encoder_works", lambda _: True)
+    choice = choose_capture(cam(codec="copy"), device(YUYV, MJPEG, H264))
     assert choice == CaptureChoice("h264", "copy")
 
 

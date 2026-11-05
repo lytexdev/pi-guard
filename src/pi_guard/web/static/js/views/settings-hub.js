@@ -1,5 +1,5 @@
 // Settings: one place with sections, search and a save bar that appears when it is needed.
-import { api, attempt, fill, h, icon, t, toast, when } from "../api.js";
+import { api, attempt, fill, h, icon, t, toast, when, expertMode, setExpertMode } from "../api.js";
 import { state } from "../app.js";
 import { installFolds, unfold } from "../folds.js";
 import { searchToggle, supportNote } from "../widgets.js";
@@ -29,6 +29,15 @@ const SECTIONS = [
   ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null],
   ["security", "shield-check", null], ["storage", "database", null], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
 ];
+
+// Sections for people who know what they are looking for.
+const EXPERT_SECTIONS = ["integrations", "dashboard", "security", "data"];
+const shown = () => SECTIONS.filter(([id]) => expertMode() || !EXPERT_SECTIONS.includes(id));
+
+function modeSwitch(redraw) {
+  return h("div", { class: "segmented mode-switch", role: "group", "aria-label": t("web.mode_view") }, [[false, "web.mode_normal"], [true, "web.mode_expert"]].map(([on, label]) =>
+    h("button", { class: expertMode() === on ? "on" : "", title: t(`${label}_tip`), onclick: () => { setExpertMode(on); redraw(); } }, t(label))));
+}
 
 async function apiSection(box) {
   const draw = async () => {
@@ -136,8 +145,8 @@ function searchIndex(fields) {
   const section = (group) => SECTIONS.find(([, , groups]) => groups?.includes(group))?.[0];
   const entry = (id, target, label, extra = "") => ({ id, target, label, text: fold(`${label} ${extra}`), name: fold(label) });
   return [
-    ...SECTIONS.map(([id]) => entry(id, "", t(`web.set_${id}`))),
-    ...fields.filter((f) => section(f.group)).map((f) => entry(section(f.group), `s_${f.key}`, t(`web.setting_${f.key}`), `${t(`web.group_${f.group}`)} ${t(`web.tip_${f.key}`)} ${f.key.replace(/_/g, " ")}`)),
+    ...shown().map(([id]) => entry(id, "", t(`web.set_${id}`))),
+    ...fields.filter((f) => section(f.group) && (!f.expert || expertMode())).map((f) => entry(section(f.group), `s_${f.key}`, t(`web.setting_${f.key}`), `${t(`web.group_${f.group}`)} ${t(`web.tip_${f.key}`)} ${f.key.replace(/_/g, " ")}`)),
     ...Object.entries(TOPICS).flatMap(([id, keys]) => keys.map((key) => entry(id, key, t(key), t(`${key.replace("_title", "")}_hint`)))),
   ];
 }
@@ -159,7 +168,7 @@ export async function render(main, params = []) {
   const body = h("div", { class: "hub-body stack" });
   const extra = h("div", { class: "hub-extra stack" });
   const saveBar = h("div", { class: "save-bar hidden" });
-  const tabs = h("nav", { class: "hub-nav", "aria-label": t("web.nav_settings") }, SECTIONS.map(([id, ic]) =>
+  const tabs = h("nav", { class: "hub-nav", "aria-label": t("web.nav_settings") }, shown().map(([id, ic]) =>
     h("a", { href: `#/settings/${id}`, class: id === current ? "active" : "" }, icon(ic), h("span", {}, t(`web.set_${id}`)))));
   const results = h("section", { class: "panel search-results hidden", "aria-live": "polite" });
   const back = h("a", { class: "hub-back", href: "#/settings" }, icon("chevron-left"), t(`web.set_${current}`));
@@ -181,7 +190,7 @@ export async function render(main, params = []) {
         h("a", { class: "grow", href: `#/settings/${id}${item.target ? `/${item.target}` : ""}` }, item.label), icon("chevron-right"))))])
       : h("p", { class: "muted" }, t("web.set_no_results")));
   });
-  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search)), results, hub);
+  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search)), modeSwitch(() => render(main, params)), results, hub);
   installFolds(hub);
   let save = null;
   let stop = null;

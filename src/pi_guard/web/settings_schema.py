@@ -33,6 +33,7 @@ FIELDS = (
     Field("recording_enabled", "recording", "bool"),
     Field("recording_continuous", "recording", "bool"),
     Field("recording_retention_days", "recording", "int", 1, 365),
+    Field("recording_full_hours", "recording", "int", 0, 720),
     Field("recording_max_storage_percent", "recording", "int", 30, 98),
     Field("recording_segment_seconds", "recording", "int", 30, 3600),
     Field("recording_buffer_minutes", "recording", "int", 2, 240),
@@ -113,6 +114,18 @@ FIELDS = (
     Field("dashboard_rate_limit_per_minute", "dashboard", "int", 30, 10000),
 )
 BY_KEY = {f.key: f for f in FIELDS}
+# Only shown in expert mode; everything else is what most people ever need.
+EXPERT = frozenset({
+    "log_level", "recording_max_storage_percent", "recording_segment_seconds",
+    "recording_buffer_minutes", "telegram_viewer_user_ids", "telegram_allowed_chat_ids",
+    "discord_viewer_user_ids", "email_port", "email_security", "email_from",
+    "signal_admin_numbers", "signal_allowed_numbers", "signal_cli_address",
+    "emergency_after_alerts", "emergency_after_minutes", "whatsapp_phone_number_id",
+    "whatsapp_app_secret", "whatsapp_verify_token", "whatsapp_alert_template",
+    "wireguard_endpoint_v6", "dashboard_auth", "dashboard_public_url",
+    "dashboard_trusted_proxies", "webpush_enabled", "dashboard_honeypot", "dashboard_ban_minutes",
+    "dashboard_rate_limit_per_minute", "pihole_url", "mqtt_host", "mqtt_port",
+})  # fmt: skip
 SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password", "dashboard_secret_key",
            "assistant_api_key", "assistant_deepl_key", "assistant_paperless_token",
            "assistant_nextcloud_password", "whatsapp_access_token",

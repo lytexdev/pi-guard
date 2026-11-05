@@ -11,9 +11,11 @@ from aiohttp.test_utils import TestClient, TestServer
 
 from pi_guard.cameras.live import AudioFanout, LiveFrames, read_mpjpeg
 from pi_guard.config import OVERRIDE_ENV, load_config
+from pi_guard.core.events import EventType
 from pi_guard.web import auth
 from pi_guard.web.auth import AuthStore
 from pi_guard.web.server import Dashboard
+from pi_guard.web.settings_schema import EXPERT
 
 from .helpers import TOKEN, make_app
 
@@ -517,6 +519,58 @@ async def test_setup_status_reports_what_the_installer_set(tmp_path: Path) -> No
         assert status["language"] == "de"
         assert status["telegram"]["admins"] >= 1
         assert status["devices"]["cameras"]
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_name_used_for_a_home_server_enters_the_certificate(tmp_path: Path) -> None:
+    from pi_guard.web.tls import _san, ensure_certificates, server_context
+
+    client, app = await _client(tmp_path)
+    d = app.dashboard
+    try:
+        _, cert, key = ensure_certificates(d.tls_dir, [])
+        d._ssl = server_context(cert, key)
+        await d.learn_name("lytex.system")
+        assert "lytex.system" in _san(cert)
+        await d.learn_name("lytex.system")
+        assert d.tls_names().count("lytex.system") == 1
+        await d.learn_name("evil name\n")
+        assert "evil name\n" not in d.tls_names()
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_every_notification_can_choose_its_ways(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        headers = {"X-CSRF-Token": await _login(client)}
+        body = await (await client.get("/api/notifications")).json()
+        assert "ways" in body and "signal" in body["rules"][0]["providers"]
+        chosen = {"providers": ["signal", "mobile"]}
+        answer = await client.put(
+            "/api/notifications/motion_detected", json=chosen, headers=headers
+        )
+        assert answer.status == 200
+        rule = app.notifier.rule(EventType.MOTION_DETECTED)
+        assert rule.providers == ("signal", "mobile")
+        assert (await client.put("/api/notifications/motion_detected", json={"providers": ["x"]},
+                                 headers=headers)).status == 400  # fmt: skip
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_settings_tell_which_ones_are_for_experts(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        await _login(client)
+        fields = (await (await client.get("/api/settings")).json())["fields"]
+        expert = {f["key"]: f["expert"] for f in fields}
+        assert expert["signal_cli_address"] and not expert["language"]
+        assert set(EXPERT) <= set(expert)  # a typo here would quietly show a field to everybody
     finally:
         await client.close()
         app.db.close()

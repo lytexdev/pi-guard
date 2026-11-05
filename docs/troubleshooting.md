@@ -100,6 +100,18 @@ sudo journalctl -u pi-guard -n 100
 - Live picture black: `PI_GUARD_DASHBOARD_LIVE_FPS` is 0, or the camera is
   reconnecting (see Overview).
 
+## Home server does not connect
+
+- *invalid peer certificate: certificate not valid for name*: the agent checks that the certificate lists the name it
+  uses. Create the home server again from the dashboard opened by that name, or add it with
+  `PI_GUARD_DASHBOARD_TLS_NAMES=name` in `/etc/pi-guard/pi-guard.env` and restart pi-guard. The agent retries by itself.
+
+## Storage fills up quickly
+
+Settings › Storage shows what your cameras write per day and how long the space lasts. A camera at 2 Mbit/s writes about
+20 GB a day. Lower the quality under Devices, or keep everything for 24 hours and after that only what is around events.
+Several cameras are best recorded to a USB SSD.
+
 ## VPN in the app
 
 - *Android did not allow the connection*: another VPN app is set to always-on. Turn that off under the phone's VPN

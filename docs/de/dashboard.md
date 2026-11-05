@@ -145,6 +145,12 @@ Schriftgröße gelten pro Gerät. Schriften werden nicht aus dem Internet gelade
 
 ## Zertifikat installieren (einmal pro Gerät)
 
+In den Einstellungen wechselt ein Schalter oben zwischen **Normal** und **Experte**. Normal zeigt, was die meisten
+brauchen, Experte alles. Das gilt pro Gerät, auch in der Handy-App, und versteckte Einstellungen behalten ihre Werte.
+
+Unter Einstellungen › Benachrichtigungen legst du bei jeder Nachricht fest, **wohin** sie geht: unter *Alle Wege*
+kannst du zum Beispiel nur Signal wählen, oder Telegram und die PiGuard-App. Das wirkt sofort.
+
 Mikrofon, App-Installation und Push-Benachrichtigungen funktionieren nur über
 eine vertrauenswürdige HTTPS-Verbindung. pi-guard erstellt dafür ein eigenes
 Zertifikat. Laden Sie es unter `https://<Adresse-des-Pi>:8443/ca.crt` (die

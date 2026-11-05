@@ -1,5 +1,5 @@
 // .env settings the dashboard may change, grouped, with a restart prompt.
-import { api, attempt, confirmDialog, h, icon, lang, t, fill } from "../api.js";
+import { api, attempt, confirmDialog, h, icon, lang, t, fill, expertMode } from "../api.js";
 import { state, switchLanguage } from "../app.js";
 
 export async function restartPrompt() {
@@ -73,7 +73,7 @@ export async function render(main, params = [], opts = {}) {
   const data = await api("/api/settings");
   const inputs = new Map();
   const wanted = (group) => state.session?.modules?.[group] !== false;  // switched off under Add-ons
-  const fields = data.fields.filter((f) => (!opts.groups || opts.groups.includes(f.group)) && wanted(f.group));
+  const fields = data.fields.filter((f) => (!opts.groups || opts.groups.includes(f.group)) && wanted(f.group) && (!f.expert || expertMode()));
   const groups = [...new Set(fields.map((f) => f.group))];
   const save = h("button", { class: "primary big", onclick: async () => {
     const changed = {};

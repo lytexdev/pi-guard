@@ -60,6 +60,7 @@ function cameraEditor(camera, devices, mics, remove) {
   const room = h("input", { id: id(), value: camera.room || "", maxlength: 40, placeholder: t("web.room_placeholder"), list: "rooms" });
   const name = h("input", { id: id(), value: camera.name, maxlength: 40 });
   const fps = h("input", { id: id(), type: "number", min: 1, max: 60, value: camera.fps });
+  const rate = select(["500k", "1M", "1500k", "2M", "3M", "4M", camera.bitrate].filter((v, i, all) => all.indexOf(v) === i).map((v) => [v, t("web.bitrate_value", { rate: v.endsWith("k") ? parseInt(v, 10) / 1000 : parseFloat(v), day: Math.round((v.endsWith("k") ? parseInt(v, 10) / 1000 : parseFloat(v)) * 10.8) })]), camera.bitrate);
   const enabled = h("input", { id: id(), type: "checkbox", checked: camera.enabled });
   const recording = h("input", { id: id(), type: "checkbox", checked: camera.recording });
   const motion = h("input", { id: id(), type: "checkbox", checked: camera.motion_detection });
@@ -72,13 +73,13 @@ function cameraEditor(camera, devices, mics, remove) {
     h("p", {}, h("span", { class: "badge" }, t(`web.source_${camera.source || "usb"}`))),
     field(usb ? t("web.device") : t("web.source_address"), dev),
     usb ? null : h("div", { class: "hint" }, t(`web.source_${camera.source}_hint`)),
-    field(t("web.resolution"), res), field(t("web.fps"), fps),
+    field(t("web.resolution"), res), field(t("web.fps"), fps), field(t("web.bitrate"), rate),
     h("label", { class: "check" }, enabled, t("web.enabled")),
     h("label", { class: "check" }, recording, t("web.recording")),
     h("label", { class: "check" }, motion, t("web.motion_detection")),
     field(t("web.sensitivity"), sens), field(t("web.microphone_in_video"), mic), microphoneTest(mic));
   panel.read = () => ({
-    ...camera, name: name.value, room: room.value.trim(), device: dev.value.trim(), resolution: res.value, fps: Number(fps.value),
+    ...camera, name: name.value, room: room.value.trim(), device: dev.value.trim(), resolution: res.value, fps: Number(fps.value), bitrate: rate.value,
     enabled: enabled.checked, recording: recording.checked, motion_detection: motion.checked,
     motion: { ...camera.motion, sensitivity: Number(sens.value) }, microphone: mic.value || null,
   });

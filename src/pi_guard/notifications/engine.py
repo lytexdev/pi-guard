@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pi_guard.cameras.pipeline import SnapshotUnavailableError
+from pi_guard.config.files import NotificationSettings
 from pi_guard.core.events import Event, EventType
 from pi_guard.core.permissions import Role
 from pi_guard.core.timeutil import TimeWindow
@@ -61,7 +62,6 @@ class Delivery:
 class Notifier:
     def __init__(self, app: App) -> None:
         self._app = app
-        self._settings = app.config.file.notifications
         quiet = self._settings.quiet_hours
         self._quiet = TimeWindow.parse(quiet) if quiet else None
         self._last_sent: dict[tuple[EventType, str | None], float] = {}
@@ -69,6 +69,10 @@ class Notifier:
         self._queue: asyncio.Queue[Delivery] = asyncio.Queue(QUEUE_SIZE)
         self._events = app.bus.subscribe("notifier")
         self._push_tasks: set[asyncio.Task[int]] = set()
+
+    @property
+    def _settings(self) -> NotificationSettings:
+        return self._app.config.file.notifications  # the dashboard changes it while running
 
     async def run(self) -> None:
         await asyncio.gather(
@@ -130,7 +134,7 @@ class Notifier:
             return
         recipients = self.recipients(rule, exclude=event.data.get("actor"))
         webpush = self._app.webpush
-        if webpush is not None:
+        if webpush is not None and "push" in rule.providers:
             self._push(event, rule)
         if not recipients:
             return

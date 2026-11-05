@@ -574,3 +574,9 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 /* A row that opens something opens from everywhere, also the arrow. */
 .list .link-row { position: relative; min-height: var(--tap); }
 .list .link-row a::after { content: ""; position: absolute; inset: 0; }
+.notif { flex-wrap: wrap; }
+.notif-ways { flex-basis: 100%; }
+.notif-ways summary { color: var(--muted); font-size: .9em; cursor: pointer; }
+
+/* Normal and expert */
+.mode-switch { margin-bottom: 4px; }

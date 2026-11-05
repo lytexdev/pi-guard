@@ -9,7 +9,8 @@ computer, and it works over the home VPN too.
 
 ## Setup
 
-1. Dashboard › **Add-ons** › switch on *Home servers*, then restart pi-guard.
+1. Dashboard › **Add-ons** › switch on *Home servers*, then restart pi-guard. Open the dashboard by the name the
+   home server should use: creating it adds that name to the certificate.
 2. Add the computer and copy the command shown. The token appears once.
 3. On the computer, with Rust installed (Arch: `sudo pacman -S rust`):
 

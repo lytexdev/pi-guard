@@ -4,6 +4,10 @@ let csrf = null;
 let texts = {};
 export let lang = localStorage.getItem("lang") || "de";
 
+// Everyday settings by default; the rest appears on request, per device.
+export const expertMode = () => localStorage.getItem("expert") === "1";
+export const setExpertMode = (on) => localStorage.setItem("expert", on ? "1" : "0");
+
 export class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }

@@ -187,12 +187,12 @@ async def test_notifications_can_be_switched_off_at_once(tmp_path: Path) -> None
     client, app = await _client(tmp_path)
     try:
         headers = {"X-CSRF-Token": await _login(client)}
-        rows = await (await client.get("/api/notifications")).json()
+        rows = (await (await client.get("/api/notifications")).json())["rules"]
         assert next(r for r in rows if r["event"] == "system_started")["enabled"] is True
         response = await client.put("/api/notifications/system_started", json={"enabled": False},
                                     headers=headers)  # fmt: skip
         assert response.status == 200
-        rows = await (await client.get("/api/notifications")).json()
+        rows = (await (await client.get("/api/notifications")).json())["rules"]
         assert next(r for r in rows if r["event"] == "system_started")["enabled"] is False
         assert app.config.file.notifications.rules["system_started"].enabled is False
         wrong = await client.put("/api/notifications/nope", json={}, headers=headers)

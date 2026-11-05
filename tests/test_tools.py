@@ -988,3 +988,13 @@ def test_the_services_settings_beat_a_forgotten_env_file(tmp_path: Path, monkeyp
     if not os.access(system, os.R_OK):  # root reads everything
         assert config.find_env_file() == Path(".env")
         assert config.reads_other_settings(Path(".env"))
+
+
+def test_the_forecast_counts_the_last_day(tmp_path: Path) -> None:
+    from pi_guard.diagnostics.storage import per_day
+
+    new, old = tmp_path / "a.mp4", tmp_path / "b.mp4"
+    new.write_bytes(b"x" * 10)
+    old.write_bytes(b"x" * 99)
+    os.utime(old, (1, 1))
+    assert per_day(tmp_path, new.stat().st_mtime + 1) == 10
