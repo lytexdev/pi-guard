@@ -145,5 +145,6 @@ listed with `pi-guard faces list`; users with `/users`.
 
 The location of a phone is stored in `pi-guard.db` only if its owner switched on *Share location*, and it is
 replaced by each new report. Admins can see it, so ask before switching it on for someone else. An SOS sends the
-location to the emergency contacts, also through their messengers. Map tiles are loaded from OpenStreetMap when
-someone opens a map, which tells OpenStreetMap roughly where the phone is.
+location to the emergency contacts, also through their messengers. It also sends a current picture of each camera (up
+to four) to them, so whoever is an emergency contact can see inside the home in that moment. Map tiles are fetched by
+the Pi when someone opens a map, which tells OpenStreetMap roughly where the phone is, but not who is looking.

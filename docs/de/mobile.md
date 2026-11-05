@@ -29,7 +29,7 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
   Mach das einmal zu Hause. Der gesamte Verkehr läuft dann über dein Zuhause.
 - **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
   vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
-  zeigt an, dass jemand es sucht. Die Kartenkacheln kommen von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
+  zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
 - **SOS:** Ein Tippen startet 10 Sekunden Countdown, nochmal tippen bricht ab. Danach bekommen alle Notfallkontakte und
   Admins eine Nachricht mit Standort, Modus, Akku und Netz. **Das ersetzt nicht die 112.** Es braucht eine Verbindung zu
   pi-guard, und pi-guard muss laufen.

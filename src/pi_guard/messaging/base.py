@@ -28,6 +28,8 @@ class Reply:
     # The user's next plain-text answer is handed to this command, e.g. a name
     # after "What is the person's name?".
     expect: str | None = None
+    # How urgent it looks where a service can show that: info, warn or alert.
+    tone: str = "info"
 
     @property
     def media(self) -> Path | None:

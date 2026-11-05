@@ -83,8 +83,9 @@ Mehr Details (Englisch): [privacy.md](../privacy.md).
 
 Der Standort eines Handys wird in `pi-guard.db` nur gespeichert, wenn der Besitzer *Standort teilen* eingeschaltet hat, und
 jede neue Meldung ersetzt ihn. Admins können ihn sehen; frag also vorher, bevor du das für jemand anderen einschaltest. Ein
-SOS schickt den Standort an die Notfallkontakte, auch über ihre Messenger. Kartenkacheln kommen von OpenStreetMap, wenn
-jemand eine Karte öffnet; OpenStreetMap erfährt dadurch ungefähr, wo das Handy ist.
+SOS schickt den Standort an die Notfallkontakte, auch über ihre Messenger. Dazu kommt ein aktuelles Bild jeder Kamera (bis zu
+vier): Notfallkontakte sehen in diesem Moment also ins Haus. Kartenkacheln holt der Pi, wenn jemand eine Karte öffnet;
+OpenStreetMap erfährt dadurch ungefähr, wo das Handy ist, aber nicht, wer schaut.
 
 ## Vertraute Personen
 

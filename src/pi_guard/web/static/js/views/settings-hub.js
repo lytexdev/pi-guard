@@ -177,7 +177,7 @@ export async function render(main, params = []) {
     const groups = [...new Set(matches.map((item) => item.id))];
     fill(results, matches.length ? groups.map((id) => [
       h("h3", {}, icon(SECTIONS.find(([section]) => section === id)[1]), " ", t(`web.set_${id}`)),
-      h("ul", { class: "list" }, matches.filter((item) => item.id === id).map((item) => h("li", {},
+      h("ul", { class: "list" }, matches.filter((item) => item.id === id).map((item) => h("li", { class: "link-row" },
         h("a", { class: "grow", href: `#/settings/${id}${item.target ? `/${item.target}` : ""}` }, item.label), icon("chevron-right"))))])
       : h("p", { class: "muted" }, t("web.set_no_results")));
   });

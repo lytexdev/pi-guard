@@ -14,9 +14,12 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+import httpx
 from aiohttp import WSMsgType, web
 
+from pi_guard import __version__
 from pi_guard.addons.mobile import MobileHub, map_link
+from pi_guard.cameras.pipeline import SnapshotUnavailableError
 from pi_guard.core.permissions import Role, User
 from pi_guard.core.schedule import CALENDAR_KEY, clean_calendar
 from pi_guard.i18n import t
@@ -31,8 +34,14 @@ from pi_guard.web.server import COOKIE, current, dashboard, read_json
 log = logging.getLogger(__name__)
 
 MAX_MESSAGE = 1_000_000
+MAX_ZOOM = 19
+MAX_TILES = 200
+USER_AGENT = f"pi-guard/{__version__} (+https://github.com/lytexdev/pi-guard)"
+EMERGENCY_PHOTO_SECONDS = 4
+MAX_EMERGENCY_PHOTOS = 4
 MAX_APK = 200_000_000
 APP_DIR = "apps/android"
+_tiles: dict[tuple[int, int, int], bytes] = {}
 
 
 def routes() -> list[web.RouteDef]:
@@ -46,6 +55,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/mobile/calendar", calendar),
         web.post("/api/mobile/vpn", vpn),
         web.get("/api/mobile/reach", reach),
+        web.get("/api/mobile/map/{z:\\d+}/{x:\\d+}/{y:\\d+}.png", map_tile),
         web.get("/api/mobile/app/latest", app_latest),
         web.get("/api/mobile/app/apk", app_apk),
         web.post("/api/mobile/app", app_upload),
@@ -170,17 +180,47 @@ async def emergency(request: web.Request) -> web.Response:
     if details:
         lines.append(" · ".join(map(str, details)))
     text = "\n".join(lines)
+    photos = await _current_pictures(app)
     reached = 0
     for provider, chat in app.escalation.contacts:
-        if provider in app.providers:
-            try:
-                await app.messenger.send(provider, chat, Reply(text))
-                reached += 1
-            except (ProviderUnavailableError, RuntimeError, OSError):
-                log.warning("emergency message via %s failed", provider)
-    await app.messenger.notify_admins(text)
+        if provider in app.providers and await _call_for_help(app, provider, chat, text, photos):
+            reached += 1
+    await app.messenger.notify_admins(text, photos, tone="alert")
     app.db.audit(f"mobile:{device['id']}", "mobile.emergency", str(reached))
     return web.json_response({"contacts": reached})
+
+
+async def _current_pictures(app: Any) -> list[Path]:
+    """What the cameras see now. A camera that does not answer must not delay the call for help."""
+
+    async def picture(camera_id: str) -> Path | None:
+        try:
+            return await asyncio.wait_for(app.take_photo(camera_id, prefix="emergency"),
+                                          EMERGENCY_PHOTO_SECONDS)  # fmt: skip
+        except (SnapshotUnavailableError, TimeoutError, OSError):
+            return None
+
+    ids = list(app.cameras)[:MAX_EMERGENCY_PHOTOS]
+    return [p for p in await asyncio.gather(*map(picture, ids)) if p is not None]
+
+
+async def _call_for_help(app: Any, provider: str, chat: str, text: str, photos: list[Path]) -> bool:
+    """The words matter most: if a picture is what fails, they still go out."""
+    send = app.messenger.send
+    try:
+        await send(provider, chat, Reply(text, photo=photos[0] if photos else None, tone="alert"))
+        for photo in photos[1:]:
+            await send(provider, chat, Reply(photo.stem, photo=photo, tone="alert"))
+        return True
+    except (ProviderUnavailableError, RuntimeError, OSError):
+        log.warning("emergency message via %s failed", provider)
+    if not photos:
+        return False
+    try:
+        await send(provider, chat, Reply(text, tone="alert"))
+        return True
+    except (ProviderUnavailableError, RuntimeError, OSError):
+        return False
 
 
 async def calendar(request: web.Request) -> web.Response:
@@ -224,6 +264,27 @@ async def reach(request: web.Request) -> web.Response:
     _device(request)
     net = await asyncio.to_thread(tailscale)
     return web.json_response({"addresses": addresses(d.settings, net)})
+
+
+async def map_tile(request: web.Request) -> web.Response:
+    """Fetched here: OpenStreetMap refuses browsers without a referrer, which this site never
+    sends, and so it only ever sees the Pi, not who looks at the map from where."""
+    z, x, y = (int(request.match_info[k]) for k in "zxy")
+    if z > MAX_ZOOM or x >= 2**z or y >= 2**z:
+        raise web.HTTPNotFound()
+    tile = _tiles.get((z, x, y))
+    if tile is None:
+        try:
+            async with httpx.AsyncClient(timeout=8, headers={"User-Agent": USER_AGENT}) as client:
+                answer = await client.get(f"https://tile.openstreetmap.org/{z}/{x}/{y}.png")
+            answer.raise_for_status()
+        except httpx.HTTPError:
+            raise web.HTTPBadGateway(text="web.mob_map_failed") from None
+        tile = _tiles[(z, x, y)] = answer.content
+        while len(_tiles) > MAX_TILES:
+            del _tiles[next(iter(_tiles))]
+    return web.Response(body=tile, content_type="image/png",
+                        headers={"Cache-Control": "private, max-age=86400"})  # fmt: skip
 
 
 def _apk_dir(request: web.Request) -> Path:

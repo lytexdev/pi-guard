@@ -6,6 +6,10 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The add-on for connected computers is now called Home servers.
+
 ### Added
 
 - Adding a trusted person explains what works best and can take guided photos or a video on the spot, in
@@ -15,6 +19,10 @@ All notable changes are documented here. The format follows
 - Four ways home from outside, shown with their state under Network › VPN: IPv4, IPv6, a rented server and
   Tailscale. The app tries them in turn and finds the dashboard at other addresses. `scripts/relay.sh` sets up a
   server that passes the VPN on without being able to read it, optionally with the dashboard through Caddy.
+- An emergency from the app now comes with a current picture of each camera (up to four). If a picture fails,
+  the words still go out.
+- Discord messages are embeds with a title, a colour by urgency and the picture inside.
+- The Signal page can send a test message, and `pi-guard signal test` really sends one.
 - Linking Signal shows steps and the time left, and stores the number from the phone.
 - A new login page with a way to show the password.
 - Android app PiGuard (`android/`) with the add-on `mobile`: dashboard, alerts without Google, WireGuard
@@ -63,6 +71,13 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Linking Signal now shows success right away. Waiting on a busy signal-cli kept the code on screen, and a busy
+  signal-cli was reported as not installed.
+- The map of a phone failed with "403 Access blocked": OpenStreetMap refuses browsers without a referrer. Tiles now
+  come through the Pi, which also keeps OpenStreetMap from seeing who looks at the map.
+- In the More menu a row opens from everywhere, also from the arrow.
+- `pi-guard` commands prefer the settings of the service over a `.env` in the current folder, and say so if they
+  may not read them. The live picture may go up to 30 frames per second.
 - The app's VPN button did nothing when Android refused it, for example with another VPN set to always-on. It now
   says why and leads to the settings. Two phones with the same long name no longer share a VPN name.
 - The Signal link code vanished after four seconds and was never renewed, although a code only works for

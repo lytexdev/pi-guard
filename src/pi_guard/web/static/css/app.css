@@ -220,6 +220,7 @@ th { color: var(--muted); font-weight: 500; }
 .toast.error { border-color: var(--danger); color: var(--danger); }
 .notice { border-left: 3px solid var(--warn); padding: 10px 14px; background: var(--surface-2); border-radius: 6px; margin-bottom: var(--gap); }
 .notice.danger { border-color: var(--danger); }
+.notice.ok { border-color: var(--ok, #3ddc97); }
 .empty { color: var(--muted); padding: 20px 0; text-align: center; }
 dialog {
   background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius);
@@ -569,3 +570,7 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 .list .reach-way { align-items: flex-start; }
 .reach-way p { margin: 4px 0; }
 .reach-way code { display: block; padding: 8px; border-radius: 6px; background: var(--bg); overflow-wrap: anywhere; }
+
+/* A row that opens something opens from everywhere, also the arrow. */
+.list .link-row { position: relative; min-height: var(--tap); }
+.list .link-row a::after { content: ""; position: absolute; inset: 0; }

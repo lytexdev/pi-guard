@@ -41,6 +41,8 @@ bot to a server** under *Settings → Messenger* and add it to a server of yours
 one of your own. It needs no permissions there. Everyone listed must be on that server, and must allow
 direct messages from its members.
 
+Messages arrive as embeds: a title, a colour by urgency (blue, yellow, red) and the picture inside.
+
 Then press **Send test message**, or write `menu` to the bot. `pi-guard discord test` checks the token.
 
 ## Limits

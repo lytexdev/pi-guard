@@ -72,8 +72,14 @@ PI_GUARD_SIGNAL_ALLOWED_NUMBERS=+4917622222222
 
 ```bash
 sudo systemctl restart pi-guard
-pi-guard signal test
+sudo pi-guard signal test
 ```
+
+This checks the connection and sends you a test message, which arrives in *Note to Self*. The same button is on the
+Signal page. Use `sudo`: only then does the command see the settings of the service.
+
+Right after scanning, signal-cli takes over data from the phone and hardly answers for up to a minute. The page shows
+success at once and says so; nothing has to be installed again.
 
 Then write `menu` to the camera's number from an admin phone.
 

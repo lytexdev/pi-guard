@@ -2,7 +2,7 @@
 import { api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
 
 const ZOOM = 16;
-const TILE = "https://tile.openstreetmap.org";
+const TILE = "/api/mobile/map"; // through the Pi, see map_tile
 
 function tileOf(lat, lon) {
   const n = 2 ** ZOOM;
@@ -11,7 +11,7 @@ function tileOf(lat, lon) {
 }
 
 function mapOf(info) {
-  // Tiles load from OpenStreetMap only when someone asks for the map.
+  // Tiles are only fetched when someone asks for the map.
   const [x, y] = tileOf(info.latitude, info.longitude);
   const box = h("div", { class: "phone-map", role: "img", "aria-label": t("web.mob_map") });
   for (let row = -1; row <= 1; row += 1) {

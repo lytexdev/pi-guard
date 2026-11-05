@@ -69,7 +69,9 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/discord", discord_status),
         web.post("/api/discord/test", discord_test),
         web.get("/api/signal", signal_status),
+        web.get("/api/signal/link", signal_link_state),
         web.post("/api/signal/link", signal_link),
+        web.post("/api/signal/test", signal_test),
         web.post("/api/network/wifi/qr", wifi_qr),
         web.post("/api/network/wifi/{index:[123]}/renew", wifi_renew),
         web.get("/api/network/internet/{ip}", internet_state),
@@ -283,16 +285,18 @@ async def signal_status(request: web.Request) -> web.Response:
     d = dashboard(request)
     s = d.settings
     provider = d.app.providers.get("signal")
-    version, accounts = None, []
+    version, accounts, busy = None, [], False
     try:
         version = (await rpc(s.signal_cli_address, "version", wait=3) or {}).get("version")
         found = await rpc(s.signal_cli_address, "listAccounts", wait=3) or []
         accounts = [a.get("number") for a in found if isinstance(a, dict)]
-    except (OSError, TimeoutError, ValueError, RuntimeError) as exc:
+    except TimeoutError:
+        busy = True  # it took the connection but does not answer: for a minute after linking
+    except (OSError, ValueError, RuntimeError) as exc:
         log.debug("signal-cli: %s", type(exc).__name__)
     return web.json_response({
         "enabled": s.signal_enabled, "installed": shutil.which("signal-cli") is not None,
-        "running": version is not None, "version": version,
+        "running": version is not None or busy, "version": version, "busy": busy,
         "linked": s.signal_phone_number in accounts or _links.get("state") == "linked",
         "accounts": len(accounts),
         "connected": bool(provider and provider.connected),
@@ -329,12 +333,34 @@ async def _finish_link(d: Any, uri: str, actor: str) -> None:
             await apply_settings(d, values, actor)
         except (OSError, ValueError, web.HTTPException) as exc:
             log.warning("storing the Signal number failed: %s", type(exc).__name__)
-    _links.update(state="linked")
+    _links.update(state="linked", number=number)
+
+
+async def signal_link_state(request: web.Request) -> web.Response:
+    """Asks nobody: signal-cli hardly answers while it takes over a phone's data."""
+    return web.json_response({k: v for k, v in _links.items() if k != "task"})
+
+
+async def signal_test(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    number = _links.get("number") or d.settings.signal_phone_number
+    if not number:
+        raise web.HTTPConflict(text="web.signal_unlinked")
+    text = t("web.signal_test_message", d.settings.language)
+    try:
+        await rpc(d.settings.signal_cli_address, "send",
+                  {"account": number, "recipient": [number], "message": text}, wait=30)  # fmt: skip
+    except (OSError, TimeoutError, ValueError, RuntimeError) as exc:
+        log.warning("Signal test message failed: %s", type(exc).__name__)
+        raise web.HTTPBadGateway(text="web.signal_test_failed") from None
+    return web.json_response({"ok": True})
 
 
 async def signal_link(request: web.Request) -> web.Response:
     d = dashboard(request)
     address = d.settings.signal_cli_address
+    if _links.get("state") == "linked":  # a code renewed a moment too late must not undo this
+        return web.json_response({"linked": True})
     try:
         started = await rpc(address, "startLink", wait=20)
     except (OSError, TimeoutError, ValueError, RuntimeError):

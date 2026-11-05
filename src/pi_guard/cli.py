@@ -18,7 +18,7 @@ import typer
 from pydantic import ValidationError
 
 from pi_guard import CREDIT, __version__
-from pi_guard.config import Config, load_config
+from pi_guard.config import Config, find_env_file, load_config, reads_other_settings
 
 if TYPE_CHECKING:
     from pi_guard.detection.faces import FaceRecognizer
@@ -68,10 +68,17 @@ def _main(env_file: EnvOption = None) -> None:
 
 
 def _config() -> Config:
+    found = find_env_file(_env_file)
+    if _env_file is None and reads_other_settings(found):
+        typer.secho(
+            f"Not the settings of the running service, this user may not read them. "
+            f"Using {found or 'defaults'}. For the real ones: sudo pi-guard ...",
+            fg="yellow", err=True,
+        )  # fmt: skip
     try:
         return load_config(_env_file)
     except ValidationError as exc:
-        typer.secho("Configuration is invalid:", fg="red", err=True)
+        typer.secho(f"Configuration is invalid ({found or 'defaults'}):", fg="red", err=True)
         for error in exc.errors():
             where = ".".join(str(p) for p in error["loc"]) or "settings"
             typer.echo(f"  {where}: {error['msg']}", err=True)
@@ -386,13 +393,25 @@ def discord_test() -> None:
 
 @signal_app.command("test")
 def signal_test() -> None:
-    """Check the connection to the signal-cli daemon."""
+    """Check the connection to signal-cli and send yourself a test message."""
     from pi_guard.diagnostics.doctor import check_signal
+    from pi_guard.messaging.signal.provider import rpc
 
-    result = check_signal(_config())[0]
+    config = _config()
+    result = check_signal(config)[-1]
     _line(result.level.value, "signal", result.detail)
     if result.level.value == "fail":
         raise typer.Exit(1)
+    number = config.settings.signal_phone_number
+    if result.level.value == "skip" or not number:
+        return
+    message = {"account": number, "recipient": [number], "message": "✅ pi-guard: Signal works."}
+    try:
+        asyncio.run(rpc(config.settings.signal_cli_address, "send", message, wait=30))
+    except (OSError, TimeoutError, ValueError, RuntimeError) as exc:
+        _line("fail", "signal", f"test message not sent: {exc}")
+        raise typer.Exit(1) from None
+    _line("ok", "signal", "test message sent, see Note to Self in Signal")
 
 
 @presence_app.command("status")

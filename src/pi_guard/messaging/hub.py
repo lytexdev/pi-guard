@@ -11,6 +11,8 @@ import asyncio
 import logging
 import re
 import time
+from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pi_guard.core.permissions import Role, User
@@ -266,24 +268,36 @@ class Messenger:
             self._menus[(provider_name, chat_id)] = [b.command for b in flatten(reply)]
         await provider.send(chat_id, reply)
 
-    async def _send_safely(self, provider_name: str, chat_id: str, reply: Reply) -> None:
+    async def _send_safely(self, provider_name: str, chat_id: str, reply: Reply) -> bool:
         # Answers to commands get two more tries: a short network hiccup must not mean
         # that the user gets no answer at all.
         for attempt, pause in enumerate((2.0, 5.0, None)):
             try:
                 await self.send(provider_name, chat_id, reply)
-                return
+                return True
             except Exception as exc:
                 if pause is None or not _transient(exc):
                     log.warning("could not reply via %s: %s", provider_name, exc)
-                    return
+                    return False
                 log.info("reply via %s failed (%s), try %d again", provider_name, exc, attempt + 2)
                 await asyncio.sleep(pause)
+        return False
 
-    async def notify_admins(self, text: str) -> None:
+    async def notify_admins(
+        self, text: str, photos: Sequence[Path] = (), tone: str = "info"
+    ) -> None:
         for user in self._app.users.all():
-            if user.role is Role.ADMIN and user.provider in self._app.providers:
-                await self._send_safely(user.provider, user.user_id, Reply(text))
+            if user.role is not Role.ADMIN or user.provider not in self._app.providers:
+                continue
+            first = photos[0] if photos else None
+            reply = Reply(text, photo=first, tone=tone)
+            sent = await self._send_safely(user.provider, user.user_id, reply)
+            if not sent and first is not None:  # the words must arrive even if the picture fails
+                await self._send_safely(user.provider, user.user_id, Reply(text, tone=tone))
+            for photo in photos[1:] if sent else ():
+                await self._send_safely(
+                    user.provider, user.user_id, Reply(photo.stem, photo=photo, tone=tone)
+                )
 
 
 def _transient(exc: Exception) -> bool:

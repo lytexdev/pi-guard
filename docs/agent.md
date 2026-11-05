@@ -1,6 +1,6 @@
-# Connected computers
+# Home servers
 
-The pi-guard agent connects a computer to pi-guard: see its status, shut it down safely, and
+The pi-guard agent connects a home server, NAS or any other computer to pi-guard: see its status, shut it down safely, and
 manage its Docker containers, on the dashboard and on the network map. It is a single small
 program written in Rust (1.5 MB).
 
@@ -9,7 +9,7 @@ computer, and it works over the home VPN too.
 
 ## Setup
 
-1. Dashboard › **Add-ons** › switch on *Connected computers*, then restart pi-guard.
+1. Dashboard › **Add-ons** › switch on *Home servers*, then restart pi-guard.
 2. Add the computer and copy the command shown. The token appears once.
 3. On the computer, with Rust installed (Arch: `sudo pacman -S rust`):
 

@@ -63,7 +63,7 @@ export async function render(main) {
   fill(main,
     h("div", { class: "topbar" }, h("h1", {}, t("web.nav_more"))),
     h("section", { class: "panel" }, h("ul", { class: "list" }, entries.map(([route, i, label]) =>
-      h("li", {}, icon(i), h("a", { class: "grow", href: `#/${route}` }, t(label)), icon("chevron-right"))))),
+      h("li", { class: "link-row" }, icon(i), h("a", { class: "grow", href: `#/${route}` }, t(label)), icon("chevron-right"))))),
     h("section", { class: "panel" }, h("h2", {}, t("web.language")),
       h("div", { class: "segmented" }, [["de", "Deutsch"], ["en", "English"]].map(([code, name]) =>
         h("button", { class: lang === code ? "on" : "", onclick: () => switchLanguage(code) }, name)))),

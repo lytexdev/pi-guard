@@ -21,10 +21,18 @@ class Config:
 
 
 def find_env_file(explicit: Path | None = None) -> Path | None:
-    for candidate in (explicit, os.environ.get("PI_GUARD_ENV_FILE"), ".env", DEFAULT_ENV_FILE):
+    # What the service runs with comes first: a forgotten .env in the folder you happen to be in
+    # must not make a command report on a different setup.
+    system = DEFAULT_ENV_FILE if os.access(DEFAULT_ENV_FILE, os.R_OK) else None
+    for candidate in (explicit, os.environ.get("PI_GUARD_ENV_FILE"), system, ".env"):
         if candidate and Path(candidate).is_file():
             return Path(candidate)
     return None
+
+
+def reads_other_settings(found: Path | None) -> bool:
+    """True if the service has settings this user may not read, and something else is used."""
+    return DEFAULT_ENV_FILE.is_file() and found != DEFAULT_ENV_FILE
 
 
 # Written by the dashboard into the data directory, because /etc/pi-guard is not
@@ -56,4 +64,12 @@ def load_config(env_file: Path | None = None) -> Config:
     return Config(settings, load_file_config(yaml_path))
 
 
-__all__ = ["CameraConfig", "Config", "FileConfig", "Settings", "load_config"]
+__all__ = [
+    "CameraConfig",
+    "Config",
+    "FileConfig",
+    "Settings",
+    "find_env_file",
+    "load_config",
+    "reads_other_settings",
+]

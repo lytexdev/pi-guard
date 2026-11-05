@@ -180,7 +180,7 @@ class Settings(BaseSettings):
     dashboard_ban_minutes: int = Field(60, ge=1, le=10080)
     dashboard_trusted_proxies: StrList = Field(default_factory=list)
     # Live view: frames per second (0 turns it off) and width of the live picture.
-    dashboard_live_fps: float = Field(8, ge=0, le=15)
+    dashboard_live_fps: float = Field(8, ge=0, le=30)
     dashboard_live_width: int = Field(960, ge=320, le=1920)
     # Push notifications to installed dashboard apps; payloads are end-to-end
     # encrypted but travel through the browser vendor's push service.

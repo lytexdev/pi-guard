@@ -230,6 +230,9 @@ class Notifier:
             photo=attachment if attachment and not is_video else None,
             video=attachment if is_video else None,
             buttons=tuple(buttons),
+            tone={"critical": "alert", "high": "alert", "normal": "warn"}.get(
+                rule.priority, "info"
+            ),
         )
 
     def _enqueue(self, delivery: Delivery) -> None:

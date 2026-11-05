@@ -34,7 +34,9 @@ log = logging.getLogger(__name__)
 API = "https://discord.com/api/v10"
 GATEWAY_QUERY = "?v=10&encoding=json"
 DIRECT_MESSAGES = 1 << 12  # the only intent needed; text of direct messages is always included
-TEXT_LIMIT = 2000
+TEXT_LIMIT = 4000  # of an embed; a plain message would stop at 2000
+TITLE_LIMIT = 200
+COLOURS = {"info": 0x5CB3FF, "warn": 0xFFC857, "alert": 0xFF6B6B}
 ROW_SIZE = 5
 MAX_ROWS = 5
 LABEL_LIMIT = 80
@@ -69,6 +71,18 @@ def chunks(text: str) -> list[str]:
         parts.append(text[:cut])
         text = text[cut:].lstrip("\n")
     return [*parts, text]
+
+
+def embed(text: str, tone: str) -> dict[str, Any]:
+    """A short first line becomes the title, the rest stays as written."""
+    first, _, rest = text.partition("\n")
+    card: dict[str, Any] = {"color": COLOURS.get(tone, COLOURS["info"]),
+                            "footer": {"text": "pi-guard"}}  # fmt: skip
+    if rest.strip() and len(first) <= TITLE_LIMIT:
+        card.update(title=first, description=rest.strip())
+    else:
+        card["description"] = text
+    return card
 
 
 def components(buttons: tuple[tuple[Button, ...], ...]) -> list[dict[str, Any]]:
@@ -322,12 +336,15 @@ class DiscordProvider:
         url = f"/channels/{channel}/messages"
         parts = chunks(reply.text)
         for part in parts[:-1]:
-            await self._request("POST", url, json={"content": part})
-        payload: dict[str, Any] = {"content": parts[-1]}
+            await self._request("POST", url, json={"embeds": [embed(part, reply.tone)]})
+        card = embed(parts[-1], reply.tone)
+        payload: dict[str, Any] = {"embeds": [card]}
         rows = components(reply.buttons)
         if rows:
             payload["components"] = rows
         media = reply.media
+        if media is not None and media is reply.photo and media.stat().st_size <= UPLOAD_LIMIT:
+            card["image"] = {"url": f"attachment://{media.name}"}
         if media is None or media.stat().st_size > UPLOAD_LIMIT:
             if media is not None:
                 log.warning("file too large for discord: %d bytes", media.stat().st_size)

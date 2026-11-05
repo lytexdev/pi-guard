@@ -450,9 +450,10 @@ async def test_discord_direct_messages_and_buttons(discord: Any) -> None:
         assert got[1].language_hint == "de" and fake.acks == [6]
 
         row = (Button("Menü", "menu"),)
-        await provider.send("1", Reply("x" * 2500, buttons=(row,)))
+        await provider.send("1", Reply("x" * 4500, buttons=(row,)))
         assert [m["channel"] for m in fake.sent] == ["c1", "c1"]  # the channel it wrote from
-        assert len(fake.sent[0]["content"]) == 2000 and "components" not in fake.sent[0]
+        assert len(fake.sent[0]["embeds"][0]["description"]) == 4000
+        assert "components" not in fake.sent[0]
         assert fake.sent[1]["components"][0]["components"][0]["custom_id"] == "menu"
 
         await provider.send("42", Reply("alarm"))  # alerts open the direct message themselves
@@ -469,7 +470,9 @@ async def test_discord_sends_files_and_waits_on_rate_limits(discord: Any, tmp_pa
         photo.write_bytes(b"jpeg")
         fake.limited = 1
         await provider.send("1", Reply("Foto", photo=photo))
-        assert fake.files == [b"jpeg"] and fake.sent[-1]["content"] == "Foto"
+        card = fake.sent[-1]["embeds"][0]
+        assert fake.files == [b"jpeg"] and card["description"] == "Foto"
+        assert card["image"]["url"] == "attachment://bild.jpg"
     finally:
         task.cancel()
 
@@ -520,7 +523,7 @@ def test_discord_menus_fit_its_limits() -> None:
     rows = components(many)
     assert len(rows) == 2 and len(rows[0]["components"]) == 5
     assert components(((Button("x", "y" * 101),),)) == []
-    assert chunks("a\n" * 1500)[0].endswith("a") and all(len(c) <= 2000 for c in chunks("b" * 4500))
+    assert chunks("a\n" * 2500)[0].endswith("a") and all(len(c) <= 4000 for c in chunks("b" * 9000))
 
 
 def test_discord_ids_must_be_numbers(tmp_path: Path) -> None:
@@ -894,3 +897,94 @@ async def test_a_new_code_replaces_the_one_before(tmp_path: Path, monkeypatch: A
     finally:
         await client.close()
         app.db.close()
+
+
+async def test_success_shows_at_once_and_survives_a_late_renewal(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    from pi_guard.web import api_tools
+
+    async def finish() -> Any:
+        return {"number": "+4915112345678"}
+
+    client, app, headers = await _linking(tmp_path, monkeypatch, finish)
+    try:
+        await client.post("/api/signal/link", json={}, headers=headers)
+        await asyncio.sleep(0.05)
+
+        async def silent(*_: Any, **__: Any) -> Any:
+            raise AssertionError("the state must not ask signal-cli, it is busy")
+
+        monkeypatch.setattr(api_tools, "rpc", silent)
+        state = await (await client.get("/api/signal/link")).json()
+        assert state == {"state": "linked", "number": "+4915112345678"}
+        again = await client.post("/api/signal/link", json={}, headers=headers)
+        assert (await again.json()) == {"linked": True}
+        assert api_tools._links["state"] == "linked"
+    finally:
+        api_tools._links.clear()
+        await client.close()
+        app.db.close()
+
+
+async def test_a_busy_signal_cli_is_not_called_broken(tmp_path: Path, monkeypatch: Any) -> None:
+    from pi_guard.web import api_tools
+
+    async def stuck(*_: Any, **__: Any) -> Any:
+        raise TimeoutError
+
+    client, app, _ = await _linking(tmp_path, monkeypatch, stuck)
+    monkeypatch.setattr(api_tools, "rpc", stuck)
+    try:
+        status = await (await client.get("/api/signal")).json()
+        assert status["running"] and status["busy"]
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_test_message_goes_to_note_to_self(tmp_path: Path, monkeypatch: Any) -> None:
+    from pi_guard.web import api_tools
+
+    sent: list[Any] = []
+
+    async def rpc(_: str, method: str, params: Any = None, wait: float = 0) -> Any:
+        sent.append((method, params))
+
+    client, app, headers = await _linking(tmp_path, monkeypatch, rpc)
+    monkeypatch.setattr(api_tools, "rpc", rpc)
+    api_tools._links.update(state="linked", number="+49151")
+    try:
+        answer = await client.post("/api/signal/test", json={}, headers=headers)
+        assert answer.status == 200
+        assert sent[0][0] == "send" and sent[0][1]["recipient"] == ["+49151"]
+    finally:
+        api_tools._links.clear()
+        await client.close()
+        app.db.close()
+
+
+def test_discord_cards_take_their_title_from_the_first_line() -> None:
+    from pi_guard.messaging.discord.provider import COLOURS, embed
+
+    card = embed("Bewegung im Flur\nKamera: Flur", "alert")
+    assert card["title"] == "Bewegung im Flur" and card["description"] == "Kamera: Flur"
+    assert card["color"] == COLOURS["alert"]
+    assert "title" not in embed("nur eine Zeile", "info")
+
+
+def test_the_services_settings_beat_a_forgotten_env_file(tmp_path: Path, monkeypatch: Any) -> None:
+    from pi_guard import config
+
+    system = tmp_path / "pi-guard.env"
+    system.write_text("")
+    (tmp_path / ".env").write_text("")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("PI_GUARD_ENV_FILE", raising=False)
+    monkeypatch.setattr(config, "DEFAULT_ENV_FILE", system)
+    assert config.find_env_file() == system
+    assert not config.reads_other_settings(system)
+    system.chmod(0)
+    if not os.access(system, os.R_OK):  # root reads everything
+        assert config.find_env_file() == Path(".env")
+        assert config.reads_other_settings(Path(".env"))

@@ -31,6 +31,7 @@ export async function signalPanel() {
     clearTimeout(timer);
     const code = await attempt(() => api("/api/signal/link", { method: "POST", body: {} }));
     if (!code) { draw(); return; }
+    if (code.linked) { success(); return; }
     const started = Date.now();
     const bar = h("i");
     const left = h("small", { class: "muted" });
@@ -39,6 +40,7 @@ export async function signalPanel() {
       h("img", { class: "qr light big", src: code.qr, alt: "QR" }),
       h("div", { class: "meter" }, bar), left,
       h("small", { class: "muted" }, t("web.signal_other_screen")),
+      h("small", { class: "muted" }, t("web.signal_after_scan")),
       h("div", { class: "row" }, h("button", { onclick: () => { clearTimeout(timer); draw(); } }, t("web.cancel"))));
     let ticks = 0;
     const tick = async () => {
@@ -46,9 +48,10 @@ export async function signalPanel() {
       const rest = Math.max(0, Math.ceil(code.seconds - (Date.now() - started) / 1000));
       bar.style.width = `${(rest / code.seconds) * 100}%`;
       left.textContent = t("web.signal_code_left", { seconds: rest });
-      if (ticks++ % 3 === 0) {
-        const state = (await api("/api/signal").catch(() => null))?.link?.state;
-        if (state === "linked" || state === "failed") { problem = state === "failed" ? "web.signal_failed" : null; draw(); return; }
+      if (ticks++ % 2 === 0) {
+        const { state } = await api("/api/signal/link").catch(() => ({}));
+        if (state === "linked") { success(); return; }
+        if (state === "failed") { problem = "web.signal_failed"; draw(); return; }
       }
       if (rest > 0) { timer = setTimeout(tick, 1000); return; }
       if (round < CODES) { showCode(round + 1); return; }
@@ -57,10 +60,20 @@ export async function signalPanel() {
     };
     tick();
   };
+  const testButton = () => h("button", { onclick: () => attempt(() => api("/api/signal/test", { method: "POST", body: {} }), t("web.signal_test_sent")) }, icon("message"), t("web.signal_test"));
+  // Right after scanning: signal-cli is still busy, the good news does not have to wait for it.
+  const success = () => {
+    clearTimeout(timer);
+    fill(panel, h("h2", {}, t("web.signal_status")),
+      h("p", { class: "notice ok" }, icon("circle-check"), " ", t("web.signal_success")),
+      h("p", { class: "muted" }, t("web.signal_success_next")),
+      h("div", { class: "row" }, h("button", { class: "primary", onclick: () => restartPrompt() }, icon("refresh"), t("web.signal_restart_now")), testButton()));
+  };
   const draw = async () => {
     clearTimeout(timer);
     const s = await api("/api/signal");
-    const state = !s.installed && !s.running ? "missing" : !s.running ? "stopped" : !s.linked ? "unlinked" : !s.connected ? "restart" : "ready";
+    if (s.link?.state === "linked" && !s.connected) { success(); return; }
+    const state = !s.installed && !s.running ? "missing" : !s.running ? "stopped" : s.busy ? "busy" : !s.linked ? "unlinked" : !s.connected ? "restart" : "ready";
     const link = h("button", { class: "primary", title: t("web.signal_link_tip"), onclick: () => { problem = null; showCode(); } }, icon("qrcode"), t("web.signal_link"));
     fill(panel, h("h2", {}, t("web.signal_status")),
       problem ? h("p", { class: "notice danger" }, t(problem)) : null,
@@ -69,7 +82,8 @@ export async function signalPanel() {
       state === "missing" ? h("pre", { class: "mono wrap" }, "sudo ./scripts/signal.sh install") : null,
       state === "stopped" ? h("pre", { class: "mono wrap" }, "cd ~/pi-guard && sudo ./scripts/signal.sh install") : null,
       state === "unlinked" ? link : null,
-      state === "restart" ? h("button", { class: "primary", onclick: () => restartPrompt() }, icon("refresh"), t("web.signal_restart_now")) : null);
+      state === "restart" ? h("button", { class: "primary", onclick: () => restartPrompt() }, icon("refresh"), t("web.signal_restart_now")) : null,
+      state === "ready" ? testButton() : null);
   };
   await draw();
   return panel;

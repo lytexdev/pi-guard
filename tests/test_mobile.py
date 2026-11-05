@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from pi_guard.addons.mobile import MobileHub, MobileProvider, clean_report, map_link
+from pi_guard.cameras.pipeline import SnapshotUnavailableError
 from pi_guard.core.modes import Mode, ModeController, Presence
 from pi_guard.core.schedule import CALENDAR_KEY, PLAN_KEY, ScheduleRunner, clean_calendar
 from pi_guard.messaging.base import ProviderUnavailableError, Reply
@@ -133,7 +134,7 @@ async def test_emergency_goes_to_contacts_and_admins(tmp_path: Path, monkeypatch
     async def send(provider: str, chat: str, reply: Reply) -> None:
         sent.append((provider, chat, reply.text))
 
-    async def admins(text: str) -> None:
+    async def admins(text: str, photos: Any = (), tone: str = "") -> None:
         sent.append(("admins", "", text))
 
     app.providers["signal"] = SimpleNamespace(supports_buttons=False)
@@ -379,6 +380,127 @@ async def test_a_phone_only_reachable_through_the_relay_gets_a_working_access(
         body = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
         assert "Endpoint = vps.example:51820" in body["config"]
         assert "MTU = 1340" in body["config"]
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def _sos(tmp_path: Path, monkeypatch: Any, take: Any, send: Any) -> tuple[Any, Any]:
+    client, app, _, bearer = await _paired(tmp_path)
+    app.providers["signal"] = object()
+    app.cameras.clear()
+    app.cameras.update({"flur": object(), "hof": object()})
+
+    async def nobody(*_: Any, **__: Any) -> None:
+        return None
+
+    monkeypatch.setattr(app.messenger, "notify_admins", nobody)
+    monkeypatch.setattr(app.escalation, "contacts", [("signal", "+49")], raising=False)
+    monkeypatch.setattr(app, "take_photo", take)
+    monkeypatch.setattr(app.messenger, "send", send)
+    response = await client.post("/api/mobile/emergency", json={}, headers=bearer)
+    return client, (app, await response.json())
+
+
+async def test_an_emergency_comes_with_what_the_cameras_see(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[Reply] = []
+
+    async def take(camera: str, prefix: str = "") -> Path:
+        return tmp_path / f"{prefix}_{camera}.jpg"
+
+    async def send(_: str, __: str, reply: Reply) -> None:
+        sent.append(reply)
+
+    client, (app, body) = await _sos(tmp_path, monkeypatch, take, send)
+    try:
+        assert body["contacts"] == 1 and "NOT" in sent[0].text.upper()
+        assert [r.photo.name for r in sent if r.photo] == [
+            "emergency_flur.jpg",
+            "emergency_hof.jpg",
+        ]
+        assert sent[0].tone == "alert"
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_camera_that_fails_never_stops_an_emergency(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[Reply] = []
+
+    async def take(camera: str, prefix: str = "") -> Path:
+        raise SnapshotUnavailableError("no picture")
+
+    async def send(_: str, __: str, reply: Reply) -> None:
+        sent.append(reply)
+
+    client, (app, body) = await _sos(tmp_path, monkeypatch, take, send)
+    try:
+        assert body["contacts"] == 1 and sent[0].photo is None
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_the_words_go_out_even_if_the_picture_cannot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[Reply] = []
+
+    async def take(camera: str, prefix: str = "") -> Path:
+        return tmp_path / "big.jpg"
+
+    async def send(_: str, __: str, reply: Reply) -> None:
+        if reply.photo:
+            raise ProviderUnavailableError("too large")
+        sent.append(reply)
+
+    client, (app, body) = await _sos(tmp_path, monkeypatch, take, send)
+    try:
+        assert body["contacts"] == 1 and len(sent) == 1
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_map_tiles_come_through_the_pi(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pi_guard.web import api_mobile
+
+    asked: list[Any] = []
+
+    class Fake:
+        def __init__(self, **kwargs: Any) -> None:
+            self.headers = kwargs["headers"]
+
+        async def __aenter__(self) -> Any:
+            return self
+
+        async def __aexit__(self, *_: Any) -> None:
+            return None
+
+        async def get(self, url: str) -> Any:
+            asked.append((url, self.headers["User-Agent"]))
+            return SimpleNamespace(content=b"png", raise_for_status=lambda: None)
+
+    monkeypatch.setattr(api_mobile.httpx, "AsyncClient", Fake)
+    api_mobile._tiles.clear()
+    client, app, _, _ = await _paired(tmp_path)
+    try:
+        answer = await client.get("/api/mobile/map/16/34000/22000.png")
+        assert answer.status == 200 and await answer.read() == b"png"
+        await client.get("/api/mobile/map/16/34000/22000.png")
+        assert len(asked) == 1  # kept, OpenStreetMap asks for that
+        assert asked[0][0].endswith("/16/34000/22000.png") and "pi-guard" in asked[0][1]
+        assert (await client.get("/api/mobile/map/25/1/1.png")).status == 404
+        assert (await client.get("/api/mobile/map/2/9/1.png")).status == 404
+        assert "openstreetmap" not in answer.headers.get("Content-Security-Policy", "")
+        client.session.cookie_jar.clear()
+        assert (await client.get("/api/mobile/map/16/34000/22000.png")).status == 401
     finally:
         await client.close()
         app.db.close()
