@@ -8,6 +8,7 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- People are cards with picture and quality, and the network overview starts with the numbers that matter.
 - The web dashboard and the phone app are on by default.
 - The add-on for connected computers is now called Home servers.
 - Settings open in a normal view with what most people need; a switch shows everything for experts.
@@ -26,6 +27,8 @@ All notable changes are documented here. The format follows
   second update on (Android 12 and newer).
 - The phone app can look like a calculator, notes and more, and can get a shortcut with any name and picture. The
   dashboard's name can be changed under Appearance, also for installed apps.
+- VPN in the phone app: split tunneling per app and connecting automatically.
+- Desktop packages for Arch Linux, Debian, Ubuntu, Linux Mint, Fedora and openSUSE.
 - Add-on for Slack, Matrix, Rocket.Chat and Mastodon: alerts as cards, send-only and without pictures.
 - Add-ons can be removed with their data, which shows how much space that frees.
 - The assistant shows its use per day and month, in euros or dollars once you enter prices, and what is left of a budget.

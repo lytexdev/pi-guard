@@ -24,8 +24,8 @@ function piholePanel(p, redraw) {
     h("div", { class: "row" }, p.blocking
       ? [h("button", { onclick: () => toggle(false, 5) }, t("web.pause_5")), h("button", { onclick: () => toggle(false, 60) }, t("web.pause_60"))]
       : h("button", { class: "primary", onclick: () => toggle(true) }, icon("shield-check"), t("web.blocking_resume"))),
-    p.top_blocked.length ? [h("h3", {}, t("web.top_blocked")), h("ul", { class: "list" }, p.top_blocked.map((d) =>
-      h("li", {}, h("span", { class: "grow mono" }, d.domain), h("span", { class: "badge" }, d.count))))] : null,
+    p.top_blocked.length ? h("details", { class: "guide" }, h("summary", {}, t("web.top_blocked")), h("ul", { class: "list" }, p.top_blocked.map((d) =>
+      h("li", {}, h("span", { class: "grow mono" }, d.domain), h("span", { class: "badge" }, d.count))))) : null,
     h("p", {}, h("a", { href: p.url.replace(/\/$/, "") + "/admin/", target: "_blank", rel: "noopener" }, t("web.open_pihole"))));
 }
 
@@ -299,6 +299,18 @@ async function exposureDialog() {
 const exposurePanel = () => h("section", { class: "panel stack" }, h("h2", {}, icon("eye"), " ", t("web.ex_title")), h("p", { class: "muted" }, t("web.ex_teaser")),
   h("button", { title: t("web.ex_tip"), onclick: exposureDialog }, icon("eye"), t("web.ex_open")));
 
+// The state of the network at a glance; every tile leads to its details.
+function overviewTiles(d) {
+  const peers = d.wireguard?.peers || [];
+  const tile = (name, value, label, target, bad) => h("a", { class: `tile tile-link${bad ? " bad" : ""}`, href: target }, icon(name),
+    h("div", {}, h("div", { class: "tile-value" }, value), h("small", {}, label)));
+  return h("div", { class: "tiles" },
+    tile("router", d.devices.length, t("web.nm_tile_devices"), "#/network/devices"),
+    d.pihole && !d.pihole.error ? tile("shield-check", `${d.pihole.percent_blocked} %`, t("web.nm_tile_blocked"), "#/network/lists", !d.pihole.blocking) : null,
+    tile("wifi", d.wlans.filter((w) => w.enabled).length, t("web.nm_tile_wifi"), "#/network/overview"),
+    d.wireguard_enabled ? tile("brand-wireguard", `${peers.filter((p) => p.active).length} / ${peers.length}`, t("web.nm_tile_vpn"), "#/network/vpn") : null);
+}
+
 function wifiPanel(d) {
   return h("section", { class: "panel stack" }, h("h2", {}, icon("wifi"), " ", t("web.nm_wifi")),
     d.wlans.length ? h("ul", { class: "list" }, d.wlans.map((w) => h("li", {}, h("span", { class: `dot ${w.enabled ? "ok" : ""}` }),
@@ -309,9 +321,9 @@ function wifiPanel(d) {
         if (wifi) wifiDialog(wifi, w.index);
       } }, icon("qrcode")))))
       : [h("p", { class: "muted" }, t("web.nm_no_router")), manualWifi()],
-    d.nearby.length ? [h("h3", {}, t("web.nm_nearby")), h("ul", { class: "list" }, d.nearby.map((n) => h("li", {}, icon("wifi"),
+    d.nearby.length ? h("details", { class: "guide" }, h("summary", {}, t("web.nm_nearby"), ` (${d.nearby.length})`), h("ul", { class: "list" }, d.nearby.map((n) => h("li", {}, icon("wifi"),
       h("div", { class: "grow" }, h("div", {}, n.ssid), h("small", {}, `${n.security || t("web.nm_open")} · ${t("web.nm_channel", { channel: n.channel })}`)),
-      h("span", { class: "badge" }, `${n.signal} %`))))] : null);
+      h("span", { class: "badge" }, `${n.signal} %`))))) : null);
 }
 
 async function blocksPanel(d) {
@@ -344,7 +356,7 @@ export async function render(main, data, params = []) {
   const body = h("div", { class: "stack" });
   const redraw = () => location.reload();
   main.append(h("nav", { class: "tabs", "aria-label": t("web.nav_network") }, TABS.map((id) => h("a", { href: `#/network/${id}`, class: id === tab ? "active" : "" }, t(`web.nm_tab_${id}`)))), body);
-  if (tab === "overview") fill(body, h("div", { class: "grid wide" }, piholePanel(data.pihole, redraw), wifiPanel(data), exposurePanel()));
+  if (tab === "overview") fill(body, overviewTiles(data), h("div", { class: "grid wide" }, piholePanel(data.pihole, redraw), wifiPanel(data)), exposurePanel());
   if (tab === "devices") fill(body, devicesPanel(data.devices, redraw));
   if (tab === "blocks") fill(body, await blocksPanel(data));
   if (tab === "lists") fill(body, await blockPanel(data.pihole_enabled));

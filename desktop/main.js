@@ -195,7 +195,6 @@ async function checkForUpdate(asked = false) {
   if (updating || !config || !app.isPackaged) return;
   const platform = platformName();
   const managed = process.platform !== "linux" || installRoot();
-  if (!managed) return;
   updating = true;
   const folder = path.join(app.getPath("userData"), "updates");
   try {
@@ -206,6 +205,10 @@ async function checkForUpdate(asked = false) {
       return;
     }
     if (!signed(manifest, platform)) throw new Error(`${manifest.version} has no valid signature`);
+    if (!managed) { // from a deb, rpm or pacman package: that belongs to the system, not to this app
+      tell(german() ? `Version ${manifest.version} ist verfügbar. Aktualisiere das Paket.` : `Version ${manifest.version} is available. Update the package.`);
+      return;
+    }
     fs.mkdirSync(folder, { recursive: true });
     const file = path.join(folder, `PiGuard-${manifest.version}`);
     await download(`${base}/file`, file, manifest.sha256);

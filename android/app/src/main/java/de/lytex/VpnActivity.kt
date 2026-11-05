@@ -11,6 +11,7 @@ import android.text.format.DateUtils
 import android.text.format.Formatter
 import android.view.View
 import android.widget.Button
+import android.widget.CompoundButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
@@ -43,6 +44,11 @@ class VpnActivity : AppCompatActivity() {
         findViewById<MaterialToolbar>(R.id.toolbar).setNavigationOnClickListener { finish() }
         findViewById<Button>(R.id.toggle).setOnClickListener { if (Vpn.running) disconnect() else connect() }
         findViewById<Button>(R.id.phone_settings).setOnClickListener { phoneSettings() }
+        findViewById<Button>(R.id.split).setOnClickListener { chooseApps() }
+        findViewById<CompoundButton>(R.id.auto).apply {
+            isChecked = store.vpnAuto
+            setOnCheckedChangeListener { _, on -> store.vpnAuto = on }
+        }
     }
 
     override fun onResume() {
@@ -87,6 +93,24 @@ class VpnActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this).setTitle(R.string.vpn_refused_title).setMessage(R.string.vpn_refused)
             .setPositiveButton(R.string.vpn_settings) { _, _ -> phoneSettings() }
             .setNegativeButton(R.string.cancel, null).show()
+    }
+
+    /** Split tunneling: these apps go straight to the internet, everything else through home. */
+    private fun chooseApps() {
+        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val apps = packageManager.queryIntentActivities(launcher, 0)
+            .map { it.activityInfo.packageName to it.loadLabel(packageManager).toString() }
+            .filter { it.first != packageName }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
+        val chosen = store.vpnExcluded.toMutableSet()
+        val checked = BooleanArray(apps.size) { apps[it].first in chosen }
+        MaterialAlertDialogBuilder(this).setTitle(R.string.vpn_split)
+            .setMultiChoiceItems(apps.map { it.second }.toTypedArray(), checked) { _, index, on ->
+                if (on) chosen += apps[index].first else chosen -= apps[index].first
+            }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                store.vpnExcluded = chosen
+                if (Vpn.running) work { Vpn.reconnect(this, store) }
+            }.setNegativeButton(R.string.cancel, null).show()
     }
 
     private fun phoneSettings() = startActivity(Intent(Settings.ACTION_VPN_SETTINGS))

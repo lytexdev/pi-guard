@@ -7,16 +7,23 @@ certificate warning. It shows what runs on your Pi, so it never needs its own up
 
 | System | File | Note |
 | --- | --- | --- |
-| Linux, recommended | `PiGuard-*-linux-x64.tar.gz` | `./scripts/install-desktop.sh FILE`: for your user, on Arch too, starts fastest and updates itself |
-| Linux | `PiGuard-*-linux-x86_64.AppImage` or `.deb` | no automatic updates |
+| Arch Linux | `.pacman`: `sudo pacman -U FILE` | or the tar.gz below |
+| Debian, Ubuntu, Linux Mint | `.deb`: `sudo apt install ./FILE` | |
+| Fedora | `.rpm`: `sudo dnf install ./FILE` | |
+| openSUSE | `.rpm`: `sudo zypper install ./FILE` | |
+| Any Linux, updates itself | `.tar.gz`: `./scripts/install-desktop.sh FILE` | for your user, no root, starts fastest |
+| Any Linux | `.AppImage` | no entry in the menu; start it by hand |
 | Windows | `PiGuard-*-win-x64.exe` | Windows warns because the file is not signed: *More info › Run anyway* |
 | macOS | `PiGuard-*-mac-*.zip` | not signed or notarized, see below |
 
 Build them yourself with:
 
 ```bash
-./scripts/build-desktop.sh 1.0.0 linux win mac
+./scripts/build-desktop.sh 1.3.0 linux win mac
 ```
+
+`.rpm` and `.pacman` need extra tools; the `electronuserland/builder` Docker image has them. Packages installed by the
+system cannot replace themselves: they tell you about a new version, and you update the package.
 
 Results land in `desktop/dist`. Windows needs wine on Linux. On macOS, build there for a working Apple Silicon version:
 Apple requires a signature, and without a paid developer account macOS blocks the app at first. Open it with a right

@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
+import android.net.Network
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -53,6 +54,12 @@ class GuardService : Service() {
         }
     }
 
+    private val networkChange = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            work.execute { Vpn.autoConnect(this@GuardService, store) }
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -70,6 +77,7 @@ class GuardService : Service() {
         connect()
         main.post(periodic)
         work.execute { Vpn.resume(this, store) }
+        getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkChange)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -185,6 +193,7 @@ class GuardService : Service() {
     }
 
     override fun onDestroy() {
+        getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkChange)
         main.removeCallbacksAndMessages(null)
         socket?.cancel()
         work.shutdown()

@@ -29,6 +29,7 @@ object Vpn {
     var way: Way? = null
         private set
     private var hunt = 0
+    private var excluded: Set<String> = emptySet()
     private var backend: GoBackend? = null
     private val tunnel = object : Tunnel {
         override fun getName() = "piguard"
@@ -45,6 +46,7 @@ object Vpn {
         val text = store.vpnConfig ?: fetch(store)
         val all = ways(store)
         val first = all.firstOrNull { it.endpoint == store.vpnEndpoint } ?: all.firstOrNull()
+        excluded = store.vpnExcluded
         start(context, text, first)
         store.vpnWanted = true
         if (all.size > 1) watch(context.applicationContext, store, text, listOfNotNull(first) + all.filter { it !== first })
@@ -70,7 +72,16 @@ object Vpn {
     }
 
     /** The access with one way filled in. WireGuard prefers IPv4, so IPv6 is named by its address. */
-    private fun prepared(text: String, chosen: Way?): String {
+    private fun prepared(text: String, chosen: Way?): String = withExcluded(withWay(text, chosen))
+
+    private fun withExcluded(text: String): String {
+        if (excluded.isEmpty()) return text
+        val lines = text.lines()
+        val at = lines.indexOfFirst { it.startsWith("PrivateKey") } + 1
+        return (lines.take(at) + "ExcludedApplications = ${excluded.joinToString(", ")}" + lines.drop(at)).joinToString("\n")
+    }
+
+    private fun withWay(text: String, chosen: Way?): String {
         chosen ?: return text
         var target = chosen.endpoint
         if (chosen.kind == "ipv6" && !target.startsWith("[")) {
@@ -139,6 +150,21 @@ object Vpn {
     /** After a restart of the phone or the app. Never asks anything, Android's consent must still stand. */
     fun resume(context: Context, store: Store) {
         if (store.vpnWanted && !running && VpnService.prepare(context) == null) runCatching { up(context, store) }
+    }
+
+    /** A new choice of apps takes effect by connecting again. */
+    fun reconnect(context: Context, store: Store) {
+        if (running) {
+            down(context, store)
+            up(context, store)
+        }
+    }
+
+    /** When the network changes. Away from home means pi-guard cannot be reached directly. */
+    fun autoConnect(context: Context, store: Store) {
+        if (!store.vpnAuto || running || store.vpnConfig == null || VpnService.prepare(context) != null) return
+        val home = store.url ?: return
+        if (!Net.isPiGuard(home)) runCatching { up(context, store) }
     }
 
     /** Whenever pi-guard is in reach: creates the access, or picks up one renewed in the dashboard. */

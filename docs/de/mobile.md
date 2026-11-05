@@ -30,6 +30,9 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
   vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
   zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
+- **VPN-Optionen:** Auf dem VPN-Bildschirm ist *Apps am VPN vorbei* das Split-Tunneling, *Automatisch verbinden* verbindet,
+  sobald pi-guard nicht direkt erreichbar ist. Kill Switch und Lockdown sind Androids „Durchgehend aktives VPN“ mit
+  „Verbindungen ohne VPN blockieren“: Das System selbst sperrt dann alles, was am Tunnel vorbei ginge.
 - **Updates:** kommen einmal am Tag im WLAN von deinem pi-guard. Das erste fragt nach einem Tippen, danach aktualisiert
   sich die App ab Android 12 selbst.
 - **Name und Symbol:** *App-Einstellungen → App-Name und Symbol* macht aus der App einen Rechner, Notizen, Wetter, Uhr,

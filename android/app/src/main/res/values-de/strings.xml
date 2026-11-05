@@ -61,6 +61,9 @@
     <string name="look_shortcut_create">Erstellen</string>
     <string name="look_done">Geändert. Es kann einen Moment dauern, bis es erscheint.</string>
     <string name="update_ready">Tippen, um das Update zu installieren</string>
+    <string name="vpn_auto">Automatisch verbinden</string>
+    <string name="vpn_auto_hint">Immer, wenn dieses Handy pi-guard nicht direkt erreicht, zum Beispiel unterwegs.</string>
+    <string name="vpn_split">Apps am VPN vorbei (Split-Tunneling)</string>
     <string name="vpn_open">VPN öffnen</string>
     <string name="vpn_connecting">Verbinde …</string>
     <string name="vpn_no_answer">Dein Zuhause antwortet nicht</string>
@@ -74,7 +77,7 @@
     <string name="vpn_last">Letzter Kontakt</string>
     <string name="vpn_waiting">Wird angelegt, sobald die App zu Hause geöffnet wird</string>
     <string name="vpn_other">Auf diesem Handy ist ein anderes VPN aktiv, zum Beispiel die WireGuard-App. Android erlaubt nur eines gleichzeitig, Verbinden ersetzt es also.</string>
-    <string name="vpn_always">Um immer verbunden zu bleiben, wähle PiGuard in den Handy-Einstellungen als durchgehend aktives VPN.</string>
+    <string name="vpn_always">Kill Switch und Lockdown: Tippe in den VPN-Einstellungen des Handys auf das Zahnrad neben PiGuard und schalte „Durchgehend aktiv“ und „Verbindungen ohne VPN blockieren“ ein. Android sperrt dann alles, was am Tunnel vorbei ginge.</string>
     <string name="vpn_settings">VPN-Einstellungen des Handys</string>
     <string name="vpn_refused_title">Android hat die Verbindung nicht erlaubt</string>
     <string name="vpn_refused">Wenn du nicht Abbrechen gedrückt hast, ist vermutlich eine andere VPN-App auf „durchgehend aktiv“ gestellt, zum Beispiel WireGuard. Android lehnt dann jedes andere VPN ab. Öffne die VPN-Einstellungen, tippe auf das Zahnrad neben dieser App, schalte „durchgehend aktiv“ aus und versuche es noch einmal.</string>

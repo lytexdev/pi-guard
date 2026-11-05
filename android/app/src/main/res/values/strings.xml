@@ -61,6 +61,9 @@
     <string name="look_shortcut_create">Create</string>
     <string name="look_done">Changed. It can take a moment to appear.</string>
     <string name="update_ready">Tap to install the update</string>
+    <string name="vpn_auto">Connect automatically</string>
+    <string name="vpn_auto_hint">Whenever this phone cannot reach pi-guard directly, for example away from home.</string>
+    <string name="vpn_split">Apps past the VPN (split tunneling)</string>
     <string name="vpn_open">Open VPN</string>
     <string name="vpn_connecting">Connecting…</string>
     <string name="vpn_no_answer">Your home does not answer</string>
@@ -74,7 +77,7 @@
     <string name="vpn_last">Last contact</string>
     <string name="vpn_waiting">Created when the app is first opened at home</string>
     <string name="vpn_other">Another VPN is active on this phone, for example the WireGuard app. Android allows only one at a time, so connecting here replaces it.</string>
-    <string name="vpn_always">To stay connected all the time, choose PiGuard as always-on VPN in the phone\'s settings.</string>
+    <string name="vpn_always">Kill switch and lockdown: in the phone\'s VPN settings, tap the gear next to PiGuard and switch on always-on VPN and blocking connections without VPN. Android then blocks everything that would go past the tunnel.</string>
     <string name="vpn_settings">Phone\'s VPN settings</string>
     <string name="vpn_refused_title">Android did not allow the connection</string>
     <string name="vpn_refused">If you did not press Cancel, another VPN app is probably set to always-on, for example WireGuard. Android then refuses every other VPN. Open the VPN settings, tap the gear next to that app, turn off always-on, and try again.</string>

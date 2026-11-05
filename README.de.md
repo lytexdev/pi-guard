@@ -2,8 +2,8 @@
 
 # pi-guard
 
-Hausüberwachung mit einem Raspberry Pi und einer USB-Kamera, bedient über
-Telegram (und optional Signal). pi-guard zeichnet durchgehend auf die
+Hausüberwachung mit einem Raspberry Pi und einer USB-Kamera, bedient über ein Web-Dashboard,
+Apps für Handy und Computer oder Telegram, Signal und Discord. pi-guard zeichnet durchgehend auf die
 Speicherkarte auf, erkennt Bewegungen und zeigt Ihnen Ihr Zuhause mit zwei
 Knöpfen: **Foto ansehen** und **Video ansehen**.
 
@@ -50,6 +50,31 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Home Assistant.
 - **Keine Cloud.** Kein Benutzerkonto bei einem Anbieter, keine offenen Ports,
   keine Telemetrie. Nur die Nachrichten, die Sie anfordern, verlassen das Gerät.
+
+## Alles drumherum
+
+| | |
+| --- | --- |
+| **Web-Dashboard** | Livebild und Ton, Personen, Ereignisse, Wochenplan mit Kalendern, Netzwerk, Einstellungen in einer Normal- und einer Experten-Ansicht. Standardmäßig an unter `https://<pi>:8443`. |
+| **Android-App** | Das Dashboard mit Alarmen ohne Google, ein VPN wie bei Mullvad mit Split-Tunneling und automatischem Verbinden, SOS mit Kamerabildern, Handy finden und auf Wunsch ein unauffälliges Aussehen. |
+| **Desktop-App** | Das Dashboard im eigenen Fenster für Linux, Windows und macOS, vertraut nur dem Zertifikat deines pi-guard. |
+| **Homeserver** | Ein kleiner Rust-Agent verbindet PC oder NAS: Status, sicheres Herunterfahren, Docker. |
+| **Add-ons** | Dienste-Wächter, Netzwerk-Analyse, Smart Home, Fernbefehle, KI-Assistent mit Kostenanzeige, weitere Sprachen sowie Alarme nach Slack, Matrix, Rocket.Chat und Mastodon. Jedes lässt sich ausschalten oder samt Daten entfernen. |
+| **Plugins** | Eigene Add-ons mit Befehlen, Seiten und API-Routen, als ZIP oder Git-Link, geprüft vor dem Start. |
+| **Wege von unterwegs** | IPv4, IPv6, Mietserver oder Tailscale, für jeden Internetanschluss. |
+| **Updates** | Agents und Apps aktualisieren sich selbst mit signierten Versionen, die auch ein gehackter Pi nicht fälschen kann. |
+
+### Die Apps bekommen
+
+| System | Paket |
+| --- | --- |
+| Arch Linux | `.pacman`, oder `scripts/install-desktop.sh` mit automatischen Updates |
+| Debian, Ubuntu, Linux Mint | `.deb` |
+| Fedora, openSUSE | `.rpm` |
+| Andere Linux-Systeme | `.AppImage` |
+| Windows | `.exe`-Installer |
+| macOS | `.zip` |
+| Android | `.apk` im Dashboard unter Add-ons › Handy-App |
 
 ## Installation
 

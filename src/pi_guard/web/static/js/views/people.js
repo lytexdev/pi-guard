@@ -61,31 +61,54 @@ export async function render(main, params = [], opts = {}) {
       status);
   };
 
+  const openForm = (preset = "") => {
+    enrollForm(preset);
+    formPanel.classList.remove("hidden");
+    formPanel.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const summary = h("div", { class: "tiles" });
   const drawList = async () => {
     const people = await api("/api/people");
-    fill(listPanel, h("h2", {}, t("faces.list_button")),
-      h("ul", { class: "list" }, people.length ? people.map((p) => h("li", { class: "person-row" },
-        p.profile?.picture ? h("img", { class: "avatar", src: `/api/people/${encodeURIComponent(p.name)}/picture?${Date.now()}`, alt: "" }) : icon("user-check", "lg"),
-        h("div", { class: "grow" }, h("div", {}, p.name), h("small", {}, t("web.samples_since", { samples: p.samples, date: when(p.enrolled) })),
-          p.similar_to ? h("small", { class: "warn-text" }, h("br"), t("web.similar_warning", { other: p.similar_to })) : null,
-        ),
-        h("button", { class: "icon-only", title: t("faces.more_button", { name: p.name }), onclick: () => { enrollForm(p.name); formPanel.scrollIntoView({ behavior: "smooth" }); } }, icon("plus")),
-        h("button", { class: "icon-only", title: t("web.pp_profile"), onclick: () => profileDialog(p, drawList) }, icon("user")),
-        h("button", { class: "icon-only", title: t("web.pp_details"), onclick: () => detailsDialog(p, drawList) }, icon("list-details")),
-        h("button", { class: "icon-only", title: t("web.rename"), onclick: async () => {
-          const next = prompt(t("web.new_name"), p.name);
-          if (next && next.trim() !== p.name && await attempt(() => api(`/api/people/${encodeURIComponent(p.name)}`, { method: "PATCH", body: { name: next.trim() } }), t("web.saved"))) drawList();
-        } }, icon("pencil")),
-        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
-          if (await confirmDialog(t("web.delete_person_confirm", { name: p.name }), t("web.delete"), true)
-              && await attempt(() => api(`/api/people/${encodeURIComponent(p.name)}`, { method: "DELETE" }), t("web.deleted"))) drawList();
-        } }, icon("trash")), qualityView(p.quality)))
-        : h("li", { class: "empty" }, t("faces.none"))),
+    const stat = (name, value, label) => h("div", { class: "tile" }, icon(name), h("div", {}, h("div", { class: "tile-value" }, value), h("small", {}, label)));
+    fill(summary, stat("users", people.length, t("web.pp_count")),
+      stat("user-check", people.filter((p) => p.quality?.level === "good").length, t("web.pp_learned")),
+      stat("photo", people.reduce((sum, p) => sum + p.samples, 0), t("web.pp_pictures")));
+    fill(listPanel, h("div", { class: "row between" }, h("h2", {}, t("faces.list_button")),
+      h("button", { class: "primary", onclick: () => openForm() }, icon("user-plus"), t("faces.add_button"))),
+      people.length ? h("div", { class: "people-grid" }, people.map((p) => personCard(p, drawList, openForm)))
+        : h("div", { class: "empty-state" }, icon("users", "lg"), h("p", {}, t("faces.none")), h("p", { class: "muted" }, t("web.pp_empty"))),
       h("p", { class: "muted" }, h("small", {}, t("web.faces_privacy"))));
   };
   enrollForm();
+  formPanel.classList.add("hidden");
   await drawList();
-  main.append(h("div", { class: "grid wide" }, listPanel, formPanel), testPanel());
+  main.append(summary, listPanel, formPanel, testPanel());
+}
+
+function personCard(p, redraw, openForm) {
+  const url = `/api/people/${encodeURIComponent(p.name)}`;
+  const picture = p.profile?.picture ? h("img", { class: "avatar big", src: `${url}/picture?${Date.now()}`, alt: "" })
+    : h("span", { class: "avatar big empty" }, p.name.trim().slice(0, 1).toUpperCase());
+  const more = h("details", { class: "card-menu" }, h("summary", { title: t("web.more") }, icon("list-details")),
+    h("div", { class: "card-menu-list" },
+      h("button", { onclick: () => detailsDialog(p, redraw) }, icon("photo"), t("web.pp_details")),
+      h("button", { onclick: async () => {
+        const next = prompt(t("web.new_name"), p.name);
+        if (next && next.trim() !== p.name && await attempt(() => api(url, { method: "PATCH", body: { name: next.trim() } }), t("web.saved"))) redraw();
+      } }, icon("pencil"), t("web.rename")),
+      h("button", { class: "danger", onclick: async () => {
+        if (await confirmDialog(t("web.delete_person_confirm", { name: p.name }), t("web.delete"), true)
+            && await attempt(() => api(url, { method: "DELETE" }), t("web.deleted"))) redraw();
+      } }, icon("trash"), t("web.delete"))));
+  return h("article", { class: "person-card" },
+    h("div", { class: "person-head" }, picture,
+      h("div", { class: "grow" }, h("strong", {}, p.name), h("small", { class: "muted block" }, t("web.samples_since", { samples: p.samples, date: when(p.enrolled) }))), more),
+    p.similar_to ? h("small", { class: "warn-text" }, t("web.similar_warning", { other: p.similar_to })) : null,
+    qualityView(p.quality),
+    h("div", { class: "row" },
+      h("button", { onclick: () => openForm(p.name) }, icon("plus"), t("web.pp_more_pictures")),
+      h("button", { onclick: () => profileDialog(p, redraw) }, icon("user"), t("web.pp_profile"))));
 }
 
 function enrollSummary(result) {
@@ -136,8 +159,7 @@ function testPanel() {
         f.runner_up ? h("small", { class: "muted" }, f.reason ? " · " : "", t("web.test_runner_up", { name: f.runner_up, score: f.runner_up_score })) : null))))
       : h("p", { class: "muted" }, t("web.test_no_face")));
   } }, icon("user-check"), t("web.test_button"));
-  return h("section", { class: "panel" },
-    h("h2", {}, t("web.test_title")),
+  return h("details", { class: "panel fold-panel" }, h("summary", {}, icon("user-check"), " ", t("web.test_title")),
     h("p", { class: "muted" }, t("web.test_hint")),
     h("div", { class: "row" }, file, button),
     out);

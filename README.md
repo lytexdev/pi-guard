@@ -2,8 +2,8 @@
 
 # pi-guard
 
-Home monitoring for a Raspberry Pi and a USB camera, operated through Telegram
-(and optionally Signal). It records continuously to local storage, notices
+Home monitoring for a Raspberry Pi and a USB camera, operated through a web dashboard, apps for
+your phone and computer, or Telegram, Signal and Discord. It records continuously to local storage, notices
 movement, and lets you look at your home with two buttons: **View photo** and
 **View video**.
 
@@ -36,19 +36,46 @@ movement, and lets you look at your home with two buttons: **View photo** and
   it, from the chat.
 - **Emergency contacts.** If alerts stay unconfirmed, backup contacts get a
   summary with photos.
-- **Web dashboard (optional).** Live picture and sound, talk through the
+- **Web dashboard.** Live picture and sound, talk through the
   speaker, image tools, trusted people, device selection, settings,
   statistics and logs; installable as an app with push notifications; login
   by password or key file with optional two-factor codes, hardware keys, several users
   (admins and viewers) and your own colours, font and logo. Also a weekly plan, a security
   scan, storage clean-up and Wi-Fi QR codes.
 - **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
-  WireGuard status, a safe fixed-IP script.
+  a WireGuard VPN with your own devices, a safe fixed-IP script.
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
 - **Nothing leaves the device** except the messages you ask for. No cloud
   account, no open ports, no telemetry.
+
+## Everything around it
+
+| | |
+| --- | --- |
+| **Web dashboard** | Live picture and sound, people, events, weekly plan with calendars, network, settings in a normal and an expert view. On by default at `https://<pi>:8443`. |
+| **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, SOS with camera pictures, finding phones, and an inconspicuous look if you want one. |
+| **Desktop app** | The dashboard in its own window for Linux, Windows and macOS, trusting only your pi-guard's certificate. |
+| **Home servers** | A small Rust agent connects a PC or NAS: status, safe shutdown, Docker. |
+| **Add-ons** | Service watcher, network analysis, smart home, remote commands, AI assistant with its costs, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
+| **Plugins** | Your own add-ons with commands, pages and API routes, from a ZIP or a Git link, checked before they run. See [plugins](docs/plugins.md). |
+| **Ways home** | IPv4, IPv6, a rented server or Tailscale, for every kind of internet connection. See [network](docs/network.md#ways-home-from-outside). |
+| **Updates** | Agents and apps update themselves with signed releases, which a compromised Pi cannot fake. See [updates](docs/updates.md). |
+
+### Getting the apps
+
+| System | Package |
+| --- | --- |
+| Arch Linux | `.pacman`, or `scripts/install-desktop.sh` with automatic updates |
+| Debian, Ubuntu, Linux Mint | `.deb` |
+| Fedora, openSUSE | `.rpm` |
+| Other Linux | `.AppImage` |
+| Windows | `.exe` installer |
+| macOS | `.zip` |
+| Android | `.apk` from the dashboard under Add-ons › Phone app |
+
+Build them with `scripts/build-desktop.sh` and `scripts/build-android.sh`, see [desktop app](docs/desktop.md).
 
 ## Requirements
 
@@ -134,7 +161,7 @@ pi-guard logs -f
 | [Public access](docs/public-access.md) | Domain, reverse proxy and safe login |
 | [Plugins](docs/plugins.md) | Write your own add-ons |
 | [API](docs/api.md) | Tokens and endpoints for your own scripts |
-| [Computers](docs/agent.md) | Connect PCs: status, safe shutdown, Docker |
+| [Home servers](docs/agent.md) | Connect PCs and NAS: status, safe shutdown, Docker |
 | [Architecture](docs/architecture.md) | how the parts fit together |
 | [Performance](docs/performance.md) | measurements and limits |
 | [Troubleshooting](docs/troubleshooting.md) | common problems |

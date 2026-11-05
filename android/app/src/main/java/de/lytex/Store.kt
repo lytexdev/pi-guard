@@ -71,6 +71,14 @@ class Store(context: Context) {
     var addresses: List<String>
         get() = prefs.getString("addresses", null)?.split('\n').orEmpty()
         set(value) = prefs.edit().putString("addresses", value.joinToString("\n")).apply()
+    /** Apps that go past the VPN. */
+    var vpnExcluded: Set<String>
+        get() = prefs.getStringSet("vpn_excluded", emptySet()).orEmpty()
+        set(value) = prefs.edit().putStringSet("vpn_excluded", value).apply()
+    /** Connects by itself whenever home cannot be reached directly. */
+    var vpnAuto: Boolean
+        get() = prefs.getBoolean("vpn_auto", false)
+        set(value) = prefs.edit().putBoolean("vpn_auto", value).apply()
     var vpnName: String?
         get() = prefs.getString("vpn_name", null)
         set(value) = prefs.edit().putString("vpn_name", value).apply()
