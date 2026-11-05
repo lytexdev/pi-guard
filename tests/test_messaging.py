@@ -287,7 +287,7 @@ async def test_help_shows_credit(app) -> None:  # type: ignore[no-untyped-def]
 
 
 async def test_strangers_get_an_answer_right_after_a_restart(app, monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    """The clock behind the limit starts at boot, so a fresh Pi must not count as "just answered"."""
+    """The clock behind the limit starts at boot, so a fresh Pi has not "just answered"."""
     monkeypatch.setattr("pi_guard.messaging.hub.time.monotonic", lambda: 60.0)
     await app.messenger.handle(msg("/photo", STRANGER))
     assert len(provider(app).sent) == 1
