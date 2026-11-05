@@ -10,9 +10,6 @@ All notable changes are documented here. The format follows
 
 - The web dashboard and the phone app are on by default.
 - The add-on for connected computers is now called Home servers.
-- Cameras sending H.264 are now recorded at the set bitrate with the hardware encoder. They ignored it before: one
-  camera wrote 80 GB a day instead of about 20. Without a hardware encoder they are still copied, and codec `copy` keeps
-  the old way.
 - Settings open in a normal view with what most people need; a switch shows everything for experts.
 
 ### Added

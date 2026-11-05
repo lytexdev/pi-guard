@@ -451,7 +451,7 @@
   "web.st_forecast": "Deine Kameras nehmen etwa {size} pro Tag auf. Der Platz reicht für etwa {days} Tage, also länger als die {wanted} Tage Aufbewahrung.",
   "web.st_forecast_short": "Deine Kameras nehmen etwa {size} pro Tag auf. Der Platz reicht nur für etwa {days} Tage, die ältesten Aufnahmen gehen also vor Ablauf der {wanted} Tage.",
   "web.st_save_title": "So sparst du Speicher",
-  "web.st_save_bitrate": "Senke die Bitrate einer Kamera unter Geräte. 2 Mbit/s sind etwa 20 GB am Tag, 1 Mbit/s die Hälfte.",
+  "web.st_save_bitrate": "Senke die Auflösung einer Kamera unter Geräte. Kameras, die selbst H.264 senden, ignorieren die Aufnahmequalität, ihnen hilft nur das. Bei anderen sind 2 Mbit/s etwa 20 GB am Tag.",
   "web.st_save_fps": "10 bis 15 Bilder pro Sekunde reichen für die meisten Räume, und 720p für die meisten Kameras.",
   "web.st_save_events": "Stelle unter Aufnahme ein, dass alles 24 Stunden bleibt und danach nur, was um Ereignisse herum liegt. Das spart am meisten.",
   "web.st_save_hours": "„Durchgehend aufzeichnen“ aus: behält von Anfang an nur, was um Ereignisse herum liegt.",

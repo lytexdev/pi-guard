@@ -109,8 +109,9 @@ sudo journalctl -u pi-guard -n 100
 ## Storage fills up quickly
 
 Settings › Storage shows what your cameras write per day and how long the space lasts. A camera at 2 Mbit/s writes about
-20 GB a day. Lower the quality under Devices, or keep everything for 24 hours and after that only what is around events.
-Several cameras are best recorded to a USB SSD.
+20 GB a day, but cameras sending H.264 ignore that setting and can write four times as much. Lower their resolution under
+Devices, or keep everything for 24 hours and after that only what is around events. Several cameras are best recorded
+to a USB SSD.
 
 ## VPN in the app
 

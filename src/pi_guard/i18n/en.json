@@ -451,7 +451,7 @@
   "web.st_forecast": "Your cameras record about {size} a day. The space lasts for about {days} days, more than the {wanted} days you keep.",
   "web.st_forecast_short": "Your cameras record about {size} a day. The space only lasts for about {days} days, so the oldest recordings go before the {wanted} days are over.",
   "web.st_save_title": "How to save space",
-  "web.st_save_bitrate": "Lower the bitrate of a camera under Devices. 2 Mbit/s is about 20 GB a day, 1 Mbit/s half of that.",
+  "web.st_save_bitrate": "Lower the resolution of a camera under Devices. Cameras sending H.264 ignore the recording quality setting, so this is what helps them. For others, 2 Mbit/s is about 20 GB a day.",
   "web.st_save_fps": "10 to 15 frames per second are enough for most rooms, and 720p for most cameras.",
   "web.st_save_events": "Under Recording, keep everything for 24 hours, and only what is around events after that. Saves the most.",
   "web.st_save_hours": "Record continuously off: only keeps what is around events, right from the start.",
