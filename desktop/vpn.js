@@ -3,7 +3,7 @@
 const net = require("node:net");
 const os = require("node:os");
 
-const SOCKET = "/run/pi-guard-vpn.sock";
+const SOCKET = process.env.PI_GUARD_VPN_SOCKET || "/run/pi-guard-vpn.sock";
 const TIMEOUT = 20_000;
 
 function ask(request) {
