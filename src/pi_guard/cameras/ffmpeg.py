@@ -131,17 +131,14 @@ def choose_capture(camera: CameraConfig, device: VideoDevice | None) -> CaptureC
                 f"{camera.resolution} is not advertised by the camera; it may pick another size"
             )
 
-    if camera.codec == "copy":
+    if camera.codec == "copy" or (camera.codec == "auto" and input_format == "h264"):
         if input_format != "h264":
             raise ValueError(f"camera {camera.id}: codec 'copy' needs input_format h264")
         return CaptureChoice(input_format, "copy", warning)
     if camera.codec != "auto":
         return CaptureChoice(input_format, camera.codec, warning)
-    hardware = encoder_works(HARDWARE_ENCODER)
-    if input_format == "h264" and not hardware:  # encoding on the CPU would cost more than disk
-        return CaptureChoice(input_format, "copy", warning)
-    # Also for cameras sending H.264: they ignore the bitrate, one sent 8 Mbit/s, 80 GB a day.
-    return CaptureChoice(input_format, HARDWARE_ENCODER if hardware else SOFTWARE_ENCODER, warning)
+    encoder = HARDWARE_ENCODER if encoder_works(HARDWARE_ENCODER) else SOFTWARE_ENCODER
+    return CaptureChoice(input_format, encoder, warning)
 
 
 def _network_capture(camera: CameraConfig) -> CaptureChoice:
