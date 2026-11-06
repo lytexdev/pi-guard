@@ -34,7 +34,8 @@ install_all() {
         ufw allow in on wg0 to any port "$PORT" proto tcp comment 'pi-guard post-quantum keys' >/dev/null
     fi
     systemctl daemon-reload
-    systemctl enable --now pi-guard-pq
+    systemctl enable pi-guard-pq
+    systemctl restart pi-guard-pq # a running service would keep the old program
     echo "running. Switch it on or off in the dashboard under Network > VPN."
 }
 

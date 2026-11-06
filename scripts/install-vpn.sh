@@ -59,6 +59,7 @@ for module in $(grep -v '^#' "$REPO/deploy/vpn/pi-guard-vpn-modules.conf"); do
     modprobe "$module" 2>/dev/null || echo "$module cannot be loaded yet: restart this computer if its kernel was just updated"
 done
 systemctl daemon-reload
-systemctl enable --now pi-guard-vpn
+systemctl enable pi-guard-vpn
+systemctl restart pi-guard-vpn # a running service would keep the old program
 echo "running. Open the VPN page in the desktop app."
 echo "If lockdown ever locks you out: sudo pi-guard-vpn unlock"
