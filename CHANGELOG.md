@@ -11,6 +11,8 @@ All notable changes are documented here. The format follows
 - The dashboard shows a placeholder while a page loads, instead of an empty area.
 - The dashboard opens faster: it asks for the session once at the start and no longer waits for it when changing pages,
   the overview no longer waits for its two slowest panels, and the events page asks for everything at once.
+- The dashboard's files and texts travel compressed, about a third of their size. The files are packed when the
+  package is built, so the Pi spends no CPU on it.
 - When the disk reaches its limit, the oldest recordings without motion go first, then the oldest with motion or a
   person, and the last few minutes last. Before, age alone decided.
 - People are cards with picture and quality, and the network overview starts with the numbers that matter.
