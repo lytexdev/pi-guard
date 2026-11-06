@@ -14,9 +14,9 @@ Only the latest release receives security fixes.
 ## Security model
 
 - **Network access.** The web dashboard listens on port 8443 (HTTPS) on all interfaces and is on by
-  default; turn it off with `PI_GUARD_DASHBOARD_ENABLED=false`. The default login `admin` / `admin123`
-  must be changed at the first login, and nothing else works until it is, so do that right after
-  installing. Telegram uses outbound long polling; signal-cli listens on localhost only; MQTT is an
+  default; turn it off with `PI_GUARD_DASHBOARD_ENABLED=false`. `install.sh` chooses a random first password;
+  without it, as in Docker, it is `admin123` unless `PI_GUARD_DASHBOARD_FIRST_PASSWORD` is set. It
+  must be changed at the first login, and nothing else works until it is. Telegram uses outbound long polling; signal-cli listens on localhost only; MQTT is an
   outbound client connection.
 - **Dashboard roles.** The server enforces them with an allowlist. Viewers only watch and get no VPN
   access. Removing a person removes their devices, logins and VPN access. A new password ends that

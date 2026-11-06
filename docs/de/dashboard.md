@@ -19,7 +19,9 @@ PI_GUARD_MOBILE_ENABLED=false
 
 ## Erste Anmeldung und Einrichtungsassistent
 
-Die erste Anmeldung ist **admin / admin123**. Danach verlangt das Dashboard
+Die erste Anmeldung ist **admin** mit dem Passwort, das `install.sh` am Ende zeigt. Ohne das Skript,
+etwa in Docker, ist es **admin123**, wenn du nicht `PI_GUARD_DASHBOARD_FIRST_PASSWORD` setzt. Danach
+verlangt das Dashboard
 sofort einen eigenen Benutzernamen und ein eigenes Passwort (mindestens 10
 Zeichen) und bietet einen Zwei-Faktor-Code an: QR-Code mit einer
 Authenticator-App scannen (z. B. Google Authenticator, Aegis, 2FAS) und einen
@@ -32,7 +34,7 @@ hoher Kontrast, große Schrift). Jeder Schritt außer der Anmeldung lässt sich
 überspringen und später unter *Mehr → Einrichtungsassistent* wieder öffnen.
 
 **Ausgesperrt?** `sudo -u pi-guard pi-guard dashboard reset-password` setzt
-die Anmeldung auf admin / admin123 zurück.
+die Anmeldung auf admin mit einem neuen Passwort zurück, das der Befehl anzeigt.
 
 ## Anmeldung
 

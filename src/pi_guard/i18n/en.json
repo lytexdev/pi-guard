@@ -545,7 +545,7 @@
   "web.trust_device_name": "Name for this device",
   "web.random_mac": "private (random) MAC address",
   "web.account_change": "Change login",
-  "web.account_default_note": "You are using the default login admin / admin123. Choose your own user name and password now; until then nothing else can be used.",
+  "web.account_default_note": "You are using the first login. Choose your own user name and password now; until then nothing else can be used.",
   "web.account_new": "Your own login",
   "web.account_saved": "Saved. From now on you log in as {name}.",
   "web.alert_at_home": "Also alert about movement while someone is at home",

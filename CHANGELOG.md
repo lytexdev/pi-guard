@@ -22,6 +22,9 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- A new installation with `install.sh` gets a random first password instead of `admin123`, which anyone in the network
+  could have tried first. `pi-guard dashboard reset-password` chooses one too. Docker keeps `admin123` unless
+  `PI_GUARD_DASHBOARD_FIRST_PASSWORD` is set.
 - Someone removed from the dashboard could go on watching with a paired phone or computer. Their devices, logins and VPN
   access now go with them, and devices of people removed earlier are refused. The same goes for a deleted key file.
 - Adding a passkey or hardware key, an API token or a key file now asks for the password, so a stolen session cannot

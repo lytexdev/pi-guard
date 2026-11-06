@@ -25,6 +25,7 @@ from aiohttp import web
 
 from pi_guard.security.files import atomic_write
 from pi_guard.web.auth import (
+    DEFAULT_PASSWORD,
     PENDING_ALL,
     PENDING_CODEWORD,
     PENDING_NONE,
@@ -120,9 +121,10 @@ class Dashboard:
         s = app.settings
         self.settings = s
         self.auth = AuthStore(app.db, self._secret_key())
-        self.auth.ensure_account()
+        first = s.dashboard_first_password
+        self.auth.ensure_account(first.get_secret_value() if first else DEFAULT_PASSWORD)
         if self.auth.account()["must_change"] and "password" in s.dashboard_methods:
-            log.warning("dashboard still uses the default login admin/admin123; "
+            log.warning("dashboard still uses its first login; "
                         "it must be changed at the first login")  # fmt: skip
         self.guard = Guard(
             s.dashboard_rate_limit_per_minute,

@@ -545,7 +545,7 @@
   "web.trust_device_name": "Name für dieses Gerät",
   "web.random_mac": "private (zufällige) MAC-Adresse",
   "web.account_change": "Anmeldung ändern",
-  "web.account_default_note": "Sie verwenden die Standard-Anmeldung admin / admin123. Wählen Sie jetzt einen eigenen Benutzernamen und ein Passwort; bis dahin lässt sich nichts anderes benutzen.",
+  "web.account_default_note": "Sie verwenden die erste Anmeldung. Wählen Sie jetzt einen eigenen Benutzernamen und ein Passwort; bis dahin lässt sich nichts anderes benutzen.",
   "web.account_new": "Ihre eigene Anmeldung",
   "web.account_saved": "Gespeichert. Ab jetzt melden Sie sich als {name} an.",
   "web.alert_at_home": "Auch bei Bewegung melden, wenn jemand zuhause ist",

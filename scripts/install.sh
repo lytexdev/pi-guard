@@ -226,7 +226,12 @@ install -d -m 0700 -o "$USER_NAME" -g "$USER_NAME" "$RECORDINGS"
 # On unless someone switched them off: most people use pi-guard through these two.
 if ! grep -q '^PI_GUARD_DASHBOARD_ENABLED=' "$ENV_FILE"; then
     set_env PI_GUARD_DASHBOARD_ENABLED true
-    say "first login: admin / admin123 - the dashboard then asks for your own password"
+    if [[ ! -f "$DATA/pi-guard.db" ]] && ! grep -q '^PI_GUARD_DASHBOARD_FIRST_PASSWORD=..' "$ENV_FILE"; then
+        # Anyone in the network could try a well-known password before you do.
+        FIRST_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(12))')"
+        set_env PI_GUARD_DASHBOARD_FIRST_PASSWORD "$FIRST_PASSWORD"
+        say "first login: admin / $FIRST_PASSWORD - the dashboard then asks for your own password"
+    fi
     say "dashboard: https://<pi>:8443; install the certificate from https://<pi>:8443/ca.crt on your devices"
 fi
 grep -q '^PI_GUARD_MOBILE_ENABLED=' "$ENV_FILE" || set_env PI_GUARD_MOBILE_ENABLED true

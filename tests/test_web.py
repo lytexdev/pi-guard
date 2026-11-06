@@ -4,6 +4,7 @@ import asyncio
 import gzip
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -739,3 +740,30 @@ async def test_a_viewers_new_password_leaves_other_people_logged_in(web) -> None
     finally:
         await viewer.close()
         await second.close()
+
+
+async def test_the_first_password_replaces_the_well_known_one(tmp_path: Path) -> None:
+    app = make_app(tmp_path, dashboard_enabled=True, dashboard_tls=False,
+                   dashboard_first_password="chosen by the installer")  # fmt: skip
+    dashboard = Dashboard(app)
+    try:
+        assert dashboard.auth.check_password("admin", "chosen by the installer") == "admin"
+        assert dashboard.auth.check_password("admin", auth.DEFAULT_PASSWORD) is None
+        assert dashboard.auth.account()["must_change"]
+    finally:
+        app.db.close()
+
+
+def test_reset_password_shows_a_new_random_password(tmp_path: Path, monkeypatch: Any) -> None:
+    from typer.testing import CliRunner
+
+    from pi_guard import cli
+
+    app = make_app(tmp_path, dashboard_enabled=True, dashboard_tls=False)
+    settings = app.settings
+    app.db.close()
+    monkeypatch.setattr(cli, "_config", lambda: SimpleNamespace(settings=settings))
+    answer = CliRunner().invoke(cli.app, ["dashboard", "reset-password"], input="y\n")
+    assert answer.exit_code == 0, answer.output
+    password = answer.output.split("admin / ", 1)[1].split(";", 1)[0]
+    assert len(password) >= 10 and password != auth.DEFAULT_PASSWORD
