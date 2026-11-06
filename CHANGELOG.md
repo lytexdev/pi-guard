@@ -42,6 +42,7 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- The agent reads its certificate with rustls itself; `rustls-pemfile` is no longer maintained.
 - The log names dashboard requests that take longer than half a second.
 - Quantum-resistant VPN on phones and on Windows too: one key exchange in Rust (`vpn/kem`) with ML-KEM-1024 and HQC-256
   for the Pi, computers and phones, inside the tunnel. Computers use it instead of Rosenpass; the Pi keeps Rosenpass
