@@ -294,6 +294,16 @@ OWNER="$(stat -c %U "$REPO")"
 printf 'REPO=%q\nOWNER=%q\n' "$REPO" "$OWNER" > "$CONF/update.conf"
 runuser -u "$OWNER" -- git -C "$REPO" rev-parse HEAD > "$PREFIX/commit" 2>/dev/null || true
 install -m 0755 "$REPO/scripts/update.sh" /usr/local/sbin/pi-guard-update
+install -m 0755 "$REPO/deploy/update/pi-guard-release-check" /usr/local/sbin/pi-guard-release-check
+# Only when there is none: an update must not be able to change whose signature counts.
+if [[ -f "$PREFIX/release-signers" ]]; then
+    cmp -s "$REPO/deploy/update/release-signers" "$PREFIX/release-signers" \
+        || warn "the release key in the repository differs from $PREFIX/release-signers; see docs/updates.md"
+elif [[ -s "$REPO/deploy/update/release-signers" ]]; then
+    install -m 0644 "$REPO/deploy/update/release-signers" "$PREFIX/release-signers"
+else
+    warn "no release key yet: updates from the dashboard stay off; see docs/updates.md"
+fi
 if [[ -e /usr/local/sbin/pi-guard-wg-status ]]; then  # an update of it comes with every install
     install -m 0755 "$REPO/deploy/wireguard/pi-guard-wg-status" /usr/local/sbin/pi-guard-wg-status
 fi

@@ -1239,7 +1239,7 @@
   "web.up_running": "Update läuft …",
   "web.up_started": "Update gestartet. pi-guard startet gleich neu.",
   "web.up_check": "Prüfen",
-  "web.up_hint": "Lädt die neue Version von GitHub, installiert sie, und geht zur alten zurück, wenn sie nicht startet. Das Dashboard gehört zur Software und wird mit aktualisiert.",
+  "web.up_hint": "Lädt die neue signierte Version von GitHub, prüft die Signatur, installiert sie, und geht zur alten zurück, wenn sie nicht startet. Das Dashboard gehört zur Software und wird mit aktualisiert.",
   "web.pm_search": "Add-ons durchsuchen …",
   "web.pm_pin": "An die Navigation anheften",
   "web.pm_title": "Eigene Add-ons",

@@ -2,10 +2,14 @@
 # Update pi-guard from its Git repository. Installed as /usr/local/sbin/pi-guard-update and run
 # as root by pi-guard-update.path when the dashboard asks; `sudo ./scripts/update.sh` works too.
 #
-# Only fast-forwards: local changes or a different history stop the update. After installing,
-# the service must report healthy within a minute, otherwise the previous version comes back.
+# Installs only releases signed with the key in SIGNERS, so GitHub alone cannot run anything here
+# as root; see docs/updates.md. Only fast-forwards: local changes or a different history stop the
+# update. After installing, the service must report healthy within a minute, otherwise the
+# previous version comes back.
 set -uo pipefail
 PREFIX=/opt/pi-guard
+SIGNERS="$PREFIX/release-signers"  # root's, and not taken from the repository during an update
+CHECK=/usr/local/sbin/pi-guard-release-check
 CONF=/etc/pi-guard/update.conf
 DATA=/var/lib/pi-guard
 STATE="$DATA/update"
@@ -34,6 +38,8 @@ install_code() {
     "$PREFIX/venv/bin/pip" install --quiet "$REPO[vision,mqtt,web]" \
         && install -m 0644 "$REPO/deploy/systemd/pi-guard.service" /etc/systemd/system/pi-guard.service \
         && install -m 0755 "$REPO/scripts/update.sh" /usr/local/sbin/pi-guard-update \
+        && { [[ ! -e "$REPO/deploy/update/pi-guard-release-check" ]] \
+             || install -m 0755 "$REPO/deploy/update/pi-guard-release-check" "$CHECK"; } \
         && git_as_owner rev-parse HEAD > "$PREFIX/commit" \
         && systemctl daemon-reload \
         && systemctl restart pi-guard
@@ -48,16 +54,18 @@ healthy() {
 }
 
 report running "checking"
-git_as_owner fetch --quiet origin main || { report failed "download failed"; exit 1; }
+[[ -s "$SIGNERS" && -x "$CHECK" ]] || { report failed "no release key on this device; see docs/updates.md"; exit 1; }
+git_as_owner fetch --quiet --force --tags origin || { report failed "download failed"; exit 1; }
 old="$(git_as_owner rev-parse HEAD)"
-new="$(git_as_owner rev-parse origin/main)"
+new="$(runuser -u "$OWNER" -- "$CHECK" "$REPO" "$SIGNERS")" \
+    || { report failed "no signed release found"; exit 1; }
 if [[ "$old" == "$new" ]]; then report done "already up to date"; exit 0; fi
 if git_as_owner merge-base --is-ancestor "$new" "$old"; then
     report done "this device is ahead of the repository"; exit 0
 fi
 git_as_owner merge-base --is-ancestor "$old" "$new" \
     || { report failed "history differs; update by hand"; exit 1; }
-git_as_owner merge --quiet --ff-only origin/main || { report failed "local changes in the way"; exit 1; }
+git_as_owner merge --quiet --ff-only "$new" || { report failed "local changes in the way"; exit 1; }
 report running "installing"
 if install_code && healthy; then
     report done "updated to ${new:0:10}"

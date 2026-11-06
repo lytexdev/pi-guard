@@ -1239,7 +1239,7 @@
   "web.up_running": "Updating …",
   "web.up_started": "Update started. pi-guard restarts shortly.",
   "web.up_check": "Check",
-  "web.up_hint": "Downloads the new version from GitHub, installs it, and goes back to the old one if it does not start. The dashboard is part of the software and updated with it.",
+  "web.up_hint": "Downloads the new signed version from GitHub, checks the signature, installs it, and goes back to the old one if it does not start. The dashboard is part of the software and updated with it.",
   "web.pm_search": "Search add-ons …",
   "web.pm_pin": "Pin to the navigation",
   "web.pm_title": "Own add-ons",

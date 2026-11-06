@@ -18,6 +18,9 @@ Only the latest release receives security fixes.
   without it, as in Docker, it is `admin123` unless `PI_GUARD_DASHBOARD_FIRST_PASSWORD` is set. It
   must be changed at the first login, and nothing else works until it is. Telegram uses outbound long polling; signal-cli listens on localhost only; MQTT is an
   outbound client connection.
+- **Updates.** Agents and desktop apps check a signature, and a Pi installs only release tags signed with
+  a key that never leaves the owner's computer. A Pi trusts only the key in
+  `/opt/pi-guard/release-signers`, which updates cannot change.
 - **Dashboard roles.** The server enforces them with an allowlist. Viewers only watch and get no VPN
   access. Removing a person removes their devices, logins and VPN access. A new password ends that
   person's other logins. Passkeys, API tokens and key files need the password to be added.

@@ -42,6 +42,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Pi updates are signed. The update button and `scripts/update.sh` install only release tags signed with a key that stays
+  on your computer, so someone who gets into the GitHub account cannot run anything as root on a Pi. Until you make the
+  key with `scripts/release.sh key` and install once by hand, the button reports that there is no key. See
+  [Updates](docs/updates.md#updating-the-pi).
 - The agent reads its certificate with rustls itself; `rustls-pemfile` is no longer maintained.
 - The log names dashboard requests that take longer than half a second.
 - Quantum-resistant VPN on phones and on Windows too: one key exchange in Rust (`vpn/kem`) with ML-KEM-1024 and HQC-256

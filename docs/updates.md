@@ -1,6 +1,7 @@
 # Updates
 
-Agents, desktop apps and the phone app update themselves from your pi-guard.
+Agents, desktop apps and the phone app update themselves from your pi-guard. The Pi itself installs signed releases, see
+[below](#updating-the-pi).
 
 ## Why this is safe
 
@@ -43,3 +44,39 @@ The last argument is the ssh host of your pi-guard. The key is `~/.config/pi-gua
 by hand. Anyone who has it can sign updates for your machines, so keep it as safe as the app's signing key.
 
 If you build your own, make your own key and put its public half into `agent/src/update.rs` and `desktop/updates.js`.
+
+## Updating the Pi
+
+The update button and `scripts/update.sh` install a new version as root. So they do not trust GitHub: they install only a
+release tag signed with a key that stays on your computer. Someone who gets into the GitHub account can change `main`,
+but no Pi will run it. A Pi takes the newest tag with a valid signature, and only if it continues the running version, so
+an old release cannot be brought back.
+
+Git commits on `main` alone are no release: after a merge, the Pi keeps its version until you sign one.
+
+**Once, on your own computer, never on a Pi:**
+
+```bash
+./scripts/release.sh key
+git add deploy/update/release-signers && git commit -m "build: the release key"
+```
+
+The key is `~/.config/pi-guard/release-ed25519`. Choose a passphrase and back it up. Then bring this commit to each Pi
+and run `sudo ./scripts/install.sh` there: it stores the public half in `/opt/pi-guard/release-signers`. Until then, the
+update button reports that there is no release key, and installing by hand still works.
+
+**For each release,** with `main` pushed and checked out:
+
+```bash
+./scripts/release.sh tag
+```
+
+An update never changes `/opt/pi-guard/release-signers`, or stolen access could replace it. To change the key, for
+example because it was lost, make a new one and put it there by hand on each Pi:
+
+```bash
+sudo install -m 0644 deploy/update/release-signers /opt/pi-guard/release-signers
+```
+
+If you run your own fork, make your own key the same way. The dashboard shows the newest tag from GitHub only as a hint;
+the check happens in `pi-guard-release-check` on the Pi.
