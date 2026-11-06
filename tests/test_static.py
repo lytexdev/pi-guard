@@ -72,3 +72,9 @@ def test_no_window_prompt_anywhere() -> None:
     static = Path(__file__).parents[1] / "src/pi_guard/web/static/js"
     for script in static.rglob("*.js"):
         assert not re.search(r"(?<![\w.])prompt\(", script.read_text()), script.name
+
+
+def test_loading_placeholder_disappears_for_views_that_only_append() -> None:
+    # People and Live add to <main>; the placeholder would stay above them.
+    app = (STATIC / "js" / "app.js").read_text()
+    assert "waiting.remove()" in app.split("finally", 1)[1]

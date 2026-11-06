@@ -313,6 +313,7 @@
   "web.listen_note": "Listening plays a chime on site, ends after 10 minutes and is logged.",
   "web.live_unavailable": "Live view is not available right now.",
   "web.load": "Load",
+  "web.loading": "Loading…",
   "web.load_more": "Show more",
   "web.login": "Log in",
   "web.login_failed": "Login failed.",

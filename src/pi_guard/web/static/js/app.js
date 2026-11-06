@@ -1,7 +1,7 @@
 // Shell, navigation and hash router. Views live in ./views and render into <main>.
 import { accessibilityButton, applyAccessibility } from "./accessibility.js";
 import { installTooltips } from "./tooltip.js";
-import { assistantButton, installLightbox, scrollTopButton } from "./widgets.js";
+import { assistantButton, installLightbox, scrollTopButton, skeleton } from "./widgets.js";
 import { api, h, icon, loadIcons, loadTexts, lang, setCsrf, t, fill } from "./api.js";
 import { applyAppearance, applyDesign, logoUrl } from "./theme.js";
 
@@ -117,20 +117,25 @@ async function show() {
   if (session.authenticated && session.role !== "viewer" && !session.setup_done && name === "overview"
       && !sessionStorage.getItem("pg.setup_later")) { location.hash = "#/setup/welcome"; return; }
   const loader = VIEWS[name] || VIEWS.overview;
-  const view = await loader();
   if (name === "login" || name === "setup") {
+    const view = await loader();
     root.replaceChildren();
     cleanup = await view.render(root, params) || null;
     return;
   }
   fill(root, shell(name in VIEWS ? name : "overview"));
   const main = document.getElementById("main");
+  const waiting = skeleton();
+  main.append(waiting);
   try {
+    const view = await loader();
     cleanup = await view.render(main, params) || null;
   } catch (error) {
     fill(main, h("section", { class: "panel" },
       h("p", { class: "notice danger" }, error.status === 429 ? t("web.rate_limited") : (error.message || t("web.error"))),
       h("button", { onclick: route }, t("web.retry"))));
+  } finally {
+    waiting.remove();  // some views add to <main> instead of replacing it
   }
 }
 

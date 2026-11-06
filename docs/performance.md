@@ -16,6 +16,13 @@
   drop the oldest entries when they fall behind, so memory cannot grow without
   limit while Telegram or the broker is unreachable.
 
+## Dashboard speed
+
+The desktop and phone apps show the dashboard from the Pi, so all of this reaches them without an app update.
+
+- **Something is on screen at once.** A page shows a placeholder until its data is there. It stays hidden for the first
+  150 ms, so fast answers do not flash.
+
 ## Measurements
 
 Measured on an x86_64 desktop (16 cores) with a Logitech C270 at 1280×720,
