@@ -108,7 +108,9 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (request.url.toString().startsWith(store.url!!)) return false
+                // Compared by part: "https://pi:8443@evil.example" starts with the same letters.
+                val home = Uri.parse(store.url!!)
+                if (request.url.scheme == home.scheme && request.url.authority == home.authority) return false
                 startActivity(Intent(Intent.ACTION_VIEW, request.url))
                 return true
             }
