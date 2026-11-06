@@ -108,6 +108,23 @@ What to know:
   Since all of this only adds to WireGuard's own keys, a flaw in it would not make the tunnel weaker than without it.
 - Devices that have not updated yet still use [Rosenpass](https://rosenpass.eu), so the Pi keeps it for now.
 
+## Building for the Pi
+
+`scripts/vpn-server.sh install` takes the programs from `~/pi-guard-vpn` on the Pi. `pi-guard-vpn` has C code in it (HQC), so
+a build on a computer needs a C compiler for the Pi too, here on Debian with `gcc-aarch64-linux-gnu`:
+
+```bash
+rustup target add aarch64-unknown-linux-gnu
+cd vpn
+CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc \
+CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+    cargo build --release --target aarch64-unknown-linux-gnu
+```
+
+Build on the same Debian release as the Pi, or a newer glibc will refuse to start there. For Windows, the same with
+`gcc-mingw-w64-x86-64` and `--target x86_64-pc-windows-gnu`. Android: `scripts/build-android.sh` does it by itself with the
+NDK. Until Rosenpass is gone, `install` also wants a `rosenpass` built for the Pi in the same folder.
+
 ## How it is built
 
 `vpn/` is a small Rust program without a shell in between: every value from the access is checked before it reaches

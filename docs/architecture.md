@@ -1,6 +1,17 @@
 # Architecture
 
-pi-guard is one Python process (asyncio) plus one FFmpeg process per camera.
+pi-guard is one Python process (asyncio) plus one FFmpeg process per camera. Around it:
+
+| Folder | What it is |
+|---|---|
+| `vpn/` | VPN service in Rust: tunnel, kill switch and split tunneling on computers, the Pi's side of the key exchange |
+| `vpn/kem/` | the post-quantum key exchange, one implementation for the Pi, computers and Android |
+| `agent/` | small Rust program on connected computers |
+| `desktop/` | Electron app: shows the dashboard, drives the VPN service |
+| `android/` | phone app: shows the dashboard, has its own WireGuard client |
+
+Settings changed in the dashboard live in `DATA_DIR/dashboard.env` and `DATA_DIR/dashboard.yaml`, and win over
+`.env` and `config.yaml`.
 
 ```
                        ┌────────────── FFmpeg (per camera) ──────────────┐
@@ -101,7 +112,8 @@ an SD card: about 250 durable single inserts per second, and 0.2 ms to read the 
 ## Where Rust is used
 
 Rust is for small programs that run on their own: the agent on connected computers (`agent/`) has no
-runtime to install and handles untrusted network input.
+runtime to install and handles untrusted network input. The same goes for the VPN service (`vpn/`), which
+runs as root, and its key exchange (`vpn/kem/`), which also gives phones the very same code.
 
 Pi-guard's own work is not limited by Python. Measured on a Raspberry Pi with one camera: FFmpeg, written
 in C, used about 130 % of a core, the Python service 3 to 8 %. Motion analysis and face models already run in

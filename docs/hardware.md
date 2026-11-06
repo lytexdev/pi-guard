@@ -19,6 +19,7 @@ been tested on that board by the maintainers. Reports are welcome.
 |---|---|
 | Logitech C270 (USB, MJPEG/YUYV, 1280×720) on x86_64, FFmpeg 9 | capture, segments, snapshots, clips, motion pipeline and microphone capture work; libx264 is used |
 | C270 in Docker (read-only, unprivileged) | works |
+| Generic "HD Web Camera" (USB, H.264/MJPEG/YUYV, fixed focus) on a Raspberry Pi 4 | capture, segments and motion work. Its own H.264 is too soft for face recognition, so `yuyv422` with `libx264` is better, at 5 FPS in 720p, see [troubleshooting](troubleshooting.md) |
 
 Not yet verified on real hardware: Raspberry Pi 4/5 (including the
 `h264_v4l2m2m` hardware encoder), CSI cameras, cameras with built-in H.264,
