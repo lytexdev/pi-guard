@@ -6,7 +6,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml setup.py README.md LICENSE ./
 COPY src ./src
 RUN pip install --no-cache-dir ".[vision,mqtt,web]" && rm -rf /src
 

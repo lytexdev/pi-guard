@@ -138,6 +138,11 @@ installiert ist. Ein gutes Ergebnis ist keine Garantie, dass ein System sauber i
 Datenbank verdichten sowie alte Systemprotokolle und den Paket-Cache leeren (im Chat auch `/speicher`).
 Beweisvideos und Gesichtsdaten werden dort nicht bereinigt.
 
+## Wenn das Dashboard langsam wirkt
+
+Öffne *Logs* und suche nach `slow request:`. Dort steht jede Antwort, die eine halbe Sekunde oder länger gedauert
+hat, mit ihrer Route. Antworten des Assistenten tauchen ebenfalls auf, weil sie ohnehin dauern.
+
 ## Erscheinungsbild
 
 Unter *Einstellungen → Erscheinungsbild* wählst du Akzentfarbe, Schriftart, Animationen und ein

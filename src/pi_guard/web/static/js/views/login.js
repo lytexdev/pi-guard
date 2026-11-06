@@ -49,7 +49,7 @@ export async function render(root) {
       h("button", { onclick: () => { stop = true; location.reload(); } }, t("web.cancel")));
     let stop = false;
     const poll = async () => {
-      if (stop) return;
+      if (stop || !panel.isConnected) return;
       let answer;
       try { answer = await api("/api/login/telegram/poll", { method: "POST", body: { poll: start.poll } }); }
       catch { setTimeout(poll, 3000); return; }

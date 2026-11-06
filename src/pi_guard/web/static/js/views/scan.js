@@ -1,5 +1,5 @@
 // Security scan: run it, read the result, optionally get the report in the messenger.
-import { api, attempt, fill, h, icon, t, when } from "../api.js";
+import { api, attempt, fill, h, icon, t, when, whileShown } from "../api.js";
 
 const BADGE = { bad: "danger", warn: "warn", ok: "ok", unknown: "" };
 
@@ -25,7 +25,7 @@ export async function render(box) {
           c.detail ? h("small", { class: "mono block" }, c.detail) : null,
           c.status === "ok" ? null : h("small", { class: "block" }, t(`web.scan_${c.id}_fix`))),
         h("span", { class: `badge ${BADGE[c.status]}` }, t(`web.scan_state_${c.status}`)))))) : null);
-    if (s.running) timer = setTimeout(draw, 3000);
+    if (s.running) timer = whileShown(box, draw, 3000);
   };
   await draw();
   return () => clearTimeout(timer);

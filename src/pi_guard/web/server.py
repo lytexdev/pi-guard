@@ -14,6 +14,7 @@ import re
 import secrets
 import socket
 import ssl
+import time
 from collections.abc import Awaitable, Callable, Coroutine
 from importlib import resources
 from pathlib import Path
@@ -62,6 +63,7 @@ TLS_NAMES_KEY = "web.tls_names"
 MAX_TLS_NAMES = 16
 TOTP_LENGTH = 6
 STATIC = Path(str(resources.files("pi_guard.web").joinpath("static")))
+SLOW_REQUEST = 0.5  # seconds
 
 DASHBOARD_KEY: web.AppKey[Dashboard] = web.AppKey("dashboard")
 SESSION_KEY = web.RequestKey("pg.session", Session)
@@ -202,7 +204,7 @@ class Dashboard:
         )
 
         webapp = web.Application(
-            middlewares=[self.guard.middleware, self._auth_middleware],
+            middlewares=[self._timing_middleware, self.guard.middleware, self._auth_middleware],
             client_max_size=60 * 1024 * 1024,  # uploads of enrollment videos
         )
         webapp[DASHBOARD_KEY] = self
@@ -277,6 +279,21 @@ class Dashboard:
 
     async def _headers(self, request: web.Request, response: web.StreamResponse) -> None:
         self.guard.headers(response, request)
+
+    @web.middleware
+    async def _timing_middleware(
+        self, request: web.Request, handler: Callable[[web.Request], Awaitable[web.StreamResponse]]
+    ) -> web.StreamResponse:
+        """Finds what makes the dashboard feel slow. Streams and files are long on purpose."""
+        started = time.perf_counter()
+        response = await handler(request)
+        took = time.perf_counter() - started
+        if took >= SLOW_REQUEST and isinstance(response, web.Response):
+            # The route's pattern, never the address: that can hold file names or tokens.
+            resource = request.match_info.route.resource
+            route = resource.canonical if resource else "?"
+            log.info("slow request: %s %s took %d ms", request.method, route, took * 1000)
+        return response
 
     @web.middleware
     async def _auth_middleware(

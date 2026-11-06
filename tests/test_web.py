@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
 import json
 from pathlib import Path
 from typing import Any
@@ -12,7 +13,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from pi_guard.cameras.live import AudioFanout, LiveFrames, read_mpjpeg
 from pi_guard.config import OVERRIDE_ENV, load_config
 from pi_guard.core.events import EventType
-from pi_guard.web import auth
+from pi_guard.web import auth, server
 from pi_guard.web.auth import AuthStore
 from pi_guard.web.server import Dashboard
 from pi_guard.web.settings_schema import EXPERT
@@ -124,6 +125,49 @@ async def test_security_headers_and_robots(web) -> None:  # type: ignore[no-unty
     cookie = await client.post("/api/login", json={"username": "admin", "password": PASSWORD})
     set_cookie = cookie.headers["Set-Cookie"]
     assert "HttpOnly" in set_cookie and "SameSite=Strict" in set_cookie
+
+
+async def test_packed_files_and_texts_travel_compressed(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    static = tmp_path / "static"
+    static.mkdir()
+    (static / "app.js").write_text("plain();")
+    (static / "app.js.gz").write_bytes(gzip.compress(b"plain();"))
+    monkeypatch.setattr(server, "STATIC", static)
+    client, app = await _client(tmp_path)
+    try:
+        packed = await client.get("/static/app.js", headers={"Accept-Encoding": "gzip"})
+        assert packed.headers["Content-Encoding"] == "gzip"
+        assert packed.headers["Content-Type"].endswith("javascript")
+        assert "Accept-Encoding" in packed.headers["Vary"]
+        assert await packed.text() == "plain();"
+        plain = await client.get("/static/app.js", headers={"Accept-Encoding": "identity"})
+        assert "Content-Encoding" not in plain.headers
+        texts = await client.get("/api/i18n/de", headers={"Accept-Encoding": "gzip"})
+        assert texts.headers["Content-Encoding"] == "gzip"
+        assert "Accept-Encoding" in texts.headers["Vary"]
+        assert "web.loading" in await texts.json()
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_the_csrf_token_is_never_compressed(web) -> None:  # type: ignore[no-untyped-def]
+    client, _ = web
+    await _login(client)
+    response = await client.get("/api/session", headers={"Accept-Encoding": "gzip"})
+    assert "Content-Encoding" not in response.headers
+
+
+async def test_slow_requests_are_logged_without_their_address(web, monkeypatch, caplog) -> None:  # type: ignore[no-untyped-def]
+    client, _ = web
+    await _login(client)
+    monkeypatch.setattr(server, "SLOW_REQUEST", 0)
+    with caplog.at_level("INFO", logger="pi_guard.web.server"):
+        await client.get("/api/events?camera=secret")
+        await client.get("/api/media/snapshots/private.jpg")
+    assert "slow request: GET /api/events took" in caplog.text
+    assert "secret" not in caplog.text
+    assert "private.jpg" not in caplog.text
 
 
 async def test_honeypots_ban_the_address(web, monkeypatch) -> None:  # type: ignore[no-untyped-def]

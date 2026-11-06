@@ -16,6 +16,27 @@
   drop the oldest entries when they fall behind, so memory cannot grow without
   limit while Telegram or the broker is unreachable.
 
+## Dashboard speed
+
+The desktop and phone apps show the dashboard from the Pi, so all of this reaches them without an app update.
+
+- **Something is on screen at once.** A page shows a placeholder until its data is there. It stays hidden for the first
+  150 ms, so fast answers do not flash.
+- **Few round trips, not few bytes.** Over a VPN each request in a chain costs a full round trip. The session is asked
+  for once at the start. Changing pages only waits for it where the answer decides what to show (login, setup);
+  otherwise it is checked alongside. Pages start their requests together, and the overview draws without waiting for
+  the topology and the connection panel. `index.html` names the first scripts with `modulepreload`, so the browser does
+  not have to find them import by import.
+- **Compressed without work on the Pi.** `setup.py` adds a `.gz` next to each script, style sheet and SVG when the
+  package is built, and aiohttp sends it by itself: all of them together go from 385 KB to 119 KB. A run from the source
+  folder has none and sends the plain files. The language texts come from the API and are compressed per request
+  (125 KB to 38 KB). Other API answers stay plain: they are small, and `/api/session` holds the CSRF token, which must
+  not share a compressed answer with anything an attacker can influence (BREACH). There is no Brotli, because it would
+  add a build dependency on every Pi for a few KB more.
+- **Slow requests show in the log.** Any API answer that takes 500 ms or more is logged at level `INFO` as `slow request:`
+  with its route pattern, under Logs in the dashboard or with `journalctl -u pi-guard | grep "slow request"`. Assistant
+  answers are slow by nature. Live streams, WebSockets and file downloads are not counted.
+
 ## Measurements
 
 Measured on an x86_64 desktop (16 cores) with a Logitech C270 at 1280×720,

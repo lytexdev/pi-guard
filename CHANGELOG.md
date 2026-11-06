@@ -8,6 +8,11 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- The dashboard shows a placeholder while a page loads, instead of an empty area.
+- The dashboard opens faster: it asks for the session once at the start and no longer waits for it when changing pages,
+  the overview no longer waits for its two slowest panels, and the events page asks for everything at once.
+- The dashboard's files and texts travel compressed, about a third of their size. The files are packed when the
+  package is built, so the Pi spends no CPU on it.
 - When the disk reaches its limit, the oldest recordings without motion go first, then the oldest with motion or a
   person, and the last few minutes last. Before, age alone decided.
 - People are cards with picture and quality, and the network overview starts with the numbers that matter.
@@ -15,8 +20,16 @@ All notable changes are documented here. The format follows
 - The add-on for connected computers is now called Home servers.
 - Settings open in a normal view with what most people need; a switch shows everything for experts.
 
+### Fixed
+
+- Leaving a dashboard page while it was still loading could leave its timer running, or bring the old page back over the
+  new one. Storage, language downloads and updates also kept asking the Pi after the page was closed.
+- A late answer can no longer show the previous mode on the overview for a moment.
+- The dashboard goes to the login page as soon as it notices that the session has ended.
+
 ### Added
 
+- The log names dashboard requests that take longer than half a second.
 - Quantum-resistant VPN on phones and on Windows too: one key exchange in Rust (`vpn/kem`) with ML-KEM-1024 and HQC-256
   for the Pi, computers and phones, inside the tunnel. Computers use it instead of Rosenpass; the Pi keeps Rosenpass
   until every device has updated. `vpn-server.sh install` must run once more on the Pi.

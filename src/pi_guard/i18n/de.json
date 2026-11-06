@@ -313,6 +313,7 @@
   "web.listen_note": "Beim Mithören ertönt vor Ort ein Hinweiston; es endet nach 10 Minuten und wird protokolliert.",
   "web.live_unavailable": "Das Live-Bild ist gerade nicht verfügbar.",
   "web.load": "Last",
+  "web.loading": "Wird geladen…",
   "web.load_more": "Mehr anzeigen",
   "web.login": "Anmelden",
   "web.login_failed": "Anmeldung fehlgeschlagen.",

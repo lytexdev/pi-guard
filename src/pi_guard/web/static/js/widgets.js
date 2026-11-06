@@ -16,6 +16,12 @@ export function searchToggle(label, onInput) {
   return h("div", { class: "search-toggle" }, button, input);
 }
 
+// Stands in for what is still loading. The CSS waits a moment, so fast answers show no flash.
+export function skeleton(blocks = 3) {
+  return h("div", { class: "skeleton", role: "status", "aria-label": t("web.loading") },
+    [...Array(blocks)].map(() => h("div", { class: "panel" })));
+}
+
 // Who to ask, if the admin entered it. Shown small on the pages where people get stuck.
 export function supportNote() {
   const s = state.session?.support || {};

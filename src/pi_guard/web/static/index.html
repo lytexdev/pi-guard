@@ -15,9 +15,18 @@
   <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
   <link rel="stylesheet" href="/static/css/app.css">
   <script type="module" src="/static/js/app.js"></script>
+  <link rel="modulepreload" href="/static/js/api.js">
+  <link rel="modulepreload" href="/static/js/accessibility.js">
+  <link rel="modulepreload" href="/static/js/theme.js">
+  <link rel="modulepreload" href="/static/js/tooltip.js">
+  <link rel="modulepreload" href="/static/js/widgets.js">
+  <link rel="modulepreload" href="/static/js/views/overview.js">
+  <link rel="modulepreload" href="/static/js/views/topology.js">
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <div class="skeleton boot" aria-hidden="true"><div class="panel"></div><div class="panel"></div><div class="panel"></div></div>
+  </div>
   <noscript>pi-guard needs JavaScript.</noscript>
 </body>
 </html>
