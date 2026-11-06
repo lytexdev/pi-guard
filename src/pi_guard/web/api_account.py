@@ -9,7 +9,7 @@ import re
 from aiohttp import web
 
 from pi_guard.security.files import atomic_write
-from pi_guard.web.api_mobile import forget_devices
+from pi_guard.web.api_mobile import forget_devices, role_changed
 from pi_guard.web.auth import CredentialError, totp_uri
 from pi_guard.web.server import COOKIE, SETUP_DONE_KEY, current, dashboard, read_json
 
@@ -163,8 +163,12 @@ async def user_add(request: web.Request) -> web.Response:
 async def user_role(request: web.Request) -> web.Response:
     d = dashboard(request)
     role = str((await read_json(request)).get("role", ""))
-    if not d.auth.set_role(int(request.match_info["id"]), role):
+    user_id = int(request.match_info["id"])
+    if not d.auth.set_role(user_id, role):
         raise web.HTTPBadRequest(text="web.error")
+    await role_changed(
+        request, next(u["username"] for u in d.auth.users() if u["id"] == user_id), role
+    )
     d.app.db.audit(_actor(request), "account.user_role", role)
     return web.json_response({"ok": True})
 

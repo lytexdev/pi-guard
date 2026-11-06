@@ -10,7 +10,8 @@ use the same add-on.
 2. Open PiGuard while in the home network. It searches the network for pi-guard, or you type the address.
 3. Check the certificate fingerprint and log in. The phone then has its own token and stays logged in.
 
-New phones can only be connected from the home network or the VPN. Remove a phone under *Add-ons → Mobile
+New phones can only be connected from the home network or the VPN. Only admins get a VPN access: it reaches the whole
+home network, and viewers may only watch. Remove a phone under *Add-ons → Mobile
 app* and its token stops working at once.
 
 ## What it does

@@ -12,6 +12,7 @@ import logging
 import shutil
 import tempfile
 import zipfile
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -97,6 +98,14 @@ def _device(request: web.Request) -> dict[str, Any]:
         d.app.db.audit(f"web:{ip}", "login.failed", "mobile token")
         raise web.HTTPUnauthorized(text="invalid token")
     return found
+
+
+def _admin_device(request: web.Request) -> dict[str, Any]:
+    """A VPN access reaches the whole home network; viewers may only watch."""
+    device = _device(request)
+    if dashboard(request).auth.role_of(device["username"]) != "admin":
+        raise web.HTTPForbidden(text="web.vpn_admins_only")
+    return device
 
 
 async def hello(request: web.Request) -> web.Response:
@@ -244,7 +253,7 @@ async def calendar(request: web.Request) -> web.Response:
 async def vpn(request: web.Request) -> web.Response:
     """A VPN access for this phone. Asked again, it answers with the same one."""
     d = dashboard(request)
-    device = _device(request)
+    device = _admin_device(request)
     store = _store(request)
     _server(request)
     data = await read_json(request)
@@ -267,7 +276,7 @@ async def vpn(request: web.Request) -> web.Response:
 async def vpn_quantum(request: web.Request) -> web.Response:
     """Swaps public Rosenpass keys. The connection is only for delivery: Rosenpass itself checks."""
     d = dashboard(request)
-    device = _device(request)
+    device = _admin_device(request)
     store = _store(request)
     body = await read_body(request, MAX_PQ_REQUEST)
     try:
@@ -429,6 +438,20 @@ async def _forget(request: web.Request, device: dict[str, Any]) -> None:
     if device.get("vpn_peer"):
         with contextlib.suppress(web.HTTPException, PeerError):
             await asyncio.to_thread(_store(request).remove, device["vpn_peer"])
+
+
+async def role_changed(request: web.Request, username: str, role: str) -> None:
+    """Devices follow their person: someone who only watches now keeps no VPN access."""
+    d = dashboard(request)
+    hub = d.app.mobile
+    for device in hub.of_user(username) if hub else []:
+        user = d.app.users.get("mobile", str(device["id"]))
+        if user is not None:
+            d.app.users.save(replace(user, role=Role(role)))
+        if role != "admin" and device.get("vpn_peer"):
+            with contextlib.suppress(web.HTTPException, PeerError):
+                await asyncio.to_thread(_store(request).remove, device["vpn_peer"])
+            _hub(request).set_vpn_peer(device["id"], 0)
 
 
 async def forget_devices(request: web.Request, username: str) -> int:

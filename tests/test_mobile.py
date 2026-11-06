@@ -645,3 +645,40 @@ async def test_a_deleted_key_file_takes_its_logins(tmp_path: Path) -> None:
     finally:
         await client.close()
         app.db.close()
+
+
+async def test_viewers_get_no_vpn_access(tmp_path: Path) -> None:
+    client, app, _, _ = await _paired(tmp_path)
+    other, bearer = await _viewer_phone(client, app)
+    try:
+        response = await other.post("/api/mobile/vpn", json={}, headers=bearer)
+        assert response.status == 403 and await response.text() == "web.vpn_admins_only"
+        response = await other.post("/api/mobile/vpn/pq", json={"key": ""}, headers=bearer)
+        assert response.status == 403
+    finally:
+        await other.close()
+        await client.close()
+        app.db.close()
+
+
+async def test_someone_changed_to_viewer_loses_the_vpn_access(tmp_path: Path) -> None:
+    client, app, csrf, _ = await _paired(tmp_path)
+    other, _ = await _viewer_phone(client, app)
+    try:
+        removed: list[int] = []
+        app.dashboard.wg_peers = SimpleNamespace(remove=removed.append)
+        app.settings.wireguard_enabled = True
+        user_id = app.dashboard.auth.users()[0]["id"]
+        device = app.mobile.of_user("guest")[0]["id"]
+        url = f"/api/dashboard-users/{user_id}"
+        assert (await client.patch(url, json={"role": "admin"}, headers=csrf)).status == 200
+        assert app.users.get("mobile", str(device)).role.value == "admin"
+        app.mobile.set_vpn_peer(device, 7)
+        assert (await client.patch(url, json={"role": "viewer"}, headers=csrf)).status == 200
+        assert removed == [7]
+        assert not app.mobile.get(device)["vpn_peer"]
+        assert app.users.get("mobile", str(device)).role.value == "viewer"
+    finally:
+        await other.close()
+        await client.close()
+        app.db.close()

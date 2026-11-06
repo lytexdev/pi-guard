@@ -313,6 +313,7 @@
   "web.listen_note": "Beim Mithören ertönt vor Ort ein Hinweiston; es endet nach 10 Minuten und wird protokolliert.",
   "web.live_unavailable": "Das Live-Bild ist gerade nicht verfügbar.",
   "web.load": "Last",
+  "web.vpn_admins_only": "Ein VPN-Zugang reicht ins ganze Heimnetz, deshalb bekommen ihn nur Admins.",
   "web.loading": "Wird geladen…",
   "web.load_more": "Mehr anzeigen",
   "web.login": "Anmelden",
