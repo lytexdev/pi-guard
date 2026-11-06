@@ -1,6 +1,6 @@
 // Add-ons: overview with on/off switches, and one detail page per add-on.
 // renderDetail() is also used by the setup assistant.
-import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when, whileShown } from "../api.js";
 import { searchToggle } from "../widgets.js";
 import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
@@ -502,9 +502,9 @@ async function languages(box) {
       h("ul", { class: "list" }, Object.entries(s.available).map(([code, label]) => h("li", {}, h("span", { class: "grow" }, label),
         s.installed.includes(code)
           ? [h("span", { class: "badge ok" }, t("web.lg_installed")), h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { if (await attempt(() => api(`/api/addons/languages/${code}`, { method: "DELETE" }))) draw(); } }, icon("trash"))]
-          : h("button", { disabled: !s.key || Boolean(s.running.code), onclick: async () => { if (await attempt(() => api(`/api/addons/languages/${code}`, { method: "POST" }))) setTimeout(draw, 1500); } }, icon("plus"), t("web.add"))))),
+          : h("button", { disabled: !s.key || Boolean(s.running.code), onclick: async () => { if (await attempt(() => api(`/api/addons/languages/${code}`, { method: "POST" }))) whileShown(box, draw, 1500); } }, icon("plus"), t("web.add"))))),
       h("p", { class: "muted" }, h("small", {}, t("web.lg_hint")))));
-    if (s.running.code) setTimeout(draw, 3000);
+    if (s.running.code) whileShown(box, draw, 3000);
   };
   await draw();
 }

@@ -620,3 +620,5 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 @keyframes skeleton-in { from { visibility: hidden; } }
 @keyframes skeleton-pulse { 50% { opacity: .5; } }
 @media (prefers-reduced-motion: no-preference) { .skeleton .panel { animation: skeleton-pulse 1.4s ease-in-out infinite; } }
+
+.page { display: contents; }

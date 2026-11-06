@@ -86,3 +86,19 @@ def test_first_scripts_named_in_the_page_exist() -> None:
     named = re.findall(r'rel="modulepreload" href="/static/([^"]+)"', page)
     assert named
     assert all((STATIC / path).is_file() for path in named)
+
+
+def test_nothing_redraws_a_page_that_was_left() -> None:
+    # A bare setTimeout(draw) keeps asking the Pi after the page is gone, forever on Storage.
+    for script in (STATIC / "js").rglob("*.js"):
+        assert "setTimeout(draw" not in script.read_text(), script.name
+
+
+def test_every_step_of_a_page_change_checks_that_it_is_still_the_newest() -> None:
+    # Without this, a slow page comes back over the one opened after it.
+    body = (STATIC / "js" / "app.js").read_text().split("async function show(turn)", 1)[1]
+    body = body.split("async function start()", 1)[0]
+    for wait in ("await currentSession(name);", "await loader();"):
+        for part in body.split(wait)[1:]:
+            assert part.lstrip().startswith("if (turn !== showing) return;"), wait
+    assert "cleanup = await" not in body

@@ -42,6 +42,8 @@ installTooltips();
 export const state = { session: null, overview: null };
 let cleanup = null;
 let started = false;  // start() has just asked for the session
+let showing = 0;  // the newest page change; older ones still running must step aside
+let asked = 0;  // the newest session request; an older answer must not replace it
 
 function link(route, iconName, label, current) {
   return h("a", { href: `#/${route}`, title: t(`web.tip_nav_${route}`), class: current === route ? "active" : "" },
@@ -84,34 +86,48 @@ function shell(route) {
 }
 
 async function refreshSession() {
-  state.session = await api("/api/session");
-  setCsrf(state.session.csrf);
-  applyAppearance(state.session.appearance);
-  return state.session;
+  const mine = ++asked;
+  const session = await api("/api/session");
+  if (mine === asked) {
+    state.session = session;
+    setCsrf(session.csrf);
+    applyAppearance(session.appearance);
+  }
+  return session;
 }
 
 // Waits for the server only where its answer decides what to show. Otherwise the page opens
-// at once and the session is checked alongside; an ended one shows at the next API call.
+// at once and the session is checked alongside.
 async function currentSession(name) {
   if (!started) { started = true; return state.session; }
   const known = state.session;
   if (!known?.authenticated || known.setup_required || !known.setup_done || name === "login" || name === "setup") {
     return refreshSession();
   }
-  refreshSession().catch(() => {});
+  refreshSession().then(() => {
+    if (state.session && !state.session.authenticated) location.hash = "#/login";
+  }).catch(() => {});
   return known;
 }
 
 async function route() {
-  try { await show(); }
+  const turn = ++showing;
+  try { await show(turn); }
   catch (error) {
+    if (turn !== showing) return;
     fill(document.getElementById("app"), h("div", { class: "login" }, h("div", { class: "panel" },
       h("p", { class: "notice danger" }, error.status === 429 ? t("web.rate_limited") : t("web.offline")),
       h("button", { onclick: route }, t("web.retry")))));
   }
 }
 
-async function show() {
+// A view that finished after the next page opened must stop at once, or its timers run on.
+function keep(turn, stop) {
+  if (turn === showing) cleanup = stop;
+  else stop?.();
+}
+
+async function show(turn) {
   if (cleanup) { cleanup(); cleanup = null; }
   let [name, ...params] = (location.hash.replace(/^#\/?/, "") || "overview").split("/");
   if (["devices", "notifications", "access"].includes(name)) { params = [name]; name = "settings"; }
@@ -119,12 +135,14 @@ async function show() {
   const root = document.getElementById("app");
   if (name === "logout") {
     await api("/api/logout", { method: "POST" }).catch(() => {});
+    asked += 1;
     state.session = null;
     started = true;
     location.hash = "#/login";
     return;
   }
   const session = await currentSession(name);
+  if (turn !== showing) return;
   if (!session.authenticated && name !== "login") { location.hash = "#/login"; return; }
   if (session.authenticated && name === "login") { location.hash = "#/overview"; return; }
   if (session.role === "viewer" && name !== "login" && !VIEWER_ROUTES.includes(name)) { location.hash = "#/overview"; return; }
@@ -134,8 +152,10 @@ async function show() {
   const loader = VIEWS[name] || VIEWS.overview;
   if (name === "login" || name === "setup") {
     const view = await loader();
-    root.replaceChildren();
-    cleanup = await view.render(root, params) || null;
+    if (turn !== showing) return;
+    const page = h("div", { class: "page" });  // left behind when the next page fills the root
+    root.replaceChildren(page);
+    keep(turn, await view.render(page, params) || null);
     return;
   }
   fill(root, shell(name in VIEWS ? name : "overview"));
@@ -144,8 +164,10 @@ async function show() {
   main.append(waiting);
   try {
     const view = await loader();
-    cleanup = await view.render(main, params) || null;
+    if (turn !== showing) return;
+    keep(turn, await view.render(main, params) || null);
   } catch (error) {
+    if (turn !== showing) return;
     fill(main, h("section", { class: "panel" },
       h("p", { class: "notice danger" }, error.status === 429 ? t("web.rate_limited") : (error.message || t("web.error"))),
       h("button", { onclick: route }, t("web.retry"))));

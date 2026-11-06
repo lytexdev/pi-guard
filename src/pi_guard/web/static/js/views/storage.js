@@ -1,5 +1,5 @@
 // Storage: what takes up the space, and clearing what can go.
-import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when, whileShown } from "../api.js";
 import { meter } from "./overview.js";
 
 const size = (bytes) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`);
@@ -24,7 +24,7 @@ export async function render(box) {
     };
     const system = async (target) => {
       if (!await confirmDialog(t(`web.st_${target}_confirm`), t("web.st_clean"))) return;
-      if (await attempt(() => api("/api/storage/clean", { method: "POST", body: { target } }), t("web.st_started"))) setTimeout(draw, 6000);
+      if (await attempt(() => api("/api/storage/clean", { method: "POST", body: { target } }), t("web.st_started"))) whileShown(box, draw, 6000);
     };
     fill(box,
       h("section", { class: "panel stack" }, h("h2", {}, t("web.set_storage")),
@@ -48,8 +48,8 @@ export async function render(box) {
           h("h3", {}, t("web.st_folders")),
           h("ul", { class: "list" }, s.system.folders.map((f) => h("li", {}, h("span", { class: "grow mono" }, f.path), h("span", {}, size(f.bytes)))))]
           : h("p", { class: "muted" }, t("web.st_measuring")),
-        h("button", { class: "ghost", onclick: async () => { await draw(true); setTimeout(draw, 8000); } }, icon("refresh"), t("web.st_refresh"))) : null);
-    if (s.root_job && !s.system) setTimeout(draw, 8000);
+        h("button", { class: "ghost", onclick: async () => { await draw(true); whileShown(box, draw, 8000); } }, icon("refresh"), t("web.st_refresh"))) : null);
+    if (s.root_job && !s.system) whileShown(box, draw, 8000);
   };
   await draw();
 }

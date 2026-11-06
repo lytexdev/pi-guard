@@ -1,5 +1,5 @@
 // Settings: one place with sections, search and a save bar that appears when it is needed.
-import { askDialog, api, attempt, fill, h, icon, t, toast, when, expertMode, setExpertMode } from "../api.js";
+import { askDialog, api, attempt, fill, h, icon, t, toast, when, whileShown, expertMode, setExpertMode } from "../api.js";
 import { state } from "../app.js";
 import { installFolds, unfold } from "../folds.js";
 import { searchToggle, supportNote } from "../widgets.js";
@@ -106,7 +106,7 @@ async function updateSection(box) {
       u.state?.message ? h("p", { class: `notice ${state === "failed" ? "danger" : ""}` }, `${u.state.message} (${when(u.state.time)})`) : null,
       h("div", { class: "row" },
         h("button", { class: "primary", disabled: u.pending || state === "running" || !u.installed_by_script, onclick: async () => {
-          if (await attempt(() => api("/api/system/update", { method: "POST" }), t("web.up_started"))) setTimeout(draw, 3000);
+          if (await attempt(() => api("/api/system/update", { method: "POST" }), t("web.up_started"))) whileShown(box, draw, 3000);
         } }, icon("refresh"), u.pending || state === "running" ? t("web.up_running") : t("web.up_now")),
         h("button", { onclick: draw }, t("web.up_check"))),
       h("p", { class: "muted" }, h("small", {}, t("web.up_hint")))));

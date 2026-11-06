@@ -20,6 +20,13 @@ All notable changes are documented here. The format follows
 - The add-on for connected computers is now called Home servers.
 - Settings open in a normal view with what most people need; a switch shows everything for experts.
 
+### Fixed
+
+- Leaving a dashboard page while it was still loading could leave its timer running, or bring the old page back over the
+  new one. Storage, language downloads and updates also kept asking the Pi after the page was closed.
+- A late answer can no longer show the previous mode on the overview for a moment.
+- The dashboard goes to the login page as soon as it notices that the session has ended.
+
 ### Added
 
 - The log names dashboard requests that take longer than half a second.

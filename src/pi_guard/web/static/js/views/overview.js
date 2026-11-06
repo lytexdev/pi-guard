@@ -54,9 +54,12 @@ export async function render(main) {
   let connection = skeleton(1);
   const swap = (old, next) => { if (next) old?.replaceWith(next); else old?.remove(); return next; };
   if (topology) topologyPanel().catch(() => null).then((next) => { topology = swap(topology, next); });
+  let drawing = 0;
   const draw = async () => {
+    const turn = ++drawing;
     connectionPanel().catch(() => null).then((next) => { connection = swap(connection, next); });
     const [o, events, open] = await Promise.all([api("/api/overview"), api("/api/events?limit=6"), api("/api/alerts")]);
+    if (turn !== drawing) return;  // an older answer must not bring back the previous mode
     const cameras = Object.fromEntries(o.cameras.map((c) => [c.id, c.name]));
     const mode = o.mode;
     const modeButtons = h("div", { class: "segmented" },

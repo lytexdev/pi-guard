@@ -158,6 +158,11 @@ export function duration(seconds) {
   return `${Math.round(s / 86400)} d`;
 }
 
+// Runs fn later, unless the page holding el has been left by then.
+export function whileShown(el, fn, ms) {
+  return setTimeout(() => { if (el.isConnected) fn(); }, ms);
+}
+
 // Like el.replaceChildren(), but skips null/false like h() does.
 export function fill(el, ...children) {
   el.replaceChildren(...children.flat(Infinity).filter((c) => c != null && c !== false)
