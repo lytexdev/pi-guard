@@ -11,7 +11,7 @@ from aiohttp import web
 from pi_guard.security.files import atomic_write
 from pi_guard.web.api_mobile import forget_devices
 from pi_guard.web.auth import CredentialError, totp_uri
-from pi_guard.web.server import SETUP_DONE_KEY, current, dashboard, read_json
+from pi_guard.web.server import COOKIE, SETUP_DONE_KEY, current, dashboard, read_json
 
 
 def routes() -> list[web.RouteDef]:
@@ -53,6 +53,7 @@ async def credentials(request: web.Request) -> web.Response:
                                   str(data.get("password", "")))  # fmt: skip
     except CredentialError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
+    d.auth.end_other_sessions(d.auth.account()["username"], request.cookies.get(COOKIE))
     d.app.db.audit(_actor(request), "account.credentials")
     return web.json_response({"ok": True, "username": d.auth.account()["username"]})
 
@@ -138,6 +139,7 @@ async def my_password(request: web.Request) -> web.Response:
                                    str(data.get("password", "")))  # fmt: skip
     except CredentialError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
+    d.auth.end_other_sessions(current(request).username, request.cookies.get(COOKIE))
     return web.json_response({"ok": True})
 
 

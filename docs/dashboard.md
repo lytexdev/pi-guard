@@ -69,7 +69,8 @@ and off later under *Access → Your account*.
 Viewers cannot listen in, talk, take photos, change the mode, use the assistant or open
 settings. The server enforces this with an allowlist, so new features stay closed to viewers
 until they are added to it. A changed role counts at once; removing a person ends their
-sessions and removes their phones, computers and VPN access. Hardware keys, recovery codes and the code word belong to the main account.
+sessions and removes their phones, computers and VPN access. A new password logs out all other
+browsers of that person; paired phones log themselves in again the next time they open. Hardware keys, recovery codes and the code word belong to the main account.
 
 ### Hardware keys and passkeys
 

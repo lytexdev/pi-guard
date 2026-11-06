@@ -243,6 +243,14 @@ class AuthStore:
         self.end(token)
         return self.create_session(row["username"], row["ip"], row["agent"])
 
+    def end_other_sessions(self, username: str, keep: str | None) -> None:
+        """A new password must also lock out whoever made it necessary."""
+        key_files = "key:%" if self.is_owner(username) else ""  # they log in as the owner
+        self._db.execute(
+            "DELETE FROM web_sessions WHERE (username = ? OR username LIKE ?) AND id_hash != ?",
+            (username, key_files, _digest(keep or "")),
+        )
+
     def end(self, token: str) -> None:
         self._db.execute("DELETE FROM web_sessions WHERE id_hash = ?", (_digest(token),))
 
