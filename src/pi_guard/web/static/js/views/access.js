@@ -68,7 +68,9 @@ async function loginPanel(account, draw) {
       } }, icon("trash")))) : h("li", { class: "empty" }, t("web.nothing"))),
     keys.usable_here ? h("div", { class: "row" }, name, h("button", { onclick: async () => {
       fill(problem);
-      const start = await attempt(() => api("/api/account/webauthn/begin", { method: "POST", body: {} }));
+      const password = await askDialog(t("web.confirm_password"), { type: "password" });
+      if (password === null) return;
+      const start = await attempt(() => api("/api/account/webauthn/begin", { method: "POST", body: { password } }));
       if (!start) return;
       try {
         const credential = await createCredential(start.options);
@@ -142,7 +144,9 @@ export async function render(main) {
               await attempt(() => api(`/api/keyfiles/${encodeURIComponent(k.name)}`, { method: "DELETE" })); draw(); } }, icon("trash"))))
             : h("li", { class: "empty" }, t("web.nothing"))),
           h("div", { class: "row" }, keyName, h("button", { onclick: async () => {
-            const response = await attempt(() => api("/api/keyfiles", { method: "POST", body: { name: keyName.value }, raw: true }));
+            const password = await askDialog(t("web.confirm_password"), { type: "password" });
+            if (password === null) return;
+            const response = await attempt(() => api("/api/keyfiles", { method: "POST", body: { name: keyName.value, password }, raw: true }));
             if (!response) return;
             const url = URL.createObjectURL(await response.blob());
             h("a", { href: url, download: `pi-guard-${keyName.value}.key` }).click();

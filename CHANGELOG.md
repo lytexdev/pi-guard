@@ -24,6 +24,8 @@ All notable changes are documented here. The format follows
 
 - Someone removed from the dashboard could go on watching with a paired phone or computer. Their devices, logins and VPN
   access now go with them, and devices of people removed earlier are refused. The same goes for a deleted key file.
+- Adding a passkey or hardware key, an API token or a key file now asks for the password, so a stolen session cannot
+  turn into lasting access. A passkey logs in as the owner, so it takes the owner's password.
 - Viewers no longer get a VPN access for their phone or computer: it reaches the whole home network, and they may only
   watch. A person changed to viewer loses theirs at once. Accesses viewers already have stay until you remove them under
   Network › VPN. From outside, viewers need a public address for the dashboard.

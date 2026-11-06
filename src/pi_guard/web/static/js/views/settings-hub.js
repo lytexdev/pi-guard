@@ -51,7 +51,9 @@ async function apiSection(box) {
         h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { if (await attempt(() => api(`/api/tokens/${k.id}`, { method: "DELETE" }))) draw(); } }, icon("trash")))) : h("li", { class: "empty" }, t("web.nothing"))),
       h("div", { class: "row" }, name, scope, h("button", { class: "primary", onclick: async () => {
         if (!name.value.trim()) return;
-        const r = await attempt(() => api("/api/tokens", { method: "POST", body: { name: name.value, scope: scope.value } }));
+        const password = await askDialog(t("web.confirm_password"), { type: "password" });
+        if (password === null) return;
+        const r = await attempt(() => api("/api/tokens", { method: "POST", body: { name: name.value, scope: scope.value, password } }));
         if (r) { await draw(); box.querySelector(".token-out").replaceChildren(h("p", { class: "notice" }, t("web.api_shown_once")), h("pre", { class: "mono wrap" }, r.token)); }
       } }, icon("plus"), t("web.api_create"))), h("div", { class: "token-out" }), out),
     h("section", { class: "panel stack" }, h("h2", {}, t("web.api_docs")),

@@ -22,7 +22,7 @@ from aiohttp import web
 
 from pi_guard.messaging.base import Button, Reply
 from pi_guard.web.auth import PENDING_CODEWORD, PENDING_NONE, CredentialError
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.server import confirm_password, current, dashboard, read_json
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ class _Telegram:
 class _Challenge:
     value: bytes
     created: float
+    purpose: str
 
 
 class LoginFlows:
@@ -176,19 +177,20 @@ def _relying_party(request: web.Request) -> tuple[str, str]:
     return host, f"{scheme}://{request.host}"
 
 
-def _remember(request: web.Request, challenge: bytes) -> str:
+def _remember(request: web.Request, challenge: bytes, purpose: str) -> str:
     d = dashboard(request)
     d.logins.expire()
     flow = secrets.token_urlsafe(24)
-    d.logins.challenges[flow] = _Challenge(challenge, time.monotonic())
+    d.logins.challenges[flow] = _Challenge(challenge, time.monotonic(), purpose)
     return flow
 
 
-def _take(request: web.Request, flow: str) -> bytes:
+def _take(request: web.Request, flow: str, purpose: str) -> bytes:
+    """Anyone can get a login challenge, so it must not open the way to adding a key."""
     d = dashboard(request)
     d.logins.expire()
     found = d.logins.challenges.pop(flow, None)
-    if found is None:
+    if found is None or found.purpose != purpose:
         raise web.HTTPUnauthorized(text="login failed")
     return found.value
 
@@ -221,6 +223,7 @@ async def webauthn_register_begin(request: web.Request) -> web.Response:
 
     d = dashboard(request)
     rp_id, _ = _relying_party(request)
+    confirm_password(request, str((await read_json(request)).get("password", "")), owner=True)
     options = webauthn.generate_registration_options(
         rp_id=rp_id, rp_name="pi-guard", user_name=d.auth.account()["username"],
         user_id=b"pi-guard-account",
@@ -231,7 +234,7 @@ async def webauthn_register_begin(request: web.Request) -> web.Response:
         exclude_credentials=[PublicKeyCredentialDescriptor(id=_unb64(c["id"]))
                              for c in d.auth.credentials()],
     )  # fmt: skip
-    flow = _remember(request, options.challenge)
+    flow = _remember(request, options.challenge, "register")
     return web.json_response(
         {"flow": flow, "options": json.loads(webauthn.options_to_json(options))}
     )
@@ -244,7 +247,7 @@ async def webauthn_register_finish(request: web.Request) -> web.Response:
     d = dashboard(request)
     data = await read_json(request)
     rp_id, origin = _relying_party(request)
-    challenge = _take(request, str(data.get("flow", "")))
+    challenge = _take(request, str(data.get("flow", "")), "register")
     credential: Any = data.get("credential")
     try:
         verified = webauthn.verify_registration_response(
@@ -284,7 +287,7 @@ async def webauthn_login_begin(request: web.Request) -> web.Response:
         allow_credentials=[PublicKeyCredentialDescriptor(id=_unb64(c["id"]))
                            for c in d.auth.credentials()],
     )  # fmt: skip
-    flow = _remember(request, options.challenge)
+    flow = _remember(request, options.challenge, "login")
     return web.json_response(
         {"flow": flow, "options": json.loads(webauthn.options_to_json(options))}
     )
@@ -298,7 +301,7 @@ async def webauthn_login_finish(request: web.Request) -> web.Response:
     ip = d.guard.client_ip(request)
     data = await read_json(request)
     rp_id, origin = _relying_party(request)
-    challenge = _take(request, str(data.get("flow", "")))
+    challenge = _take(request, str(data.get("flow", "")), "login")
     credential: Any = data.get("credential")
     wanted = credential.get("id") if isinstance(credential, dict) else None
     stored = next((c for c in d.auth.credentials() if c["id"] == wanted), None)

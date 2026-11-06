@@ -78,6 +78,17 @@ def current(request: web.Request) -> Session:
     return session
 
 
+def confirm_password(request: web.Request, password: str, owner: bool = False) -> None:
+    """What outlives a session needs the password again, or a stolen session could stay for good.
+
+    `owner`: passkeys log in as the owner, so another admin's password is not enough for one.
+    """
+    d = dashboard(request)
+    name = d.auth.account(None if owner else current(request).username)["username"]
+    if d.auth.check_password(name, password) is None:
+        raise web.HTTPForbidden(text="web.wrong_password")
+
+
 def json_body_limit(limit: int) -> Callable[[web.Request], Awaitable[dict[str, Any]]]:
     async def read(request: web.Request) -> dict[str, Any]:
         if request.content_length and request.content_length > limit:

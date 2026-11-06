@@ -56,7 +56,8 @@ Betrachter können nicht mithören, sprechen, Fotos auslösen, den Modus ändern
 nutzen oder Einstellungen öffnen. Das prüft der Server, nicht nur die Oberfläche. Wird eine Person
 entfernt, ist sie sofort abgemeldet, und ihre Handys, Computer und VPN-Zugänge sind weg. Ein neues
 Passwort meldet alle anderen Browser dieser Person ab; verbundene Handys melden sich beim nächsten
-Öffnen selbst wieder an.
+Öffnen selbst wieder an. Einen Passkey, einen API-Token oder eine Schlüsseldatei anzulegen fragt nach
+dem Passwort, beim Passkey nach dem des Hauptkontos.
 
 ## YubiKey und Passkeys
 

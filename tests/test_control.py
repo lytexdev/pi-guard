@@ -175,8 +175,8 @@ async def test_api_tokens(tmp_path: Path) -> None:
         csrf = {"X-CSRF-Token": await _login(client)}
 
         async def token(scope: str) -> str:
-            response = await client.post("/api/tokens", json={"name": scope, "scope": scope},
-                                         headers=csrf)  # fmt: skip
+            body = {"name": scope, "scope": scope, "password": PASSWORD}
+            response = await client.post("/api/tokens", json=body, headers=csrf)
             return str((await response.json())["token"])
 
         read, control = await token("read"), await token("control")
