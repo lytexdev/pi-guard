@@ -41,6 +41,7 @@ installTooltips();
 
 export const state = { session: null, overview: null };
 let cleanup = null;
+let started = false;  // start() has just asked for the session
 
 function link(route, iconName, label, current) {
   return h("a", { href: `#/${route}`, title: t(`web.tip_nav_${route}`), class: current === route ? "active" : "" },
@@ -89,6 +90,18 @@ async function refreshSession() {
   return state.session;
 }
 
+// Waits for the server only where its answer decides what to show. Otherwise the page opens
+// at once and the session is checked alongside; an ended one shows at the next API call.
+async function currentSession(name) {
+  if (!started) { started = true; return state.session; }
+  const known = state.session;
+  if (!known?.authenticated || known.setup_required || !known.setup_done || name === "login" || name === "setup") {
+    return refreshSession();
+  }
+  refreshSession().catch(() => {});
+  return known;
+}
+
 async function route() {
   try { await show(); }
   catch (error) {
@@ -106,10 +119,12 @@ async function show() {
   const root = document.getElementById("app");
   if (name === "logout") {
     await api("/api/logout", { method: "POST" }).catch(() => {});
+    state.session = null;
+    started = true;
     location.hash = "#/login";
     return;
   }
-  const session = await refreshSession();
+  const session = await currentSession(name);
   if (!session.authenticated && name !== "login") { location.hash = "#/login"; return; }
   if (session.authenticated && name === "login") { location.hash = "#/overview"; return; }
   if (session.role === "viewer" && name !== "login" && !VIEWER_ROUTES.includes(name)) { location.hash = "#/overview"; return; }
@@ -142,9 +157,9 @@ async function show() {
 async function start() {
   applyDesign();
   loadIcons().catch(() => {});
-  const session = await api("/api/session");
-  applyAppearance(session.appearance);
-  await loadTexts(localStorage.getItem("lang") || session.language || lang);
+  const saved = localStorage.getItem("lang");
+  const [session] = await Promise.all([refreshSession(), saved && loadTexts(saved)]);
+  if (!saved) await loadTexts(session.language || lang);
   window.addEventListener("hashchange", route);
   if ("serviceWorker" in navigator && window.isSecureContext) {
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});

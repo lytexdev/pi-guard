@@ -78,3 +78,11 @@ def test_loading_placeholder_disappears_for_views_that_only_append() -> None:
     # People and Live add to <main>; the placeholder would stay above them.
     app = (STATIC / "js" / "app.js").read_text()
     assert "waiting.remove()" in app.split("finally", 1)[1]
+
+
+def test_first_scripts_named_in_the_page_exist() -> None:
+    # A wrong name costs a failed request on every start and nobody notices.
+    page = (STATIC / "index.html").read_text()
+    named = re.findall(r'rel="modulepreload" href="/static/([^"]+)"', page)
+    assert named
+    assert all((STATIC / path).is_file() for path in named)

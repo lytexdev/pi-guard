@@ -1,6 +1,6 @@
 // Overview: what is happening right now, at a glance.
 import { api, attempt, duration, h, icon, t, when, fill } from "../api.js";
-import { supportNote } from "../widgets.js";
+import { skeleton, supportNote } from "../widgets.js";
 import { state } from "../app.js";
 import { topologyPanel } from "./topology.js";
 
@@ -49,8 +49,13 @@ async function connectionPanel() {
 
 export async function render(main) {
   const viewer = state.session.role === "viewer";
-  const topology = viewer ? null : await topologyPanel();
+  // The two panels with the slowest answers do not hold up the rest of the page.
+  let topology = viewer ? null : skeleton(1);
+  let connection = skeleton(1);
+  const swap = (old, next) => { if (next) old?.replaceWith(next); else old?.remove(); return next; };
+  if (topology) topologyPanel().catch(() => null).then((next) => { topology = swap(topology, next); });
   const draw = async () => {
+    connectionPanel().catch(() => null).then((next) => { connection = swap(connection, next); });
     const [o, events, open] = await Promise.all([api("/api/overview"), api("/api/events?limit=6"), api("/api/alerts")]);
     const cameras = Object.fromEntries(o.cameras.map((c) => [c.id, c.name]));
     const mode = o.mode;
@@ -100,7 +105,7 @@ export async function render(main) {
             h("div", { class: "row between" }, h("h2", {}, icon("bell"), " ", t("web.recent_events")), h("a", { href: "#/events" }, t("web.all"))),
             h("ul", { class: "list" }, events.length ? events.map((e) => eventRow(e, cameras)) : h("li", { class: "empty" }, t("web.nothing"))))),
         h("div", { class: "stack" },
-          await connectionPanel(),
+          connection,
           h("section", { class: "panel" }, h("h2", {}, icon("cpu"), " ", t("web.system")),
             h("dl", { class: "kv" }, h("dt", {}, t("web.storage")), h("dd", {}, `${sys.disk_used_percent} %`)), meter(sys.disk_used_percent),
             h("dl", { class: "kv" }, h("dt", {}, t("web.memory")), h("dd", {}, `${sys.memory_used_percent} %`)), meter(sys.memory_used_percent),

@@ -42,7 +42,8 @@ async function evidencePanel() {
 }
 
 export async function render(main) {
-  const overview = await api("/api/overview");
+  const [overview, stats, evidence, first] = await Promise.all([api("/api/overview"), api("/api/stats?days=14"),
+    evidencePanel(), api("/api/events?limit=30")]);
   const cameras = Object.fromEntries(overview.cameras.map((c) => [c.id, c.name]));
   const typeSel = h("select", { id: "type" }, h("option", { value: "" }, t("web.all_types")),
     TYPES.map((type) => h("option", { value: type }, t(`event.${type}`))));
@@ -51,20 +52,21 @@ export async function render(main) {
   const list = h("ul", { class: "list" });
   const more = h("button", {}, t("web.load_more"));
   let before = "";
-  const load = async (reset) => {
-    if (reset) { list.replaceChildren(); before = ""; }
-    const query = new URLSearchParams({ limit: 30, type: typeSel.value, camera: camSel.value, before });
-    const events = await api(`/api/events?${query}`);
+  const show = (events, reset) => {
     if (reset && !events.length) list.append(h("li", { class: "empty" }, t("web.nothing")));
     events.forEach((e) => list.append(eventRow(e, cameras)));
     before = events.length ? events[events.length - 1].ts : before;
     more.classList.toggle("hidden", events.length < 30);
   };
+  const load = async (reset) => {
+    if (reset) { list.replaceChildren(); before = ""; }
+    const query = new URLSearchParams({ limit: 30, type: typeSel.value, camera: camSel.value, before });
+    show(await api(`/api/events?${query}`), reset);
+  };
   typeSel.addEventListener("change", () => load(true));
   camSel.addEventListener("change", () => load(true));
   more.addEventListener("click", () => load(false));
 
-  const stats = await api("/api/stats?days=14");
   const days = [...Array(14)].map((_, i) => {
     const d = new Date(Date.now() - (13 - i) * 86400000);
     return d.toISOString().slice(0, 10);
@@ -74,7 +76,6 @@ export async function render(main) {
   const offset = -new Date().getTimezoneOffset() / 60;
   const hours = [...Array(24)].map((_, local) => stats.motion_by_hour_utc[((local - offset) % 24 + 24) % 24] || 0);
 
-  const evidence = await evidencePanel();
   fill(main,
     h("div", { class: "topbar" }, h("h1", {}, t("web.nav_events"))),
     evidence,
@@ -86,5 +87,5 @@ export async function render(main) {
       h("div", { class: "row" }, h("div", { class: "field grow" }, h("label", { for: "type" }, t("web.type")), typeSel),
         h("div", { class: "field grow" }, h("label", { for: "camera" }, t("web.camera")), camSel)),
       list, more));
-  await load(true);
+  show(first, true);
 }

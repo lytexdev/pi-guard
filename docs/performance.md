@@ -22,6 +22,11 @@ The desktop and phone apps show the dashboard from the Pi, so all of this reache
 
 - **Something is on screen at once.** A page shows a placeholder until its data is there. It stays hidden for the first
   150 ms, so fast answers do not flash.
+- **Few round trips, not few bytes.** Over a VPN each request in a chain costs a full round trip. The session is asked
+  for once at the start. Changing pages only waits for it where the answer decides what to show (login, setup);
+  otherwise it is checked alongside. Pages start their requests together, and the overview draws without waiting for
+  the topology and the connection panel. `index.html` names the first scripts with `modulepreload`, so the browser does
+  not have to find them import by import.
 
 ## Measurements
 
