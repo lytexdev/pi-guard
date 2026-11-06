@@ -73,6 +73,19 @@ sudo journalctl -u pi-guard -n 100
 - Phone goes to sleep and the mode flips to AWAY: increase
   `away_grace_period_seconds` (e.g. 1200) or use the FRITZ!Box source.
 
+## Faces are never recognized, the picture looks soft
+
+- Many cheap USB cameras squeeze their own H.264 hard after the first seconds, and offer no setting for it. A keyframe
+  of a few KB at 720p is the sign: `ffprobe -select_streams v -show_entries frame=pict_type,pkt_size <segment>`.
+  Recognition reads the same picture, so it loses the detail too.
+- Take the picture from the camera uncompressed and encode on the Pi:
+  `input_format: yuyv422`, `codec: libx264`, `bitrate: 1M`. On USB 2.0 this often means only 5 FPS at 720p, see
+  `v4l2-ctl --list-formats-ext`, and about 11 GB a day. `mjpeg` keeps 30 FPS but gains less, and takes far more CPU,
+  because such cameras may ignore the requested frame rate. On one test camera with a Pi 4: H.264 copy 50 % of a core,
+  sharpness 22; MJPEG 150 %, 30; YUYV 75 %, 53.
+- A camera without a focus control in `v4l2-ctl --list-ctrls` has a fixed lens: software cannot focus it. Some have a
+  ring around the lens. Otherwise more light helps most, because it shortens the exposure and so the motion blur.
+
 ## Storage
 
 - Recordings are gone before the retention period is over: the disk reached
