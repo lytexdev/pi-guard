@@ -75,10 +75,15 @@ async def _remote() -> dict[str, Any]:
         return _latest[1]
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.get(
-                f"https://api.github.com/repos/{REPOSITORY}/commits/main",
-                headers={"Accept": "application/vnd.github+json"},
-            )
+            headers = {"Accept": "application/vnd.github+json"}
+            base = f"https://api.github.com/repos/{REPOSITORY}"
+            tags = await client.get(f"{base}/tags?per_page=100", headers=headers)
+            tags.raise_for_status()
+            # Only to show. What counts is the signature, which update.sh checks itself.
+            names = [t["name"] for t in tags.json() if t["name"].startswith("release-")]
+            if not names:
+                return {}
+            response = await client.get(f"{base}/commits/{max(names)}", headers=headers)
         response.raise_for_status()
         data = response.json()
         info = {"commit": data["sha"][:10], "date": data["commit"]["committer"]["date"],

@@ -22,6 +22,19 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- A new installation with `install.sh` gets a random first password instead of `admin123`, which anyone in the network
+  could have tried first. `pi-guard dashboard reset-password` chooses one too. Docker keeps `admin123` unless
+  `PI_GUARD_DASHBOARD_FIRST_PASSWORD` is set.
+- The phone app opens only its own address inside the app. A link like `https://pi:8443@example.org` used to pass.
+- Someone removed from the dashboard could go on watching with a paired phone or computer. Their devices, logins and VPN
+  access now go with them, and devices of people removed earlier are refused. The same goes for a deleted key file.
+- Adding a passkey or hardware key, an API token or a key file now asks for the password, so a stolen session cannot
+  turn into lasting access. A passkey logs in as the owner, so it takes the owner's password.
+- Viewers no longer get a VPN access for their phone or computer: it reaches the whole home network, and they may only
+  watch. A person changed to viewer loses theirs at once. Accesses viewers already have stay until you remove them under
+  Network › VPN. From outside, viewers need a public address for the dashboard.
+- A new password ends all other logins of that person. A stolen session used to survive it, for up to a week.
+- Devices paired by the owner stay the owner's after the user name changes. Before, they fell back to viewer.
 - Leaving a dashboard page while it was still loading could leave its timer running, or bring the old page back over the
   new one. Storage, language downloads and updates also kept asking the Pi after the page was closed.
 - A late answer can no longer show the previous mode on the overview for a moment.
@@ -29,6 +42,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Pi updates are signed. The update button and `scripts/update.sh` install only release tags signed with a key that stays
+  on your computer, so someone who gets into the GitHub account cannot run anything as root on a Pi. Until you make the
+  key with `scripts/release.sh key` and install once by hand, the button reports that there is no key. See
+  [Updates](docs/updates.md#updating-the-pi).
+- The agent reads its certificate with rustls itself; `rustls-pemfile` is no longer maintained.
 - The log names dashboard requests that take longer than half a second.
 - Quantum-resistant VPN on phones and on Windows too: one key exchange in Rust (`vpn/kem`) with ML-KEM-1024 and HQC-256
   for the Pi, computers and phones, inside the tunnel. Computers use it instead of Rosenpass; the Pi keeps Rosenpass

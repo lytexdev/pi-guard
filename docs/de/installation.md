@@ -157,9 +157,12 @@ sudo systemctl restart pi-guard
 
 ```bash
 cd pi-guard
-git pull
 sudo ./scripts/update.sh
 ```
+
+Das installiert die neueste signierte Version. Ein Pi nimmt nur Versionen an, die mit deinem Schlüssel signiert sind, nicht
+einfach den Stand von GitHub. Führe vorher kein `git pull` aus: Der Pi wäre sonst der Version voraus, mit Code, den niemand
+signiert hat. Mehr dazu in [Updates](../updates.md#updating-the-pi).
 
 ## Entfernen
 

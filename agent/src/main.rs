@@ -14,6 +14,8 @@ use std::sync::Arc;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
+use rustls::pki_types::pem::PemObject;
+use rustls::pki_types::CertificateDer;
 use serde_json::{json, Value};
 use tungstenite::client::IntoClientRequest;
 use tungstenite::http::HeaderValue;
@@ -30,7 +32,7 @@ pub fn tls_config(config: &Config) -> Result<Option<Arc<rustls::ClientConfig>>, 
     let Some(path) = &config.ca_file else { return Ok(None) };
     let pem = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
     let mut roots = rustls::RootCertStore::empty();
-    for cert in rustls_pemfile::certs(&mut pem.as_slice()) {
+    for cert in CertificateDer::pem_slice_iter(&pem) {
         roots.add(cert.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     }
     let tls = rustls::ClientConfig::builder().with_root_certificates(roots).with_no_client_auth();

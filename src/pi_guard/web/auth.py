@@ -1,9 +1,10 @@
 """Dashboard authentication: the account, key files, TOTP and sessions.
 
-There is one dashboard account, stored in the database. It starts as
-admin / admin123 and must be changed at the first login before anything else
-is possible. The dashboard secret key (PI_GUARD_DASHBOARD_SECRET_KEY) is mixed
-into password hashes as a pepper and encrypts the TOTP secret, so a copy of
+There is one dashboard account, stored in the database. It starts as admin with
+the password install.sh chose, or admin123 without one, and must be changed at
+the first login before anything else is possible. The dashboard secret key
+(PI_GUARD_DASHBOARD_SECRET_KEY) is mixed into password hashes as a pepper and
+encrypts the TOTP secret, so a copy of
 the database alone is not enough to guess the password offline or to generate
 login codes. Key files and session IDs are 256-bit random values, so SHA-256
 of them is enough.
@@ -189,6 +190,7 @@ class AuthStore:
         return [dict(r) for r in rows]
 
     def delete_keyfile(self, name: str) -> bool:
+        self._db.execute("DELETE FROM web_sessions WHERE username = ?", (f"key:{name}",))
         return self._db.execute("DELETE FROM web_keyfiles WHERE name = ?", (name,)).rowcount > 0
 
     # sessions
@@ -242,6 +244,14 @@ class AuthStore:
         self.end(token)
         return self.create_session(row["username"], row["ip"], row["agent"])
 
+    def end_other_sessions(self, username: str, keep: str | None) -> None:
+        """A new password must also lock out whoever made it necessary."""
+        key_files = "key:%" if self.is_owner(username) else ""  # they log in as the owner
+        self._db.execute(
+            "DELETE FROM web_sessions WHERE (username = ? OR username LIKE ?) AND id_hash != ?",
+            (username, key_files, _digest(keep or "")),
+        )
+
     def end(self, token: str) -> None:
         self._db.execute("DELETE FROM web_sessions WHERE id_hash = ?", (_digest(token),))
 
@@ -271,16 +281,16 @@ class AuthStore:
         self._pepper = hashlib.sha256(b"pi-guard password pepper\0" + secret_key).digest()
         self._totp_key = hashlib.sha256(b"pi-guard totp key\0" + secret_key).digest()
 
-    def ensure_account(self) -> None:
+    def ensure_account(self, password: str = DEFAULT_PASSWORD) -> None:
         if self._db.execute("SELECT 1 FROM web_account").fetchone() is None:
-            self.reset_account()
+            self.reset_account(password)
 
-    def reset_account(self) -> None:
-        """Back to admin / admin123 with a forced change, TOTP off, all sessions ended."""
+    def reset_account(self, password: str = DEFAULT_PASSWORD) -> None:
+        """Back to admin with a forced change, TOTP off, all sessions ended."""
         self._db.execute(
             "INSERT OR REPLACE INTO web_account (id, username, password_hash, must_change, totp, "
             "totp_pending, updated) VALUES (1, ?, ?, 1, NULL, NULL, ?)",
-            (DEFAULT_USERNAME, hash_password(DEFAULT_PASSWORD, self._pepper), utcnow().isoformat()),
+            (DEFAULT_USERNAME, hash_password(password, self._pepper), utcnow().isoformat()),
         )
         self._db.executescript(
             "DELETE FROM web_recovery; DELETE FROM web_factors; DELETE FROM web_credentials;"
@@ -329,13 +339,14 @@ class AuthStore:
         return self._db.execute("UPDATE web_users SET role = ? WHERE id = ?",
                                 (role, user_id)).rowcount > 0  # fmt: skip
 
-    def delete_user(self, user_id: int) -> bool:
+    def delete_user(self, user_id: int) -> str | None:
+        """The name of the person removed. Their devices are the caller's to remove."""
         row = self._db.execute("SELECT username FROM web_users WHERE id = ?", (user_id,)).fetchone()
         if row is None:
-            return False
+            return None
         self._db.execute("DELETE FROM web_users WHERE id = ?", (user_id,))
         self._db.execute("DELETE FROM web_sessions WHERE username = ?", (row["username"],))
-        return True
+        return str(row["username"])
 
     def change_own_password(self, username: str, current: str, password: str) -> None:
         row = self._extra(username)
@@ -356,6 +367,16 @@ class AuthStore:
 
     def is_owner(self, username: str) -> bool:
         return self._extra(username) is None
+
+    def exists(self, username: str) -> bool:
+        """Devices keep the name they were paired with; it may be gone by now."""
+        if username == "local":
+            return True
+        if username.startswith("key:"):
+            row = self._db.execute("SELECT 1 FROM web_keyfiles WHERE name = ?", (username[4:],))
+            return row.fetchone() is not None
+        owner: str = self.account()["username"]
+        return username.casefold() == owner.casefold() or self._extra(username) is not None
 
     def account(self, username: str | None = None) -> dict[str, Any]:
         extra = self._extra(username) if username else None
@@ -402,6 +423,10 @@ class AuthStore:
         )
         self._db.execute("UPDATE web_sessions SET username = ? WHERE username = ?",
                          (username, account["username"]))  # fmt: skip
+        # Also when the phone add-on is off now: its devices must still count as the owner's.
+        if self._db.execute("SELECT 1 FROM sqlite_master WHERE name = 'mobile_devices'").fetchone():
+            self._db.execute("UPDATE mobile_devices SET username = ? WHERE username = ?",
+                             (username, account["username"]))  # fmt: skip
 
     # TOTP secrets are encrypted with a key derived from the dashboard secret key.
 

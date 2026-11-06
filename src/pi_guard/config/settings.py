@@ -183,6 +183,8 @@ class Settings(BaseSettings):
     # Pepper for the dashboard password hash and key for the stored TOTP secret.
     # Generated in DATA_DIR if empty; keeping it in the env file separates it from the database.
     dashboard_secret_key: SecretStr | None = None
+    # The first login's password, chosen by install.sh. Without it, the well-known admin123.
+    dashboard_first_password: SecretStr | None = None
     # How the dashboard is reached from outside, e.g. https://guard.example.org behind a
     # reverse proxy. Only this name and addresses of the home network are accepted then.
     dashboard_public_url: str | None = None

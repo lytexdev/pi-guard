@@ -226,7 +226,12 @@ install -d -m 0700 -o "$USER_NAME" -g "$USER_NAME" "$RECORDINGS"
 # On unless someone switched them off: most people use pi-guard through these two.
 if ! grep -q '^PI_GUARD_DASHBOARD_ENABLED=' "$ENV_FILE"; then
     set_env PI_GUARD_DASHBOARD_ENABLED true
-    say "first login: admin / admin123 - the dashboard then asks for your own password"
+    if [[ ! -f "$DATA/pi-guard.db" ]] && ! grep -q '^PI_GUARD_DASHBOARD_FIRST_PASSWORD=..' "$ENV_FILE"; then
+        # Anyone in the network could try a well-known password before you do.
+        FIRST_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(12))')"
+        set_env PI_GUARD_DASHBOARD_FIRST_PASSWORD "$FIRST_PASSWORD"
+        say "first login: admin / $FIRST_PASSWORD - the dashboard then asks for your own password"
+    fi
     say "dashboard: https://<pi>:8443; install the certificate from https://<pi>:8443/ca.crt on your devices"
 fi
 grep -q '^PI_GUARD_MOBILE_ENABLED=' "$ENV_FILE" || set_env PI_GUARD_MOBILE_ENABLED true
@@ -289,6 +294,16 @@ OWNER="$(stat -c %U "$REPO")"
 printf 'REPO=%q\nOWNER=%q\n' "$REPO" "$OWNER" > "$CONF/update.conf"
 runuser -u "$OWNER" -- git -C "$REPO" rev-parse HEAD > "$PREFIX/commit" 2>/dev/null || true
 install -m 0755 "$REPO/scripts/update.sh" /usr/local/sbin/pi-guard-update
+install -m 0755 "$REPO/deploy/update/pi-guard-release-check" /usr/local/sbin/pi-guard-release-check
+# Only when there is none: an update must not be able to change whose signature counts.
+if [[ -f "$PREFIX/release-signers" ]]; then
+    cmp -s "$REPO/deploy/update/release-signers" "$PREFIX/release-signers" \
+        || warn "the release key in the repository differs from $PREFIX/release-signers; see docs/updates.md"
+elif [[ -s "$REPO/deploy/update/release-signers" ]]; then
+    install -m 0644 "$REPO/deploy/update/release-signers" "$PREFIX/release-signers"
+else
+    warn "no release key yet: updates from the dashboard stay off; see docs/updates.md"
+fi
 if [[ -e /usr/local/sbin/pi-guard-wg-status ]]; then  # an update of it comes with every install
     install -m 0755 "$REPO/deploy/wireguard/pi-guard-wg-status" /usr/local/sbin/pi-guard-wg-status
 fi

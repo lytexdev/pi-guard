@@ -12,6 +12,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
+from aiohttp import CookieJar
+from aiohttp.test_utils import TestClient
 
 from pi_guard.addons.mobile import MobileHub, MobileProvider, clean_report, map_link
 from pi_guard.cameras.pipeline import SnapshotUnavailableError
@@ -568,5 +570,115 @@ async def test_quantum_keys_are_on_by_default_and_can_be_switched_off(tmp_path: 
         off = await client.put("/api/network/quantum", json={"enabled": False}, headers=headers)
         assert off.status == 200 and not flag.exists()
     finally:
+        await client.close()
+        app.db.close()
+
+
+async def _viewer_phone(client: Any, app: Any) -> tuple[Any, dict[str, str]]:
+    """A second browser logs in as a viewer and pairs a phone."""
+    app.dashboard.auth.add_user("guest", "guest password 1", "viewer")
+    other = TestClient(client.server, cookie_jar=CookieJar(unsafe=True))
+    await other.start_server()
+    await other.post("/api/login", json={"username": "guest", "password": "guest password 1"})
+    csrf = (await (await other.get("/api/session")).json())["csrf"]
+    paired = await other.post("/api/mobile/pair", json={"name": "Guest", "platform": "android"},
+                              headers={"X-CSRF-Token": csrf})  # fmt: skip
+    return other, {"Authorization": f"Bearer {(await paired.json())['token']}"}
+
+
+async def test_removing_a_person_takes_their_phones(tmp_path: Path) -> None:
+    client, app, csrf, _ = await _paired(tmp_path)
+    other, bearer = await _viewer_phone(client, app)
+    try:
+        assert (await other.post("/api/mobile/session", headers=bearer)).status == 200
+        user_id = app.dashboard.auth.users()[0]["id"]
+        assert (await client.delete(f"/api/dashboard-users/{user_id}", headers=csrf)).status == 200
+        assert (await other.get("/api/overview")).status == 401
+        assert (await other.post("/api/mobile/session", headers=bearer)).status == 401
+        assert app.mobile.of_user("guest") == []
+    finally:
+        await other.close()
+        await client.close()
+        app.db.close()
+
+
+async def test_a_phone_of_someone_removed_earlier_is_refused(tmp_path: Path) -> None:
+    client, app, _, _ = await _paired(tmp_path)
+    other, bearer = await _viewer_phone(client, app)
+    try:
+        # What older versions left behind: the device stayed when its person went.
+        app.dashboard.auth.delete_user(app.dashboard.auth.users()[0]["id"])
+        assert app.mobile.of_user("guest")
+        assert (await other.post("/api/mobile/session", headers=bearer)).status == 401
+    finally:
+        await other.close()
+        await client.close()
+        app.db.close()
+
+
+async def test_a_new_owner_name_keeps_the_owners_phones(tmp_path: Path) -> None:
+    client, app, csrf, bearer = await _paired(tmp_path)
+    try:
+        response = await client.post(
+            "/api/account/credentials", headers=csrf,
+            json={"current": PASSWORD, "username": "chief", "password": "a new long password"},
+        )  # fmt: skip
+        assert response.status == 200
+        assert (await client.post("/api/mobile/session", headers=bearer)).status == 200
+        assert (await (await client.get("/api/session")).json())["role"] == "admin"
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_deleted_key_file_takes_its_logins(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        auth = app.dashboard.auth
+        secret = auth.create_keyfile("tablet")
+        token = auth.create_session("key:tablet", "127.0.0.1", "test")
+        assert auth.exists("key:tablet")
+        assert auth.check_keyfile(secret) == "tablet"
+        assert auth.delete_keyfile("tablet")
+        assert auth.session(token) is None
+        assert not auth.exists("key:tablet")
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_viewers_get_no_vpn_access(tmp_path: Path) -> None:
+    client, app, _, _ = await _paired(tmp_path)
+    other, bearer = await _viewer_phone(client, app)
+    try:
+        response = await other.post("/api/mobile/vpn", json={}, headers=bearer)
+        assert response.status == 403 and await response.text() == "web.vpn_admins_only"
+        response = await other.post("/api/mobile/vpn/pq", json={"key": ""}, headers=bearer)
+        assert response.status == 403
+    finally:
+        await other.close()
+        await client.close()
+        app.db.close()
+
+
+async def test_someone_changed_to_viewer_loses_the_vpn_access(tmp_path: Path) -> None:
+    client, app, csrf, _ = await _paired(tmp_path)
+    other, _ = await _viewer_phone(client, app)
+    try:
+        removed: list[int] = []
+        app.dashboard.wg_peers = SimpleNamespace(remove=removed.append)
+        app.settings.wireguard_enabled = True
+        user_id = app.dashboard.auth.users()[0]["id"]
+        device = app.mobile.of_user("guest")[0]["id"]
+        url = f"/api/dashboard-users/{user_id}"
+        assert (await client.patch(url, json={"role": "admin"}, headers=csrf)).status == 200
+        assert app.users.get("mobile", str(device)).role.value == "admin"
+        app.mobile.set_vpn_peer(device, 7)
+        assert (await client.patch(url, json={"role": "viewer"}, headers=csrf)).status == 200
+        assert removed == [7]
+        assert not app.mobile.get(device)["vpn_peer"]
+        assert app.users.get("mobile", str(device)).role.value == "viewer"
+    finally:
+        await other.close()
         await client.close()
         app.db.close()

@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from aiohttp import CookieJar
+from aiohttp.test_utils import TestClient
 
 from pi_guard.web import auth
 from pi_guard.web.auth import AuthStore, CredentialError, totp_code
@@ -287,6 +289,66 @@ async def test_appearance_and_logo(tmp_path: Path) -> None:
         assert session["appearance"]["accent"] == "#ff7a59" and session["appearance"]["logo"]
         logo = await client.get("/branding/logo")
         assert logo.status == 200 and await logo.read() == png
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_lasting_access_needs_the_password(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        csrf = {"X-CSRF-Token": await _login(client)}
+        for url, body in (("/api/tokens", {"name": "x", "scope": "control"}),
+                          ("/api/keyfiles", {"name": "x"})):  # fmt: skip
+            assert (await client.post(url, json=body, headers=csrf)).status == 403
+            wrong = {**body, "password": "not the password"}
+            assert (await client.post(url, json=wrong, headers=csrf)).status == 403
+            right = {**body, "password": PASSWORD}
+            assert (await client.post(url, json=right, headers=csrf)).status == 200
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_passkey_needs_the_owners_password(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    app.dashboard.guard.allowed_hosts = set()
+    host = {"Host": "pi.local"}
+    begin = "/api/account/webauthn/begin"
+    try:
+        csrf = {"X-CSRF-Token": await _login(client), **host}
+        assert (await client.post(begin, json={}, headers=csrf)).status == 403
+        answer = await client.post(begin, json={"password": PASSWORD}, headers=csrf)
+        assert answer.status == 200
+
+        app.dashboard.auth.add_user("second", "second admin pass", "admin")
+        other = TestClient(client.server, cookie_jar=CookieJar(unsafe=True))
+        await other.start_server()
+        try:
+            await other.post("/api/login", json={"username": "second",
+                                                 "password": "second admin pass"})  # fmt: skip
+            token = (await (await other.get("/api/session")).json())["csrf"]
+            own = {"password": "second admin pass"}
+            denied = await other.post(begin, json=own, headers={"X-CSRF-Token": token, **host})
+            assert denied.status == 403
+        finally:
+            await other.close()
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_login_challenge_cannot_add_a_key(tmp_path: Path) -> None:
+    # Anyone can ask for one, so it must not get around the password.
+    client, app = await _client(tmp_path)
+    app.dashboard.guard.allowed_hosts = set()
+    try:
+        csrf = {"X-CSRF-Token": await _login(client), "Host": "pi.local"}
+        started = await client.post("/api/login/webauthn/begin", json={}, headers=csrf)
+        flow = (await started.json())["flow"]
+        finish = await client.post("/api/account/webauthn/finish", headers=csrf,
+                                   json={"flow": flow, "credential": {}})  # fmt: skip
+        assert finish.status == 401
     finally:
         await client.close()
         app.db.close()

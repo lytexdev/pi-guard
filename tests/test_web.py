@@ -4,10 +4,12 @@ import asyncio
 import gzip
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
 import pytest
+from aiohttp import CookieJar
 from aiohttp.test_utils import TestClient, TestServer
 
 from pi_guard.cameras.live import AudioFanout, LiveFrames, read_mpjpeg
@@ -695,3 +697,73 @@ async def test_a_voice_message_reaches_the_assistant_whole(
         app.addons.assistant = None
         await client.close()
         app.db.close()
+
+
+async def test_a_new_password_ends_all_other_logins(web) -> None:  # type: ignore[no-untyped-def]
+    client, app = web
+    csrf = {"X-CSRF-Token": await _login(client)}
+    other = TestClient(client.server, cookie_jar=CookieJar(unsafe=True))
+    await other.start_server()
+    try:
+        await _login(other)
+        key = app.dashboard.auth.create_session("key:laptop", "127.0.0.1", "test")
+        body = {"current": PASSWORD, "username": "admin", "password": "another long password"}
+        response = await client.post("/api/account/credentials", json=body, headers=csrf)
+        assert response.status == 200
+        assert (await client.get("/api/overview")).status == 200  # the one that changed it stays
+        assert (await other.get("/api/overview")).status == 401
+        assert app.dashboard.auth.session(key) is None
+    finally:
+        await other.close()
+
+
+async def test_a_viewers_new_password_leaves_other_people_logged_in(web) -> None:  # type: ignore[no-untyped-def]
+    client, app = web
+    await _login(client)
+    app.dashboard.auth.add_user("guest", "guest password 1", "viewer")
+    viewer = TestClient(client.server, cookie_jar=CookieJar(unsafe=True))
+    second = TestClient(client.server, cookie_jar=CookieJar(unsafe=True))
+    await viewer.start_server()
+    await second.start_server()
+    try:
+        login = {"username": "guest", "password": "guest password 1"}
+        await viewer.post("/api/login", json=login)
+        await second.post("/api/login", json=login)
+        csrf = (await (await viewer.get("/api/session")).json())["csrf"]
+        body = {"current": "guest password 1", "password": "guest password 2"}
+        response = await viewer.post("/api/me/password", json=body,
+                                     headers={"X-CSRF-Token": csrf})  # fmt: skip
+        assert response.status == 200
+        assert (await viewer.get("/api/overview")).status == 200
+        assert (await second.get("/api/overview")).status == 401
+        assert (await client.get("/api/overview")).status == 200
+    finally:
+        await viewer.close()
+        await second.close()
+
+
+async def test_the_first_password_replaces_the_well_known_one(tmp_path: Path) -> None:
+    app = make_app(tmp_path, dashboard_enabled=True, dashboard_tls=False,
+                   dashboard_first_password="chosen by the installer")  # fmt: skip
+    dashboard = Dashboard(app)
+    try:
+        assert dashboard.auth.check_password("admin", "chosen by the installer") == "admin"
+        assert dashboard.auth.check_password("admin", auth.DEFAULT_PASSWORD) is None
+        assert dashboard.auth.account()["must_change"]
+    finally:
+        app.db.close()
+
+
+def test_reset_password_shows_a_new_random_password(tmp_path: Path, monkeypatch: Any) -> None:
+    from typer.testing import CliRunner
+
+    from pi_guard import cli
+
+    app = make_app(tmp_path, dashboard_enabled=True, dashboard_tls=False)
+    settings = app.settings
+    app.db.close()
+    monkeypatch.setattr(cli, "_config", lambda: SimpleNamespace(settings=settings))
+    answer = CliRunner().invoke(cli.app, ["dashboard", "reset-password"], input="y\n")
+    assert answer.exit_code == 0, answer.output
+    password = answer.output.split("admin / ", 1)[1].split(";", 1)[0]
+    assert len(password) >= 10 and password != auth.DEFAULT_PASSWORD

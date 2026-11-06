@@ -34,7 +34,7 @@ from pi_guard.notifications.rules import DEFAULTS, resolve
 from pi_guard.recording.evidence import MAX_MINUTES, evidence_files, record_evidence
 from pi_guard.recording.segments import ClipError
 from pi_guard.security.files import atomic_write
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.server import confirm_password, current, dashboard, read_json
 from pi_guard.web.settings_schema import BY_KEY, EXPERT, FIELDS, SECRETS, to_env
 
 PROFILE_FIELDS = {"birthday": 10, "address": 200, "email": 120, "phone": 40}
@@ -722,9 +722,11 @@ async def access(request: web.Request) -> web.Response:
 
 async def create_keyfile(request: web.Request) -> web.Response:
     d = dashboard(request)
-    name = str((await read_json(request)).get("name", "")).strip()
+    data = await read_json(request)
+    name = str(data.get("name", "")).strip()
     if not name or len(name) > 40 or not name.replace("-", "").replace("_", "").isalnum():
         raise web.HTTPBadRequest(text="name: letters, digits, - and _")
+    confirm_password(request, str(data.get("password", "")))
     secret = d.auth.create_keyfile(name)
     d.app.db.audit(_actor(request), "keyfile.create", name)
     return web.Response(text=secret + "\n", headers={

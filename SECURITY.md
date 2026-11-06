@@ -13,9 +13,17 @@ Only the latest release receives security fixes.
 
 ## Security model
 
-- **No inbound network access.** pi-guard opens no listening ports. Telegram
-  uses outbound long polling; signal-cli listens on localhost only; MQTT is an
+- **Network access.** The web dashboard listens on port 8443 (HTTPS) on all interfaces and is on by
+  default; turn it off with `PI_GUARD_DASHBOARD_ENABLED=false`. `install.sh` chooses a random first password;
+  without it, as in Docker, it is `admin123` unless `PI_GUARD_DASHBOARD_FIRST_PASSWORD` is set. It
+  must be changed at the first login, and nothing else works until it is. Telegram uses outbound long polling; signal-cli listens on localhost only; MQTT is an
   outbound client connection.
+- **Updates.** Agents and desktop apps check a signature, and a Pi installs only release tags signed with
+  a key that never leaves the owner's computer. A Pi trusts only the key in
+  `/opt/pi-guard/release-signers`, which updates cannot change.
+- **Dashboard roles.** The server enforces them with an allowlist. Viewers only watch and get no VPN
+  access. Removing a person removes their devices, logins and VPN access. A new password ends that
+  person's other logins. Passkeys, API tokens and key files need the password to be added.
 - **Authorisation** happens centrally in the messenger for every provider:
   configured user IDs or single-use, expiring invitation codes; group chats
   must be allow-listed; per-user rate limiting; admin-only commands checked by

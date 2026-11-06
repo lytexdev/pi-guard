@@ -25,6 +25,7 @@ from aiohttp import web
 
 from pi_guard.security.files import atomic_write
 from pi_guard.web.auth import (
+    DEFAULT_PASSWORD,
     PENDING_ALL,
     PENDING_CODEWORD,
     PENDING_NONE,
@@ -78,6 +79,17 @@ def current(request: web.Request) -> Session:
     return session
 
 
+def confirm_password(request: web.Request, password: str, owner: bool = False) -> None:
+    """What outlives a session needs the password again, or a stolen session could stay for good.
+
+    `owner`: passkeys log in as the owner, so another admin's password is not enough for one.
+    """
+    d = dashboard(request)
+    name = d.auth.account(None if owner else current(request).username)["username"]
+    if d.auth.check_password(name, password) is None:
+        raise web.HTTPForbidden(text="web.wrong_password")
+
+
 def json_body_limit(limit: int) -> Callable[[web.Request], Awaitable[dict[str, Any]]]:
     async def read(request: web.Request) -> dict[str, Any]:
         if request.content_length and request.content_length > limit:
@@ -109,9 +121,10 @@ class Dashboard:
         s = app.settings
         self.settings = s
         self.auth = AuthStore(app.db, self._secret_key())
-        self.auth.ensure_account()
+        first = s.dashboard_first_password
+        self.auth.ensure_account(first.get_secret_value() if first else DEFAULT_PASSWORD)
         if self.auth.account()["must_change"] and "password" in s.dashboard_methods:
-            log.warning("dashboard still uses the default login admin/admin123; "
+            log.warning("dashboard still uses its first login; "
                         "it must be changed at the first login")  # fmt: skip
         self.guard = Guard(
             s.dashboard_rate_limit_per_minute,

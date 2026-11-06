@@ -19,7 +19,9 @@ PI_GUARD_MOBILE_ENABLED=false
 
 ## Erste Anmeldung und Einrichtungsassistent
 
-Die erste Anmeldung ist **admin / admin123**. Danach verlangt das Dashboard
+Die erste Anmeldung ist **admin** mit dem Passwort, das `install.sh` am Ende zeigt. Ohne das Skript,
+etwa in Docker, ist es **admin123**, wenn du nicht `PI_GUARD_DASHBOARD_FIRST_PASSWORD` setzt. Danach
+verlangt das Dashboard
 sofort einen eigenen Benutzernamen und ein eigenes Passwort (mindestens 10
 Zeichen) und bietet einen Zwei-Faktor-Code an: QR-Code mit einer
 Authenticator-App scannen (z. B. Google Authenticator, Aegis, 2FAS) und einen
@@ -32,7 +34,7 @@ hoher Kontrast, große Schrift). Jeder Schritt außer der Anmeldung lässt sich
 überspringen und später unter *Mehr → Einrichtungsassistent* wieder öffnen.
 
 **Ausgesperrt?** `sudo -u pi-guard pi-guard dashboard reset-password` setzt
-die Anmeldung auf admin / admin123 zurück.
+die Anmeldung auf admin mit einem neuen Passwort zurück, das der Befehl anzeigt.
 
 ## Anmeldung
 
@@ -54,7 +56,10 @@ Unter *Einstellungen → Zugang → Dashboard-Benutzer* legst du Personen mit ei
 
 Betrachter können nicht mithören, sprechen, Fotos auslösen, den Modus ändern, den KI-Assistenten
 nutzen oder Einstellungen öffnen. Das prüft der Server, nicht nur die Oberfläche. Wird eine Person
-entfernt, ist sie sofort abgemeldet.
+entfernt, ist sie sofort abgemeldet, und ihre Handys, Computer und VPN-Zugänge sind weg. Ein neues
+Passwort meldet alle anderen Browser dieser Person ab; verbundene Handys melden sich beim nächsten
+Öffnen selbst wieder an. Einen Passkey, einen API-Token oder eine Schlüsseldatei anzulegen fragt nach
+dem Passwort, beim Passkey nach dem des Hauptkontos.
 
 ## YubiKey und Passkeys
 

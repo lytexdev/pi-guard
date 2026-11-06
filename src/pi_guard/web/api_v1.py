@@ -13,7 +13,7 @@ from aiohttp import web
 from pi_guard.addons.smarthome import SmartHomeError
 from pi_guard.cameras.pipeline import SnapshotUnavailableError
 from pi_guard.core.modes import AutoUnavailableError, Mode
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.server import confirm_password, current, dashboard, read_json
 
 ALARM_SECONDS = 60
 ENDPOINTS: tuple[tuple[str, str, str], ...] = (
@@ -189,6 +189,7 @@ async def create_token(request: web.Request) -> web.Response:
     scope = str(data.get("scope", "read"))
     if not name or scope not in ("read", "control"):
         raise web.HTTPBadRequest(text="web.api_bad_token")
+    confirm_password(request, str(data.get("password", "")))
     d.app.db.audit(f"web:{current(request).username}", "api.token_add", f"{name} ({scope})")
     return web.json_response({"token": d.auth.create_token(name, scope)})
 

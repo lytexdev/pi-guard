@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import json
 import os
+import secrets
 import shutil
 import signal
 import sys
@@ -549,7 +550,7 @@ def faces_delete(name: str) -> None:
 
 @dashboard_app.command("reset-password")
 def dashboard_reset_password() -> None:
-    """Reset the dashboard login to admin / admin123 (changed again at the next login)."""
+    """Reset the dashboard login to admin and a new password (changed at the next login)."""
     from pi_guard.storage.db import Database
     from pi_guard.web.auth import AuthStore
 
@@ -564,10 +565,11 @@ def dashboard_reset_password() -> None:
         key = secret_file.read_text().strip()
     db = Database(settings.data_dir / "pi-guard.db")
     store = AuthStore(db, key.encode())
-    store.reset_account()
+    password = secrets.token_urlsafe(12)
+    store.reset_account(password)
     db.audit("cli", "account.reset")
     db.close()
-    typer.echo("Login reset to admin / admin123; it must be changed at the next login.")
+    typer.echo(f"Login reset to admin / {password}; it must be changed at the next login.")
 
 
 @dashboard_app.command("keyfile")

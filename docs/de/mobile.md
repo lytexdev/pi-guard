@@ -10,7 +10,8 @@ unter *Add-ons* ein und starte neu.
 3. Prüfe den Zertifikats-Fingerabdruck und melde dich an. Das Handy bekommt einen eigenen Schlüssel und bleibt
    angemeldet.
 
-Neue Handys lassen sich nur im Heimnetz oder über das VPN verbinden. Unter *Add-ons → Handy-App* entfernst du ein
+Neue Handys lassen sich nur im Heimnetz oder über das VPN verbinden. Einen VPN-Zugang bekommen nur Admins: Er reicht ins
+ganze Heimnetz, und Betrachter dürfen nur zuschauen. Unter *Add-ons → Handy-App* entfernst du ein
 Handy; sein Schlüssel gilt dann sofort nicht mehr.
 
 ## Was sie kann

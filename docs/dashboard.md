@@ -19,7 +19,9 @@ without a bot token and Telegram can be set up in the assistant.
 
 ## First login and setup assistant
 
-The first login is **admin / admin123**. Before anything else works, the
+The first login is **admin** with the password `install.sh` shows at the end. Without the script,
+for example in Docker, it is **admin123** unless you set `PI_GUARD_DASHBOARD_FIRST_PASSWORD`. Before
+anything else works, the
 dashboard asks for your own user name and password (at least 10 characters,
 not the default). It then offers two-factor codes: scan the QR code with an
 authenticator app (Google Authenticator, Aegis, 2FAS, …) and confirm one code.
@@ -50,7 +52,7 @@ uses it, the log says so at every start.
 
 | Method | How |
 |---|---|
-| `password` | the dashboard account (default `admin` / `admin123`, changed at first login) |
+| `password` | the dashboard account (first login as `admin`, changed right away) |
 | `keyfile` | Choose a key file instead of typing a password. Create one under *Access* or with `pi-guard dashboard keyfile tablet -o tablet.key`. Only a hash is stored; delete the key there if a device is lost. |
 | `none` | No login. Only allowed on `127.0.0.1`, or with `PI_GUARD_DASHBOARD_ALLOW_UNAUTHENTICATED=true`. |
 
@@ -69,7 +71,9 @@ and off later under *Access → Your account*.
 Viewers cannot listen in, talk, take photos, change the mode, use the assistant or open
 settings. The server enforces this with an allowlist, so new features stay closed to viewers
 until they are added to it. A changed role counts at once; removing a person ends their
-sessions. Hardware keys, recovery codes and the code word belong to the main account.
+sessions and removes their phones, computers and VPN access. A new password logs out all other
+browsers of that person; paired phones log themselves in again the next time they open. Adding a
+passkey, an API token or a key file asks for the password; a passkey the owner's. Hardware keys, recovery codes and the code word belong to the main account.
 
 ### Hardware keys and passkeys
 
@@ -183,7 +187,7 @@ If the key changes, the password and two-factor codes stop working.
 sudo -u pi-guard pi-guard dashboard reset-password
 ```
 
-resets the login to admin / admin123 (to be changed at the next login), turns
+resets the login to admin with a new password it shows (to be changed at the next login), turns
 two-factor codes off and ends all sessions.
 
 ## HTTPS and the certificate

@@ -97,9 +97,11 @@ the files, their size and source and asks before downloading.
 
 ```bash
 cd pi-guard
-git pull
 sudo ./scripts/update.sh
 ```
+
+This installs the newest signed release, see [Updates](updates.md#updating-the-pi). Do not `git pull` first: the Pi would
+then be ahead of the release, and with code nobody signed.
 
 ## Uninstall
 

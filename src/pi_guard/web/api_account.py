@@ -9,8 +9,9 @@ import re
 from aiohttp import web
 
 from pi_guard.security.files import atomic_write
+from pi_guard.web.api_mobile import forget_devices, role_changed
 from pi_guard.web.auth import CredentialError, totp_uri
-from pi_guard.web.server import SETUP_DONE_KEY, current, dashboard, read_json
+from pi_guard.web.server import COOKIE, SETUP_DONE_KEY, current, dashboard, read_json
 
 
 def routes() -> list[web.RouteDef]:
@@ -52,6 +53,7 @@ async def credentials(request: web.Request) -> web.Response:
                                   str(data.get("password", "")))  # fmt: skip
     except CredentialError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
+    d.auth.end_other_sessions(d.auth.account()["username"], request.cookies.get(COOKIE))
     d.app.db.audit(_actor(request), "account.credentials")
     return web.json_response({"ok": True, "username": d.auth.account()["username"]})
 
@@ -137,6 +139,7 @@ async def my_password(request: web.Request) -> web.Response:
                                    str(data.get("password", "")))  # fmt: skip
     except CredentialError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
+    d.auth.end_other_sessions(current(request).username, request.cookies.get(COOKIE))
     return web.json_response({"ok": True})
 
 
@@ -160,17 +163,23 @@ async def user_add(request: web.Request) -> web.Response:
 async def user_role(request: web.Request) -> web.Response:
     d = dashboard(request)
     role = str((await read_json(request)).get("role", ""))
-    if not d.auth.set_role(int(request.match_info["id"]), role):
+    user_id = int(request.match_info["id"])
+    if not d.auth.set_role(user_id, role):
         raise web.HTTPBadRequest(text="web.error")
+    await role_changed(
+        request, next(u["username"] for u in d.auth.users() if u["id"] == user_id), role
+    )
     d.app.db.audit(_actor(request), "account.user_role", role)
     return web.json_response({"ok": True})
 
 
 async def user_delete(request: web.Request) -> web.Response:
     d = dashboard(request)
-    if not d.auth.delete_user(int(request.match_info["id"])):
+    username = d.auth.delete_user(int(request.match_info["id"]))
+    if username is None:
         raise web.HTTPNotFound()
-    d.app.db.audit(_actor(request), "account.user_remove")
+    devices = await forget_devices(request, username)
+    d.app.db.audit(_actor(request), "account.user_remove", f"{devices} device(s)")
     return web.json_response({"ok": True})
 
 

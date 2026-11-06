@@ -8,7 +8,6 @@ description = "Connects a computer to pi-guard: status, safe shutdown and Docker
 [dependencies]
 tungstenite = { version = "0.26", features = ["rustls-tls-native-roots"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
-rustls-pemfile = "2"
 ring = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
