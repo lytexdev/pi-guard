@@ -189,6 +189,7 @@ class AuthStore:
         return [dict(r) for r in rows]
 
     def delete_keyfile(self, name: str) -> bool:
+        self._db.execute("DELETE FROM web_sessions WHERE username = ?", (f"key:{name}",))
         return self._db.execute("DELETE FROM web_keyfiles WHERE name = ?", (name,)).rowcount > 0
 
     # sessions
@@ -329,13 +330,14 @@ class AuthStore:
         return self._db.execute("UPDATE web_users SET role = ? WHERE id = ?",
                                 (role, user_id)).rowcount > 0  # fmt: skip
 
-    def delete_user(self, user_id: int) -> bool:
+    def delete_user(self, user_id: int) -> str | None:
+        """The name of the person removed. Their devices are the caller's to remove."""
         row = self._db.execute("SELECT username FROM web_users WHERE id = ?", (user_id,)).fetchone()
         if row is None:
-            return False
+            return None
         self._db.execute("DELETE FROM web_users WHERE id = ?", (user_id,))
         self._db.execute("DELETE FROM web_sessions WHERE username = ?", (row["username"],))
-        return True
+        return str(row["username"])
 
     def change_own_password(self, username: str, current: str, password: str) -> None:
         row = self._extra(username)
@@ -356,6 +358,16 @@ class AuthStore:
 
     def is_owner(self, username: str) -> bool:
         return self._extra(username) is None
+
+    def exists(self, username: str) -> bool:
+        """Devices keep the name they were paired with; it may be gone by now."""
+        if username == "local":
+            return True
+        if username.startswith("key:"):
+            row = self._db.execute("SELECT 1 FROM web_keyfiles WHERE name = ?", (username[4:],))
+            return row.fetchone() is not None
+        owner: str = self.account()["username"]
+        return username.casefold() == owner.casefold() or self._extra(username) is not None
 
     def account(self, username: str | None = None) -> dict[str, Any]:
         extra = self._extra(username) if username else None
@@ -402,6 +414,10 @@ class AuthStore:
         )
         self._db.execute("UPDATE web_sessions SET username = ? WHERE username = ?",
                          (username, account["username"]))  # fmt: skip
+        # Also when the phone add-on is off now: its devices must still count as the owner's.
+        if self._db.execute("SELECT 1 FROM sqlite_master WHERE name = 'mobile_devices'").fetchone():
+            self._db.execute("UPDATE mobile_devices SET username = ? WHERE username = ?",
+                             (username, account["username"]))  # fmt: skip
 
     # TOTP secrets are encrypted with a key derived from the dashboard secret key.
 

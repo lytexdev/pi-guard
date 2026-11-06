@@ -22,6 +22,9 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Someone removed from the dashboard could go on watching with a paired phone or computer. Their devices, logins and VPN
+  access now go with them, and devices of people removed earlier are refused. The same goes for a deleted key file.
+- Devices paired by the owner stay the owner's after the user name changes. Before, they fell back to viewer.
 - Leaving a dashboard page while it was still loading could leave its timer running, or bring the old page back over the
   new one. Storage, language downloads and updates also kept asking the Pi after the page was closed.
 - A late answer can no longer show the previous mode on the overview for a moment.

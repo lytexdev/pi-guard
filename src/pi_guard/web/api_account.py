@@ -9,6 +9,7 @@ import re
 from aiohttp import web
 
 from pi_guard.security.files import atomic_write
+from pi_guard.web.api_mobile import forget_devices
 from pi_guard.web.auth import CredentialError, totp_uri
 from pi_guard.web.server import SETUP_DONE_KEY, current, dashboard, read_json
 
@@ -168,9 +169,11 @@ async def user_role(request: web.Request) -> web.Response:
 
 async def user_delete(request: web.Request) -> web.Response:
     d = dashboard(request)
-    if not d.auth.delete_user(int(request.match_info["id"])):
+    username = d.auth.delete_user(int(request.match_info["id"]))
+    if username is None:
         raise web.HTTPNotFound()
-    d.app.db.audit(_actor(request), "account.user_remove")
+    devices = await forget_devices(request, username)
+    d.app.db.audit(_actor(request), "account.user_remove", f"{devices} device(s)")
     return web.json_response({"ok": True})
 
 

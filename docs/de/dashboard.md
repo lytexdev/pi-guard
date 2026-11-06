@@ -54,7 +54,7 @@ Unter *Einstellungen → Zugang → Dashboard-Benutzer* legst du Personen mit ei
 
 Betrachter können nicht mithören, sprechen, Fotos auslösen, den Modus ändern, den KI-Assistenten
 nutzen oder Einstellungen öffnen. Das prüft der Server, nicht nur die Oberfläche. Wird eine Person
-entfernt, ist sie sofort abgemeldet.
+entfernt, ist sie sofort abgemeldet, und ihre Handys, Computer und VPN-Zugänge sind weg.
 
 ## YubiKey und Passkeys
 

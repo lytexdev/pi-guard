@@ -109,6 +109,11 @@ class MobileHub:
         data["online"] = data["id"] in self._sockets
         return data
 
+    def of_user(self, username: str) -> list[dict[str, Any]]:
+        rows = self._db.execute("SELECT * FROM mobile_devices WHERE username = ?",
+                                (username,)).fetchall()  # fmt: skip
+        return [self._row(r) for r in rows]
+
     def list(self) -> list[dict[str, Any]]:
         rows = self._db.execute("SELECT * FROM mobile_devices ORDER BY name").fetchall()
         return [self._row(r) for r in rows]
