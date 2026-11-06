@@ -33,6 +33,9 @@ The desktop and phone apps show the dashboard from the Pi, so all of this reache
   (125 KB to 38 KB). Other API answers stay plain: they are small, and `/api/session` holds the CSRF token, which must
   not share a compressed answer with anything an attacker can influence (BREACH). There is no Brotli, because it would
   add a build dependency on every Pi for a few KB more.
+- **Slow requests show in the log.** Any API answer that takes 500 ms or more is logged at level `INFO` as `slow request:`
+  with its route pattern, under Logs in the dashboard or with `journalctl -u pi-guard | grep "slow request"`. Assistant
+  answers are slow by nature. Live streams, WebSockets and file downloads are not counted.
 
 ## Measurements
 

@@ -158,6 +158,18 @@ async def test_the_csrf_token_is_never_compressed(web) -> None:  # type: ignore[
     assert "Content-Encoding" not in response.headers
 
 
+async def test_slow_requests_are_logged_without_their_address(web, monkeypatch, caplog) -> None:  # type: ignore[no-untyped-def]
+    client, _ = web
+    await _login(client)
+    monkeypatch.setattr(server, "SLOW_REQUEST", 0)
+    with caplog.at_level("INFO", logger="pi_guard.web.server"):
+        await client.get("/api/events?camera=secret")
+        await client.get("/api/media/snapshots/private.jpg")
+    assert "slow request: GET /api/events took" in caplog.text
+    assert "secret" not in caplog.text
+    assert "private.jpg" not in caplog.text
+
+
 async def test_honeypots_ban_the_address(web, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     from pi_guard.web import security
 

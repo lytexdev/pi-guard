@@ -156,6 +156,11 @@ pi-guard has no root rights. The system checks come from `pi-guard-maint`, a roo
 systemd path unit. It accepts only four fixed words and writes its reports to `/var/lib/pi-guard-scan`,
 where pi-guard cannot write.
 
+## If the dashboard feels slow
+
+Open *Logs* and look for `slow request:`. Every answer that took half a second or more is listed there with its route,
+and the assistant's answers appear because they take a while anyway. More in [Performance](performance.md).
+
 ## Appearance
 
 *Settings → Appearance* sets the accent colour, font, animations and your own logo (PNG, JPEG or
