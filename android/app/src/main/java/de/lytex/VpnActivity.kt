@@ -129,7 +129,8 @@ class VpnActivity : AppCompatActivity() {
         }
         findViewById<ImageView>(R.id.shield).imageTintList = ColorStateList.valueOf(getColor(color))
         findViewById<TextView>(R.id.title).setText(title)
-        findViewById<TextView>(R.id.detail).setText(when {
+        val detail = findViewById<TextView>(R.id.detail)
+        detail.setText(when {
             busy || waiting -> R.string.vpn_off_text
             fresh -> R.string.vpn_on_text
             status != null -> R.string.vpn_no_answer_text
@@ -143,6 +144,7 @@ class VpnActivity : AppCompatActivity() {
                 null -> R.string.vpn_off_text
             }
         })
+        if (fresh && !busy) detail.append(" " + getString(if (Vpn.quantum) R.string.vpn_quantum else R.string.vpn_classic))
         findViewById<Button>(R.id.toggle).apply {
             isEnabled = !busy
             setText(if (status != null) R.string.disconnect_vpn else R.string.connect_vpn)

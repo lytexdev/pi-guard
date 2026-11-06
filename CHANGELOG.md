@@ -17,6 +17,9 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Quantum-resistant VPN on phones and on Windows too: one key exchange in Rust (`vpn/kem`) with ML-KEM-1024 and HQC-256
+  for the Pi, computers and phones, inside the tunnel. Computers use it instead of Rosenpass; the Pi keeps Rosenpass
+  until every device has updated. `vpn-server.sh install` must run once more on the Pi.
 - Adding a trusted person explains what works best and can take guided photos or a video on the spot, in
   the browser and in the app.
 - The app creates its own VPN access when a phone is paired and has a VPN screen behind the shield at the top:

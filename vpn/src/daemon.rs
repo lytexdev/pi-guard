@@ -2,7 +2,9 @@
 
 use crate::config::{resolve, valid_endpoint, Tunnel, Way};
 use crate::firewall::{self, Plan, IFACE, SPLIT_GROUP};
+use crate::exchange::{self, LAST_KEY_VALID};
 use crate::pq::{self, now, valid_psk};
+use crate::sys::set_preshared_key;
 use crate::{b64, tunnel};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -26,7 +28,6 @@ const NO_SPLIT: &str = "Split tunneling is off, the kill switch is not affected.
 const HANDSHAKE_FRESH: u64 = 180;
 const TRY_SECONDS: u64 = 12;
 const MAX_REQUEST: u64 = 2_000_000;
-const LAST_KEY_VALID: u64 = 190; // the Pi returns to the starting key a little later
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -56,11 +57,10 @@ struct Stored {
 
 struct Service {
     stored: Stored,
-    rosenpass: String,
     attempt: usize,
     tried_at: u64,
     way: Option<Way>,
-    pq: Option<pq::Client>,
+    pq: Option<exchange::Shared>,
     error: Option<String>,
     /// The kernel refused the split rule. Until this service restarts, it stays that way.
     no_split: bool,
@@ -167,20 +167,16 @@ impl Service {
     }
 
     fn quantum(&mut self) {
-        let wanted = self.stored.options.quantum && folder().join("server.pk").exists();
-        if !wanted {
+        let Some(config) = self.stored.config.as_ref().filter(|_| self.stored.options.quantum) else {
             self.pq = None;
             return;
-        }
-        if self.pq.as_mut().is_some_and(pq::Client::alive) {
-            return;
-        }
-        let Some(config) = &self.stored.config else { return };
-        let server = config.dns.first().cloned().unwrap_or_else(|| "10.8.0.1".into());
-        match pq::Client::start(&self.rosenpass, &folder(), &server, IFACE, &config.peer_key) {
-            Ok(client) => self.pq = Some(client),
-            Err(error) => self.error = Some(error),
-        }
+        };
+        let (peer, start, saved) = (config.peer_key.clone(), config.preshared_key.clone(), folder().join("last.psk"));
+        exchange::renew(self.pq.get_or_insert_with(Default::default), &start, move |key| {
+            set_preshared_key(IFACE, &peer, key)?;
+            // Kept for reconnecting: until the Pi falls back, only this key opens the tunnel.
+            fs::write(&saved, format!("{} {key}", now())).map_err(|e| e.to_string())
+        });
     }
 
     fn tick(&mut self) {
@@ -205,7 +201,7 @@ impl Service {
     fn status(&self) -> Value {
         let stats = tunnel::stats();
         let fresh = self.fresh();
-        let shared = self.pq.as_ref().map(|c| c.shared.lock().unwrap().last).unwrap_or(0);
+        let shared = self.pq.as_ref().map_or(0, |state| state.lock().unwrap().last);
         json!({
             "state": if !self.stored.wanted { "off" } else if fresh { "on" } else { "connecting" },
             "way": self.way.as_ref().filter(|_| fresh).map(|w| w.kind.clone()),
@@ -213,7 +209,7 @@ impl Service {
             "sent": stats.as_ref().map(|s| s.sent), "options": self.stored.options,
             "blocking": self.plan(false).block, "configured": self.stored.config.is_some(),
             "quantum": { "active": shared > 0 && now().saturating_sub(shared) < 300, "last": shared,
-                         "ready": folder().join("server.pk").exists() },
+                         "ready": true },
             "error": self.error.as_deref().or(self.no_split.then_some(NO_SPLIT)),
         })
     }
@@ -367,7 +363,7 @@ pub fn run(rosenpass: String) -> ! {
     }
     let _ = fs::create_dir_all(Path::new(CGROUP).join(SPLIT_GROUP));
     let mut service = Service {
-        stored, rosenpass, attempt: 0, tried_at: 0, way: None, pq: None, error: None, no_split: false, applied: None,
+        stored, attempt: 0, tried_at: 0, way: None, pq: None, error: None, no_split: false, applied: None,
     };
     // First thing at every start, before the network is up: lockdown must never have a gap.
     service.firewall(false);

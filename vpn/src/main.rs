@@ -6,12 +6,12 @@
 //!   pi-guard-vpn run -- PROGRAM ...  start a program past the VPN
 //!   pi-guard-vpn unlock              emergency: remove tunnel and firewall rules, as root
 
+mod b64;
 mod config;
+mod exchange;
 #[cfg(windows)]
 mod windows;
 
-#[cfg(unix)]
-mod b64;
 #[cfg(unix)]
 mod daemon;
 #[cfg(unix)]

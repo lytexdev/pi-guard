@@ -5,15 +5,19 @@
 //! If its tunnel goes silent, the Pi returns to the device's starting key, because a device that
 //! restarted may only know that one, and Rosenpass runs inside the tunnel.
 
+use crate::b64;
 use crate::config::valid_key;
 use crate::pq::{self, exchanged, now, valid_psk, PORT, PUBLIC_KEY_SIZE};
 use crate::sys::{read, set_preshared_key};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
+use pi_guard_kem::{pi, KEY_SIZE};
 use std::io::{BufRead, BufReader, Read};
+use std::net::{IpAddr, TcpListener, TcpStream};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::Child;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, sleep};
 use std::time::Duration;
@@ -29,6 +33,10 @@ const PUBLIC: &str = "/run/pi-guard-vpn-public";
 const MAX_PEERS_FILE: u64 = 1_000_000;
 const STALE_SECONDS: u64 = 200; // WireGuard renews its session every two minutes while connected
 const TICK: Duration = Duration::from_secs(15);
+
+const WAIT: Duration = Duration::from_secs(8);
+const MOST_AT_ONCE: usize = 4;
+const MIN_PAUSE: u64 = 20; // per device: a key every two minutes is the plan, not a loop
 
 type Keys = Arc<Mutex<HashMap<String, (String, u64)>>>;
 
@@ -127,6 +135,61 @@ fn take(path: &PathBuf, keys: &Keys) {
     }
 }
 
+/// Which device owns an address in the tunnel. WireGuard vouches for it: a packet from anyone else
+/// with that address does not get through.
+fn peer_at(allowed_ips: &str, address: &IpAddr) -> Option<String> {
+    let own = format!("{address}/32");
+    allowed_ips.lines().find_map(|line| {
+        let (key, addresses) = line.split_once('\t')?;
+        addresses.split_whitespace().any(|a| a == own).then(|| key.to_string())
+    })
+}
+
+fn exchange(mut stream: TcpStream, keys: &Keys, last: &Mutex<HashMap<String, u64>>) -> Option<()> {
+    stream.set_read_timeout(Some(WAIT)).ok()?;
+    stream.set_write_timeout(Some(WAIT)).ok()?;
+    let address = stream.peer_addr().ok()?.ip();
+    let allowed = read("wg", &["show", INTERFACE, "allowed-ips"]).ok()?;
+    let peer = peer_at(&allowed, &address)?;
+    {
+        let mut last = last.lock().unwrap();
+        let time = last.entry(peer.clone()).or_insert(0);
+        if now().saturating_sub(*time) < MIN_PAUSE {
+            return None;
+        }
+        *time = now();
+    }
+    let start = b64::decode(starting_keys().get(&peer)?)?;
+    let key = pi(&mut stream, &<[u8; KEY_SIZE]>::try_from(start).ok()?).ok()?;
+    let psk = b64::encode(key.as_slice());
+    set_preshared_key(INTERFACE, &peer, &psk).ok()?;
+    keys.lock().unwrap().insert(peer, (psk, now()));
+    Some(())
+}
+
+/// Reachable only inside the tunnel: it listens on the tunnel's own address.
+fn listen(keys: Keys) {
+    let last: Arc<Mutex<HashMap<String, u64>>> = Arc::default();
+    let running = Arc::new(AtomicUsize::new(0));
+    loop {
+        let Ok(listener) = TcpListener::bind((LISTEN, pi_guard_kem::PORT)) else {
+            sleep(TICK); // the tunnel is not up yet
+            continue;
+        };
+        for stream in listener.incoming().map_while(Result::ok) {
+            if !Path::new(DATA).join("pq/enabled").exists() || running.load(Ordering::Acquire) >= MOST_AT_ONCE {
+                continue;
+            }
+            running.fetch_add(1, Ordering::AcqRel);
+            let (keys, last, running) = (keys.clone(), last.clone(), running.clone());
+            thread::spawn(move || {
+                exchange(stream, &keys, &last);
+                running.fetch_sub(1, Ordering::AcqRel);
+            });
+        }
+    }
+}
+
 fn handshakes() -> HashMap<String, u64> {
     let text = read("wg", &["show", INTERFACE, "latest-handshakes"]).unwrap_or_default();
     text.lines().filter_map(|line| {
@@ -157,6 +220,8 @@ pub fn run(binary: &str) -> ! {
     let _ = fs::set_permissions(format!("{PUBLIC}/server.pub"), fs::Permissions::from_mode(0o644));
 
     let keys: Keys = Arc::default();
+    let listening = keys.clone();
+    thread::spawn(move || listen(listening));
     let mut child: Option<Child> = None;
     let mut running: Vec<String> = vec![];
     loop {
@@ -192,6 +257,23 @@ pub fn run(binary: &str) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_device_is_found_by_its_address_in_the_tunnel() {
+        let text = "keyA=\t10.8.0.2/32\nkeyB=\t10.8.0.3/32 fd00::3/128\nkeyC=\t(none)\n";
+        assert_eq!(peer_at(text, &"10.8.0.3".parse().unwrap()).as_deref(), Some("keyB="));
+        assert_eq!(peer_at(text, &"10.8.0.9".parse().unwrap()), None);
+    }
+
+    #[test]
+    fn an_address_is_not_mistaken_for_a_longer_one() {
+        assert_eq!(peer_at("keyA=\t10.8.0.20/32\n", &"10.8.0.2".parse().unwrap()), None);
+    }
+
+    #[test]
+    fn a_whole_network_of_a_device_does_not_count() {
+        assert_eq!(peer_at("keyA=\t10.8.0.0/24\n", &"10.8.0.0".parse().unwrap()), None);
+    }
 
     #[test]
     fn device_names_are_keys_and_nothing_else() {

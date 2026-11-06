@@ -70,6 +70,8 @@
     <string name="vpn_no_answer_text">Check the internet connection of this phone and of your home. If the access was removed in the dashboard, disconnect here and open the app once at home.</string>
     <string name="vpn_on_text">Your connection goes through your home.</string>
     <string name="vpn_off_text">Connect to reach your home from anywhere. This phone has its own access, nothing to set up.</string>
+    <string name="vpn_quantum">Quantum-resistant encryption.</string>
+    <string name="vpn_classic">Classic encryption, the quantum-resistant key is not there yet.</string>
     <string name="vpn_device">This device</string>
     <string name="vpn_address">Address in the VPN</string>
     <string name="vpn_server">Your home</string>

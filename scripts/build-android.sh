@@ -27,6 +27,25 @@ if [[ ! -f "$PROPERTIES" ]]; then
     echo "created the signing key in $SECRETS; back it up"
 fi
 
+# The post-quantum key exchange, the same Rust code as on the Pi and on computers.
+SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+NDK="$(ls -d "$SDK"/ndk/* | sort -V | tail -1)"
+TOOLS="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+API=29
+for entry in arm64-v8a:aarch64-linux-android:aarch64-linux-android \
+             armeabi-v7a:armv7-linux-androideabi:armv7a-linux-androideabi \
+             x86_64:x86_64-linux-android:x86_64-linux-android; do
+    IFS=: read -r abi target compiler <<< "$entry"
+    name="${target//-/_}"
+    upper="${name^^}"
+    env "CC_$name=$TOOLS/$compiler$API-clang" "AR_$name=$TOOLS/llvm-ar" \
+        "CARGO_TARGET_${upper}_LINKER=$TOOLS/$compiler$API-clang" \
+        "CARGO_TARGET_${upper}_RUSTFLAGS=-C link-arg=-Wl,-z,max-page-size=16384" \
+        cargo build --quiet --release --manifest-path "$REPO/vpn/Cargo.toml" -p pi-guard-kem --target "$target"
+    install -D -m 0644 "$REPO/vpn/target/$target/release/libpi_guard_kem.so" \
+        "$REPO/android/app/build/rust-jni/$abi/libpi_guard_kem.so"
+done
+
 cd "$REPO/android"
 PIGUARD_KEYSTORE_PROPERTIES="$PROPERTIES" PIGUARD_VERSION_CODE="$CODE" PIGUARD_VERSION_NAME="$VERSION" \
     ./gradlew --quiet assembleRelease

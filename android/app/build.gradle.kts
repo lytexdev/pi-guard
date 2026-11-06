@@ -46,6 +46,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    sourceSets["main"].jniLibs.srcDir("build/rust-jni") // from scripts/build-android.sh
 }
 
 dependencies {

@@ -1,9 +1,10 @@
 //! The VPN on Windows. It drives the official WireGuard client instead of bringing a driver of its
 //! own: signed, widely used, and for a tunnel of all traffic it blocks everything past it with the
-//! Windows Filtering Platform by itself. That is the kill switch here. Lockdown, split tunneling
-//! and Rosenpass are not available with it, and the app does not offer them.
+//! Windows Filtering Platform by itself. That is the kill switch here. Lockdown and split tunneling
+//! are not available with it, and the app does not offer them.
 
 use crate::config::{resolve, valid_endpoint, Tunnel, Way};
+use crate::exchange::{self, LAST_KEY_VALID};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::ffi::{c_void, OsString};
@@ -76,6 +77,7 @@ struct Stored {
     ways: Vec<Way>,
     wanted: bool,
     auto_connect: bool,
+    no_quantum: bool,
 }
 
 struct Service {
@@ -84,14 +86,15 @@ struct Service {
     tried_at: u64,
     way: Option<Way>,
     error: Option<String>,
+    pq: exchange::Shared,
 }
 
 /// The access with one way filled in, for the WireGuard service.
-fn render(tunnel: &Tunnel, endpoint: &str, mtu: u32) -> String {
+fn render(tunnel: &Tunnel, preshared_key: &str, endpoint: &str, mtu: u32) -> String {
     let dns = if tunnel.dns.is_empty() { String::new() } else { format!("DNS = {}\n", tunnel.dns.join(", ")) };
     format!(
         "[Interface]\nPrivateKey = {}\nAddress = {}\n{dns}MTU = {mtu}\n\n[Peer]\nPublicKey = {}\nPresharedKey = {}\nEndpoint = {endpoint}\nAllowedIPs = {}\nPersistentKeepalive = 25\n",
-        tunnel.private_key, tunnel.address, tunnel.peer_key, tunnel.preshared_key, tunnel.allowed_ips.join(", ")
+        tunnel.private_key, tunnel.address, tunnel.peer_key, preshared_key, tunnel.allowed_ips.join(", ")
     )
 }
 
@@ -101,7 +104,30 @@ fn handshake() -> Option<(u64, u64, u64)> {
     Some((parts.get(4)?.parse().ok()?, parts.get(5)?.parse().ok()?, parts.get(6)?.parse().ok()?))
 }
 
+/// `wg.exe` takes keys from a file, never from the command line, where others could read them.
+fn set_key(peer: &str, key: &str) -> Result<(), String> {
+    let file = folder().join("next.psk");
+    fs::write(&file, key).map_err(|e| e.to_string())?;
+    let result = hidden(&wireguard("wg.exe"), &["set", TUNNEL, "peer", peer, "preshared-key", &file.display().to_string()]);
+    let _ = fs::remove_file(&file);
+    result.map(|_| ())
+}
+
 impl Service {
+    /// Until the Pi falls back, only the last key opens the tunnel. Every other try uses the
+    /// starting key, in case the Pi never took the last one.
+    fn key_to_try(&self, config: &Tunnel) -> String {
+        let state = self.pq.lock().unwrap();
+        let recent = exchange::now().saturating_sub(state.last) < LAST_KEY_VALID;
+        state.key.clone().filter(|_| recent && self.attempt % 2 == 1).unwrap_or_else(|| config.preshared_key.clone())
+    }
+
+    fn quantum(&self) {
+        let Some(config) = self.stored.config.as_ref().filter(|_| !self.stored.no_quantum) else { return };
+        let peer = config.peer_key.clone();
+        exchange::renew(&self.pq, &config.preshared_key, move |key| set_key(&peer, key));
+    }
+
     fn save(&self) {
         if let Ok(text) = serde_json::to_vec(&self.stored) {
             let _ = fs::write(folder().join("state.json"), text);
@@ -132,7 +158,7 @@ impl Service {
         };
         let mtu = if way.mtu == 0 { config.mtu } else { way.mtu };
         let path = folder().join(format!("{TUNNEL}.conf"));
-        if let Err(error) = fs::write(&path, render(&config, &address, mtu)) {
+        if let Err(error) = fs::write(&path, render(&config, &self.key_to_try(&config), &address, mtu)) {
             self.error = Some(error.to_string());
             return;
         }
@@ -155,6 +181,7 @@ impl Service {
         }
         if self.fresh() {
             self.attempt = 0;
+            self.quantum();
         } else if now().saturating_sub(self.tried_at) >= TRY_SECONDS {
             self.attempt_now();
         }
@@ -163,14 +190,16 @@ impl Service {
     fn status(&self) -> Value {
         let stats = handshake();
         let fresh = self.fresh();
+        let shared = self.pq.lock().unwrap().last;
         json!({
             "state": if !self.stored.wanted { "off" } else if fresh { "on" } else { "connecting" },
             "way": self.way.as_ref().filter(|_| fresh).map(|w| w.kind.clone()),
             "handshake": stats.map(|s| s.0), "received": stats.map(|s| s.1), "sent": stats.map(|s| s.2),
             "options": { "kill_switch": true, "lockdown": false, "allow_lan": false,
-                         "auto_connect": self.stored.auto_connect, "quantum": false },
-            "features": ["auto_connect"], "blocking": fresh, "configured": self.stored.config.is_some(),
-            "quantum": { "active": false, "last": 0, "ready": false }, "error": self.error,
+                         "auto_connect": self.stored.auto_connect, "quantum": !self.stored.no_quantum },
+            "features": ["auto_connect", "quantum"], "blocking": fresh, "configured": self.stored.config.is_some(),
+            "quantum": { "active": shared > 0 && exchange::now().saturating_sub(shared) < 300, "last": shared, "ready": true },
+            "error": self.error,
         })
     }
 
@@ -194,6 +223,7 @@ impl Service {
             "configure" => self.configure(request),
             "options" => {
                 self.stored.auto_connect = request["options"]["auto_connect"].as_bool().unwrap_or(false);
+                self.stored.no_quantum = !request["options"]["quantum"].as_bool().unwrap_or(true);
                 self.save();
                 self.status()
             }
@@ -318,7 +348,7 @@ fn service_main(_: Vec<OsString>) {
     let stored: Stored = fs::read(folder().join("state.json")).ok()
         .and_then(|text| serde_json::from_slice(&text).ok()).unwrap_or_default();
     let user_sid = fs::read_to_string(folder().join("user")).unwrap_or_default().trim().to_string();
-    let mut service = Service { stored, attempt: 0, tried_at: 0, way: None, error: None };
+    let mut service = Service { stored, attempt: 0, tried_at: 0, way: None, error: None, pq: Default::default() };
     if service.stored.auto_connect {
         service.stored.wanted = true;
     }
@@ -393,7 +423,7 @@ mod tests {
             peer_key: key.into(), preshared_key: key.into(), endpoint: "x.example:1".into(),
             allowed_ips: vec!["0.0.0.0/0".into(), "::/0".into()],
         };
-        let text = render(&tunnel, "1.2.3.4:51820", 1340);
+        let text = render(&tunnel, key, "1.2.3.4:51820", 1340);
         assert!(text.contains("Endpoint = 1.2.3.4:51820") && text.contains("MTU = 1340"));
         // What makes WireGuard for Windows block everything past the tunnel.
         assert!(text.contains("AllowedIPs = 0.0.0.0/0, ::/0"));

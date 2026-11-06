@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.VpnService
+import android.util.Base64
 import android.util.Log
 import com.wireguard.android.backend.BackendException
 import com.wireguard.android.backend.GoBackend
@@ -29,6 +30,9 @@ object Vpn {
     var way: Way? = null
         private set
     private var hunt = 0
+    /** From the last key exchange. In memory only: without it, the starting key still opens the tunnel. */
+    private var pqKey: String? = null
+    private var pqSeen = 0L
     private var excluded: Set<String> = emptySet()
     private var backend: GoBackend? = null
     private val tunnel = object : Tunnel {
@@ -39,6 +43,7 @@ object Vpn {
     private fun backend(context: Context) = backend ?: GoBackend(context.applicationContext).also { backend = it }
 
     val running: Boolean get() = backend?.getState(tunnel) == Tunnel.State.UP
+    val quantum: Boolean get() = running && pqKey != null
 
     /** Blocks; call off the main thread. Uses the stored access, so it also works away from home. */
     @Synchronized
@@ -47,9 +52,10 @@ object Vpn {
         val all = ways(store)
         val first = all.firstOrNull { it.endpoint == store.vpnEndpoint } ?: all.firstOrNull()
         excluded = store.vpnExcluded
+        if (System.currentTimeMillis() - pqSeen > PQ_KEY_VALID) pqKey = null
         start(context, text, first)
         store.vpnWanted = true
-        if (all.size > 1) watch(context.applicationContext, store, text, listOfNotNull(first) + all.filter { it !== first })
+        watch(context.applicationContext, store, text, listOfNotNull(first) + all.filter { it !== first })
     }
 
     private fun start(context: Context, text: String, chosen: Way?) {
@@ -72,7 +78,12 @@ object Vpn {
     }
 
     /** The access with one way filled in. WireGuard prefers IPv4, so IPv6 is named by its address. */
-    private fun prepared(text: String, chosen: Way?): String = withExcluded(withWay(text, chosen))
+    private fun prepared(text: String, chosen: Way?): String = withExcluded(withWay(withKey(text), chosen))
+
+    private fun withKey(text: String): String {
+        val key = pqKey ?: return text
+        return text.lines().joinToString("\n") { if (it.startsWith("PresharedKey")) "PresharedKey = $key" else it }
+    }
 
     private fun withExcluded(text: String): String {
         if (excluded.isEmpty()) return text
@@ -99,26 +110,48 @@ object Vpn {
     /** Like a VPN app with several servers: moves on while a way does not answer, also later. */
     private fun watch(context: Context, store: Store, text: String, order: List<Way>) {
         val run = ++hunt
+        val ring: List<Way?> = order.ifEmpty { listOf(null) }
         thread(isDaemon = true) {
             var turn = 0
             while (run == hunt) {
                 if (answered(run)) {
                     store.vpnEndpoint = way?.endpoint
-                    while (run == hunt && fresh()) Thread.sleep(CHECK_EVERY)
+                    if (pqKey == null && quantum(context, text, run)) continue // a new tunnel: wait for its answer
+                    while (run == hunt && fresh()) {
+                        pqSeen = System.currentTimeMillis()
+                        Thread.sleep(CHECK_EVERY)
+                    }
                 }
                 if (run != hunt || !running) return@thread
                 turn++
-                synchronized(this) {
-                    if (run == hunt) next(context, text, order[turn % order.size])
+                // The Pi returns to the starting key when a device goes silent, for example asleep.
+                val fallBack = pqKey != null
+                pqKey = null
+                if (ring.size > 1 || fallBack) synchronized(this) {
+                    if (run == hunt) next(context, text, ring[turn % ring.size])
                 }
             }
         }
     }
 
+    /** Fetches a post-quantum key through the tunnel, then connects with it. Android cannot swap it in a running tunnel. */
+    private fun quantum(context: Context, text: String, run: Int): Boolean {
+        val start = text.lines().firstOrNull { it.startsWith("PresharedKey") }?.substringAfter('=')?.trim() ?: return false
+        val raw = runCatching { Base64.decode(start, Base64.NO_WRAP) }.getOrNull() ?: return false
+        val key = Kem.newKey(raw) ?: return false
+        synchronized(this) {
+            if (run != hunt || !running) return false
+            pqKey = Base64.encodeToString(key, Base64.NO_WRAP)
+            pqSeen = System.currentTimeMillis()
+            next(context, text, way)
+        }
+        return true
+    }
+
     /** A new tunnel, because the name of the next way can only be looked up outside the old one. */
-    private fun next(context: Context, text: String, chosen: Way) {
+    private fun next(context: Context, text: String, chosen: Way?) {
         runCatching { backend(context).setState(tunnel, Tunnel.State.DOWN, null) }
-        runCatching { start(context, text, chosen) }.onFailure { Log.i(TAG, "${chosen.kind} not usable: ${it.message}") }
+        runCatching { start(context, text, chosen) }.onFailure { Log.i(TAG, "${chosen?.kind} not usable: ${it.message}") }
     }
 
     private fun answered(run: Int): Boolean {
@@ -222,4 +255,5 @@ object Vpn {
     private const val POLL = 500L
     private const val CHECK_EVERY = 20_000L
     private const val STALE = 180_000L
+    private const val PQ_KEY_VALID = 190_000L // the Pi returns to the starting key a little later
 }

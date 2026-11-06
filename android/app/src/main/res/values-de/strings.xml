@@ -70,6 +70,8 @@
     <string name="vpn_no_answer_text">Prüfe die Internetverbindung dieses Handys und von zu Hause. Wurde der Zugang im Dashboard entfernt, trenne hier und öffne die App einmal zu Hause.</string>
     <string name="vpn_on_text">Deine Verbindung läuft über dein Zuhause.</string>
     <string name="vpn_off_text">Verbinde dich, um von überall dein Zuhause zu erreichen. Dieses Handy hat einen eigenen Zugang, du musst nichts einrichten.</string>
+    <string name="vpn_quantum">Quantenresistent verschlüsselt.</string>
+    <string name="vpn_classic">Klassisch verschlüsselt, der quantenresistente Schlüssel fehlt noch.</string>
     <string name="vpn_device">Dieses Gerät</string>
     <string name="vpn_address">Adresse im VPN</string>
     <string name="vpn_server">Dein Zuhause</string>

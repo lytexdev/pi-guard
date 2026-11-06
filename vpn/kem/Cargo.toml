@@ -1,0 +1,19 @@
+[package]
+name = "pi-guard-kem"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "The post-quantum key exchange of pi-guard: one implementation for the Pi, computers and phones"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+ml-kem = { version = "0.3", features = ["zeroize", "getrandom"] }
+pqcrypto-hqc = { version = "0.2", default-features = false }
+pqcrypto-traits = "0.3"
+sha2 = "0.10"
+zeroize = "1"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.21", default-features = false }

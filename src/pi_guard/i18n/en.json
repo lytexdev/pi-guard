@@ -625,7 +625,7 @@
   "web.wg_intro": "Phones and laptops with access can reach home from anywhere: the dashboard, the cameras and the ad blocker, as if they were in your Wi-Fi.",
   "web.wg_app_hint": "Phones with the PiGuard app need nothing here: the app creates its own access. Tap the shield at the top of the app.",
   "web.pq_title": "Quantum-resistant tunnel",
-  "web.pq_intro": "Rosenpass renews the key of the tunnel every two minutes with methods a quantum computer cannot break, so traffic recorded today stays safe. It works for desktop apps. It needs a little memory and processor time on the Pi.",
+  "web.pq_intro": "Phones and computers fetch a new key through the tunnel, with methods a quantum computer cannot break, so traffic recorded today stays safe. It needs a little memory and processor time on the Pi.",
   "web.pq_toggle": "Quantum-resistant keys",
   "web.pq_not_installed": "Not installed on this Pi yet. Run this once:",
   "web.pq_active": "{count} device(s) use it right now.",

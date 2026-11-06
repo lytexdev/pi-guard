@@ -5,7 +5,11 @@ edition = "2021"
 license = "MIT"
 description = "VPN service of pi-guard: tunnel, kill switch, split tunneling and post-quantum keys"
 
+[workspace]
+members = ["kem"]
+
 [dependencies]
+pi-guard-kem = { path = "kem" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

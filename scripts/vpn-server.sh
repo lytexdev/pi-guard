@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Post-quantum keys for the VPN on your pi-guard (Rosenpass).
+# Post-quantum keys for the VPN on your pi-guard.
 #
 #   sudo ./scripts/vpn-server.sh install     # takes both programs from ~/pi-guard-vpn
 #   sudo ./scripts/vpn-server.sh install /path/to/pi-guard-vpn /path/to/rosenpass
@@ -7,8 +7,9 @@
 #
 # What install changes on this system:
 #   - /usr/local/sbin/pi-guard-vpn, /usr/local/lib/pi-guard-vpn/rosenpass, pi-guard-pq.service
-#   - ufw (if active): UDP 9999, only inside the VPN (on wg0). Nothing opens to the internet,
-#     and the router stays as it is: Rosenpass runs through the tunnel.
+#   - ufw (if active): TCP and UDP 9999, only inside the VPN (on wg0). Nothing opens to the
+#     internet, and the router stays as it is: the keys are exchanged through the tunnel.
+#     UDP is for Rosenpass, which older devices still use.
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT=9999
@@ -30,6 +31,7 @@ install_all() {
     install -m 0644 "$REPO/deploy/vpn/pi-guard-pq.service" /etc/systemd/system/
     if command -v ufw >/dev/null && ufw status | grep -q '^Status: active'; then
         ufw allow in on wg0 to any port "$PORT" proto udp comment 'pi-guard post-quantum keys' >/dev/null
+        ufw allow in on wg0 to any port "$PORT" proto tcp comment 'pi-guard post-quantum keys' >/dev/null
     fi
     systemctl daemon-reload
     systemctl enable --now pi-guard-pq
@@ -41,6 +43,7 @@ remove() {
     rm -f /etc/systemd/system/pi-guard-pq.service /usr/local/sbin/pi-guard-vpn
     rm -rf /usr/local/lib/pi-guard-vpn
     command -v ufw >/dev/null && ufw delete allow in on wg0 to any port "$PORT" proto udp >/dev/null 2>&1 || true
+    command -v ufw >/dev/null && ufw delete allow in on wg0 to any port "$PORT" proto tcp >/dev/null 2>&1 || true
     systemctl daemon-reload
 }
 
