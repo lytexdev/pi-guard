@@ -25,8 +25,11 @@ const USERS: &str = "/etc/pi-guard-vpn/users";
 const CGROUP: &str = "/sys/fs/cgroup";
 const NO_SPLIT: &str = "Split tunneling is off, the kill switch is not affected. \
     The kernel could not load nft_socket: if it was just updated, restart this computer.";
+const NO_ANSWER: &str = "The Pi does not answer. If this computer was removed under Network \u{203a} VPN, \
+    disconnect and connect again: that gives it a new access.";
 const HANDSHAKE_FRESH: u64 = 180;
 const TRY_SECONDS: u64 = 12;
+const NO_ANSWER_SECONDS: u64 = 60;
 const MAX_REQUEST: u64 = 2_000_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,10 +58,49 @@ struct Stored {
     resolved: HashMap<String, String>,
 }
 
+/// What the running tunnel points at.
+#[derive(Debug, Clone, PartialEq)]
+struct Target {
+    address: String,
+    key: String,
+    mtu: u32,
+}
+
+#[derive(Debug, PartialEq)]
+enum Step {
+    Build,
+    Move,
+    Keep,
+}
+
+/// Replacing the interface looks like a new network to the system and to every program on it, so
+/// a tunnel that exists is only pointed elsewhere. WireGuard keeps trying by itself.
+fn step(rebuild: bool, exists: bool, current: Option<&Target>, wanted: &Target) -> Step {
+    match current {
+        Some(current) if exists && !rebuild && current == wanted => Step::Keep,
+        Some(_) if exists && !rebuild => Step::Move,
+        _ => Step::Build,
+    }
+}
+
+/// After a restart of the computer only auto-connect brings the VPN back. A restart of the service
+/// alone keeps what was wanted, or a crash would open the kill switch.
+fn wanted_at_start(stored: bool, auto_connect: bool, computer_restarted: bool) -> bool {
+    auto_connect || (stored && !computer_restarted)
+}
+
+fn no_answer(wanted: bool, fresh: bool, waiting_since: u64, time: u64) -> bool {
+    wanted && !fresh && waiting_since > 0 && time.saturating_sub(waiting_since) >= NO_ANSWER_SECONDS
+}
+
 struct Service {
     stored: Stored,
     attempt: usize,
     tried_at: u64,
+    /// The next attempt has to build the tunnel from the start.
+    rebuild: bool,
+    target: Option<Target>,
+    waiting_since: u64,
     way: Option<Way>,
     pq: Option<exchange::Shared>,
     error: Option<String>,
@@ -151,12 +193,23 @@ impl Service {
         if way.mtu != 0 {
             settings.mtu = way.mtu;
         }
-        match tunnel::up(&settings, &address, &key) {
+        let target = Target { address, key, mtu: settings.mtu };
+        let result = match step(self.rebuild, tunnel::exists(), self.target.as_ref(), &target) {
+            Step::Build => tunnel::up(&settings, &target.address, &target.key),
+            Step::Move => tunnel::point(&settings, &target.address, &target.key),
+            Step::Keep => Ok(()),
+        };
+        match result {
             Ok(()) => {
                 self.way = Some(way);
                 self.error = None;
+                self.rebuild = false;
+                self.target = Some(target);
             }
-            Err(error) => self.error = Some(error),
+            Err(error) => {
+                self.error = Some(error);
+                self.rebuild = true;
+            }
         }
         self.applied = None;
         self.firewall(false);
@@ -182,8 +235,14 @@ impl Service {
     fn tick(&mut self) {
         if !self.stored.wanted {
             self.pq = None;
+            self.waiting_since = 0;
             self.firewall(false);
             return;
+        }
+        if self.fresh() {
+            self.waiting_since = 0;
+        } else if self.waiting_since == 0 {
+            self.waiting_since = now();
         }
         if !tunnel::exists() {
             self.attempt_now();
@@ -210,13 +269,17 @@ impl Service {
             "blocking": self.plan(false).block, "configured": self.stored.config.is_some(),
             "quantum": { "active": shared > 0 && now().saturating_sub(shared) < 300, "last": shared,
                          "ready": true },
-            "error": self.error.as_deref().or(self.no_split.then_some(NO_SPLIT)),
+            "error": self.error.as_deref()
+                .or(no_answer(self.stored.wanted, fresh, self.waiting_since, now()).then_some(NO_ANSWER))
+                .or(self.no_split.then_some(NO_SPLIT)),
         })
     }
 
     fn connect(&mut self) -> Value {
         self.stored.wanted = true;
         self.attempt = 0;
+        self.rebuild = true;
+        self.waiting_since = 0;
         self.save();
         self.applied = None;
         self.firewall(false); // closed before anything else happens
@@ -276,6 +339,7 @@ impl Service {
         self.stored.config = Some(tunnel);
         self.stored.ways = ways;
         self.stored.resolved.clear();
+        self.rebuild = true; // a running tunnel still has the old access
         self.save();
         self.status()
     }
@@ -354,8 +418,11 @@ pub fn run(rosenpass: String) -> ! {
     let state = folder();
     fs::create_dir_all(&state).ok();
     let _ = fs::set_permissions(&state, fs::Permissions::from_mode(0o700));
-    let stored: Stored = fs::read(state.join("state.json")).ok()
+    let mut stored: Stored = fs::read(state.join("state.json")).ok()
         .and_then(|text| serde_json::from_slice(&text).ok()).unwrap_or_default();
+    // The socket is in /run, which only a restart of the computer empties.
+    let computer_restarted = !Path::new(SOCKET).exists();
+    stored.wanted = wanted_at_start(stored.wanted, stored.options.auto_connect, computer_restarted);
     if !state.join("client.sk").exists() {
         if let Err(error) = pq::gen_keys(&rosenpass, &state.join("client.pk"), &state.join("client.sk")) {
             eprintln!("{error}");
@@ -363,13 +430,12 @@ pub fn run(rosenpass: String) -> ! {
     }
     let _ = fs::create_dir_all(Path::new(CGROUP).join(SPLIT_GROUP));
     let mut service = Service {
-        stored, attempt: 0, tried_at: 0, way: None, pq: None, error: None, no_split: false, applied: None,
+        stored, attempt: 0, tried_at: 0, rebuild: true, target: None, waiting_since: 0, way: None, pq: None,
+        error: None, no_split: false, applied: None,
     };
     // First thing at every start, before the network is up: lockdown must never have a gap.
     service.firewall(false);
-    if service.stored.options.auto_connect {
-        service.stored.wanted = true;
-    }
+    service.save();
     let service = Arc::new(Mutex::new(service));
     let _ = fs::remove_file(SOCKET);
     let listener = UnixListener::bind(SOCKET).unwrap_or_else(|e| {
@@ -387,4 +453,52 @@ pub fn run(rosenpass: String) -> ! {
         thread::spawn(move || serve(stream, &service));
     }
     std::process::exit(1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn target(key: &str) -> Target {
+        Target { address: "203.0.113.1:51820".into(), key: key.into(), mtu: 1420 }
+    }
+
+    #[test]
+    fn a_tunnel_that_gets_no_answer_is_left_alone() {
+        assert_eq!(step(false, true, Some(&target("a")), &target("a")), Step::Keep);
+    }
+
+    #[test]
+    fn another_way_or_key_does_not_replace_the_interface() {
+        assert_eq!(step(false, true, Some(&target("a")), &target("b")), Step::Move);
+    }
+
+    #[test]
+    fn the_tunnel_is_built_when_it_is_gone_new_or_asked_for() {
+        assert_eq!(step(false, false, Some(&target("a")), &target("a")), Step::Build);
+        assert_eq!(step(false, true, None, &target("a")), Step::Build);
+        assert_eq!(step(true, true, Some(&target("a")), &target("a")), Step::Build);
+    }
+
+    #[test]
+    fn a_restart_of_the_computer_only_reconnects_with_auto_connect() {
+        assert!(!wanted_at_start(true, false, true));
+        assert!(wanted_at_start(true, true, true));
+        assert!(wanted_at_start(false, true, true));
+    }
+
+    #[test]
+    fn a_crash_of_the_service_keeps_the_kill_switch() {
+        assert!(wanted_at_start(true, false, false));
+        assert!(!wanted_at_start(false, false, false));
+    }
+
+    #[test]
+    fn silence_is_reported_after_a_minute() {
+        assert!(!no_answer(true, false, 1000, 1000 + NO_ANSWER_SECONDS - 1));
+        assert!(no_answer(true, false, 1000, 1000 + NO_ANSWER_SECONDS));
+        assert!(!no_answer(true, true, 1000, 5000), "a fresh handshake is an answer");
+        assert!(!no_answer(false, false, 1000, 5000), "nobody asked for a tunnel");
+        assert!(!no_answer(true, false, 0, 5000), "not waiting yet");
+    }
 }

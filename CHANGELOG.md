@@ -22,6 +22,13 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- A computer whose VPN gets no answer keeps its tunnel instead of replacing the interface every 12 seconds, which
+  looked like a new network to the system and every program on it. Other ways and keys are now set on the running
+  tunnel.
+- After a restart of the computer the VPN only comes back with auto-connect. Before, it came back whenever it had been
+  on, and the kill switch then blocked the internet.
+- The VPN page says when the Pi does not answer for a minute, usually because the computer was removed there.
+- `install-vpn.sh` warns about enabled `wg-quick@` services, which installing `wireguard-tools` can wake up.
 - A new installation with `install.sh` gets a random first password instead of `admin123`, which anyone in the network
   could have tried first. `pi-guard dashboard reset-password` chooses one too. Docker keeps `admin123` unless
   `PI_GUARD_DASHBOARD_FIRST_PASSWORD` is set.

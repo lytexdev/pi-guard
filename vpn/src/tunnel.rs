@@ -49,6 +49,13 @@ pub fn up(tunnel: &Tunnel, endpoint: &str, preshared_key: &str) -> Result<(), St
     Ok(())
 }
 
+/// Another way or key for the tunnel that is there. Routes, addresses and the interface stay.
+pub fn point(tunnel: &Tunnel, endpoint: &str, preshared_key: &str) -> Result<(), String> {
+    run("wg", &["set", IFACE, "peer", &tunnel.peer_key, "endpoint", endpoint])?;
+    set_preshared_key(IFACE, &tunnel.peer_key, preshared_key)?;
+    run("ip", &["link", "set", "dev", IFACE, "mtu", &tunnel.mtu.to_string()])
+}
+
 fn routes(tunnel: &Tunnel) -> Result<(), String> {
     let table = table();
     if tunnel.full() {

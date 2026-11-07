@@ -137,6 +137,14 @@ to a USB SSD.
 - *Your home does not answer*: check the internet at both ends and the port forwarding for UDP 51820. Under
   Network › VPN, *Check now* shows if your line has no public address of its own; then use another way. If the access
   was removed in the dashboard, disconnect and open the app once at home to get a new one.
+- *The Pi does not answer* on a computer: its access is usually gone from Network › VPN. WireGuard gets no reply then,
+  not even a refusal, and the kill switch keeps blocking the internet. Disconnect and connect again on the VPN page at
+  home: that gives the computer a new access. The Pi stays reachable while *Local devices stay reachable* is on.
+- *No internet on a computer after a restart, Wi-Fi is connected*: see [Kill switch and lockdown](vpn.md#kill-switch-and-lockdown).
+- *The home network or Pi-hole is gone on a computer, the internet works*: an older tunnel may claim the same addresses.
+  Run `ip route get` with your router's address; if it names something like `wg0` instead of your Wi-Fi or cable
+  interface, that tunnel is the cause. Installing `wireguard-tools` starts `wg-quick@` services that were enabled long ago, and
+  `install-vpn.sh` warns about them. Turn one off with `sudo systemctl disable --now wg-quick@wg0`.
 
 ## Signal
 
