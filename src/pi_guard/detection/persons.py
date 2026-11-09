@@ -109,6 +109,36 @@ def decode_yolox(
     return [_box(b) for b in boxes], [float(s) for s in scores[keep]]
 
 
+# The 80 classes YOLOX learned from COCO, in its order; the Pi's person checks use only 0.
+COCO = ("person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
+        "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
+        "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
+        "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
+        "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
+        "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+        "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair",
+        "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse",
+        "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
+        "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
+        "toothbrush")  # fmt: skip
+OBJECT_MIN_SCORE = 0.45
+
+
+def decode_objects(
+    out: npt.NDArray[np.float32], ratio: float, size: int = YOLOX_SIZE
+) -> tuple[list[Box], list[float], list[int]]:
+    """Every class: boxes in picture coordinates, scores, class numbers."""
+    grid, stride = _yolox_grid(size)
+    centre = (out[:, :2] + grid) * stride
+    size_ = np.exp(np.minimum(out[:, 2:4], 10.0)) * stride
+    classes = np.argmax(out[:, 5:], axis=1)
+    scores = out[:, 4] * out[np.arange(len(out)), 5 + classes]
+    keep = scores >= OBJECT_MIN_SCORE
+    boxes = np.concatenate((centre - size_ / 2, size_), 1).astype(np.float32)[keep] / ratio
+    return ([_box(b) for b in boxes], [float(s) for s in scores[keep]],
+            [int(c) for c in classes[keep]])  # fmt: skip
+
+
 def _box(values: Any) -> Box:
     x, y, w, h = (float(v) for v in values[:4])
     return x, y, w, h
@@ -224,6 +254,25 @@ class PersonDetector:
             return []
         keep = cv2.dnn.NMSBoxes(boxes, scores, PERSON_MIN_SCORE, NMS_OVERLAP)
         return [boxes[i] for i in np.ravel(keep)]
+
+    def objects(self, image: Image) -> list[tuple[Box, str, float]]:
+        """People and things in `image` (YOLOX only), for marking the live picture."""
+        if self._yolox is None:
+            return []
+        cv2 = self._cv2
+        height, width = image.shape[:2]
+        ratio = min(YOLOX_SIZE / height, YOLOX_SIZE / width)
+        resized = cv2.resize(image, (round(width * ratio), round(height * ratio)))
+        padded = np.full((YOLOX_SIZE, YOLOX_SIZE, 3), 114, np.uint8)
+        padded[: resized.shape[0], : resized.shape[1]] = resized
+        with self._lock:
+            self._yolox.setInput(cv2.dnn.blobFromImage(padded, 1.0, (YOLOX_SIZE, YOLOX_SIZE)))
+            out = self._yolox.forward()[0]
+        boxes, scores, classes = decode_objects(out, ratio)
+        if not boxes:
+            return []
+        keep = cv2.dnn.NMSBoxesBatched(boxes, scores, classes, OBJECT_MIN_SCORE, NMS_OVERLAP)
+        return [(boxes[i], COCO[classes[i]], scores[i]) for i in np.ravel(keep)]
 
     def bodies(self, image: Image) -> list[Box]:
         """People in `image`, in its coordinates."""

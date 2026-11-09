@@ -299,13 +299,17 @@ async def test_alarm_repeats_loud_and_stops(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     app = _audio_app(tmp_path, audio_max_volume=90)
-    played: list[tuple[str, bool, int | None]] = []
+    played: list[tuple[str, bool, int | None, float | None]] = []
 
     async def fake_play(
-        path: Path, *, ignore_quiet_hours: bool = False, volume: int | None = None
+        path: Path,
+        *,
+        ignore_quiet_hours: bool = False,
+        volume: int | None = None,
+        repeat_for: float | None = None,
     ) -> None:
-        played.append((path.stem, ignore_quiet_hours, volume))
-        await asyncio.sleep(0.05)
+        played.append((path.stem, ignore_quiet_hours, volume, repeat_for))
+        await asyncio.sleep(10)  # one stream for the whole alarm
 
     monkeypatch.setattr(app.audio, "play", fake_play)
     await app.messenger.handle(msg("/alarm", ADMIN))
@@ -315,8 +319,8 @@ async def test_alarm_repeats_loud_and_stops(
     assert played == []  # asking first: typing "alarm" never starts it
     await app.messenger.handle(msg("alarm on", ADMIN, from_button=True))
     await asyncio.sleep(0.12)
-    assert app.audio.alarm_active and len(played) >= 2
-    assert played[0] == ("warning", True, 90)
+    assert app.audio.alarm_active and len(played) == 1  # no gaps between rounds
+    assert played[0] == ("warning", True, 90, 30)
     await app.messenger.handle(msg("/alarm aus", ADMIN))
     assert not app.audio.alarm_active
     assert "stopped" in app.providers["telegram"].last().text
@@ -331,3 +335,29 @@ async def test_cancelled_playback_kills_ffmpeg() -> None:
         await task
     out = subprocess.run(["pgrep", "-f", "^sleep 30$"], capture_output=True, text=True)
     assert out.stdout.strip() == ""
+
+
+async def test_an_alarm_is_one_stream_for_its_whole_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = _audio_app(tmp_path)
+    calls: list[list[str]] = []
+
+    async def fake_run(args: list[str], limit: float) -> tuple[int, bytes, bytes]:
+        calls.append(args)
+        return 0, b"", b""
+
+    async def fake_probe(path: Path) -> Any:
+        return service_module.AudioInfo("wav", "pcm_s16le", 2.4)
+
+    monkeypatch.setattr(service_module, "_run", fake_run)
+    monkeypatch.setattr(service_module, "probe", fake_probe)
+    monkeypatch.setattr(service_module, "open_mixer", lambda device: asyncio.sleep(0))
+    sound = app.audio.alarm_sound()
+    await app.audio.play(sound, repeat_for=30)
+    args = calls[-1]
+    assert args[args.index("-stream_loop") + 1] == "-1"
+    assert args[args.index("-t") + 1] == "30"
+    await app.audio.play(sound)
+    assert "-stream_loop" not in calls[-1]  # a single sound plays once
+    app.db.close()

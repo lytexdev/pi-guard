@@ -27,7 +27,7 @@ const SECTIONS = [
   ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "discord", "email", "whatsapp", "signal", "chatapps"]],
   ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]], ["appearance", "palette", null],
   ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null],
-  ["security", "shield-check", null], ["storage", "database", null], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
+  ["security", "shield-check", null], ["storage", "database", null], ["backup", "upload", ["backup"]], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
 ];
 
 // Sections for people who know what they are looking for.
@@ -96,6 +96,31 @@ function dataSection(box) {
       } }, icon("upload"), t("web.ex_import_button")))));
 }
 
+// Backups: what happened last, a button for now, and the Pi's SSH key for rsync and Borg.
+async function backupPanel(box) {
+  const draw = async () => {
+    const b = await api("/api/backup");
+    const last = b.last || {};
+    const panel = h("section", { class: "panel stack" }, h("h2", {}, icon("upload"), " ", t("web.bk_title")),
+      b.passphrase ? null : h("p", { class: "notice" }, t("web.bk_no_passphrase")),
+      h("p", {}, last.time ? h("span", { class: `badge ${last.ok ? "ok" : "danger"}` }, last.ok ? t("web.bk_ok") : t("web.bk_failed")) : null, " ",
+        last.time ? t("web.bk_last", { time: when(last.time), target: last.target }) : t("web.bk_never")),
+      last.ok === false ? h("p", { class: "notice danger mono wrap" }, last.error) : null,
+      last.ok && last.size ? h("p", { class: "muted" }, `${last.name} · ${(last.size / 1e6).toFixed(1)} MB · ${last.files} ${t("web.bk_files")}`) : null,
+      h("div", { class: "row" }, h("button", { class: "primary", disabled: b.running || !b.passphrase, onclick: async () => {
+        const password = await askDialog(t("web.confirm_password"), { type: "password" });
+        if (password && await attempt(() => api("/api/backup/run", { method: "POST", body: { password } }), t("web.bk_started"))) whileShown(box, draw, 3000);
+      } }, icon("upload"), b.running ? t("web.bk_running") : t("web.bk_now"))),
+      b.target !== "nextcloud" ? [h("h3", {}, t("web.bk_ssh_title")), h("p", { class: "muted" }, t("web.bk_ssh_hint")),
+        b.public_key ? h("pre", { class: "mono wrap" }, b.public_key)
+          : h("button", { onclick: async () => { if (await attempt(() => api("/api/backup/key", { method: "POST" }))) draw(); } }, icon("key"), t("web.bk_ssh_make"))] : null,
+      h("p", { class: "muted" }, h("small", {}, t("web.bk_restore_hint"))));
+    fill(box, panel);
+    if (b.running) whileShown(box, draw, 3000);
+  };
+  await draw();
+}
+
 // Anonymous statistics: off until the owner switches them on, with the exact report shown first.
 async function contributionPanel(box) {
   const draw = async () => {
@@ -115,6 +140,24 @@ async function contributionPanel(box) {
       h("details", {}, h("summary", {}, t("web.co_preview")), h("pre", { class: "mono wrap" }, JSON.stringify(c.report, null, 2)))));
   };
   await draw();
+}
+
+const MESSENGER_NAMES = { telegram: "Telegram", signal: "Signal", discord: "Discord", whatsapp: "WhatsApp", email: "E-Mail",
+  slack: "Slack", rocketchat: "Rocket.Chat", matrix: "Matrix", mastodon: "Mastodon", mobile: "App" };
+
+// Expert view: a test message through every messenger that is set up.
+async function messengerTests() {
+  const list = await api("/api/messengers").catch(() => []);
+  return h("section", { class: "panel stack" }, h("h2", {}, icon("message"), " ", t("web.messengers_title")),
+    h("p", { class: "muted" }, t("web.messengers_intro")),
+    list.length ? h("ul", { class: "list" }, list.map((m) => h("li", {},
+      h("span", { class: `dot ${m.connected ? "ok" : "danger"}` }),
+      h("div", { class: "grow" }, h("div", {}, MESSENGER_NAMES[m.name] || m.name),
+        m.admins ? null : h("small", { class: "muted" }, t("web.messenger_no_admin"))),
+      h("button", { onclick: async () => {
+        const r = await attempt(() => api(`/api/messengers/${encodeURIComponent(m.name)}/test`, { method: "POST" }));
+        if (r) toast(t("web.messenger_test_sent", { count: r.sent }));
+      } }, icon("bell"), t("web.test"))))) : h("p", { class: "empty" }, t("web.nothing")));
 }
 
 async function updateSection(root) {
@@ -217,7 +260,8 @@ export async function render(main, params = []) {
         h("a", { class: "grow", href: `#/settings/${id}${item.target ? `/${item.target}` : ""}` }, item.label), icon("chevron-right"))))])
       : h("p", { class: "muted" }, t("web.set_no_results")));
   });
-  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search)), modeSwitch(() => render(main, params)), results, hub);
+  // The view switch sits in the header with the title and the search, where it is seen first.
+  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search), modeSwitch(() => render(main, params))), results, hub);
   installFolds(hub);
   let save = null;
   let stop = null;
@@ -238,8 +282,10 @@ export async function render(main, params = []) {
       if (modules.discord) extra.append(await discordPanel());
       if (modules.email) extra.append(emailPanel());
       extra.append(await signalPanel());
+      if (expertMode()) extra.append(await messengerTests());
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
+    if (current === "backup") await backupPanel(extra);
   } else if (current === "devices") {
     const view = await import("./devices.js");
     await view.render(body, [], { embedded: true, register: (fn) => { save = fn; }, onSaved: () => { saveBar.classList.add("hidden"); restartPrompt(); } });

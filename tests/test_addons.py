@@ -598,8 +598,8 @@ async def test_addons_are_configured_in_the_dashboard(tmp_path: Path) -> None:
         headers = {"X-CSRF-Token": csrf}
         data = await (await client.get("/api/addons")).json()
         assert {a["id"] for a in data["addons"]} == {
-            "heartbeat", "analytics", "smarthome", "remote", "assistant", "agents",
-            "languages"}  # fmt: skip
+            "analytics", "smarthome", "remote", "assistant", "agents", "languages",
+            "medical"}  # fmt: skip
         assert not any(a["enabled"] for a in data["addons"])
         section = {"enabled": True, "targets": [{"id": "nas", "name": "NAS", "kind": "ping",
                                                  "address": "192.168.178.20"}]}  # fmt: skip
@@ -611,9 +611,10 @@ async def test_addons_are_configured_in_the_dashboard(tmp_path: Path) -> None:
         written = yaml.safe_load((app.settings.data_dir / OVERRIDE_YAML).read_text())
         assert written["addons"]["heartbeat"]["targets"][0]["id"] == "nas"
         assert written["addons"]["remote"]["enabled"] is True
+        assert written["addons"]["agents"]["enabled"] is True  # one add-on, "Server"
         data = await (await client.get("/api/addons")).json()
         running = {a["id"]: (a["enabled"], a["running"]) for a in data["addons"]}
-        assert running["heartbeat"] == (True, False)  # needs a restart
+        assert running["agents"] == (True, False)  # needs a restart
         bad = {"enabled": True, "targets": [{"id": "BAD ID", "name": "x", "address": "ftp://x"}]}
         response = await client.put("/api/addons/heartbeat", json=bad, headers=headers)
         assert response.status == 400
@@ -741,3 +742,13 @@ async def test_smart_home_with_a_real_broker(tmp_path: Path) -> None:
         broker.terminate()
         broker.wait()
         app.db.close()
+
+
+def test_an_old_heartbeat_switch_turns_on_the_whole_server_addon() -> None:
+    from pi_guard.config.files import AddonSettings
+
+    old = AddonSettings.model_validate({"heartbeat": {"enabled": True}})
+    assert old.agents.enabled and old.heartbeat.enabled
+    both_off = {"heartbeat": {"enabled": False}, "agents": {"enabled": False}}
+    off = AddonSettings.model_validate(both_off)
+    assert not (off.agents.enabled or off.heartbeat.enabled)

@@ -58,6 +58,8 @@ class SetupActivity : AppCompatActivity() {
                 val store = Store(this)
                 store.url = url
                 store.certificate = authority
+                store.shareCrashes = findViewById<android.widget.CompoundButton>(R.id.share_crashes).isChecked
+                store.shareUsage = findViewById<android.widget.CompoundButton>(R.id.share_usage).isChecked
                 startActivity(Intent(this, MainActivity::class.java))
                 finish()
             }

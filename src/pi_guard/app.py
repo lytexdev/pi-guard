@@ -20,10 +20,12 @@ from pi_guard.addons import Addons
 from pi_guard.addons.mobile import MobileHub, MobileProvider
 from pi_guard.audio.service import AudioError, AudioService
 from pi_guard.audio.sounds import SoundLibrary
+from pi_guard.backup import Backups
 from pi_guard.cameras import discovery
 from pi_guard.cameras.pipeline import CameraPipeline
 from pi_guard.config import Config
 from pi_guard.config.files import CameraConfig
+from pi_guard.core.app_updates import AppUpdates
 from pi_guard.core.calendars import Feeds
 from pi_guard.core.events import Event, EventBus, EventType
 from pi_guard.core.lifecycle import ComponentState, supervise
@@ -143,6 +145,8 @@ class App:
         self.escalation = Escalation(self)
         self.notifier = Notifier(self)
         self.contribution = Contribution(self)
+        self.app_updates = AppUpdates(self)
+        self.backups = Backups(self)
         self.pihole: Pihole | None = None
         if s.pihole_enabled:
             password = s.pihole_password.get_secret_value() if s.pihole_password else None
@@ -307,6 +311,8 @@ class App:
             "calendars": Feeds(self.db).run,
             "notifier": self.notifier.run,
             "contribution": self.contribution.run,
+            "app-updates": self.app_updates.run,
+            "backup": self.backups.run,
         }
         if self.presence is not None:
             parts["presence"] = self.presence.run

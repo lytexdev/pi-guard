@@ -44,6 +44,22 @@ die Anmeldung auf admin mit einem neuen Passwort zurück, das der Befehl anzeigt
   löschen Sie die Datei dort.
 - Beides zusammen: `PI_GUARD_DASHBOARD_AUTH=password,keyfile`.
 - Passwort ändern und Zwei-Faktor-Code ein-/ausschalten: *Zugang → Ihr Konto*.
+- Das Codewort kann einen Tipp haben. Er erscheint bei der Anmeldung erst nach dem richtigen Passwort und darf
+  das Codewort nicht enthalten.
+- **Code per Messenger oder E-Mail** (`code` in `PI_GUARD_DASHBOARD_AUTH`): ein sechsstelliger Code an deine eigenen
+  Wege, also an die verknüpften Admin-Konten in Signal, Discord, WhatsApp, Telegram, der Handy-App oder einer Chat-App,
+  oder an die E-Mail-Adresse in den Kontaktdaten deines Kontos, nie an Empfänger von Meldungen. Er gilt 5 Minuten und
+  5 Versuche. Angeboten wird er nur, wenn ein Codewort oder Zwei-Faktor-Codes eingerichtet sind, und die werden danach
+  gefragt: Ein übernommenes Postfach oder Chat-Konto allein reicht nie.
+- **Passkeys und OpenPGP:** Sobald unter *Zugang → Anmeldung absichern* einer hinterlegt ist, erscheint sein Knopf
+  auf der Anmeldeseite. Bei OpenPGP zeigt die Seite einen kurzen Text; signiere ihn, etwa mit `gpg --clearsign`, und
+  füge das Ergebnis ein.
+- **Sicherheitsfragen:** bis zu fünf, mit freier Antwort oder Auswahl und optionalem Tipp. Bei jeder Anmeldung wird eine
+  gefragt, immer zusätzlich zum Codewort und nie statt ihm, und für einen Anmeldeversuch bleibt es dieselbe.
+  Groß- und Kleinschreibung zählt nicht; gespeichert wird nur ein Hash.
+- **Kontaktdaten** (*Zugang → Kontaktdaten*, für Admins auch neben jedem Benutzer): Name, E-Mail, Telefon, Adresse,
+  Notiz, alles freiwillig, mit vCard zum Einlesen und Speichern. Sie ziehen beim Umbenennen mit, werden mit dem Konto
+  gelöscht und sind Teil des Datenexports.
 
 ## Mehrere Benutzer
 
@@ -88,7 +104,8 @@ Messenger, die aus sind, starten zugeklappt.
 ## Vertraute Personen
 
 Das Formular erklärt, was die Erkennung gut macht. **Jetzt Fotos oder Video aufnehmen** öffnet die Kamera des
-Geräts, das du gerade benutzt, und führt die Person durch Blick geradeaus und leicht zur Seite, oder filmt
+Geräts, das du gerade benutzt, und führt die Person durch Blick geradeaus und leicht zur Seite (ein kleiner Kopf neben
+dem Text zeigt, wohin), oder filmt
 8 Sekunden ohne Ton. Antippen entfernt ein Bild; erst **Hochladen** schickt etwas an den Pi. Das braucht die
 HTTPS-Adresse und deine Erlaubnis für die Kamera, sonst bietet die Seite die Kamera-App des Handys an. Du kannst
 auch vorhandene Dateien wählen oder eine Kamera zu Hause nutzen.
@@ -180,8 +197,12 @@ Schriftgröße gelten pro Gerät. Schriften werden nicht aus dem Internet gelade
 
 ## Zertifikat installieren (einmal pro Gerät)
 
-In den Einstellungen wechselt ein Schalter oben zwischen **Normal** und **Experte**. Normal zeigt, was die meisten
+In den Einstellungen wechselt ein Schalter neben Überschrift und Suche zwischen **Normal** und **Experte**. Normal zeigt, was die meisten
 brauchen, Experte alles. Das gilt pro Gerät, auch in der Handy-App, und versteckte Einstellungen behalten ihre Werte.
+
+Im Expertenmodus endet *Messenger* mit *Testnachrichten*: eine Testnachricht über jeden eingerichteten Messenger, an
+jeden Admin dort oder in den Kanal von Slack, Matrix, Rocket.Chat oder Mastodon. Add-ons, die zu pi-guard gehören,
+tragen ein Häkchen; Darüberfahren, Fokus oder Antippen zeigt *Verifiziert*.
 
 Unter Einstellungen › Benachrichtigungen legst du bei jeder Nachricht fest, **wohin** sie geht: unter *Alle Wege*
 kannst du zum Beispiel nur Signal wählen, oder Telegram und die PiGuard-App. Das wirkt sofort.

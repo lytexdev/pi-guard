@@ -76,13 +76,37 @@ class GuardService : Service() {
         }
         connect()
         main.post(periodic)
+        work.execute { Crashes.sendPending(this, store) }
         work.execute { Vpn.resume(this, store) }
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkChange)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP_RING) stopRing()
+        when (intent?.action) {
+            ACTION_STOP_RING -> stopRing()
+            ACTION_ALERT_ACK -> act("ack", intent.getIntExtra(EXTRA_ALERT, 0))
+            ACTION_ALERT_ALARM -> act("alarm", intent.getIntExtra(EXTRA_ALERT, 0))
+        }
         return START_STICKY
+    }
+
+    /** A button under an alert. The Pi decides whether this phone's owner may do it. */
+    private fun act(action: String, alert: Int) {
+        val notifications = getSystemService(NotificationManager::class.java)
+        if (action == "ack") notifications.cancel(alert)
+        work.execute {
+            val code = runCatching { Net.post(store, "/api/mobile/action", JSONObject().put("action", action)).use { it.code } }.getOrDefault(0)
+            val text = when {
+                code == 200 && action == "ack" -> getString(R.string.action_ack_done)
+                code == 200 -> getString(R.string.action_alarm_done)
+                code == 403 -> getString(R.string.action_admin_only)
+                else -> getString(R.string.action_failed)
+            }
+            val note = NotificationCompat.Builder(this, CHANNEL_ALERTS).setSmallIcon(R.drawable.ic_bell)
+                .setContentTitle(getString(R.string.alert_title)).setContentText(text).setAutoCancel(true)
+                .setTimeoutAfter(15_000).build()
+            notifications.notify(ACTION_RESULT_ID, note)
+        }
     }
 
     /** On Wi-Fi only: an app update is no reason to use up someone's mobile data. */
@@ -138,6 +162,8 @@ class GuardService : Service() {
     private fun received(message: JSONObject) {
         when (message.optString("type")) {
             "alert" -> showAlert(message)
+            // A fresh place for a map link, without ringing; only if this phone shares it.
+            "locate" -> work.execute { runCatching { send(Locator.report(this, store.shareLocation)) } }
             "find" -> if (message.optBoolean("ring")) {
                 main.post(::ring)
                 // The owner decides: the phone rings either way, its location only goes out if shared.
@@ -155,13 +181,19 @@ class GuardService : Service() {
             .setSmallIcon(R.drawable.ic_bell).setContentTitle(getString(R.string.alert_title))
             .setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_HIGH)
+        val id = alerts++
+        fun button(action: String, label: Int) = builder.addAction(0, getString(label), PendingIntent.getService(
+            this, id * 2 + if (action == ACTION_ALERT_ACK) 0 else 1,
+            Intent(this, GuardService::class.java).setAction(action).putExtra(EXTRA_ALERT, id), PendingIntent.FLAG_IMMUTABLE))
+        button(ACTION_ALERT_ACK, R.string.action_ack)
+        button(ACTION_ALERT_ALARM, R.string.action_alarm)
         message.optString("photo").takeIf { it.isNotEmpty() }?.let {
             val bytes = Base64.decode(it, Base64.DEFAULT)
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { picture ->
                 builder.setStyle(NotificationCompat.BigPictureStyle().bigPicture(picture).setSummaryText(text))
             }
         }
-        getSystemService(NotificationManager::class.java).notify(alerts++, builder.build())
+        getSystemService(NotificationManager::class.java).notify(id, builder.build())
     }
 
     private fun ring() {
@@ -215,6 +247,10 @@ class GuardService : Service() {
         private const val REPORT_EVERY = 15 * 60_000L
         private const val RING_FOR = 120_000L
         private const val ACTION_STOP_RING = "de.lytex.STOP_RING"
+        private const val ACTION_ALERT_ACK = "de.lytex.ALERT_ACK"
+        private const val ACTION_ALERT_ALARM = "de.lytex.ALERT_ALARM"
+        private const val EXTRA_ALERT = "alert"
+        private const val ACTION_RESULT_ID = 4
 
         fun start(context: Context) {
             if (Store(context).token == null) return

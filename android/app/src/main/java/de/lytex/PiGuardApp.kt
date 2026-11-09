@@ -10,6 +10,7 @@ class PiGuardApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        Crashes.install(this)
         GuardService.channels(this)
         // Android's "Always-on VPN" starts the tunnel service by itself, without the app being opened.
         GoBackend.setAlwaysOnCallback { thread { runCatching { Vpn.up(this, Store(this)) } } }

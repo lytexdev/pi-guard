@@ -157,10 +157,13 @@ class Notifier:
         texts = {
             lang: {"title": "pi-guard", "body": self.message(event, lang, None, rule).text,
                    "tag": f"{event.type.value}:{event.camera or ''}", "priority": rule.priority,
-                   "url": "/#/overview"}
+                   "url": "/#/overview", "ack_label": t("push.action_ack", lang),
+                   "alarm_label": t("push.action_alarm", lang)}
             for lang in LANGUAGES
         }  # fmt: skip
-        task = asyncio.get_running_loop().create_task(self._app.webpush.send(texts))
+        dashboard = self._app.dashboard
+        may_act = (lambda name: dashboard.auth.role_of(name) == "admin") if dashboard else None
+        task = asyncio.get_running_loop().create_task(self._app.webpush.send(texts, may_act))
         self._push_tasks.add(task)
         task.add_done_callback(self._push_tasks.discard)
 

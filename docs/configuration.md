@@ -28,6 +28,7 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 |---|---|---|
 | `LANGUAGE` | `en` | `en` or `de`; default for users who have not chosen one |
 | `TIMEZONE` | `Europe/Berlin` | used for messages, quiet hours, schedules |
+| `MAP_PROVIDER` | `openstreetmap` | where a phone's place opens: `openstreetmap`, `google`, `apple`, `bing`, `here`, or `geo` for the device's map app |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `LOG_FORMAT` | `text` | `json` for one JSON object per line |
 | `LOG_FILE` | – | optional rotating log file (journald is used anyway) |
@@ -35,6 +36,8 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 | `RECORDINGS_DIR` | `DATA_DIR/recordings` | |
 | `CONFIG_FILE` | `/etc/pi-guard/config.yaml` | |
 | `RUNTIME_DIR` | `/run/pi-guard` | tmpfs: latest frames, heartbeat |
+| `APP_UPDATES_FROM_GITHUB` | `true` | fetch signed releases of the phone app, desktop app and agent from GitHub for this Pi's devices, see [updates.md](updates.md#releases-on-github) |
+| `BACKUP_ENABLED`, `BACKUP_TARGET`, `BACKUP_PASSPHRASE`, … | off | encrypted backups to Nextcloud, rsync or Borg, see [backup.md](backup.md) |
 | `SUPPORT_URL` | – | `https://` receiver of the anonymous statistics; sent only after an admin switches them on under Settings → Updates, see [training.md](training.md#anonymous-statistics) |
 
 ### Telegram

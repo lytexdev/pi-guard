@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,7 @@ TALK_MAX_BYTES = 2_000_000
 def routes() -> list[web.RouteDef]:
     return [
         web.get("/api/live/{camera}/video", live_video),
+        web.get("/api/live/{camera}/overlay", live_overlay),
         web.get("/api/live/{camera}/audio", live_audio),
         web.post("/api/live/{camera}/snapshot", snapshot),
         web.get("/api/live/{camera}/call", call),
@@ -50,6 +52,51 @@ def _pipeline(request: web.Request) -> CameraPipeline:
     if pipeline is None:
         raise web.HTTPNotFound()
     return pipeline
+
+
+OVERLAY_SECONDS = 1.0  # at most one object check per camera and second, however many watch
+_overlay: dict[str, tuple[float, int, list[dict[str, Any]]]] = {}
+_overlay_lock = asyncio.Lock()
+
+
+def _objects(detector: Any, frame: bytes) -> tuple[int, int, list[dict[str, Any]]]:
+    import cv2
+    import numpy as np
+
+    image = cv2.imdecode(np.frombuffer(frame, np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        return 0, 0, []
+    height, width = image.shape[:2]
+    found = [{"box": [round(x / width, 4), round(y / height, 4), round(w / width, 4),
+                      round(h / height, 4)], "label": label, "score": round(score, 2)}
+             for (x, y, w, h), label, score in detector.objects(image)]  # fmt: skip
+    return width, height, found
+
+
+async def live_overlay(request: web.Request) -> web.Response:
+    """What the live view draws over the picture: frame rate, and with ?objects=1 the people
+    and things YOLOX finds in the newest frame, as fractions of the picture."""
+    pipeline = _pipeline(request)
+    app = dashboard(request).app
+    answer: dict[str, Any] = {"fps": round(pipeline.live_frames.fps, 1)}
+    if request.query.get("objects") != "1":
+        return web.json_response(answer)
+    detector = app.person_locator()
+    if detector is None or detector.body_detector != "yolox":
+        raise web.HTTPConflict(text="web.live_needs_yolox")
+    camera = pipeline.camera.id
+    now = time.monotonic()
+    cached = _overlay.get(camera)
+    if cached is None or now - cached[0] > OVERLAY_SECONDS:
+        frame = pipeline.live_frames.frame
+        if frame is not None and not _overlay_lock.locked():  # one check at a time on a Pi
+            async with _overlay_lock:
+                width, height, found = await asyncio.to_thread(_objects, detector, frame)
+            cached = (time.monotonic(), pipeline.live_frames.number, found)
+            _overlay[camera] = cached
+            answer["size"] = [width, height]
+    answer["objects"] = cached[2] if cached else []
+    return web.json_response(answer)
 
 
 async def live_video(request: web.Request) -> web.StreamResponse:

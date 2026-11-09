@@ -1,12 +1,51 @@
 // Live: picture, sound, push-to-talk, image tools, sounds and alarm.
-import { askDialog, api, attempt, confirmDialog, h, icon, t, toast, fill } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, h, icon, t, toast, fill, whileShown } from "../api.js";
 import { liveSwitch } from "../widgets.js";
 import { state } from "../app.js";
 
 const REGIONS = ["top_left", "top", "top_right", "left", "center", "right", "bottom_left", "bottom", "bottom_right"];
 const ARROWS = ["↖", "↑", "↗", "←", "·", "→", "↙", "↓", "↘"];
 
-function pannable(stage, img) {
+// Frame rate and, when asked for, boxes around the people and things in the picture.
+// The Pi checks at most one frame per second for this; nothing runs while it is off.
+function markings(stage, img, camera) {
+  const layer = h("div", { class: "marks", "aria-hidden": "true" });
+  const fps = h("span", { class: "fps hidden" });
+  let showFps = false, showObjects = false, timer = null;
+  const place = (objects) => {
+    const width = stage.clientWidth, height = stage.clientHeight;
+    const nw = img.naturalWidth || 16, nh = img.naturalHeight || 9;
+    const s = Math.min(width / nw, height / nh);
+    const ox = (width - nw * s) / 2, oy = (height - nh * s) / 2;  // the picture is letterboxed
+    fill(layer, objects.map((o) => {
+      const [x, y, w, hh] = o.box;
+      const box = h("span", { class: `mark${o.label === "person" ? " person" : ""}` }, h("small", {}, `${t(`coco.${o.label}`) === `coco.${o.label}` ? o.label : t(`coco.${o.label}`)} ${Math.round(o.score * 100)} %`));
+      Object.assign(box.style, { left: `${ox + x * nw * s}px`, top: `${oy + y * nh * s}px`, width: `${w * nw * s}px`, height: `${hh * nh * s}px` });
+      return box;
+    }));
+  };
+  const tick = async () => {
+    if (!stage.isConnected || !(showFps || showObjects)) { timer = null; return; }
+    try {
+      const r = await api(`/api/live/${camera.id}/overlay${showObjects ? "?objects=1" : ""}`);
+      fps.textContent = `${r.fps} FPS`;
+      place(showObjects ? r.objects || [] : []);
+    } catch (error) {
+      if (error.status === 409) { showObjects = false; toast(t("web.live_needs_yolox"), true); place([]); }
+    }
+    timer = whileShown(stage, tick, showObjects ? 1000 : 2000);
+  };
+  const start = () => { if (!timer) tick(); };
+  const toggle = (which) => h("button", { class: "", "aria-pressed": "false", title: t(`web.tip_live_${which}`), onclick: (event) => {
+    if (which === "fps") { showFps = !showFps; fps.classList.toggle("hidden", !showFps); } else { showObjects = !showObjects; if (!showObjects) place([]); }
+    event.currentTarget.setAttribute("aria-pressed", String(which === "fps" ? showFps : showObjects));
+    event.currentTarget.classList.toggle("on", which === "fps" ? showFps : showObjects);
+    start();
+  } }, icon(which === "fps" ? "chart-bar" : "focus-2"), t(`web.live_${which}`));
+  return { layer, fps, fpsButton: toggle("fps"), marksButton: toggle("objects") };
+}
+
+function pannable(stage, img, ...followers) {
   // Pinch, wheel and drag zoom on the live picture; purely client-side, costs the Pi nothing.
   let scale = 1, x = 0, y = 0;
   const pointers = new Map();
@@ -16,6 +55,7 @@ function pannable(stage, img) {
     x = Math.min(0, Math.max(w - w * scale, x));
     y = Math.min(0, Math.max(hgt - hgt * scale, y));
     img.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+    for (const el of followers) el.style.transform = img.style.transform;
   };
   const zoomAt = (factor, cx, cy) => {
     const next = Math.min(6, Math.max(1, scale * factor));
@@ -227,9 +267,11 @@ export async function render(main, params) {
   const viewer = state.session.role === "viewer";
   const img = h("img", { src: `/api/live/${camera.id}/video`, alt: camera.name });
   img.addEventListener("error", () => { if (!img.dataset.failed) { img.dataset.failed = "1"; toast(t("web.live_unavailable"), true); } });
-  const stage = h("div", { class: "stage" }, img,
-    h("div", { class: "overlay" }, h("span", { class: "live" }, "● LIVE"), h("span", {}, camera.name)));
-  const pan = pannable(stage, img);
+  const stage = h("div", { class: "stage" }, img);
+  const marks = markings(stage, img, camera);
+  stage.append(marks.layer,
+    h("div", { class: "overlay" }, h("span", { class: "live" }, "● LIVE"), marks.fps, h("span", {}, camera.name)));
+  const pan = pannable(stage, img, marks.layer);
   const result = resultPanel();
   const audio = h("audio", { class: "hidden" });
   const listen = h("button", { class: "big", title: t("web.tip_listen") }, icon("volume"), t("web.listen"));
@@ -282,6 +324,7 @@ export async function render(main, params) {
           h("button", { title: t("web.tip_zoom_in"), onclick: () => pan.zoom(1.5) }, icon("zoom-in"), t("web.zoom_in")),
           h("button", { title: t("web.tip_zoom_out"), onclick: () => pan.zoom(1 / 1.5) }, icon("zoom-out"), t("web.zoom_out")),
           h("button", { title: t("web.tip_fullscreen"), onclick: () => stage.requestFullscreen?.() }, icon("maximize"), t("web.fullscreen")),
+          marks.fpsButton, marks.marksButton,
           viewer ? null : h("button", { title: t("web.tip_photo"), onclick: photo }, icon("photo"), t("web.photo")),
           viewer ? null : h("button", { onclick: async () => {
             const minutes = Number(await askDialog(t("web.ev_minutes"), { type: "number", value: "5" }));

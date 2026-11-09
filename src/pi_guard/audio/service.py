@@ -184,7 +184,10 @@ class AudioService:
         ignore_quiet_hours: bool = False,
         volume: int | None = None,
         speech: bool = False,
+        repeat_for: float | None = None,
     ) -> None:
+        """Play `path` once, or over and over for `repeat_for` seconds as one stream: opening
+        a USB speaker again for each round leaves gaps, and some amplifiers mute in them."""
         if not self.playback_enabled or self.settings.speaker is None:
             raise AudioError("audio.playback_disabled")
         if self.quiet_now() and not ignore_quiet_hours:
@@ -200,6 +203,10 @@ class AudioService:
             level = SPEECH_FILTER if speech else ""
             longest = self.settings.max_upload_seconds
             limit = min(info.duration or longest, longest) + 10
+            loop: list[str] = []
+            seconds = longest
+            if repeat_for is not None:
+                loop, seconds, limit = ["-stream_loop", "-1"], int(repeat_for), repeat_for + 10
             code, _, err = await _run(
                 [
                     "ffmpeg",
@@ -209,10 +216,11 @@ class AudioService:
                     "error",
                     "-protocol_whitelist",
                     "file",
+                    *loop,
                     "-i",
                     str(path),
                     "-t",
-                    str(self.settings.max_upload_seconds),
+                    str(seconds),
                     "-af",
                     f"{level}volume={gain:.2f}",
                     "-f",
@@ -303,10 +311,15 @@ class AudioService:
         return True
 
     async def _alarm_loop(self, path: Path, seconds: int) -> None:
-        deadline = time.monotonic() + seconds
-        while time.monotonic() < deadline:
-            try:
-                await self.play(path, ignore_quiet_hours=True, volume=self.max_volume)
-            except AudioError as exc:
-                log.warning("alarm sound stopped: %s", exc.key)
-                return
+        started = time.monotonic()
+        log.info("alarm started for %d s", seconds)
+        try:
+            await self.play(path, ignore_quiet_hours=True, volume=self.max_volume,
+                            repeat_for=seconds)  # fmt: skip
+        except AudioError as exc:
+            log.warning("alarm sound failed after %.0f s: %s", time.monotonic() - started, exc.key)
+            return
+        except asyncio.CancelledError:
+            log.info("alarm stopped after %.0f s", time.monotonic() - started)
+            raise
+        log.info("alarm ended after %.0f s", time.monotonic() - started)

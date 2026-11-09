@@ -3,15 +3,21 @@
 The payload is encrypted for the receiving browser, but it is delivered through
 the browser vendor's push service (Google, Mozilla, Apple). It therefore only
 carries the alert text, never photos, names of recognised people or links that
-work without logging in.
+work without logging in. The one exception is the token behind an admin's two buttons,
+"everything is fine" and "sound the alarm": it does nothing else, works once and for an
+hour, and is stored here only as a hash.
 """
 
 from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
 import json
 import logging
+import secrets
+from collections.abc import Callable
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -25,9 +31,17 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS push_subscriptions (
     endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL,
     language TEXT NOT NULL, username TEXT NOT NULL, created TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS push_action_tokens (
+    hash TEXT PRIMARY KEY, username TEXT NOT NULL, expires TEXT NOT NULL);
 """
+# A notification's buttons work this long, and once: whoever sees it later cannot use it.
+ACTION_SECONDS = 3600
 TTL_SECONDS = 3600
 GONE = (404, 410)
+
+
+def _digest(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 class WebPush:
@@ -77,14 +91,37 @@ class WebPush:
     def subscriptions(self) -> list[dict[str, str]]:
         return [dict(r) for r in self._db.execute("SELECT * FROM push_subscriptions")]
 
-    async def send(self, texts: dict[str, dict[str, str]]) -> int:
-        """`texts` maps language -> payload; returns the number of devices reached."""
+    async def send(
+        self, texts: dict[str, dict[str, str]], may_act: Callable[[str], bool] | None = None
+    ) -> int:
+        """`texts` maps language -> payload; returns the number of devices reached. With
+        `may_act`, the people it allows get buttons: a token for one tap comes along."""
         delivered = 0
         for sub in self.subscriptions():
-            payload = texts.get(sub["language"]) or next(iter(texts.values()))
+            payload = dict(texts.get(sub["language"]) or next(iter(texts.values())))
+            if may_act is not None and may_act(sub["username"]):
+                payload["token"] = self.action_token(sub["username"])
             ok = await asyncio.to_thread(self._send_one, sub, payload)
             delivered += ok
         return delivered
+
+    def action_token(self, username: str) -> str:
+        token = secrets.token_urlsafe(24)
+        now = utcnow()
+        self._db.execute("DELETE FROM push_action_tokens WHERE expires < ?", (now.isoformat(),))
+        self._db.execute(
+            "INSERT INTO push_action_tokens VALUES (?, ?, ?)",
+            (_digest(token), username, (now + timedelta(seconds=ACTION_SECONDS)).isoformat()),
+        )
+        return token
+
+    def use_action_token(self, token: str) -> str | None:
+        """The person a token was made for, once; None if it is unknown, used or too old."""
+        row = self._db.execute(
+            "DELETE FROM push_action_tokens WHERE hash = ? AND expires >= ? RETURNING username",
+            (_digest(token[:100]), utcnow().isoformat()),
+        ).fetchone()
+        return str(row[0]) if row else None
 
     def _send_one(self, sub: dict[str, str], payload: dict[str, str]) -> bool:
         from pywebpush import WebPushException, webpush

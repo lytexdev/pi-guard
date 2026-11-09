@@ -95,6 +95,13 @@ class Store(context: Context) {
     var shareLocation: Boolean
         get() = prefs.getBoolean("location", false)
         set(value) = prefs.edit().putBoolean("location", value).apply()
+    /** Help the project: both off until the person says yes, at setup or in the settings. */
+    var shareCrashes: Boolean
+        get() = prefs.getBoolean("share_crashes", false)
+        set(value) = prefs.edit().putBoolean("share_crashes", value).apply()
+    var shareUsage: Boolean
+        get() = prefs.getBoolean("share_usage", false)
+        set(value) = prefs.edit().putBoolean("share_usage", value).apply()
 
     val hasPin: Boolean get() = prefs.contains("pin")
     val locked: Boolean get() = hasPin || useBiometric

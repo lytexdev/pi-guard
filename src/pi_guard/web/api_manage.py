@@ -99,6 +99,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/push/subscribe", push_subscribe),
         web.post("/api/push/unsubscribe", push_unsubscribe),
         web.post("/api/push/test", push_test),
+        web.post("/api/push/action", push_action),
     ]
 
 
@@ -857,6 +858,28 @@ async def push_subscribe(request: web.Request) -> web.Response:
 async def push_unsubscribe(request: web.Request) -> web.Response:
     data = await read_json(request)
     return web.json_response({"removed": _push(request).unsubscribe(str(data.get("endpoint", "")))})
+
+
+async def push_action(request: web.Request) -> web.Response:
+    """A button in a push notification. No session: the token in it is the permission."""
+    from pi_guard.notifications import actions
+
+    d = dashboard(request)
+    sender = d.app.webpush
+    data = await read_json(request)
+    action, token = str(data.get("action", "")), str(data.get("token", ""))
+    ip = d.guard.client_ip(request)
+    if not d.guard.login_allowed(ip):
+        raise web.HTTPTooManyRequests(text="Too many attempts")
+    username = sender.use_action_token(token) if sender is not None and token else None
+    if username is None or d.auth.role_of(username) != "admin" or action not in actions.ACTIONS:
+        d.guard.login_failed(ip)
+        raise web.HTTPForbidden(text="web.push_action_expired")
+    try:
+        result = actions.run(d.app, f"web:{username}", action)
+    except actions.ActionError as exc:
+        raise web.HTTPConflict(text=exc.key) from None
+    return web.json_response(result)
 
 
 async def push_test(request: web.Request) -> web.Response:

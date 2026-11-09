@@ -55,6 +55,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/mobile/session", device_session),
         web.get("/api/mobile/ws", device_socket),
         web.post("/api/mobile/report", report),
+        web.post("/api/mobile/action", alert_action),
+        web.post("/api/mobile/crash", crash_report),
         web.post("/api/mobile/emergency", emergency),
         web.post("/api/mobile/calendar", calendar),
         web.post("/api/mobile/vpn", vpn),
@@ -68,6 +70,7 @@ def routes() -> list[web.RouteDef]:
         web.delete("/api/mobile/devices/{id:\\d+}", device_delete),
         web.post("/api/mobile/devices/{id:\\d+}/find", device_find),
         web.post("/api/mobile/devices/{id:\\d+}/stop", device_stop),
+        web.post("/api/mobile/devices/{id:\\d+}/locate", device_locate),
     ]
 
 
@@ -167,6 +170,37 @@ async def device_socket(request: web.Request) -> web.WebSocketResponse:
     return socket
 
 
+async def crash_report(request: web.Request) -> web.Response:
+    """A crash of the app, sent only with its user's consent. Kept for the anonymous
+    statistics, which pass it on only if this Pi's owner switched them on."""
+    from pi_guard.diagnostics.contribution import clean_crash, keep_crash
+
+    _device(request)
+    crash = clean_crash(await read_json(request))
+    if crash is None:
+        raise web.HTTPBadRequest(text="not a crash report")
+    keep_crash(dashboard(request).app, crash)
+    return web.json_response({"ok": True})
+
+
+async def alert_action(request: web.Request) -> web.Response:
+    """A button in an alert on the phone: everything is fine, or sound the alarm. Admins only."""
+    from pi_guard.notifications import actions
+
+    d = dashboard(request)
+    device = _device(request)
+    if d.auth.role_of(device["username"]) != "admin":
+        raise web.HTTPForbidden(text="auth.admin_only")
+    action = str((await read_json(request)).get("action", ""))
+    if action not in actions.ACTIONS:
+        raise web.HTTPBadRequest(text="web.unknown_action")
+    try:
+        result = actions.run(d.app, f"phone:{device['id']}", action)
+    except actions.ActionError as exc:
+        raise web.HTTPConflict(text=exc.key) from None
+    return web.json_response(result)
+
+
 async def report(request: web.Request) -> web.Response:
     device = _device(request)
     _hub(request).report(device["id"], await read_json(request))
@@ -184,7 +218,7 @@ async def emergency(request: web.Request) -> web.Response:
     mode = t(f"mode.{app.modes.effective.value.lower()}", lang)
     lines = [t("mobile.emergency", lang, name=device["name"]),
              t("mobile.emergency_mode", lang, mode=mode)]  # fmt: skip
-    link = map_link(info)
+    link = map_link(info, app.settings.map_provider)
     lines.append(t("mobile.emergency_place", lang, link=link) if link
                  else t("mobile.emergency_no_place", lang))  # fmt: skip
     if "accuracy" in info:
@@ -412,7 +446,8 @@ async def app_upload(request: web.Request) -> web.Response:
 
 async def devices(request: web.Request) -> web.Response:
     hub = _hub(request)
-    rows = [{**d, "map": map_link(d["info"])} for d in hub.list()]
+    provider = dashboard(request).settings.map_provider
+    rows = [{**d, "map": map_link(d["info"], provider)} for d in hub.list()]
     meta = _apk_dir(request) / "latest.json"
     latest = json.loads(meta.read_text()) if meta.is_file() else None
     return web.json_response({"devices": rows, "app": latest})
@@ -471,6 +506,19 @@ async def device_find(request: web.Request) -> web.Response:
     except ProviderUnavailableError:
         raise web.HTTPConflict(text="web.mobile_offline") from None
     d.app.db.audit(f"web:{current(request).username}", "mobile.find", str(device_id))
+    return web.json_response({"ok": True})
+
+
+async def device_locate(request: web.Request) -> web.Response:
+    """Ask the phone for a fresh place, without ringing. It answers with its next report,
+    and only if location sharing is on there."""
+    d = dashboard(request)
+    device_id = int(request.match_info["id"])
+    try:
+        await _hub(request).send(device_id, type="locate")
+    except ProviderUnavailableError:
+        raise web.HTTPConflict(text="web.mobile_offline") from None
+    d.app.db.audit(f"web:{current(request).username}", "mobile.locate", str(device_id))
     return web.json_response({"ok": True})
 
 

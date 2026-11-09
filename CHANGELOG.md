@@ -8,6 +8,11 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- *Home servers* and *Service watcher* are one add-on, *Server*. Whoever had one switched on has both.
+- The add-ons page groups its cards, filters by on and off, shows each card's state and what is missing, and keeps
+  *Remove* in a menu instead of next to *Open*.
+- The normal and expert switch of the settings sits next to the title and the search.
+- Verified add-ons show only a check mark; *Verified* appears on hover, focus or tap.
 - People are found far more often: YOLOX-Nano replaces the HOG detector once `pi-guard models download` fetched it.
   On 120 motion pictures of a real home, HOG found a person in none, YOLOX in 25. HOG stays for installations without
   the model, and `faces.compare_body_detectors` runs both to compare them on the events page.
@@ -30,6 +35,12 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Taking pictures on a phone held upright cut the picture to a landscape strip, so the face seemed zoomed in and hardly
+  fit the oval. The picture now keeps the camera's own shape, and the camera uses its widest zoom.
+- The alarm plays as one stream for its whole time. Starting the sound again for each round left gaps, and the USB
+  speaker could mute in them, so the alarm seemed to stop after a moment. The log now says when it started and ended.
+- Signal no longer answers people who are not set up. It is often linked to the owner's own number, so friends who wrote
+  to the owner got "not allowed" from the bot.
 - Renaming a trusted person took effect for recognition only after a restart; until then it reported the old name.
 - A computer whose VPN gets no answer keeps its tunnel instead of replacing the interface every 12 seconds, which
   looked like a new network to the system and every program on it. Other ways and keys are now set on the running
@@ -58,6 +69,46 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- The phone app asks at setup, and later in its settings, whether to send crash reports and anonymous usage data;
+  both off by default. Crash reports hold only the exception type and code places. They go only to the user's own
+  pi-guard, which passes them on in its anonymous report only if its owner agreed too (report version 2).
+- docs/mobile.md explains using the app with your own pi-guard: the official APK with updates from GitHub, an
+  uploaded one, or one built from the source.
+- Emergency data add-on: medical information of the people at home, encrypted in its own database, seen and changed
+  only by admins with their password each time, every access audited. A rescue link shows one person's sheet for 15 to
+  60 minutes, by default only with a six-digit PIN that five wrong tries end; it puts allergies, illnesses, medicines
+  and implants first and can be printed.
+- Backups to Nextcloud, over rsync or into Borg, daily or weekly. Configuration, databases (copied with SQLite's backup),
+  keys and face prints leave the Pi only encrypted with the backup passphrase (AES-256-GCM in sealed pieces, so a cut or
+  changed backup does not decrypt). `pi-guard backup restore` unpacks into a folder without replacing anything.
+- The agent looks after its computer: system information, a security check (firewall, SSH, open ports, failed logins,
+  waiting updates), installing updates, pulling Docker Compose projects and Git repositories, and logs. Reading is always
+  allowed; changes need their switch in `agent.conf` on that computer and the dashboard password, and run one at a time
+  in the background. Git runs without hooks. Agent 0.4.0.
+- The live picture can show its frame rate and mark people and things, with their names and how sure YOLOX is. The Pi
+  checks at most one picture per second for this, and only while it is switched on.
+- Evidence videos come with a signed record and a readable report: clock synchronisation, the video's own data, the
+  events in that time, device model and serial, and checksums of the video and of every segment it was cut from.
+  `pi-guard evidence verify` checks a copy.
+- Logging in with a code by messenger or email (`code` in `PI_GUARD_DASHBOARD_AUTH`): to the owner's admin accounts in
+  Signal, Discord, WhatsApp, Telegram, the phone app or a chat app, or to the account's own email address. Only with a
+  code word or two-factor codes, which are asked after it.
+- Security questions, free answer or multiple choice with a hint, asked in addition to the code word at login.
+- Logging in with an OpenPGP signature, checked by GnuPG against the added keys only.
+- Contact details for dashboard accounts, with vCard in and out, also in the data export.
+- *Place link* for a phone: asks it for its place now, without ringing, and shows a link with its accuracy to open,
+  copy or share. The map is a setting: OpenStreetMap, Google Maps, Apple Maps, Bing, HERE or the device's map app.
+- Alerts have buttons: *All fine* and *Sound alarm*, under each alert in the phone app and in browser push
+  notifications, for admins. A push notification carries a token for one tap that is valid for an hour.
+- The phone app asks for its PIN on a number pad with dots, and a new PIN is typed twice.
+- Taking pictures for face recognition shows a small head with where to look at each step.
+- Apps update from GitHub: `scripts/release-apps.sh` builds, signs and publishes the phone app, desktop app and agent as
+  one release, and every pi-guard fetches new signed versions every 6 hours for its devices. Files whose signature,
+  checksum or version do not match are refused. The keys stay on the owner's computer, so a broken-into GitHub account
+  cannot sign anything.
+- The code word can have a hint, shown at login after the password.
+- Expert view: a test message through every messenger that is set up, not only Discord, email and Signal.
+- Person events in the dashboard say who was recognised, or why nobody could be named.
 - `training/` with `pgtrain`, for a computer with an NVIDIA GPU. It judges photos with the Pi's own code and models:
   is this me, similar photos in a folder, and where the face thresholds should be. It teaches YOLOX-Nano, the Pi's
   person detector, from YOLOX-L on any folder of pictures without labels, on several GPUs, and exports a file the Pi

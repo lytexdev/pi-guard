@@ -31,10 +31,15 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
   vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
   zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
+- **Standort-Link:** *Standort-Link* fragt das Handy sofort nach seinem Standort, ohne Klingeln, und zeigt einen Link mit
+  der Genauigkeit (± Meter) zum Öffnen, Kopieren oder Teilen. Drinnen hat ein Handy manchmal kein GPS; dann kommt nichts
+  Neues. Der Link öffnet die Karte, die unter *Karte für Standorte* (`PI_GUARD_MAP_PROVIDER`) gewählt ist: OpenStreetMap,
+  Google Maps, Apple Karten, Bing, HERE oder die Karten-App des Geräts. Der Kartenanbieter erfährt den Ort erst, wenn
+  jemand den Link öffnet.
 - **VPN-Optionen:** Auf dem VPN-Bildschirm ist *Apps am VPN vorbei* das Split-Tunneling, *Automatisch verbinden* verbindet,
   sobald pi-guard nicht direkt erreichbar ist. Kill Switch und Lockdown sind Androids „Durchgehend aktives VPN“ mit
   „Verbindungen ohne VPN blockieren“: Das System selbst sperrt dann alles, was am Tunnel vorbei ginge.
-- **Updates:** kommen einmal am Tag im WLAN von deinem pi-guard. Das erste fragt nach einem Tippen, danach aktualisiert
+- **Updates:** kommen einmal am Tag im WLAN von deinem pi-guard; der holt neue signierte Versionen selbst von GitHub. Das erste fragt nach einem Tippen, danach aktualisiert
   sich die App ab Android 12 selbst.
 - **Name und Symbol:** *App-Einstellungen → App-Name und Symbol* macht aus der App einen Rechner, Notizen, Wetter, Uhr,
   Dateien oder Musik mit passendem Symbol, zum Beispiel um unauffällig zu bleiben. Android legt diese Namen beim Bauen der
@@ -51,7 +56,10 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **Kalender:** Mit *Abwesend während Kalendereinträgen* gelten belegte Termine der nächsten 14 Tage als abwesend, auch
   wenn ein Handy zu Hause ist. Nur Start und Ende gehen an pi-guard, Titel bleiben auf dem Handy. Ganztägige Termine
   zählen nicht.
-- **App-Sperre:** PIN und Fingerabdruck oder Gesicht, nach 30 Sekunden im Hintergrund.
+- **App-Sperre:** PIN und Fingerabdruck oder Gesicht, nach 30 Sekunden im Hintergrund. Die PIN tippst du auf einem
+  Ziffernblock, der nur Punkte zeigt; beim Festlegen gibst du sie zweimal ein.
+- **Knöpfe unter Meldungen:** *Alles in Ordnung* bestätigt alle offenen Meldungen, *Alarm abspielen* lässt zu Hause
+  30 Sekunden den Alarm laufen. Beides macht pi-guard nur für Admins.
 
 Auf dem Handy sind die Einstellungen des Dashboards eine Liste: Abschnitt antippen, der Pfeil oben führt zurück.
 
@@ -78,3 +86,17 @@ Android fragt vor der Installation immer nach, wenn eine App nicht aus einem Sto
   App-Sperre und entferne verlorene Handys: Das beendet sofort seine Anmeldung und seinen VPN-Zugang.
 - Das Zertifikat wird beim ersten Start festgelegt. Was nicht von deinem pi-guard oder einer öffentlichen Stelle kommt, wird
   abgelehnt.
+
+## pi-guard besser machen
+
+Beim Einrichten und später in den App-Einstellungen gibt es zwei Schalter, beide aus, bis du sie einschaltest:
+**Absturzberichte** (nur Art des Fehlers und Stellen im Code, nie die Meldung und nichts, was du gesehen oder
+eingegeben hast) und **anonyme Nutzungsdaten** (Version der App und von Android). Beides geht nur an deinen eigenen
+pi-guard, und der gibt es nur im anonymen Wochenbericht weiter, wenn auch sein Besitzer zugestimmt hat.
+
+## Die App mit dem eigenen pi-guard
+
+Die App funktioniert mit jedem pi-guard. Die offizielle APK aktualisiert sich über die signierten GitHub-Releases,
+die dein pi-guard selbst holt. Wer die App selbst baut (`./scripts/build-android.sh VERSION` mit eigenem Schlüssel),
+schaltet *App-Updates von GitHub holen* aus, denn Android nimmt keine Updates mit fremdem Schlüssel an, und
+veröffentlicht seine Versionen mit `--publish HOST`.

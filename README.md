@@ -61,8 +61,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | **Web dashboard** | Live picture and sound, people, events, weekly plan with calendars, network, settings in a normal and an expert view. On by default at `https://<pi>:8443`. |
 | **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, SOS with camera pictures, finding phones, and an inconspicuous look if you want one. |
 | **Desktop app** | The dashboard in its own window for Linux, Windows and macOS, trusting only your pi-guard's certificate. On Linux also a VPN with kill switch, lockdown, split tunneling and a quantum-resistant tunnel. |
-| **Home servers** | A small Rust agent connects a PC or NAS: status, safe shutdown, Docker. |
-| **Add-ons** | Service watcher, network analysis, smart home, remote commands, AI assistant with its costs, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
+| **Server** | A small Rust agent connects a PC or NAS: status, security check, updates, Docker, Compose and Git, safe shutdown; and services watched for outages. |
+| **Add-ons** | Server, emergency medical data with a short-lived rescue link, network analysis, smart home, remote commands, AI assistant with its costs, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
 | **Plugins** | Your own add-ons with commands, pages and API routes, from a ZIP or a Git link, checked before they run. See [plugins](docs/plugins.md). |
 | **Ways home** | IPv4, IPv6, a rented server or Tailscale, for every kind of internet connection. See [network](docs/network.md#ways-home-from-outside). |
 | **Training** | `pgtrain` on a computer with an NVIDIA GPU: is this me, similar photos, thresholds from your photos and the Pis' anonymous statistics, and a person detector trained on pictures of rooms. Pictures stay on that computer. See [training](docs/training.md). |
@@ -159,6 +159,7 @@ pi-guard logs -f
 | [Email](docs/email.md) | alerts and exports by email |
 | [Mobile app](docs/mobile.md) | Android app with VPN, alerts, finding phones and SOS |
 | [Desktop app](docs/desktop.md) | The dashboard as an app for Windows, Linux and macOS |
+| [Backups](docs/backup.md) | Encrypted backups to Nextcloud, rsync or Borg |
 | [Updates](docs/updates.md) | How agents and apps update themselves, signed and verified |
 | [VPN](docs/vpn.md) | Kill switch, lockdown, split tunneling, quantum-resistant tunnel |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
@@ -167,7 +168,7 @@ pi-guard logs -f
 | [Public access](docs/public-access.md) | Domain, reverse proxy and safe login |
 | [Plugins](docs/plugins.md) | Write your own add-ons |
 | [API](docs/api.md) | Tokens and endpoints for your own scripts |
-| [Home servers](docs/agent.md) | Connect PCs and NAS: status, safe shutdown, Docker |
+| [Server](docs/agent.md) | Connect PCs and NAS: status, security check, updates, Docker, Compose, Git |
 | [Training](docs/training.md) | Thresholds and a better person detector, on your own GPU |
 | [Architecture](docs/architecture.md) | how the parts fit together |
 | [Performance](docs/performance.md) | measurements and limits |
@@ -176,7 +177,7 @@ pi-guard logs -f
 German: [Installation](docs/de/installation.md) ·
 [Bedienung](docs/de/bedienung.md) · [Dashboard](docs/de/dashboard.md) ·
 [Netzwerk](docs/de/netzwerk.md) · [Datenschutz](docs/de/datenschutz.md) ·
-[Training](docs/de/training.md)
+[Training](docs/de/training.md) · [Backup](docs/de/backup.md)
 
 ## Privacy
 

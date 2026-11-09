@@ -15,6 +15,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
 import secrets
 import struct
 import time
@@ -36,6 +37,9 @@ DEFAULT_PASSWORD = "admin123"  # noqa: S105 - documented first-login default, mu
 MIN_PASSWORD = 10
 RECOVERY_CODES = 10
 MIN_CODEWORD = 4
+MAX_HINT = 100
+MAX_QUESTIONS = 5
+MIN_ANSWER = 2
 # web_sessions.pending: what is still missing before a session counts.
 PENDING_NONE, PENDING_ALL, PENDING_CODEWORD = 0, 1, 2
 
@@ -62,6 +66,11 @@ CREATE TABLE IF NOT EXISTS web_credentials (
     id TEXT PRIMARY KEY, public_key TEXT NOT NULL, sign_count INTEGER NOT NULL,
     name TEXT NOT NULL, created TEXT NOT NULL, last_used TEXT);
 """
+
+
+def _normal(answer: str) -> str:
+    """Answers count without case and extra spaces: "Berlin " is "berlin"."""
+    return " ".join(answer.split()).casefold()
 
 
 class CredentialError(Exception):
@@ -524,20 +533,123 @@ class AuthStore:
             is not None
         )
 
-    def set_codeword(self, password: str, codeword: str) -> None:
-        """Empty `codeword` removes it."""
+    def set_codeword(self, password: str, codeword: str, hint: str = "") -> None:
+        """Empty `codeword` removes it, and its hint with it. The hint is shown at login only
+        after the password, so it must not give the word away."""
         if self.check_password(self.account()["username"], password) is None:
             raise CredentialError("web.wrong_password")
         word = codeword.strip().casefold()
         if not word:
-            self._db.execute("DELETE FROM web_factors WHERE name = 'codeword'")
+            self._db.execute("DELETE FROM web_factors WHERE name IN ('codeword', 'codeword_hint')")
             return
         if len(word) < MIN_CODEWORD:
             raise CredentialError("web.codeword_too_short")
+        hint = " ".join(hint.split())[:MAX_HINT]
+        if hint and word in hint.casefold():
+            raise CredentialError("web.codeword_hint_gives_away")
         self._db.execute(
             "INSERT OR REPLACE INTO web_factors (name, value) VALUES ('codeword', ?)",
             (hash_password(word, self._pepper),),
         )
+        self._db.execute("DELETE FROM web_factors WHERE name = 'codeword_hint'")
+        if hint:
+            self._db.execute(
+                "INSERT INTO web_factors (name, value) VALUES ('codeword_hint', ?)", (hint,)
+            )
+
+    # Security questions: asked in addition to the code word, never instead of anything.
+
+    @property
+    def has_questions(self) -> bool:
+        return bool(self._questions())
+
+    @property
+    def has_knowledge_step(self) -> bool:
+        """Something only the owner knows is asked after the first way of logging in."""
+        return self.has_codeword or self.has_questions
+
+    def _questions(self) -> list[dict[str, Any]]:
+        row = self._db.execute("SELECT value FROM web_factors WHERE name = 'questions'").fetchone()
+        return list(json.loads(row["value"])) if row else []
+
+    def questions(self) -> list[dict[str, Any]]:
+        """For showing: everything but the answers."""
+        return [{k: q[k] for k in ("id", "question", "kind", "options", "hint") if k in q}
+                for q in self._questions()]  # fmt: skip
+
+    def add_question(self, password: str, item: dict[str, Any]) -> None:
+        """One more question: kind "text" with answer, or kind "choice" with options and the
+        index of the right one; a hint is optional. Answers are stored only as hashes."""
+        if self.check_password(self.account()["username"], password) is None:
+            raise CredentialError("web.wrong_password")
+        stored = self._questions()
+        if len(stored) >= MAX_QUESTIONS:
+            raise CredentialError("web.sq_too_many")
+        question = " ".join(str(item.get("question", "")).split())[:200]
+        hint = " ".join(str(item.get("hint") or "").split())[:MAX_HINT]
+        kind = item.get("kind")
+        options: list[str] = []
+        if kind == "choice":
+            options = [
+                o for o in (" ".join(str(x).split())[:80] for x in item.get("options", [])) if o
+            ][:6]
+            right = item.get("answer")
+            if len(options) < 2 or not isinstance(right, int) or not 0 <= right < len(options):
+                raise CredentialError("web.sq_bad_choice")
+            answer = options[right]
+        elif kind == "text":
+            answer = str(item.get("answer", ""))
+        else:
+            raise CredentialError("web.sq_bad_question")
+        norm = _normal(answer)
+        if not question or len(norm) < (1 if kind == "choice" else MIN_ANSWER):
+            raise CredentialError("web.sq_too_short")
+        if hint and kind == "text" and norm in _normal(hint):
+            raise CredentialError("web.codeword_hint_gives_away")
+        entry: dict[str, Any] = {"id": max((q["id"] for q in stored), default=0) + 1,
+                                 "question": question, "kind": kind,
+                                 "answer": hash_password(norm, self._pepper)}  # fmt: skip
+        if options:
+            entry["options"] = options
+        if hint:
+            entry["hint"] = hint
+        self._store_questions([*stored, entry])
+
+    def delete_question(self, password: str, question_id: int) -> bool:
+        if self.check_password(self.account()["username"], password) is None:
+            raise CredentialError("web.wrong_password")
+        stored = self._questions()
+        kept = [q for q in stored if q["id"] != question_id]
+        self._store_questions(kept)
+        return len(kept) < len(stored)
+
+    def _store_questions(self, items: list[dict[str, Any]]) -> None:
+        self._db.execute("DELETE FROM web_factors WHERE name = 'questions'")
+        if items:
+            self._db.execute("INSERT INTO web_factors (name, value) VALUES ('questions', ?)",
+                             (json.dumps(items),))  # fmt: skip
+
+    def check_answer(self, question_id: int, answer: str) -> bool:
+        """True when there are no questions; otherwise only the right answer to this one.
+        For a choice, `answer` is the option's text or its number."""
+        questions = self._questions()
+        if not questions:
+            return True
+        found = next((q for q in questions if q["id"] == question_id), None)
+        if found is None:
+            return False
+        if found["kind"] == "choice" and answer.strip().isdigit():
+            index = int(answer.strip())
+            options = found.get("options", [])
+            answer = options[index] if 0 <= index < len(options) else ""
+        return verify_password(_normal(answer)[:200], found["answer"], self._pepper)
+
+    @property
+    def codeword_hint(self) -> str | None:
+        row = self._db.execute(
+            "SELECT value FROM web_factors WHERE name = 'codeword_hint'"
+        ).fetchone()
+        return str(row["value"]) if row else None
 
     def check_codeword(self, word: str) -> bool:
         row = self._db.execute("SELECT value FROM web_factors WHERE name = 'codeword'").fetchone()

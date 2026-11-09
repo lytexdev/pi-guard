@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import io
 import json
@@ -46,6 +47,9 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/system/update", update_status),
         web.post("/api/system/update", update_start),
         web.put("/api/navigation/pinned", save_pinned),
+        web.get("/api/backup", backup_status),
+        web.post("/api/backup/run", backup_run),
+        web.post("/api/backup/key", backup_key),
         web.get("/api/contribution", contribution_status),
         web.put("/api/contribution", contribution_switch),
         web.get("/api/plugin-manager", plugin_list),
@@ -63,6 +67,51 @@ def routes() -> list[web.RouteDef]:
         web.put("/api/plugin-manager/{id}/source", plugin_save_source),
         web.delete("/api/plugin-manager/{id}", plugin_delete),
     ]
+
+
+# --- backups --------------------------------------------------------------------------------
+
+
+async def backup_status(request: web.Request) -> web.Response:
+    from pi_guard.backup import public_key
+
+    app = dashboard(request).app
+    s = app.settings
+    return web.json_response({
+        "enabled": s.backup_enabled, "target": s.backup_target, "running": app.backups.running,
+        "last": app.backups.last(), "passphrase": bool(s.backup_passphrase),
+        "public_key": public_key(s.data_dir),
+    })  # fmt: skip
+
+
+async def backup_run(request: web.Request) -> web.Response:
+    from pi_guard.backup import BackupError
+
+    d = dashboard(request)
+    data = await read_json(request)
+    if d.auth.check_password(d.auth.account()["username"], str(data.get("password", ""))) is None:
+        raise web.HTTPForbidden(text="web.wrong_password")
+    if d.app.backups.running:
+        raise web.HTTPConflict(text="web.bk_running_already")
+    actor = f"web:{current(request).username}"
+
+    async def work() -> None:
+        with contextlib.suppress(BackupError):
+            await d.app.backups.run_now(actor)
+
+    task = asyncio.get_running_loop().create_task(work())
+    d.app.backups.task = task  # kept, so it is not collected while it runs
+    return web.json_response({"started": True})
+
+
+async def backup_key(request: web.Request) -> web.Response:
+    """The Pi's own SSH key for rsync and Borg, made on first use; only the public half shows."""
+    from pi_guard.backup import _ssh_key, public_key
+
+    d = dashboard(request)
+    await asyncio.to_thread(_ssh_key, d.settings.data_dir)
+    d.app.db.audit(f"web:{current(request).username}", "backup.key")
+    return web.json_response({"public_key": public_key(d.settings.data_dir)})
 
 
 # --- anonymous statistics -----------------------------------------------------------------

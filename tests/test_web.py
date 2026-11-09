@@ -383,7 +383,7 @@ async def test_statistics_are_shown_before_they_are_switched_on(web) -> None:  #
     client, app = web
     csrf = await _login(client)
     status = await (await client.get("/api/contribution")).json()
-    assert status["enabled"] is False and status["url"] is None and status["report"]["report"] == 1
+    assert status["enabled"] is False and status["url"] is None and status["report"]["report"] == 2
     on = await client.put("/api/contribution", json={"enabled": True},
                           headers={"X-CSRF-Token": csrf})  # fmt: skip
     assert on.status == 200 and app.db.get("contribution.enabled") is True
@@ -854,3 +854,45 @@ def test_reset_password_shows_a_new_random_password(tmp_path: Path, monkeypatch:
     assert answer.exit_code == 0, answer.output
     password = answer.output.split("admin / ", 1)[1].split(";", 1)[0]
     assert len(password) >= 10 and password != auth.DEFAULT_PASSWORD
+
+
+async def test_every_messenger_can_send_a_test(web) -> None:  # type: ignore[no-untyped-def]
+    client, app = web
+    csrf = await _login(client)
+    listed = await (await client.get("/api/messengers")).json()
+    assert [m["name"] for m in listed] == ["telegram"] and listed[0]["admins"] >= 1
+    sent = await client.post("/api/messengers/telegram/test", headers={"X-CSRF-Token": csrf})
+    assert sent.status == 200 and "test" in app.providers["telegram"].last().text.lower()
+    off = await client.post("/api/messengers/whatsapp/test", headers={"X-CSRF-Token": csrf})
+    assert off.status == 409
+
+
+async def test_the_live_marks_need_yolox_and_are_cached(web, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from pi_guard.web import api_live
+
+    client, app = web
+    await _login(client)
+    plain = await (await client.get("/api/live/living_room/overlay")).json()
+    assert plain == {"fps": 0.0}  # no detection unless asked for
+    calls = []
+
+    class Detector:
+        body_detector = "yolox"
+
+        def objects(self, image: Any) -> list[Any]:
+            calls.append(1)
+            return [((10.0, 20.0, 30.0, 40.0), "dog", 0.8)]
+
+    monkeypatch.setattr(app, "person_locator", lambda: Detector())
+    import cv2
+
+    frame = cv2.imencode(".jpg", np.zeros((100, 200, 3), np.uint8))[1].tobytes()
+    await app.cameras["living_room"].live_frames.publish(frame)
+    api_live._overlay.clear()
+    first = await (await client.get("/api/live/living_room/overlay?objects=1")).json()
+    assert first["objects"] == [{"box": [0.05, 0.2, 0.15, 0.4], "label": "dog", "score": 0.8}]
+    await client.get("/api/live/living_room/overlay?objects=1")
+    assert len(calls) == 1  # one check per second, however often asked
+    monkeypatch.setattr(app, "person_locator", lambda: None)
+    api_live._overlay.clear()
+    assert (await client.get("/api/live/living_room/overlay?objects=1")).status == 409

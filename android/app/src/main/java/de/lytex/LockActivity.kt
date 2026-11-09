@@ -3,7 +3,7 @@ package de.lytex
 import android.os.Bundle
 import android.os.SystemClock
 import android.widget.Button
-import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -23,20 +23,20 @@ class LockActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = moveTaskToBack(true).let { }
         })
-        val pin = findViewById<EditText>(R.id.pin)
-        val open = findViewById<Button>(R.id.open)
-        open.setOnClickListener {
-            if (store.checkPin(pin.text.toString())) {
+        val box = findViewById<FrameLayout>(R.id.pad_box)
+        lateinit var pad: PinPad
+        pad = PinPad(this) { pin ->
+            if (store.checkPin(pin)) {
                 unlocked()
             } else {
-                pin.text.clear()
                 Toast.makeText(this, R.string.lock_wrong, Toast.LENGTH_SHORT).show()
                 if (++wrong >= TRIES) { // guessing gets slower
-                    open.isEnabled = false
-                    open.postDelayed({ open.isEnabled = true }, wrong * WAIT)
+                    pad.enabledPad = false
+                    pad.postDelayed({ pad.enabledPad = true }, wrong * WAIT)
                 }
             }
         }
+        box.addView(pad)
         val biometric = findViewById<Button>(R.id.biometric)
         val strong = BiometricManager.from(this).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
         if (store.useBiometric && strong) {
@@ -46,8 +46,7 @@ class LockActivity : AppCompatActivity() {
             biometric.visibility = android.view.View.GONE
         }
         if (!store.hasPin) {
-            pin.visibility = android.view.View.GONE
-            open.visibility = android.view.View.GONE
+            box.visibility = android.view.View.GONE
             if (!strong) unlocked() // biometrics were removed from the phone: nothing to ask for
         }
     }

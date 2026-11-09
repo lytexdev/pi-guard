@@ -291,3 +291,21 @@ async def test_strangers_get_an_answer_right_after_a_restart(app, monkeypatch) -
     monkeypatch.setattr("pi_guard.messaging.hub.time.monotonic", lambda: 60.0)
     await app.messenger.handle(msg("/photo", STRANGER))
     assert len(provider(app).sent) == 1
+
+
+async def test_strangers_hear_back_on_telegram_but_not_on_signal(tmp_path: Path) -> None:
+    signal = FakeProvider("signal", buttons=False)
+    signal.answers_strangers = False  # type: ignore[attr-defined]
+    app = make_app(tmp_path, providers={"telegram": FakeProvider(), "signal": signal})
+    await app.messenger.handle(msg("hallo", STRANGER))
+    assert "ID" in app.providers["telegram"].last().text
+    await app.messenger.handle(msg("hallo", "+491701234567", provider="signal"))
+    assert signal.sent == []  # a friend writing to the owner's own number gets no bot answer
+    assert app.db.execute("SELECT COUNT(*) FROM audit WHERE action = 'rejected'").fetchone()[0] == 2
+    app.db.close()
+
+
+def test_the_signal_provider_stays_quiet_to_strangers() -> None:
+    from pi_guard.messaging.signal.provider import SignalProvider
+
+    assert SignalProvider.answers_strangers is False

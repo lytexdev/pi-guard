@@ -90,3 +90,32 @@ def test_a_small_face_is_found_in_the_head_of_a_body(
     assert seen == [(360, 640), (210, 130)]  # the whole copy, then the head
     assert result.face_count == 1
     assert result.faces is not None and result.faces[0, :4].tolist() == [595, 190, 40, 40]
+
+
+def test_every_class_is_decoded_for_the_live_marks() -> None:
+    from pi_guard.detection.persons import COCO, decode_objects
+
+    out = np.zeros((3549, 85), dtype=np.float32)
+    out[0, :6] = [0.5, 0.5, 0.0, 0.0, 0.9, 0.1]
+    out[0, 5 + COCO.index("dog")] = 0.8
+    out[1, 4:6] = [0.9, 0.9]  # a person
+    _, scores, classes = decode_objects(out, ratio=1.0)
+    assert [COCO[c] for c in classes] == ["dog", "person"]
+    assert scores[0] == pytest.approx(0.72) and len(COCO) == 80
+
+
+def test_the_frame_rate_is_measured() -> None:
+    import asyncio
+
+    from pi_guard.cameras.live import LiveFrames
+
+    frames = LiveFrames()
+    assert frames.fps == 0.0
+
+    async def feed() -> None:
+        for _ in range(6):
+            await frames.publish(b"jpeg")
+            await asyncio.sleep(0.05)
+
+    asyncio.run(feed())
+    assert 10 < frames.fps < 30

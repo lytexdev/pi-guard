@@ -7,9 +7,10 @@ only shows whether they are set.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, get_args
 from zoneinfo import available_timezones
 
+from pi_guard.config.settings import MapProvider
 from pi_guard.i18n import LANGUAGES
 
 
@@ -23,12 +24,13 @@ class Field:
     options: tuple[str, ...] = field(default_factory=tuple)
 
 
-LOGIN_METHODS = ("password", "keyfile", "telegram", "webauthn", "none")
+LOGIN_METHODS = ("password", "keyfile", "telegram", "code", "webauthn", "none")
 TIMEZONES = tuple(sorted(z for z in available_timezones() if "/" in z or z == "UTC"))
 
 FIELDS = (
     Field("language", "general", "language"),
     Field("timezone", "general", "choice", options=TIMEZONES),
+    Field("map_provider", "general", "choice", options=get_args(MapProvider)),
     Field("log_level", "general", "choice", options=("DEBUG", "INFO", "WARNING", "ERROR")),
     Field("recording_enabled", "recording", "bool"),
     Field("recording_continuous", "recording", "bool"),
@@ -112,10 +114,24 @@ FIELDS = (
         "dashboard_auth",
         "dashboard",
         "multi",
-        options=("password", "keyfile", "telegram", "webauthn", "none"),
+        options=LOGIN_METHODS,
     ),
     Field("dashboard_public_url", "dashboard", "text"),
     Field("support_url", "dashboard", "text"),
+    Field("app_updates_from_github", "dashboard", "bool"),
+    Field("backup_enabled", "backup", "bool"),
+    Field("backup_target", "backup", "choice", options=("nextcloud", "rsync", "borg")),
+    Field("backup_schedule", "backup", "choice", options=("daily", "weekly")),
+    Field("backup_hour", "backup", "int", 0, 23),
+    Field("backup_keep", "backup", "int", 1, 90),
+    Field("backup_recordings", "backup", "bool"),
+    Field("backup_passphrase", "backup", "secret"),
+    Field("backup_nextcloud_url", "backup", "text"),
+    Field("backup_nextcloud_user", "backup", "text"),
+    Field("backup_nextcloud_password", "backup", "secret"),
+    Field("backup_nextcloud_folder", "backup", "text"),
+    Field("backup_rsync_target", "backup", "text"),
+    Field("backup_borg_repo", "backup", "text"),
     Field("dashboard_trusted_proxies", "dashboard", "list"),
     Field("webpush_enabled", "dashboard", "bool"),
     Field("dashboard_honeypot", "dashboard", "bool"),
@@ -132,7 +148,8 @@ EXPERT = frozenset({
     "emergency_after_alerts", "emergency_after_minutes", "whatsapp_phone_number_id",
     "whatsapp_app_secret", "whatsapp_verify_token", "whatsapp_alert_template",
     "wireguard_endpoint_v6", "dashboard_auth", "dashboard_public_url",
-    "dashboard_trusted_proxies", "support_url", "webpush_enabled", "dashboard_honeypot",
+    "dashboard_trusted_proxies", "support_url", "app_updates_from_github", "webpush_enabled",
+    "dashboard_honeypot",
     "dashboard_ban_minutes",
     "dashboard_rate_limit_per_minute", "pihole_url", "mqtt_host", "mqtt_port",
 })  # fmt: skip
@@ -141,7 +158,7 @@ SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password", "dashboard_s
            "assistant_nextcloud_password", "whatsapp_access_token",
            "whatsapp_app_secret", "whatsapp_verify_token", "discord_bot_token",
            "email_password", "slack_webhook_url", "rocketchat_webhook_url", "matrix_token",
-           "mastodon_token")  # fmt: skip
+           "mastodon_token", "backup_passphrase", "backup_nextcloud_password")  # fmt: skip
 
 
 def to_env(field_: Field, value: Any) -> str:

@@ -28,6 +28,10 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/agents/{id:\\d+}/docker/{container}/logs", docker_logs),
         web.post("/api/agents/{id:\\d+}/power/begin", power_begin),
         web.post("/api/agents/power/confirm", power_confirm),
+        web.get("/api/agents/{id:\\d+}/look/{what:info|security|updates|job}", look),
+        web.get("/api/agents/{id:\\d+}/logs/{kind:warnings|audit}", agent_logs),
+        web.get("/api/agents/{id:\\d+}/{what:compose|git}", maintained_list),
+        web.post("/api/agents/{id:\\d+}/maintain", maintain),
     ]
 
 
@@ -107,6 +111,48 @@ async def _call(work: Any) -> web.Response:
         raise web.HTTPConflict(text=exc.key) from None
     except RuntimeError as exc:
         raise web.HTTPBadGateway(text=str(exc)[:200]) from None
+
+
+# --- looking after the computer -------------------------------------------------------------
+
+
+async def look(request: web.Request) -> web.Response:
+    """Reading only: system information, security check, waiting updates, the last job."""
+    return await _call(_hub(request).request(_id(request), cmd=request.match_info["what"]))
+
+
+async def agent_logs(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    d.app.db.audit(_actor(request), "agent.logs", f"{_id(request)} {request.match_info['kind']}")
+    return await _call(
+        _hub(request).request(_id(request), cmd="logs", kind=request.match_info["kind"])
+    )
+
+
+async def maintained_list(request: web.Request) -> web.Response:
+    what = request.match_info["what"]
+    return await _call(_hub(request).request(_id(request), cmd=what, action="list"))
+
+
+async def maintain(request: web.Request) -> web.Response:
+    """A change on the computer: system updates, a Compose project or a Git repository. With
+    the password; the computer itself decides whether it allows it, from its agent.conf."""
+    d = dashboard(request)
+    data = await read_json(request)
+    if d.auth.check_password(d.auth.account()["username"], str(data.get("password", ""))) is None:
+        raise web.HTTPForbidden(text="web.wrong_password")
+    what = str(data.get("what", ""))
+    target = str(data.get("target", ""))[:300]
+    if what == "upgrade":
+        body: dict[str, Any] = {"cmd": "upgrade"}
+    elif what == "compose":
+        body = {"cmd": "compose", "action": "update", "dir": target}
+    elif what == "git":
+        body = {"cmd": "git", "action": "update", "repo": target}
+    else:
+        raise web.HTTPBadRequest(text="unknown action")
+    d.app.db.audit(_actor(request), f"agent.{what}", f"{_id(request)} {target}".strip())
+    return await _call(_hub(request).request(_id(request), **body))
 
 
 async def docker_list(request: web.Request) -> web.Response:

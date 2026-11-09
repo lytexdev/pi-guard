@@ -18,6 +18,7 @@ _PHONE_RE = re.compile(r"^\+[1-9]\d{6,14}$")
 
 IntList = Annotated[list[int], NoDecode]
 StrList = Annotated[list[str], NoDecode]
+MapProvider = Literal["openstreetmap", "google", "apple", "bing", "here", "geo"]
 
 
 def _split(value: object) -> object:
@@ -36,6 +37,8 @@ class Settings(BaseSettings):
 
     language: str = Field("en", pattern=r"^[a-z]{2}(-[a-z]{2})?$")
     timezone: str = "Europe/Berlin"
+    # Which map a phone's place opens in, see MAP_PROVIDERS in addons/mobile.py.
+    map_provider: MapProvider = "openstreetmap"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["text", "json"] = "text"
     log_file: Path | None = None
@@ -188,6 +191,22 @@ class Settings(BaseSettings):
     # How the dashboard is reached from outside, e.g. https://guard.example.org behind a
     # reverse proxy. Only this name and addresses of the home network are accepted then.
     dashboard_public_url: str | None = None
+    # Backups (backup.py): encrypted with the passphrase before they leave the Pi.
+    backup_enabled: bool = False
+    backup_target: Literal["nextcloud", "rsync", "borg"] = "nextcloud"
+    backup_schedule: Literal["daily", "weekly"] = "daily"
+    backup_hour: int = Field(3, ge=0, le=23)
+    backup_keep: int = Field(7, ge=1, le=90)
+    backup_recordings: bool = False
+    backup_passphrase: SecretStr | None = None
+    backup_nextcloud_url: str | None = None
+    backup_nextcloud_user: str = ""
+    backup_nextcloud_password: SecretStr | None = None
+    backup_nextcloud_folder: str = Field("pi-guard", pattern=r"^[\w ./-]{1,120}$")
+    backup_rsync_target: str | None = None
+    backup_borg_repo: str | None = None
+    # Fetch signed releases of the agent, desktop and phone app from GitHub (core/app_updates.py).
+    app_updates_from_github: bool = True
     # Where anonymous statistics go when the owner switches them on (diagnostics/contribution.py).
     support_url: str | None = None
     dashboard_allow_unauthenticated: bool = False
@@ -302,6 +321,41 @@ class Settings(BaseSettings):
         value = value.strip().rstrip("/")
         if not re.match(r"^https://[A-Za-z0-9.-]{1,253}(:\d{1,5})?$", value):
             raise ValueError("expected a URL like https://guard.example.org")
+        return value
+
+    @field_validator("backup_nextcloud_url")
+    @classmethod
+    def _check_nextcloud(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip().rstrip("/")
+        if not re.match(r"^https://[A-Za-z0-9.-]{1,253}(:\d{1,5})?(/[A-Za-z0-9._~/-]*)?$", value):
+            raise ValueError("expected an address like https://cloud.example.org")
+        return value
+
+    @field_validator("backup_rsync_target")
+    @classmethod
+    def _check_rsync(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        if not re.match(
+            r"^[a-z_][a-z0-9_.-]{0,31}@[A-Za-z0-9.-]{1,253}:[A-Za-z0-9._~/-]{1,200}$", value
+        ):
+            raise ValueError("expected user@host:folder")
+        return value
+
+    @field_validator("backup_borg_repo")
+    @classmethod
+    def _check_borg(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        if not re.match(
+            r"^(ssh://[a-z_][a-z0-9_.-]{0,31}@[A-Za-z0-9.-]{1,253}(:\d{1,5})?/|/)[A-Za-z0-9._~/-]{1,200}$",
+            value,
+        ):
+            raise ValueError("expected ssh://user@host/folder or an absolute folder")
         return value
 
     @field_validator("support_url")
@@ -423,9 +477,10 @@ class Settings(BaseSettings):
 
     def _check_dashboard(self) -> None:
         methods = {m.lower() for m in self.dashboard_auth}
-        if not methods or not methods <= {"password", "keyfile", "telegram", "webauthn", "none"}:
+        if not methods or not methods <= {"password", "keyfile", "telegram", "code", "webauthn",
+                                          "none"}:  # fmt: skip
             raise ValueError(
-                "PI_GUARD_DASHBOARD_AUTH: use password, keyfile, telegram, webauthn or none"
+                "PI_GUARD_DASHBOARD_AUTH: use password, keyfile, telegram, code, webauthn or none"
             )
         if "none" in methods:
             if len(methods) > 1:

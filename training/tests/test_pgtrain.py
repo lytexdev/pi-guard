@@ -55,7 +55,7 @@ def test_a_report_from_a_pi_is_accepted_and_extra_fields_are_dropped() -> None:
 @pytest.mark.parametrize(
     "bad",
     [
-        {"report": 2},
+        {"report": 9},
         {"week": "today"},
         {"face_px": [0] * 3},
         {"face_px": [-1] * PX_BINS},
@@ -211,3 +211,16 @@ async def test_the_page_needs_its_key_and_its_own_address(
     assert thumb.status == 403  # only inside a folder that was searched
     bad_name = await client.post("/api/people/..", headers={**host, "X-Key": page.key})
     assert bad_name.status in (400, 404)
+
+
+def test_a_report_of_version_2_carries_app_versions_and_crashes() -> None:
+    crash = {"exception": "java.lang.NullPointerException", "frames": ["de.lytex.A.b:1"],
+             "app": "1.4.0", "sdk": 34, "message": "secret"}  # fmt: skip
+    apps = {"versions": {"1.4.0": 2}, "android": {"Android 14": 2}}
+    checked = reports.check(a_report(report=2, apps=apps, crashes=[crash]))
+    assert checked["apps"]["versions"] == {"1.4.0": 2} and "message" not in checked["crashes"][0]
+    total = reports.summary([checked, reports.check(a_report())])
+    assert total["app_versions"] == {"1.4.0": 2}
+    assert total["crashes"] == {"java.lang.NullPointerException at de.lytex.A.b:1": 1}
+    with pytest.raises(reports.BadReport):
+        reports.check(a_report(report=3))

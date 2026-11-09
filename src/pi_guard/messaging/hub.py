@@ -177,7 +177,11 @@ class Messenger:
         if code and self._limiter.allow(f"invite:{sender}"):
             await self._redeem(msg, code, sender)
             return
+        provider = self._app.providers.get(msg.provider)
+        quiet = not getattr(provider, "answers_strangers", True)
         if self._app.escalation.is_contact(msg.provider, msg.sender_id) and not msg.is_group:
+            if quiet:
+                return
             last = self._unknown_replied.get(sender, NEVER)
             if time.monotonic() - last > _UNKNOWN_REPLY_INTERVAL:
                 self._unknown_replied[sender] = time.monotonic()
@@ -190,7 +194,7 @@ class Messenger:
         if len(self._unknown_replied) > 1000:  # bound memory if many strangers write
             self._unknown_replied.clear()
         last = self._unknown_replied.get(sender, NEVER)
-        if not msg.is_group and time.monotonic() - last > _UNKNOWN_REPLY_INTERVAL:
+        if not (msg.is_group or quiet) and time.monotonic() - last > _UNKNOWN_REPLY_INTERVAL:
             self._unknown_replied[sender] = time.monotonic()
             lang = self._app.settings.language
             await self._send_safely(

@@ -36,7 +36,8 @@ On Linux and, as a preview, on Windows the app is a VPN client too, see [vpn.md]
 
 ## Updates
 
-The app updates itself, signed and verified. See [updates.md](updates.md).
+The app updates itself, signed and verified, from your pi-guard, which fetches new versions from GitHub. Every release
+is also on GitHub to download by hand, with `SHA256SUMS`. See [updates.md](updates.md).
 
 ## Performance
 

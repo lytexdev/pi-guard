@@ -5,10 +5,13 @@ Wants=network-online.target
 
 [Service]
 ExecStart=/usr/local/bin/pi-guard-agent /etc/pi-guard-agent/agent.conf
+# Log of the last maintenance job (updates, Compose, Git).
+StateDirectory=pi-guard-agent
 Restart=always
 RestartSec=5
 # Needs root for shutdown and Docker, but nothing else of the system.
 NoNewPrivileges=yes
+# Git repositories under /home need `ProtectHome=no` in a drop-in (systemctl edit pi-guard-agent).
 ProtectHome=yes
 PrivateTmp=yes
 ProtectKernelTunables=yes

@@ -96,3 +96,39 @@ def test_the_receiver_must_be_https() -> None:
     assert Settings(support_url=" ").support_url is None
     with pytest.raises(ValidationError):
         Settings(support_url="http://stats.example.org/report")
+
+
+def test_crashes_keep_only_their_shape(app: Any) -> None:
+    from pi_guard.diagnostics.contribution import clean_crash, keep_crash
+
+    crash = clean_crash({"exception": "java.lang.IllegalStateException", "app": "1.4.0", "sdk": 34,
+                         "message": "token pg_secret at 192.168.178.20",
+                         "frames": ["de.lytex.Vpn.up:120", "rm -rf /", "x" * 300]})  # fmt: skip
+    assert crash is not None and crash["frames"] == ["de.lytex.Vpn.up:120"]
+    assert (crash["exception"], crash["app"], crash["sdk"]) == ("java.lang.IllegalStateException",
+                                                                "1.4.0", 34)  # fmt: skip
+    assert "message" not in crash
+    assert clean_crash({"exception": "bad name; drop", "frames": []}) is None
+    for _ in range(25):
+        keep_crash(app, crash)
+    report = build_report(app)
+    assert report["report"] == 2 and len(report["crashes"]) == 20  # bounded
+    assert "pg_secret" not in json.dumps(report)
+
+
+async def test_a_phone_sends_a_crash_with_its_key(tmp_path: Path) -> None:
+    from .test_mobile import _paired
+
+    client, app, _, bearer = await _paired(tmp_path)
+    try:
+        crash = {"exception": "java.lang.NullPointerException", "frames": ["de.lytex.A.b:1"],
+                 "app": "1.4.0", "sdk": 34}  # fmt: skip
+        assert (await client.post("/api/mobile/crash", json=crash)).status == 401
+        assert (await client.post("/api/mobile/crash", json=crash, headers=bearer)).status == 200
+        assert (await client.post("/api/mobile/crash", json={"x": 1}, headers=bearer)).status == 400
+        assert (
+            app.db.get("contribution.crashes")[0]["exception"] == "java.lang.NullPointerException"
+        )
+    finally:
+        await client.close()
+        app.db.close()

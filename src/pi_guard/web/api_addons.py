@@ -34,11 +34,16 @@ from pi_guard.web.server import current, dashboard, read_body, read_json
 
 log = logging.getLogger(__name__)
 
-ADDONS = ("heartbeat", "analytics", "smarthome", "remote", "assistant", "agents", "languages")
+ADDONS = ("heartbeat", "analytics", "smarthome", "remote", "assistant", "agents", "languages",
+          "medical")  # fmt: skip
+# Shown as one add-on, "Server": the agent part carries the switch, the watcher is its section.
+LISTED = tuple(a for a in ADDONS if a != "heartbeat")
+SERVER_PARTS = ("agents", "heartbeat")
 # What an add-on leaves on the disk.
 ADDON_FILES = {
     "assistant": ("knowledge.db", "knowledge.db-wal", "knowledge.db-shm"),
     "languages": ("i18n",),
+    "medical": ("medical.db", "medical.key"),
 }
 MAX_VOICE_BYTES = 5_000_000
 HOME_IP_SECONDS = 600
@@ -108,7 +113,7 @@ async def catalog(request: web.Request) -> web.Response:
             "id": addon, "enabled": config[addon]["enabled"],
             "running": bool(getattr(app.addons, addon)), "needs": needs.get(addon),
             "size": sum(_size(p) for p in _removable(d, addon)),
-        } for addon in ADDONS],
+        } for addon in LISTED],
         "config": config,
         "secrets": {
             "assistant_api_key": bool(s.assistant_api_key),
@@ -156,6 +161,11 @@ async def save_addon(request: web.Request) -> web.Response:
     data = await read_json(request)
     config = _saved_config(request)
     config.setdefault("addons", {})[addon] = data
+    if addon in SERVER_PARTS and isinstance(data, dict) and "enabled" in data:
+        for part in SERVER_PARTS:  # one switch for both parts of "Server"
+            section = config["addons"].setdefault(part, {})
+            if isinstance(section, dict):
+                section["enabled"] = data["enabled"]
     try:
         validated = FileConfig.model_validate(config)
     except ValidationError as exc:

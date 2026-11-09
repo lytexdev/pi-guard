@@ -14,6 +14,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import time
+from collections import deque
 
 HEADER_LIMIT = 16
 
@@ -23,12 +25,21 @@ class LiveFrames:
         self.frame: bytes | None = None
         self.number = 0
         self._changed = asyncio.Condition()
+        self._times: deque[float] = deque(maxlen=31)
 
     async def publish(self, frame: bytes) -> None:
         async with self._changed:
             self.frame = frame
             self.number += 1
+            self._times.append(time.monotonic())
             self._changed.notify_all()
+
+    @property
+    def fps(self) -> float:
+        """Frames per second over the last 30 frames; 0 when none came for 3 seconds."""
+        if len(self._times) < 2 or time.monotonic() - self._times[-1] > 3:
+            return 0.0
+        return (len(self._times) - 1) / max(self._times[-1] - self._times[0], 1e-6)
 
     async def next(self, after: int, wait: float = 10.0) -> tuple[int, bytes]:
         async with self._changed:

@@ -14,6 +14,8 @@ It is not legal advice.
 | Latest frame per camera | `RUNTIME_DIR` (RAM) | overwritten every second |
 | Events, mode, users, invitations, audit log | `DATA_DIR/pi-guard.db` | events and audit: 30 days or the retention period, whichever is longer |
 | Face embeddings of enrolled people | `DATA_DIR/biometrics.db` | until deleted |
+| Contact details of dashboard accounts, OpenPGP public keys, security questions (answers only as hashes) | `DATA_DIR/pi-guard.db` | until deleted; contact details go with their account |
+| Emergency medical data, encrypted | `DATA_DIR/medical.db` with its key in `DATA_DIR/medical.key` | until deleted; only if the add-on is on |
 | Saved sounds | `DATA_DIR/sounds` | until deleted |
 
 Files are owned by the `pi-guard` user and not readable by others (the service
@@ -28,7 +30,7 @@ runs with `UMask=0077`; databases are `0600`).
 | Mode, presence state, camera status, motion events (no images, no names) | your **MQTT broker** | only if MQTT is enabled |
 | A presence query per trusted device | your **router** (FRITZ!Box source) | only if configured |
 | Alert summary and up to three photos | **emergency contacts** via Telegram/Signal | only if alerts stay unconfirmed and contacts are configured |
-| Alert text (no photos, no names) | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |
+| Alert text (no photos, no names), and for admins a one-tap token for *All fine* and *Sound alarm*, valid an hour | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |
 | Live picture and sound, files you upload | your own browser, over HTTPS | only while you use the dashboard |
 | Your browser's public IP address | `api.ipify.org`, and the Pi asks `ipwho.is` about unknown addresses | when the overview is open (connection panel) |
 | Questions to the AI assistant, voice messages sent to it | the provider you chose (OpenAI, Mistral, your own) | add-on on, only what you ask |
@@ -39,6 +41,8 @@ runs with `UMask=0077`; databases are `0600`).
 | Text to translate | DeepL | add-on on and a DeepL key set |
 | Messages and pictures | Meta, if you use WhatsApp | WhatsApp set up |
 | Model files (download) | from GitHub | only when you run `pi-guard models download` |
+| Backups, encrypted with your passphrase before they leave | your Nextcloud, server or Borg repository | only if backups are set up, see [backup.md](backup.md) |
+| A request for the newest app release, and its files when there is a new one | GitHub | every 6 hours, unless `PI_GUARD_APP_UPDATES_FROM_GITHUB=false` |
 | Anonymous statistics: counts and histograms, see below | the receiver in `PI_GUARD_SUPPORT_URL` | only after an admin switches them on, once a week |
 
 Telegram bot chats are **not end-to-end encrypted**: photos and videos sent by
@@ -63,6 +67,9 @@ Once a week the Pi sends, for the last seven days:
 - how many bodies and pictures a person event had, and which detector ran
 - the version, the camera resolutions, whether recognition is on, the number of cameras and enrolled people (as
   0-4 or "5+"), and the threshold and margin
+- from phones whose users agreed in the app (*Help make pi-guard better*, off by default): how many run which app and
+  Android version, and the app's crashes, each only as exception type and the places in the code, never its message;
+  sent once, then forgotten
 
 Never: pictures, face prints, names, times of day, event times, addresses or any number that stays the same between
 reports and could tell a home apart. The receiver sees the Pi's IP address, as any server does; the one in
@@ -136,6 +143,21 @@ pi-guard does not scan the network.
 Evidence videos are kept for 90 days, longer than normal footage. They record sound only if
 the microphone is switched on, and the microphone is announced with a chime. The checksum
 shows whether a file was changed later; it does not replace legal advice on using footage.
+
+Each evidence video comes with a JSON record and a readable report: camera and room, start and end in UTC and local
+time, whether the clock was set from a time server, who asked for it and the mode, the video's own data (codec,
+resolution, frame rate, real length), the events in that time, the device's model and serial number, and the
+checksums of the video and of every recording segment it was cut from. The camera's address is left out, because for a
+network camera it can hold a password. The record is signed with a key that this device makes for itself
+(`DATA_DIR/evidence-ed25519.pem`, readable by the service only); its public half is in the record. To check a copy:
+
+```bash
+sha256sum evidence_….mp4           # must match "sha256" in the record
+pi-guard evidence verify evidence_….json
+```
+
+A signature of the device's own key shows that record and video were not changed after they left the device. It is not
+a qualified electronic signature, and the time is only as right as the clock was.
 
 ## Legal notes for Germany
 

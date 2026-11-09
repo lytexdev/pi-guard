@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from aiohttp import web
-from pi_guard.diagnostics.contribution import PX_BINS, REPORT_VERSION, SCORE_BINS
+from pi_guard.diagnostics.contribution import PX_BINS, REPORT_VERSION, SCORE_BINS, clean_crash
 
 MAX_BYTES = 16 * 1024
 WEEK = re.compile(r"^\d{4}-W\d{2}$")
@@ -48,7 +48,7 @@ def _tally(value: Any, keys: re.Pattern[str]) -> dict[str, int]:
 
 def check(report: Any) -> dict[str, Any]:
     """The report with only the fields of version 1, or BadReport."""
-    if not isinstance(report, dict) or report.get("report") != REPORT_VERSION:
+    if not isinstance(report, dict) or report.get("report") not in range(1, REPORT_VERSION + 1):
         raise BadReport("not a pi-guard report of a known version")
     if not (isinstance(report.get("week"), str) and WEEK.match(report["week"])):
         raise BadReport("week must look like 2026-W46")
@@ -73,8 +73,8 @@ def check(report: Any) -> dict[str, Any]:
     corrections = report.get("corrections")
     if not isinstance(scores, dict) or not isinstance(corrections, dict):
         raise BadReport("scores missing")
-    return {
-        "report": REPORT_VERSION, "pi_guard": version, "week": report["week"],
+    checked: dict[str, Any] = {
+        "report": report["report"], "pi_guard": version, "week": report["week"],
         "setup": clean_setup,
         "events": _tally(report.get("events", {}), re.compile(r"^[a-z_]{1,40}$")),
         "face_px": _counts(report.get("face_px"), PX_BINS),
@@ -85,6 +85,16 @@ def check(report: Any) -> dict[str, Any]:
         "detectors": _tally(report.get("detectors", {}), re.compile(r"^(yolox|hog)$")),
         "corrections": {k: _counts(corrections.get(k), SCORE_BINS) for k in ("is", "not")},
     }  # fmt: skip
+    if report["report"] >= 2:
+        raw = report.get("apps")
+        apps: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        version_key = re.compile(r"^[\w .+-]{1,30}$")
+        checked["apps"] = {k: _tally(apps.get(k, {}), version_key) for k in ("versions", "android")}
+        crashes = report.get("crashes", [])
+        if not isinstance(crashes, list) or len(crashes) > 20:
+            raise BadReport("too many crashes")
+        checked["crashes"] = [c for c in (clean_crash(x) for x in crashes) if c]
+    return checked
 
 
 def receiver(folder: Path) -> web.Application:
@@ -145,4 +155,8 @@ def summary(reports: list[dict[str, Any]]) -> dict[str, Any]:
                    for t in ("person_detected", "unknown_person", "known_person")},
         "corrections": {k: add([r["corrections"][k] for r in reports], SCORE_BINS)
                         for k in ("is", "not")},
+        "app_versions": dict(sum((Counter(r.get("apps", {}).get("versions", {})) for r in reports),
+                                 Counter())),
+        "crashes": dict(Counter(f"{c['exception']} at {c['frames'][0] if c['frames'] else '?'}"
+                                for r in reports for c in r.get("crashes", [])).most_common(20)),
     }  # fmt: skip

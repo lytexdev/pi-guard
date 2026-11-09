@@ -18,7 +18,8 @@ app* and its token stops working at once.
 
 - **Dashboard** with all pages and settings, also from outside through the VPN or a public address.
 - **Alerts** arrive over the app's own encrypted connection to pi-guard, with no Google or Apple service in
-  between. A permanent notification keeps it alive, which uses some battery.
+  between. A permanent notification keeps it alive, which uses some battery. Under each alert, *All fine* acknowledges
+  all open alerts and *Sound alarm* sounds the alarm at home for 30 seconds; pi-guard does either only for an admin.
 - **VPN:** the app is a WireGuard client with its own access per phone, like a VPN app with a device list. pi-guard
   creates the access when the phone is paired, so there is no QR code to scan. Tap the shield at the top of the app,
   then *Connect VPN*. It works from anywhere, shows the device, address, data and last contact, and comes back after
@@ -31,10 +32,14 @@ app* and its token stops working at once.
 - **Find a phone:** from *Add-ons → Mobile app* or `/findphone name` in chat. It rings at full volume and
   vibrates. Location, map and details are only sent if the phone's owner switched on *Share location*. The phone
   shows that someone is looking for it. The Pi fetches map tiles from OpenStreetMap, and only when someone opens the map.
+- **Place link:** *Place link* asks the phone for its place right now, without ringing, and shows a link with how exact
+  it is (± metres), to open, copy or share. Indoors a phone may have no GPS fix; then nothing new comes. The link opens
+  in the map chosen as *Map for places* (`PI_GUARD_MAP_PROVIDER`): OpenStreetMap, Google Maps, Apple Maps, Bing, HERE,
+  or the map app of the device. That map's company learns the place only when someone opens the link.
 - **VPN options:** on the VPN screen, *Apps past the VPN* is split tunneling, *Connect automatically* connects whenever
   pi-guard cannot be reached directly. Kill switch and lockdown are Android's own always-on VPN with *Block connections
   without VPN*, which is the most reliable place for them: the system itself blocks everything past the tunnel.
-- **Updates:** come from your pi-guard once a day on Wi-Fi. The first one asks for a tap, after that the app updates
+- **Updates:** come from your pi-guard once a day on Wi-Fi; the pi-guard gets new signed versions from GitHub by itself. The first one asks for a tap, after that the app updates
   itself on Android 12 and newer. See [updates.md](updates.md).
 - **Name and icon:** *App settings → App name and icon* turns the app into Calculator, Notes, Weather, Clock, Files or
   Music, with a matching icon, for example to keep it inconspicuous. Android fixes these names when the app is built,
@@ -49,7 +54,8 @@ app* and its token stops working at once.
   works in a normal browser. Expect a delay of a second or two.
 - **Calendar:** with *Away during calendar entries*, busy entries for the next 14 days count as away, even if
   a phone is at home. Only start and end go to pi-guard; titles stay on the phone. All-day entries are left out.
-- **App lock:** PIN and fingerprint or face, after 30 seconds in the background.
+- **App lock:** PIN and fingerprint or face, after 30 seconds in the background. The PIN is typed on a number pad that
+  shows dots, never digits, and it is set by typing it twice.
 
 On a phone the dashboard's settings are a list: tap a section to open it, and the arrow at the top leads back.
 
@@ -76,3 +82,27 @@ always asks before installing an app that does not come from a store, so updates
   app lock, and remove lost phones: that ends its login and its VPN access at once.
 - The certificate is pinned at the first start. Anything not issued by your pi-guard, or by a public authority,
   is refused.
+
+## Helping the project
+
+At setup and later in the app settings, *Help make pi-guard better* offers two switches, both off until you turn them
+on:
+
+- **Crash reports:** after a crash the app keeps the exception's type and the places in its code, never the message,
+  which can hold addresses or names, nor anything you saw or typed. On the next start it goes to your pi-guard if you
+  agreed, and is deleted either way.
+- **Usage data:** this app's and Android's version.
+
+Both go only to your own pi-guard. It passes them on only inside its anonymous weekly report, and only if its owner
+switched that on as well, see [privacy.md](privacy.md#anonymous-statistics).
+
+## Using the app with your own pi-guard
+
+The app works with any pi-guard: it finds it in the home network or takes its address, and trusts only that
+pi-guard's own certificate authority after you compared its fingerprint.
+
+| Way | How it updates |
+|---|---|
+| The official APK | From the GitHub releases (`apps-*`), signed. Your pi-guard fetches new versions by itself and offers them to the phone. |
+| Uploaded to your pi-guard | Dashboard → *Add-ons → Phone app*; your pi-guard hands it to its phones. |
+| Built from the source | `./scripts/build-android.sh VERSION` with your own keystore. Android refuses updates signed with another key, so switch off *Fetch app updates from GitHub* (`PI_GUARD_APP_UPDATES_FROM_GITHUB=false`) and publish your builds with `--publish HOST`. |

@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from collections import Counter
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -29,10 +30,16 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-REPORT_VERSION = 1
+# 2: also the phone apps' versions and crashes, from phones whose users agreed.
+REPORT_VERSION = 2
 ENABLED_KEY = "contribution.enabled"
 SENT_KEY = "contribution.last_sent"
 CORRECTIONS_KEY = "contribution.corrections"
+CRASHES_KEY = "contribution.crashes"
+MAX_CRASHES = 20
+_NAME = re.compile(r"^[\w.$]{1,200}$")
+_FRAME = re.compile(r"^[\w.$<>-]{1,200}:-?\d{1,7}$")
+_VERSION = re.compile(r"^[\w.+-]{1,30}$")
 EVERY = timedelta(days=7)
 CHECK_SECONDS = 3600
 PX_BIN, PX_BINS = 8, 21  # face sizes 0-7, 8-15, ... 160 and more
@@ -58,6 +65,25 @@ def _histogram(values: list[float], size: float, bins: int) -> list[int]:
 def _few(count: int) -> str:
     """Small numbers as they are, larger ones as "5+": fewer ways to tell homes apart."""
     return str(count) if count < 5 else "5+"
+
+
+def clean_crash(raw: Any) -> dict[str, Any] | None:
+    """Only the shape the app sends: exception type, code places, versions. Nothing else."""
+    if not isinstance(raw, dict):
+        return None
+    exception, frames = raw.get("exception"), raw.get("frames")
+    app, sdk = raw.get("app"), raw.get("sdk")
+    if not (isinstance(exception, str) and _NAME.match(exception) and isinstance(frames, list)):
+        return None
+    frames = [f for f in frames[:12] if isinstance(f, str) and _FRAME.match(f)]
+    return {"exception": exception, "frames": frames,
+            "app": app if isinstance(app, str) and _VERSION.match(app) else "",
+            "sdk": sdk if isinstance(sdk, int) and 0 < sdk < 1000 else 0}  # fmt: skip
+
+
+def keep_crash(app: App, crash: dict[str, Any]) -> None:
+    crashes = list(app.db.get(CRASHES_KEY) or [])[-(MAX_CRASHES - 1) :]
+    app.db.set(CRASHES_KEY, [*crashes, crash])
 
 
 def record_correction(app: App, confirmed: bool, score: float) -> None:
@@ -91,6 +117,8 @@ def build_report(app: App) -> dict[str, Any]:
         detectors[str(data.get("detector", "hog"))] += 1
     corrections = app.db.get(CORRECTIONS_KEY) or {}
     faces = app.faces
+    phones = [d["info"] for d in app.mobile.list()] if app.mobile is not None else []
+    agreed = [p for p in phones if p.get("usage_ok")]
     year, week, _ = now.isocalendar()
     return {
         "report": REPORT_VERSION,
@@ -111,6 +139,11 @@ def build_report(app: App) -> dict[str, Any]:
         "pictures": dict(sorted(pictures.items())),
         "detectors": dict(sorted(detectors.items())),
         "corrections": {key: corrections.get(key) or [0] * SCORE_BINS for key in ("is", "not")},
+        "apps": {
+            "versions": dict(Counter(str(p.get("app", "?"))[:30] for p in agreed)),
+            "android": dict(Counter(str(p.get("os", "?"))[:30] for p in agreed)),
+        },
+        "crashes": list(app.db.get(CRASHES_KEY) or []),
     }
 
 
@@ -145,6 +178,7 @@ class Contribution:
             response.raise_for_status()
         self._app.db.set(SENT_KEY, utcnow().isoformat())
         self._app.db.set(CORRECTIONS_KEY, {})  # sent once, then forgotten
+        self._app.db.set(CRASHES_KEY, [])
         log.info("anonymous statistics sent")
 
     async def run(self) -> None:

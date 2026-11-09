@@ -136,6 +136,21 @@ async def test_evidence_video_has_checksum_and_metadata(tmp_path: Path, monkeypa
     assert evidence_files(app.media_dir)[0]["sha256"] == result.sha256
     assert not list((app.media_dir / "evidence").glob("*.raw.mp4"))
     assert "evidence" in [r[0] for r in app.db.execute("SELECT action FROM audit")]
+    # What an insurance or the police need besides the picture.
+    assert info["video"]["streams"][0]["width"] == 160 and info["video"]["duration_seconds"] > 0
+    assert "synchronized" in info["clock"] and info["time_zone"] == app.settings.timezone
+    assert "device" not in info["camera_settings"]  # a camera address may hold a password
+    assert evidence_module.verify(result.metadata) == []
+    report = result.metadata.with_suffix(".txt").read_text()
+    assert result.sha256 in report and info["signature"]["value"] in report
+    assert (app.settings.data_dir / "evidence-ed25519.pem").stat().st_mode & 0o077 == 0
+    changed = json.loads(result.metadata.read_text())
+    changed["requested_by"] = "somebody else"
+    result.metadata.write_text(json.dumps(changed))
+    assert any("signature" in p for p in evidence_module.verify(result.metadata))
+    result.metadata.write_text(json.dumps(info))
+    result.video.write_bytes(result.video.read_bytes() + b"x")
+    assert any("checksum" in p for p in evidence_module.verify(result.metadata))
     app.db.close()
 
 

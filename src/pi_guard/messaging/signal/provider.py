@@ -64,6 +64,9 @@ def parse_envelope(params: dict[str, Any], account: str) -> Incoming | None:
 class SignalProvider:
     name = "signal"
     supports_buttons = False
+    # Signal is often linked to the owner's own number: friends who write to it must not
+    # get an answer from the bot.
+    answers_strangers = False
 
     def __init__(self, account: str, address: str) -> None:
         self._account = account
