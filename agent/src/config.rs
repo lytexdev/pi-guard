@@ -8,6 +8,23 @@ pub struct Config {
     pub allow_power: bool,
     pub allow_docker: bool,
     pub auto_update: bool,
+    /// Off unless set here: reading logs, and updating the system.
+    pub allow_logs: bool,
+    pub allow_upgrade: bool,
+    /// The only folders pi-guard may update: Docker Compose projects and Git repositories.
+    pub compose_dirs: Vec<String>,
+    pub git_repos: Vec<String>,
+}
+
+/// Absolute folders without "..", separated by commas.
+fn folders(value: &str) -> Result<Vec<String>, String> {
+    value.split(',').map(str::trim).filter(|v| !v.is_empty()).map(|v| {
+        let path = v.trim_end_matches('/');
+        if !path.starts_with('/') || path.split('/').any(|part| part == ".." || part == ".") {
+            return Err(format!("not an absolute folder: {v}"));
+        }
+        Ok(path.to_string())
+    }).collect()
 }
 
 fn is_local(url: &str) -> bool {
@@ -19,6 +36,8 @@ impl Config {
     pub fn parse(text: &str) -> Result<Config, String> {
         let (mut url, mut token, mut ca_file) = (String::new(), String::new(), None);
         let (mut allow_power, mut allow_docker, mut auto_update) = (true, true, true);
+        let (mut allow_logs, mut allow_upgrade) = (false, false);
+        let (mut compose_dirs, mut git_repos) = (Vec::new(), Vec::new());
         for line in text.lines() {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
@@ -33,6 +52,10 @@ impl Config {
                 "ALLOW_POWER" => allow_power = value == "true",
                 "ALLOW_DOCKER" => allow_docker = value == "true",
                 "AUTO_UPDATE" => auto_update = value == "true",
+                "ALLOW_LOGS" => allow_logs = value == "true",
+                "ALLOW_UPGRADE" => allow_upgrade = value == "true",
+                "DOCKER_COMPOSE_DIRS" => compose_dirs = folders(&value)?,
+                "GIT_REPOS" => git_repos = folders(&value)?,
                 other => return Err(format!("unknown setting {other}")),
             }
         }
@@ -42,7 +65,8 @@ impl Config {
         if url.starts_with("http://") && !is_local(&url) {
             return Err("plain http is only allowed on this computer; use https".into());
         }
-        Ok(Config { url, token, ca_file, allow_power, allow_docker, auto_update })
+        Ok(Config { url, token, ca_file, allow_power, allow_docker, auto_update, allow_logs,
+                    allow_upgrade, compose_dirs, git_repos })
     }
 
     pub fn load(path: &str) -> Result<Config, String> {
@@ -77,6 +101,15 @@ mod tests {
         assert!(Config::parse("URL=https://pi:8443").is_err());
         assert!(Config::parse("TOKEN=x").is_err());
         assert!(Config::parse("URL=https://pi\nTOKEN=x\nWHAT=1").is_err());
+    }
+
+    #[test]
+    fn folders_are_absolute() {
+        let c = Config::parse("URL=https://p\nTOKEN=x\nGIT_REPOS=/srv/a, /srv/b/").unwrap();
+        assert_eq!(c.git_repos, vec!["/srv/a", "/srv/b"]);
+        assert!(!c.allow_logs && !c.allow_upgrade);
+        assert!(Config::parse("URL=https://p\nTOKEN=x\nGIT_REPOS=srv/a").is_err());
+        assert!(Config::parse("URL=https://p\nTOKEN=x\nGIT_REPOS=/srv/../etc").is_err());
     }
 
     #[test]

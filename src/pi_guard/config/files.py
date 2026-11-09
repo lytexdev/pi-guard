@@ -400,6 +400,22 @@ class AddonSettings(_Model):
     remote: RemoteAddon = Field(default_factory=RemoteAddon)
     assistant: AssistantAddon = Field(default_factory=AssistantAddon)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _one_server_addon(cls, data: Any) -> Any:
+        """Computers with the agent and watched services are one add-on, "Server". Whoever
+        had one of the two switched on before has both now."""
+        if not isinstance(data, dict):
+            return data
+        sections = [data.get(k) for k in ("agents", "heartbeat")]
+        if not any(isinstance(x, dict) and x.get("enabled") for x in sections):
+            return data
+        data = dict(data)
+        for key in ("agents", "heartbeat"):
+            section = data.get(key)
+            data[key] = {**(section if isinstance(section, dict) else {}), "enabled": True}
+        return data
+
 
 class FileConfig(_Model):
     cameras: list[CameraConfig] = Field(default_factory=list)

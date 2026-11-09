@@ -30,6 +30,12 @@ ALLOW_POWER=true
 ALLOW_DOCKER=true
 # Signed new versions from your pi-guard install themselves. Set to false to update by hand.
 AUTO_UPDATE=true
+# Looking after this computer from pi-guard. Reading system information, the security check and
+# waiting updates is always allowed; everything below stays off until you switch it on here.
+# ALLOW_LOGS=true                       # show warnings and sudo use from the journal
+# ALLOW_UPGRADE=true                    # install system updates (apt, pacman or dnf)
+# DOCKER_COMPOSE_DIRS=/srv/stack        # pull and restart these Compose projects
+# GIT_REPOS=/srv/app,/opt/tool          # git pull --ff-only these, without hooks
 CONFIG
 install -m 0755 "$BIN" /usr/local/bin/pi-guard-agent
 install -m 0644 "$HERE/pi-guard-agent.service" /etc/systemd/system/pi-guard-agent.service

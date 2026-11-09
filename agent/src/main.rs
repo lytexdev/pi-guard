@@ -7,6 +7,7 @@
 
 mod commands;
 mod config;
+mod maintenance;
 mod update;
 
 use std::net::TcpStream;

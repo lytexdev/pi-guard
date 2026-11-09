@@ -8,6 +8,9 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- *Home servers* and *Service watcher* are one add-on, *Server*. Whoever had one switched on has both.
+- The add-ons page groups its cards, filters by on and off, shows each card's state and what is missing, and keeps
+  *Remove* in a menu instead of next to *Open*.
 - The normal and expert switch of the settings sits next to the title and the search.
 - Verified add-ons show only a check mark; *Verified* appears on hover, focus or tap.
 - People are found far more often: YOLOX-Nano replaces the HOG detector once `pi-guard models download` fetched it.
@@ -66,6 +69,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- The agent looks after its computer: system information, a security check (firewall, SSH, open ports, failed logins,
+  waiting updates), installing updates, pulling Docker Compose projects and Git repositories, and logs. Reading is always
+  allowed; changes need their switch in `agent.conf` on that computer and the dashboard password, and run one at a time
+  in the background. Git runs without hooks. Agent 0.4.0.
 - The live picture can show its frame rate and mark people and things, with their names and how sure YOLOX is. The Pi
   checks at most one picture per second for this, and only while it is switched on.
 - Evidence videos come with a signed record and a readable report: clock synchronisation, the video's own data, the

@@ -324,3 +324,44 @@ async def test_git_links_must_be_https(tmp_path: Path) -> None:
     finally:
         await client.close()
         app.db.close()
+
+
+async def test_looking_after_a_computer_asks_the_agent_and_needs_the_password(
+    tmp_path: Path,
+) -> None:
+    from .test_web import PASSWORD
+
+    client, app = await _client(tmp_path)
+    try:
+        headers = {"X-CSRF-Token": await _login(client)}
+        enable(app, agents={"enabled": True})
+        hub = app.addons.agents
+        agent_id, _ = hub.create("NAS")
+        asked: list[dict[str, Any]] = []
+
+        async def send(text: str) -> None:
+            asked.append(json.loads(text))
+            reply = {"type": "reply", "id": asked[-1]["id"], "ok": True, "data": {"fine": True}}
+            hub.received(connection, json.dumps(reply))
+
+        connection = Connection(agent_id, send)
+        hub.attach(connection)
+        assert (await client.get(f"/api/agents/{agent_id}/look/security")).status == 200
+        assert asked[-1]["cmd"] == "security"
+        assert (await client.get(f"/api/agents/{agent_id}/look/exec")).status == 404
+        no = {"what": "git", "target": "/srv/app", "password": "wrong"}
+        refused = await client.post(f"/api/agents/{agent_id}/maintain", json=no, headers=headers)
+        assert refused.status == 403 and asked[-1]["cmd"] == "security"  # nothing was sent
+        yes = {**no, "password": PASSWORD}
+        done = await client.post(f"/api/agents/{agent_id}/maintain", json=yes, headers=headers)
+        assert done.status == 200
+        assert asked[-1] == {"id": asked[-1]["id"], "cmd": "git", "action": "update",
+                             "repo": "/srv/app"}  # fmt: skip
+        bad = {"what": "shell", "password": PASSWORD}
+        assert (await client.post(f"/api/agents/{agent_id}/maintain", json=bad,
+                                  headers=headers)).status == 400  # fmt: skip
+        actions = [r[0] for r in app.db.execute("SELECT action FROM audit")]
+        assert "agent.git" in actions
+    finally:
+        await client.close()
+        app.db.close()

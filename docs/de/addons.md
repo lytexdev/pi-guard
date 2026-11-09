@@ -12,7 +12,7 @@ pi-guard. Alles funktioniert im Dashboard und in jedem Messenger.
 | Fernbefehle | `/aktion` |
 | KI-Assistent | `/frage Text`, `/wetter [Ort]` |
 
-**Dienste-Wächter:** Prüft Webseiten, Ports und Geräte. Nach mehreren Fehlversuchen kommt
+**Dienste-Wächter** (Teil des Add-ons *Server*, zusammen mit den Computern mit Agent): Prüft Webseiten, Ports und Geräte. Nach mehreren Fehlversuchen kommt
 eine Nachricht, und noch eine, wenn der Dienst wieder läuft.
 
 **Netzwerkanalyse:** Zeigt aus den Daten von Pi-hole Geräte, meistaufgerufene und

@@ -78,6 +78,10 @@ pub fn status(config: &Config) -> Value {
         "agent": env!("CARGO_PKG_VERSION"),
         "can_power": config.allow_power,
         "can_docker": config.allow_docker && docker_available(),
+        "can_logs": config.allow_logs,
+        "can_upgrade": config.allow_upgrade,
+        "compose_dirs": if config.allow_docker { config.compose_dirs.len() } else { 0 },
+        "git_repos": config.git_repos.len(),
     })
 }
 
@@ -139,6 +143,9 @@ fn power(command: &str) -> Outcome {
 }
 
 pub fn run(config: &Config, request: &Value) -> Outcome {
+    if let Some(result) = crate::maintenance::run(config, request) {
+        return done(result);
+    }
     match request["cmd"].as_str().unwrap_or("") {
         "status" => done(Ok(status(config))),
         "lock" if config.allow_power => {
@@ -161,7 +168,8 @@ mod tests {
 
     fn config(power: bool, docker: bool) -> Config {
         Config { url: "https://x".into(), token: "t".into(), ca_file: None, auto_update: true,
-                 allow_power: power, allow_docker: docker }
+                 allow_power: power, allow_docker: docker, allow_logs: false, allow_upgrade: false,
+                 compose_dirs: vec![], git_repos: vec![] }
     }
 
     #[test]

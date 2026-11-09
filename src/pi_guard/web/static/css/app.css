@@ -115,6 +115,7 @@ main { padding: 24px clamp(16px, 3vw, 40px) 96px; max-width: 1280px; width: 100%
 .badge.accent { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .badge.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 .badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
 
 /* controls */
 button, .button {
@@ -639,3 +640,29 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 .stage .mark.person { border-color: var(--accent); }
 .stage .mark small { position: absolute; left: -2px; top: -1.4em; padding: 0 4px; border-radius: 3px; background: rgba(0, 0, 0, .7); color: #fff; font-size: .72rem; white-space: nowrap; }
 .stage .fps { font-variant-numeric: tabular-nums; }
+
+/* Add-ons */
+.addon-group .section-title { font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 8px 0; }
+.addon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--gap); }
+.addon-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); transition: border-color .15s; }
+.addon-card.on { border-color: color-mix(in srgb, var(--ok, #3ddc97) 45%, var(--line)); }
+.addon-head { display: flex; align-items: flex-start; gap: 12px; }
+.addon-head h3 { margin: 0 0 4px; font-size: 1.05rem; display: flex; align-items: center; }
+.addon-icon { flex: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.addon-card:not(.on) .addon-icon { background: var(--surface-2); color: var(--muted); }
+.addon-text { margin: 0; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.addon-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.addon-foot .button.small { min-height: 34px; padding: 0 12px; font-size: .9rem; }
+.addon-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.addon-menu { position: relative; }
+.addon-menu summary { list-style: none; cursor: pointer; padding: 2px 8px; border-radius: 6px; font-size: 1.2rem; line-height: 1; color: var(--muted); }
+.addon-menu summary::-webkit-details-marker { display: none; }
+.addon-menu[open] summary { background: var(--surface-2); }
+.addon-menu-body { position: absolute; right: 0; top: 100%; z-index: 5; margin-top: 4px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); white-space: nowrap; }
+.segmented.wrap { flex-wrap: wrap; }
+.addon-head .pin { border: 0; background: none; color: var(--muted); padding: 4px; min-height: 0; }
+.addon-head .pin.on { color: var(--accent); }
+.addon-head .badge { white-space: nowrap; }
+.addon-why { margin: 0; font-size: .85rem; color: var(--warn); display: flex; gap: 6px; align-items: flex-start; }
+.addon-why .icon { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.addon-head > .grow { flex: 1; min-width: 0; }

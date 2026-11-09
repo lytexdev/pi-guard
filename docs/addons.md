@@ -17,6 +17,8 @@ All but the assistant are for admins.
 
 ## Service watcher
 
+Part of the *Server* add-on, see [agent.md](agent.md).
+
 Watches websites (HTTP), ports (TCP) and hosts (ping). After several failed checks in a
 row you get one message, and another when the service is back. HTTP answers below 500
 count as alive, so a login page that says 401 is fine. Alerts follow the rules

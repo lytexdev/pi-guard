@@ -456,6 +456,89 @@ function agentDialog(agent) {
   draw();
 }
 
+// Looking after a computer: reading is always allowed; changes need the password, and the
+// computer's own agent.conf decides whether it allows them at all.
+function maintenanceDialog(agent) {
+  const body = h("div", { class: "stack" });
+  const TABS = ["info", "security", "updates", "compose", "git", "logs"];
+  const tabs = h("div", { class: "segmented wrap" });
+  const dialog = h("dialog", { class: "editor" }, h("div", { class: "row between" }, h("h2", {}, icon("settings"), " ", agent.name),
+    h("button", { class: "icon-only", title: t("web.close"), onclick: () => dialog.close() }, icon("x"))), tabs, body);
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+  const kv = (rows) => h("dl", { class: "kv" }, rows.filter(([, v]) => v != null && v !== "").map(([k, v]) => [h("dt", {}, k), h("dd", {}, String(v))]));
+  const change = async (what, target = "") => {
+    const password = await askDialog(t("web.confirm_password"), { type: "password" });
+    if (!password) return;
+    if (await attempt(() => api(`/api/agents/${agent.id}/maintain`, { method: "POST", body: { what, target, password } }), t("web.sv_started"))) job();
+  };
+  const job = async () => {
+    const s = await attempt(() => api(`/api/agents/${agent.id}/look/job`));
+    if (!s) return;
+    const box = h("section", { class: "panel stack" }, h("h3", {}, t("web.sv_job"), " ", s.name ? h("span", { class: `badge ${s.running ? "accent" : s.exit === 0 ? "ok" : "danger"}` },
+      s.running ? t("web.sv_running") : s.exit === 0 ? t("web.sv_done") : t("web.sv_failed", { code: s.exit })) : null),
+      s.name ? h("p", { class: "muted" }, s.name) : h("p", { class: "muted" }, t("web.sv_no_job")),
+      s.log ? h("pre", { class: "log mono wrap" }, s.log) : null);
+    fill(body, box);
+    if (s.running) whileShown(box, job, 3000);
+  };
+  const views = {
+    info: async () => {
+      const [i, st] = [await api(`/api/agents/${agent.id}/look/info`), agent.info];
+      return [kv([[t("web.sv_os"), st.os], [t("web.sv_kernel"), st.kernel], ["CPU", `${i.cpu} (${i.cores})`],
+        [t("web.sv_temp"), i.temperatures?.length ? `${Math.max(...i.temperatures)} °C` : null], [t("web.memory"), `${st.memory_available_mb} / ${st.memory_total_mb} MB`],
+        [t("web.storage"), st.disk ? `${st.disk.free_mb} / ${st.disk.total_mb} MB` : null], [t("web.sv_agent"), st.agent]]),
+        i.failed_units?.length ? h("p", { class: "notice danger" }, t("web.sv_failed_units"), " ", i.failed_units.join(", ")) : h("p", {}, icon("circle-check"), " ", t("web.sv_units_ok")),
+        h("h3", {}, t("web.sv_addresses")), h("ul", { class: "list mono" }, (i.addresses || []).map((a) => h("li", {}, a)))];
+    },
+    security: async () => {
+      const s = await api(`/api/agents/${agent.id}/look/security`);
+      return [s.warnings.length ? h("ul", { class: "list" }, s.warnings.map((w) => h("li", {}, icon("alert-triangle"), h("span", { class: "grow" }, t(`web.sv_warn_${w}`)))))
+        : h("p", { class: "notice ok" }, icon("shield-check"), " ", t("web.sv_secure")),
+      kv([[t("web.sv_firewall"), s.firewall.tool ? `${s.firewall.tool}: ${s.firewall.active ? t("web.sv_on") : t("web.sv_off")}` : t("web.sv_none")],
+        ["SSH root", s.ssh.present ? s.ssh.root_login : null], [t("web.sv_ssh_passwords"), s.ssh.present ? s.ssh.passwords : null],
+        [t("web.sv_failed_logins"), s.failed_logins_24h], [t("web.sv_updates"), s.updates]]),
+      h("h3", {}, t("web.sv_ports")), h("p", { class: "mono" }, s.open_ports.join("  ") || "–")];
+    },
+    updates: async () => {
+      const u = await api(`/api/agents/${agent.id}/look/updates`);
+      return [h("p", {}, u.manager ? t("web.sv_waiting", { count: u.count, manager: u.manager }) : t("web.sv_no_manager")),
+        u.packages?.length ? h("p", { class: "mono muted" }, u.packages.join(" ")) : null,
+        agent.info.can_upgrade ? h("button", { class: "primary", disabled: !u.count, onclick: () => change("upgrade") }, icon("download"), t("web.sv_upgrade"))
+          : h("p", { class: "muted" }, t("web.sv_needs", { key: "ALLOW_UPGRADE=true" }))];
+    },
+    compose: async () => {
+      if (!agent.info.compose_dirs) return [h("p", { class: "muted" }, t("web.sv_needs", { key: "DOCKER_COMPOSE_DIRS=/srv/…" }))];
+      const dirs = await api(`/api/agents/${agent.id}/compose`);
+      return [h("ul", { class: "list" }, dirs.map((d) => h("li", {}, icon("brand-docker"), h("span", { class: "grow mono" }, d),
+        h("button", { onclick: () => change("compose", d) }, icon("refresh"), t("web.sv_update")))))];
+    },
+    git: async () => {
+      if (!agent.info.git_repos) return [h("p", { class: "muted" }, t("web.sv_needs", { key: "GIT_REPOS=/srv/…" }))];
+      const repos = await api(`/api/agents/${agent.id}/git`);
+      return [h("ul", { class: "list" }, repos.map((r) => h("li", {}, icon("brand-github"),
+        h("div", { class: "grow" }, h("div", { class: "mono" }, r.repo), h("small", { class: "muted" }, `${r.branch} · ${r.last}${r.changed ? ` · ${t("web.sv_changed", { count: r.changed })}` : ""}`)),
+        h("button", { onclick: () => change("git", r.repo) }, icon("download"), t("web.sv_pull")))))];
+    },
+    logs: async () => {
+      if (!agent.info.can_logs) return [h("p", { class: "muted" }, t("web.sv_needs", { key: "ALLOW_LOGS=true" }))];
+      const out = h("pre", { class: "log mono wrap" });
+      const show = async (kind) => { fill(out, t("web.loading")); out.textContent = await attempt(() => api(`/api/agents/${agent.id}/logs/${kind}`)) || ""; };
+      show("warnings");
+      return [h("div", { class: "row" }, h("button", { onclick: () => show("warnings") }, t("web.sv_log_warnings")), h("button", { onclick: () => show("audit") }, t("web.sv_log_audit"))), out];
+    },
+  };
+  const open = async (name) => {
+    [...tabs.children].forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
+    fill(body, h("p", { class: "muted" }, t("web.loading")));
+    try { fill(body, ...(await views[name]())); } catch (error) { fill(body, h("p", { class: "notice danger" }, t(error.message || "web.error"))); }
+  };
+  fill(tabs, TABS.map((name) => h("button", { dataset: { tab: name }, onclick: () => open(name) }, t(`web.sv_tab_${name}`))),
+    h("button", { onclick: () => { [...tabs.children].forEach((b) => b.classList.remove("on")); job(); } }, t("web.sv_job")));
+  open("info");
+}
+
 async function agentPower(agent, command) {
   const first = await attempt(() => api(`/api/agents/${agent.id}/power/begin`, { method: "POST", body: { command } }));
   if (!first) return;
@@ -476,11 +559,13 @@ async function agents(box, data, opts) {
   const redraw = () => renderDetail("agents", box, opts);
   const name = h("input", { placeholder: t("web.ag_name_placeholder"), maxlength: 40, "aria-label": t("web.name") });
   const out = h("div", { class: "stack" });
+  const watched = h("div", { class: "stack" });  // the services this Pi watches, part of "Server"
   fill(box, h("section", { class: "panel stack" }, h("h2", {}, t("web.ag_title")), h("p", { class: "muted" }, t("web.ag_intro")),
     h("ul", { class: "list" }, list.length ? list.map((a) => h("li", { class: "agent" }, h("span", { class: `dot ${a.online ? "ok" : ""}` }), icon("device-desktop"),
       h("div", { class: "grow" }, h("div", {}, a.name), h("small", {}, a.online
         ? `${a.info.os || ""} · ${a.info.memory_available_mb ?? "?"} MB frei · Last ${a.info.load ?? "?"}`
         : a.last_seen ? t("web.last_used", { time: when(a.last_seen) }) : t("web.ag_waiting"))),
+      a.online ? h("button", { onclick: () => maintenanceDialog(a) }, icon("settings"), t("web.sv_maintain")) : null,
       a.online && a.info.can_docker ? h("button", { onclick: () => agentDialog(a) }, "Docker") : null,
       a.online && a.info.can_power ? ["suspend", "reboot", "shutdown"].map((c) => h("button", { class: c === "shutdown" ? "danger" : "", onclick: () => agentPower(a, c) }, t(`web.ag_cmd_${c}`))) : null,
       h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
@@ -491,7 +576,9 @@ async function agents(box, data, opts) {
       const r = await attempt(() => api("/api/agents", { method: "POST", body: { name: name.value } }));
       if (!r) return;
       fill(out, h("p", { class: "notice" }, t("web.ag_token_once")), h("pre", { class: "mono wrap" }, `git clone https://github.com/lytexdev/pi-guard && cd pi-guard/agent\ncargo build --release\nsudo ./install.sh https://${location.host} ${r.token}`));
-    } }, icon("plus"), t("web.ag_create"))), out));
+    } }, icon("plus"), t("web.ag_create"))), out),
+    h("h2", { class: "section-title" }, icon("world"), " ", t("addons.heartbeat")), h("p", { class: "muted" }, t("web.addon_heartbeat_text")), watched);
+  await heartbeat(watched, data, opts);
 }
 
 async function languages(box) {
@@ -541,38 +628,74 @@ export async function render(main, params = []) {
     const saved = await attempt(() => api("/api/navigation/pinned", { method: "PUT", body: { pinned: [...pinned] } }));
     if (saved) { state.session.pinned = saved.pinned; location.reload(); }
   };
-  const cards = h("div", { class: "grid wide" }, data.addons.map((addon) => {
-    const toggle = h("input", { type: "checkbox", checked: addon.enabled, "aria-label": t(`addons.${addon.id}`) });
-    toggle.addEventListener("change", () => setEnabled(addon.id, toggle.checked));
-    const star = h("button", { class: `icon-only pin${pinned.has(addon.id) ? " on" : ""}`, title: t("web.pm_pin"), onclick: () => pin(addon.id, star) }, icon("list-details"));
-    return h("section", { class: "panel stack" },
-      h("div", { class: "row between" }, h("h2", {}, icon(ADDONS[addon.id]), " ", t(`addons.${addon.id}`), verified()), h("div", { class: "row" }, star, toggle)),
-      h("p", { class: "muted" }, t(`web.addon_${addon.id}_text`)),
-      addon.needs ? h("p", { class: "notice" }, t(addon.needs)) : null,
-      addon.enabled !== addon.running ? h("p", { class: "notice" }, t("web.addon_restart")) : null,
-      h("div", { class: "row" }, h("a", { class: "button", href: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}` }, icon("settings"), t("web.addon_open")),
-        h("button", { class: "danger", title: t("web.addon_remove_tip"), onclick: async () => {
-          if (!await confirmDialog(t("web.addon_remove_confirm", { name: t(`addons.${addon.id}`) }), t("web.addon_remove"), true)) return;
-          const done = await attempt(() => api(`/api/addons/${addon.id}`, { method: "DELETE" }));
-          if (done) { toast(t("web.addon_removed", { size: `${(done.freed / 1e6).toFixed(1)} MB` })); restartPrompt(); }
-        } }, icon("trash"), t("web.addon_remove"), addon.size ? ` (${(addon.size / 1e6).toFixed(1)} MB)` : "")));
-  }));
-  const modules = await api("/api/modules");
+  // Cards in groups, each with its state at a glance; removing sits in a menu, not next to "Open".
+  const GROUPS = [["server", ["agents", "remote"]], ["network", ["analytics"]], ["home", ["smarthome"]],
+    ["assistant", ["assistant", "languages"]], ["messages", ["discord", "whatsapp", "email", "mobile", "chatapps"]]];
   const MODULE_ICONS = { discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", mobile: "device-mobile", chatapps: "message" };
-  modules.forEach((module) => {
-    const toggle = h("input", { type: "checkbox", checked: module.enabled, "aria-label": t(`web.addon_${module.id}`) });
-    const link = h("a", { class: `button${module.enabled ? "" : " hidden"}`, href: module.id === "mobile" ? "#/addons/mobile" : "#/settings/messaging" }, icon("settings"), t("web.addon_open"));
-    toggle.addEventListener("change", async () => {
-      const done = await attempt(() => api(`/api/modules/${module.id}`, { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
-      if (!done) { toggle.checked = !toggle.checked; return; }
-      state.session.modules = { ...state.session.modules, [module.id]: toggle.checked };
-      link.classList.toggle("hidden", !toggle.checked);
-      if (done.restart) restartPrompt();
+  const stateBadge = (on, extra) => extra
+    ? h("span", { class: "badge warn" }, extra)
+    : h("span", { class: `badge ${on ? "ok" : ""}` }, t(on ? "web.ad_on" : "web.ad_off"));
+  const why = (text) => h("p", { class: "addon-why" }, icon("alert-triangle"), " ", text);
+  const card = ({ id, title, iconName, text, enabled, badge, reason, open, onToggle, remove }) => {
+    const toggle = h("input", { type: "checkbox", checked: enabled, id: `ad_${id}` });
+    toggle.addEventListener("change", () => onToggle(toggle));
+    const star = h("button", { class: `icon-only pin${pinned.has(id) ? " on" : ""}`, title: t("web.pm_pin"), onclick: () => pin(id, star) }, icon("list-details"));
+    const menu = remove ? h("details", { class: "addon-menu" }, h("summary", { title: t("web.ad_more"), "aria-label": t("web.ad_more") }, "⋯"),
+      h("div", { class: "addon-menu-body" }, h("button", { class: "danger", title: t("web.addon_remove_tip"), onclick: remove }, icon("trash"), t("web.addon_remove")))) : null;
+    return h("article", { class: `addon-card${enabled ? " on" : ""}`, dataset: { state: enabled ? "on" : "off" } },
+      h("div", { class: "addon-head" }, h("span", { class: "addon-icon" }, icon(iconName)),
+        h("div", { class: "grow" }, h("h3", {}, title, verified()), badge), star, menu),
+      h("p", { class: "muted addon-text" }, text),
+      reason ? why(reason) : null,
+      h("div", { class: "addon-foot" }, h("label", { class: "addon-switch", for: `ad_${id}` }, toggle, t("web.ad_switch")),
+        open ? h("a", { class: `button small${enabled ? "" : " ghost"}`, href: open, title: t("web.addon_open") }, icon("settings"), t("web.ad_open")) : null));
+  };
+  const modules = await api("/api/modules");
+  const cardFor = {};
+  for (const addon of data.addons) {
+    const extra = addon.needs ? t("web.ad_needs_setup") : addon.enabled !== addon.running ? t("web.ad_restart") : null;
+    cardFor[addon.id] = card({ id: addon.id, title: t(`addons.${addon.id}`), iconName: ADDONS[addon.id], text: t(`web.addon_${addon.id}_text`),
+      enabled: addon.enabled, badge: stateBadge(addon.enabled, extra), reason: addon.needs ? t(addon.needs) : null, open: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}`,
+      onToggle: (toggle) => setEnabled(addon.id, toggle.checked),
+      remove: async () => {
+        if (!await confirmDialog(t("web.addon_remove_confirm", { name: t(`addons.${addon.id}`) }), t("web.addon_remove"), true)) return;
+        const done = await attempt(() => api(`/api/addons/${addon.id}`, { method: "DELETE" }));
+        if (done) { toast(t("web.addon_removed", { size: `${(done.freed / 1e6).toFixed(1)} MB` })); restartPrompt(); }
+      } });
+  }
+  for (const module of modules) {
+    let c;
+    c = cardFor[module.id] = card({ id: module.id, title: t(`web.addon_${module.id}`), iconName: MODULE_ICONS[module.id], text: t(`web.addon_${module.id}_text`),
+      enabled: module.enabled, badge: stateBadge(module.enabled), open: module.id === "mobile" ? "#/addons/mobile" : "#/settings/messaging",
+      onToggle: async (toggle) => {
+        const done = await attempt(() => api(`/api/modules/${module.id}`, { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
+        if (!done) { toggle.checked = !toggle.checked; return; }
+        state.session.modules = { ...state.session.modules, [module.id]: toggle.checked };
+        c.classList.toggle("on", toggle.checked);
+        c.dataset.state = toggle.checked ? "on" : "off";
+        if (done.restart) restartPrompt();
+      } });
+  }
+  const cards = h("div", { class: "stack" }, GROUPS.map(([group, ids]) => {
+    const inside = ids.map((id) => cardFor[id]).filter(Boolean);
+    return inside.length ? h("section", { class: "addon-group", dataset: { group } }, h("h2", { class: "section-title" }, t(`web.ad_group_${group}`)),
+      h("div", { class: "addon-grid" }, inside)) : null;
+  }));
+  let only = "all";
+  const filters = h("div", { class: "segmented", role: "group", "aria-label": t("web.ad_filter") }, ["all", "on", "off"].map((value) =>
+    h("button", { class: value === only ? "on" : "", onclick: (event) => {
+      only = value;
+      [...filters.children].forEach((b) => b.classList.toggle("on", b === event.currentTarget));
+      applyFilter();
+    } }, t(`web.ad_show_${value}`))));
+  let query = "";
+  const applyFilter = () => {
+    cards.querySelectorAll(".addon-card").forEach((el) => {
+      const hidden = (only !== "all" && el.dataset.state !== only) || (query && !el.textContent.toLowerCase().includes(query));
+      el.classList.toggle("hidden", Boolean(hidden));
     });
-    cards.append(h("section", { class: "panel stack" },
-      h("div", { class: "row between" }, h("h2", {}, icon(MODULE_ICONS[module.id]), " ", t(`web.addon_${module.id}`), verified()), toggle),
-      h("p", { class: "muted" }, t(`web.addon_${module.id}_text`)), link));
-  });
+    cards.querySelectorAll(".addon-group").forEach((g) => g.classList.toggle("hidden", !g.querySelector(".addon-card:not(.hidden)")));
+  };
   const ownPanel = h("section", { class: "panel stack hidden" });
   const installed = h("section", { class: "panel stack hidden" });
   const drawOwn = async () => {
@@ -614,10 +737,12 @@ export async function render(main, params = []) {
       } }, icon("plus"), t("web.pm_create_button"))));
   };
   const search = searchToggle(t("web.pm_search"), (q) => {
-    [...cards.children, ...installed.querySelectorAll(".list li")].forEach((el) => el.classList.toggle("hidden", q && !el.textContent.toLowerCase().includes(q)));
+    query = q;
+    applyFilter();
+    installed.querySelectorAll(".list li").forEach((el) => el.classList.toggle("hidden", q && !el.textContent.toLowerCase().includes(q)));
   });
   fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_addons")), search,
-    h("button", { class: "icon-only", title: t("web.pm_add_tip"), "aria-label": t("web.pm_add_tip"), onclick: () => { ownPanel.classList.toggle("hidden"); ownPanel.scrollIntoView({ block: "nearest" }); } }, icon("plus")))), cards, installed, ownPanel);
+    h("button", { class: "icon-only", title: t("web.pm_add_tip"), "aria-label": t("web.pm_add_tip"), onclick: () => { ownPanel.classList.toggle("hidden"); ownPanel.scrollIntoView({ block: "nearest" }); } }, icon("plus")))), h("div", { class: "row" }, filters), cards, installed, ownPanel);
   await drawOwn();
 }
 
