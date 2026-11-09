@@ -159,6 +159,7 @@ pi-guard logs -f
 | [Email](docs/email.md) | alerts and exports by email |
 | [Mobile app](docs/mobile.md) | Android app with VPN, alerts, finding phones and SOS |
 | [Desktop app](docs/desktop.md) | The dashboard as an app for Windows, Linux and macOS |
+| [Backups](docs/backup.md) | Encrypted backups to Nextcloud, rsync or Borg |
 | [Updates](docs/updates.md) | How agents and apps update themselves, signed and verified |
 | [VPN](docs/vpn.md) | Kill switch, lockdown, split tunneling, quantum-resistant tunnel |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
@@ -176,7 +177,7 @@ pi-guard logs -f
 German: [Installation](docs/de/installation.md) ·
 [Bedienung](docs/de/bedienung.md) · [Dashboard](docs/de/dashboard.md) ·
 [Netzwerk](docs/de/netzwerk.md) · [Datenschutz](docs/de/datenschutz.md) ·
-[Training](docs/de/training.md)
+[Training](docs/de/training.md) · [Backup](docs/de/backup.md)
 
 ## Privacy
 

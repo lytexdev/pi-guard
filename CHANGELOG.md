@@ -69,6 +69,9 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Backups to Nextcloud, over rsync or into Borg, daily or weekly. Configuration, databases (copied with SQLite's backup),
+  keys and face prints leave the Pi only encrypted with the backup passphrase (AES-256-GCM in sealed pieces, so a cut or
+  changed backup does not decrypt). `pi-guard backup restore` unpacks into a folder without replacing anything.
 - The agent looks after its computer: system information, a security check (firewall, SSH, open ports, failed logins,
   waiting updates), installing updates, pulling Docker Compose projects and Git repositories, and logs. Reading is always
   allowed; changes need their switch in `agent.conf` on that computer and the dashboard password, and run one at a time

@@ -191,6 +191,20 @@ class Settings(BaseSettings):
     # How the dashboard is reached from outside, e.g. https://guard.example.org behind a
     # reverse proxy. Only this name and addresses of the home network are accepted then.
     dashboard_public_url: str | None = None
+    # Backups (backup.py): encrypted with the passphrase before they leave the Pi.
+    backup_enabled: bool = False
+    backup_target: Literal["nextcloud", "rsync", "borg"] = "nextcloud"
+    backup_schedule: Literal["daily", "weekly"] = "daily"
+    backup_hour: int = Field(3, ge=0, le=23)
+    backup_keep: int = Field(7, ge=1, le=90)
+    backup_recordings: bool = False
+    backup_passphrase: SecretStr | None = None
+    backup_nextcloud_url: str | None = None
+    backup_nextcloud_user: str = ""
+    backup_nextcloud_password: SecretStr | None = None
+    backup_nextcloud_folder: str = Field("pi-guard", pattern=r"^[\w ./-]{1,120}$")
+    backup_rsync_target: str | None = None
+    backup_borg_repo: str | None = None
     # Fetch signed releases of the agent, desktop and phone app from GitHub (core/app_updates.py).
     app_updates_from_github: bool = True
     # Where anonymous statistics go when the owner switches them on (diagnostics/contribution.py).
@@ -307,6 +321,41 @@ class Settings(BaseSettings):
         value = value.strip().rstrip("/")
         if not re.match(r"^https://[A-Za-z0-9.-]{1,253}(:\d{1,5})?$", value):
             raise ValueError("expected a URL like https://guard.example.org")
+        return value
+
+    @field_validator("backup_nextcloud_url")
+    @classmethod
+    def _check_nextcloud(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip().rstrip("/")
+        if not re.match(r"^https://[A-Za-z0-9.-]{1,253}(:\d{1,5})?(/[A-Za-z0-9._~/-]*)?$", value):
+            raise ValueError("expected an address like https://cloud.example.org")
+        return value
+
+    @field_validator("backup_rsync_target")
+    @classmethod
+    def _check_rsync(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        if not re.match(
+            r"^[a-z_][a-z0-9_.-]{0,31}@[A-Za-z0-9.-]{1,253}:[A-Za-z0-9._~/-]{1,200}$", value
+        ):
+            raise ValueError("expected user@host:folder")
+        return value
+
+    @field_validator("backup_borg_repo")
+    @classmethod
+    def _check_borg(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        if not re.match(
+            r"^(ssh://[a-z_][a-z0-9_.-]{0,31}@[A-Za-z0-9.-]{1,253}(:\d{1,5})?/|/)[A-Za-z0-9._~/-]{1,200}$",
+            value,
+        ):
+            raise ValueError("expected ssh://user@host/folder or an absolute folder")
         return value
 
     @field_validator("support_url")

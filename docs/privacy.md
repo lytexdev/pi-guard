@@ -40,6 +40,7 @@ runs with `UMask=0077`; databases are `0600`).
 | Text to translate | DeepL | add-on on and a DeepL key set |
 | Messages and pictures | Meta, if you use WhatsApp | WhatsApp set up |
 | Model files (download) | from GitHub | only when you run `pi-guard models download` |
+| Backups, encrypted with your passphrase before they leave | your Nextcloud, server or Borg repository | only if backups are set up, see [backup.md](backup.md) |
 | A request for the newest app release, and its files when there is a new one | GitHub | every 6 hours, unless `PI_GUARD_APP_UPDATES_FROM_GITHUB=false` |
 | Anonymous statistics: counts and histograms, see below | the receiver in `PI_GUARD_SUPPORT_URL` | only after an admin switches them on, once a week |
 

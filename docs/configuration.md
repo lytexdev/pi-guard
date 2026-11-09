@@ -37,6 +37,7 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 | `CONFIG_FILE` | `/etc/pi-guard/config.yaml` | |
 | `RUNTIME_DIR` | `/run/pi-guard` | tmpfs: latest frames, heartbeat |
 | `APP_UPDATES_FROM_GITHUB` | `true` | fetch signed releases of the phone app, desktop app and agent from GitHub for this Pi's devices, see [updates.md](updates.md#releases-on-github) |
+| `BACKUP_ENABLED`, `BACKUP_TARGET`, `BACKUP_PASSPHRASE`, … | off | encrypted backups to Nextcloud, rsync or Borg, see [backup.md](backup.md) |
 | `SUPPORT_URL` | – | `https://` receiver of the anonymous statistics; sent only after an admin switches them on under Settings → Updates, see [training.md](training.md#anonymous-statistics) |
 
 ### Telegram

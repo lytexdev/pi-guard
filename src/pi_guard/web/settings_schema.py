@@ -119,6 +119,19 @@ FIELDS = (
     Field("dashboard_public_url", "dashboard", "text"),
     Field("support_url", "dashboard", "text"),
     Field("app_updates_from_github", "dashboard", "bool"),
+    Field("backup_enabled", "backup", "bool"),
+    Field("backup_target", "backup", "choice", options=("nextcloud", "rsync", "borg")),
+    Field("backup_schedule", "backup", "choice", options=("daily", "weekly")),
+    Field("backup_hour", "backup", "int", 0, 23),
+    Field("backup_keep", "backup", "int", 1, 90),
+    Field("backup_recordings", "backup", "bool"),
+    Field("backup_passphrase", "backup", "secret"),
+    Field("backup_nextcloud_url", "backup", "text"),
+    Field("backup_nextcloud_user", "backup", "text"),
+    Field("backup_nextcloud_password", "backup", "secret"),
+    Field("backup_nextcloud_folder", "backup", "text"),
+    Field("backup_rsync_target", "backup", "text"),
+    Field("backup_borg_repo", "backup", "text"),
     Field("dashboard_trusted_proxies", "dashboard", "list"),
     Field("webpush_enabled", "dashboard", "bool"),
     Field("dashboard_honeypot", "dashboard", "bool"),
@@ -145,7 +158,7 @@ SECRETS = ("mqtt_password", "fritzbox_password", "pihole_password", "dashboard_s
            "assistant_nextcloud_password", "whatsapp_access_token",
            "whatsapp_app_secret", "whatsapp_verify_token", "discord_bot_token",
            "email_password", "slack_webhook_url", "rocketchat_webhook_url", "matrix_token",
-           "mastodon_token")  # fmt: skip
+           "mastodon_token", "backup_passphrase", "backup_nextcloud_password")  # fmt: skip
 
 
 def to_env(field_: Field, value: Any) -> str:

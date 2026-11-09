@@ -27,7 +27,7 @@ const SECTIONS = [
   ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "discord", "email", "whatsapp", "signal", "chatapps"]],
   ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]], ["appearance", "palette", null],
   ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null],
-  ["security", "shield-check", null], ["storage", "database", null], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
+  ["security", "shield-check", null], ["storage", "database", null], ["backup", "upload", ["backup"]], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
 ];
 
 // Sections for people who know what they are looking for.
@@ -94,6 +94,31 @@ function dataSection(box) {
         const password = await askDialog(t("web.confirm_password"), { type: "password" });
         if (password && await attempt(() => api("/api/import/config", { method: "POST", body: { config, password } }), t("web.saved"))) restartPrompt();
       } }, icon("upload"), t("web.ex_import_button")))));
+}
+
+// Backups: what happened last, a button for now, and the Pi's SSH key for rsync and Borg.
+async function backupPanel(box) {
+  const draw = async () => {
+    const b = await api("/api/backup");
+    const last = b.last || {};
+    const panel = h("section", { class: "panel stack" }, h("h2", {}, icon("upload"), " ", t("web.bk_title")),
+      b.passphrase ? null : h("p", { class: "notice" }, t("web.bk_no_passphrase")),
+      h("p", {}, last.time ? h("span", { class: `badge ${last.ok ? "ok" : "danger"}` }, last.ok ? t("web.bk_ok") : t("web.bk_failed")) : null, " ",
+        last.time ? t("web.bk_last", { time: when(last.time), target: last.target }) : t("web.bk_never")),
+      last.ok === false ? h("p", { class: "notice danger mono wrap" }, last.error) : null,
+      last.ok && last.size ? h("p", { class: "muted" }, `${last.name} · ${(last.size / 1e6).toFixed(1)} MB · ${last.files} ${t("web.bk_files")}`) : null,
+      h("div", { class: "row" }, h("button", { class: "primary", disabled: b.running || !b.passphrase, onclick: async () => {
+        const password = await askDialog(t("web.confirm_password"), { type: "password" });
+        if (password && await attempt(() => api("/api/backup/run", { method: "POST", body: { password } }), t("web.bk_started"))) whileShown(box, draw, 3000);
+      } }, icon("upload"), b.running ? t("web.bk_running") : t("web.bk_now"))),
+      b.target !== "nextcloud" ? [h("h3", {}, t("web.bk_ssh_title")), h("p", { class: "muted" }, t("web.bk_ssh_hint")),
+        b.public_key ? h("pre", { class: "mono wrap" }, b.public_key)
+          : h("button", { onclick: async () => { if (await attempt(() => api("/api/backup/key", { method: "POST" }))) draw(); } }, icon("key"), t("web.bk_ssh_make"))] : null,
+      h("p", { class: "muted" }, h("small", {}, t("web.bk_restore_hint"))));
+    fill(box, panel);
+    if (b.running) whileShown(box, draw, 3000);
+  };
+  await draw();
 }
 
 // Anonymous statistics: off until the owner switches them on, with the exact report shown first.
@@ -260,6 +285,7 @@ export async function render(main, params = []) {
       if (expertMode()) extra.append(await messengerTests());
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
+    if (current === "backup") await backupPanel(extra);
   } else if (current === "devices") {
     const view = await import("./devices.js");
     await view.render(body, [], { embedded: true, register: (fn) => { save = fn; }, onSaved: () => { saveBar.classList.add("hidden"); restartPrompt(); } });

@@ -35,7 +35,9 @@ models_app = typer.Typer(no_args_is_help=True, help="Optional detection models."
 faces_app = typer.Typer(no_args_is_help=True, help="Enrolled people (face recognition).")
 dashboard_app = typer.Typer(no_args_is_help=True, help="Web dashboard access.")
 evidence_app = typer.Typer(no_args_is_help=True, help="Evidence videos.")
+backup_app = typer.Typer(no_args_is_help=True, help="Encrypted backups.")
 for sub, name in (
+    (backup_app, "backup"),
     (evidence_app, "evidence"),
     (config_app, "config"),
     (audio_app, "audio"),
@@ -303,6 +305,40 @@ def logs(
         raise typer.Exit(1)
     args = ["journalctl", "-u", "pi-guard", "-n", str(lines), "--no-pager"]
     os.execvp("journalctl", args + (["-f"] if follow else []))  # noqa: S606
+
+
+@backup_app.command("run")
+def backup_run(env_file: EnvOption = None) -> None:
+    """Make a backup now, to the target set in the configuration."""
+    import asyncio
+
+    from pi_guard.app import App
+    from pi_guard.config import load_config
+
+    app = App(load_config(env_file))
+    entry = asyncio.run(app.backups.run_now("cli"))
+    outcome = "done" if entry["ok"] else "failed"
+    typer.echo(f"backup {outcome}: {entry.get('name') or entry.get('error')}")
+    if not entry["ok"]:
+        raise typer.Exit(1)
+
+
+@backup_app.command("restore")
+def backup_restore(
+    file: Path,
+    into: Annotated[Path, typer.Option(help="where to unpack")] = Path("pi-guard-restore"),
+) -> None:
+    """Decrypt a backup and unpack it into a folder. Nothing on the system is replaced."""
+    from pi_guard.backup import BackupError, restore
+
+    passphrase = typer.prompt("Backup passphrase", hide_input=True)
+    try:
+        folder = restore(file, passphrase, into)
+    except BackupError as exc:
+        typer.echo(f"✗ {exc}")
+        raise typer.Exit(1) from None
+    typer.echo(f"✓ unpacked into {folder}. Stop pi-guard, then copy data/ to the data "
+               "directory and config/ to /etc/pi-guard; see docs/backup.md.")  # fmt: skip
 
 
 @evidence_app.command("verify")
