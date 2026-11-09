@@ -49,6 +49,11 @@ class Frame:
                                 "detector": self.result.detector}  # fmt: skip
         if self.result.hog_bodies is not None:
             data["hog"] = self.result.hog_bodies
+        if self.result.faces is not None and len(self.result.faces):
+            # Numbers only, for the optional statistics (support/statistics.py).
+            data["face_px"] = [round(float(min(f[2], f[3]))) for f in self.result.faces]
+        if self.identities:
+            data["scores"] = [round(i.score, 2) for i in self.identities]
         return data
 
 

@@ -330,10 +330,11 @@ async def test_a_face_in_an_event_picture_is_learned(web) -> None:  # type: igno
             if name == "Ben":
                 raise EnrollmentError("faces.learn_not_enrolled")
             calls.append(("learn", name))
-            return 11
+            return 11, 0.33
 
-        def reject(self, name: str, image: Any, face: Any) -> None:
+        def reject(self, name: str, image: Any, face: Any) -> float:
             calls.append(("reject", name))
+            return 0.52
 
         def quality(self, name: str) -> dict[str, Any]:
             return {"score": 50}
@@ -374,6 +375,21 @@ async def test_a_face_in_an_event_picture_is_learned(web) -> None:  # type: igno
     assert bad.status == 400
     actions = [r[0] for r in app.db.execute("SELECT action FROM audit WHERE action LIKE 'faces.%'")]
     assert actions == ["faces.learn", "faces.reject"]
+    corrections = app.db.get("contribution.corrections")
+    assert corrections["is"][6] == 1 and corrections["not"][10] == 1  # bins of 0.05
+
+
+async def test_statistics_are_shown_before_they_are_switched_on(web) -> None:  # type: ignore[no-untyped-def]
+    client, app = web
+    csrf = await _login(client)
+    status = await (await client.get("/api/contribution")).json()
+    assert status["enabled"] is False and status["url"] is None and status["report"]["report"] == 1
+    on = await client.put("/api/contribution", json={"enabled": True},
+                          headers={"X-CSRF-Token": csrf})  # fmt: skip
+    assert on.status == 200 and app.db.get("contribution.enabled") is True
+    bad = await client.put("/api/contribution", json={"enabled": "yes"},
+                           headers={"X-CSRF-Token": csrf})  # fmt: skip
+    assert bad.status == 400
 
 
 async def test_people_require_consent(web) -> None:  # type: ignore[no-untyped-def]

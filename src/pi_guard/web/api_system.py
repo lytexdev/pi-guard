@@ -27,6 +27,7 @@ from pi_guard.addons.plugin import (
 )
 from pi_guard.addons.plugin_updates import PluginGitError
 from pi_guard.config.files import FileConfig
+from pi_guard.diagnostics.contribution import ENABLED_KEY, build_report
 from pi_guard.web.api_manage import saved_config, write_config
 from pi_guard.web.server import current, dashboard, read_json
 
@@ -45,6 +46,8 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/system/update", update_status),
         web.post("/api/system/update", update_start),
         web.put("/api/navigation/pinned", save_pinned),
+        web.get("/api/contribution", contribution_status),
+        web.put("/api/contribution", contribution_switch),
         web.get("/api/plugin-manager", plugin_list),
         web.post("/api/plugin-manager", plugin_upload),
         web.post("/api/plugin-manager/create", plugin_create),
@@ -60,6 +63,29 @@ def routes() -> list[web.RouteDef]:
         web.put("/api/plugin-manager/{id}/source", plugin_save_source),
         web.delete("/api/plugin-manager/{id}", plugin_delete),
     ]
+
+
+# --- anonymous statistics -----------------------------------------------------------------
+
+
+async def contribution_status(request: web.Request) -> web.Response:
+    """Whether statistics are sent, where to, and the exact report that would go now."""
+    app = dashboard(request).app
+    c = app.contribution
+    report = await asyncio.to_thread(build_report, app)
+    return web.json_response({"enabled": c.enabled, "url": c.url, "last_sent": c.last_sent(),
+                              "report": report})  # fmt: skip
+
+
+async def contribution_switch(request: web.Request) -> web.Response:
+    data = await read_json(request)
+    if not isinstance(data.get("enabled"), bool):
+        raise web.HTTPBadRequest(text="invalid request")
+    app = dashboard(request).app
+    app.db.set(ENABLED_KEY, data["enabled"])
+    app.db.audit(f"web:{current(request).username}", "contribution",
+                 "on" if data["enabled"] else "off")  # fmt: skip
+    return web.json_response({"enabled": data["enabled"]})
 
 
 # --- updates ------------------------------------------------------------------------------

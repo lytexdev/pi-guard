@@ -521,8 +521,11 @@ class FaceRecognizer:
                      report.stored, report.total)  # fmt: skip
         return report
 
-    def learn(self, name: str, image: Image, face: npt.NDArray[np.float32], actor: str) -> int:
-        """An admin says this face from a camera picture is `name`, an enrolled person."""
+    def learn(
+        self, name: str, image: Image, face: npt.NDArray[np.float32], actor: str
+    ) -> tuple[int, float]:
+        """An admin says this face from a camera picture is `name`, an enrolled person.
+        Returns the person's number of samples and how similar the face was to them before."""
         stored = self.store.exists(name)
         if stored is None:
             raise EnrollmentError("faces.learn_not_enrolled")
@@ -530,23 +533,32 @@ class FaceRecognizer:
         if problem:
             raise EnrollmentError(problem)
         embedding = self._embed(aligned)
-        own = [(n, s) for n, s in self._samples() if n == stored]
-        if own and person_scores(embedding, own)[stored] < LEARN_MIN_MATCH:
+        score = self._score(embedding, stored)
+        if score < LEARN_MIN_MATCH:
             raise EnrollmentError("faces.learn_too_different")
         light = float(self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY).mean())
-        return self.enroll(stored, with_context(embedding, pose_of(face), light, "camera"), actor)
+        sample = with_context(embedding, pose_of(face), light, "camera")
+        return self.enroll(stored, sample, actor), score
 
-    def reject(self, name: str, image: Image, face: npt.NDArray[np.float32]) -> None:
-        """An admin says this face is not `name`. Any face the camera could match counts."""
+    def _score(self, embedding: Embedding, name: str) -> float:
+        own = [(n, s) for n, s in self._samples() if n == name]
+        return person_scores(embedding, own)[name] if own else 0.0
+
+    def reject(self, name: str, image: Image, face: npt.NDArray[np.float32]) -> float:
+        """An admin says this face is not `name`. Any face the camera could match counts.
+        Returns how similar the face was to them."""
         stored = self.store.exists(name)
         if stored is None:
             raise EnrollmentError("faces.learn_not_enrolled")
         problem, aligned = self.problem(image, face, enrolling=False)
         if problem:
             raise EnrollmentError(problem)
-        self.store.reject(stored, self._embed(aligned), self.settings.max_samples_per_person)
+        embedding = self._embed(aligned)
+        score = self._score(embedding, stored)
+        self.store.reject(stored, embedding, self.settings.max_samples_per_person)
         self._rejected = None
         log.info("a face was marked as not an enrolled person")
+        return score
 
     def _rejections(self) -> list[tuple[str, Embedding]]:
         if self._rejected is None:

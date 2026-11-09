@@ -39,13 +39,34 @@ runs with `UMask=0077`; databases are `0600`).
 | Text to translate | DeepL | add-on on and a DeepL key set |
 | Messages and pictures | Meta, if you use WhatsApp | WhatsApp set up |
 | Model files (download) | from GitHub | only when you run `pi-guard models download` |
+| Anonymous statistics: counts and histograms, see below | the receiver in `PI_GUARD_SUPPORT_URL` | only after an admin switches them on, once a week |
 
 Telegram bot chats are **not end-to-end encrypted**: photos and videos sent by
 the bot are stored on Telegram's servers like any cloud chat. Signal messages
-are end-to-end encrypted. Nothing else is sent anywhere: no telemetry, no
-update checks, no cloud account.
+are end-to-end encrypted. Nothing else is sent anywhere: no telemetry unless you
+switch on the anonymous statistics below, no update checks, no cloud account.
 
 Never sent: face embeddings, recordings in bulk, the database, secrets.
+
+The training tool in `training/` runs on your own computer and sends nothing; see [training.md](training.md).
+
+## Anonymous statistics
+
+Off until an admin switches on *Help make pi-guard better* under Settings → Updates, and only sent when
+`PI_GUARD_SUPPORT_URL` names a receiver (`https://` only). The page shows the exact report before you switch it on.
+Once a week the Pi sends, for the last seven days:
+
+- how many events of each kind
+- how big faces were (counts per 8 pixels) and how similar they were to the people enrolled (counts per 0.05)
+- for faces an admin confirmed or corrected with *Who is this?*: how similar they were, counts per 0.05; these are
+  forgotten once sent
+- how many bodies and pictures a person event had, and which detector ran
+- the version, the camera resolutions, whether recognition is on, the number of cameras and enrolled people (as
+  0-4 or "5+"), and the threshold and margin
+
+Never: pictures, face prints, names, times of day, event times, addresses or any number that stays the same between
+reports and could tell a home apart. The receiver sees the Pi's IP address, as any server does; the one in
+`training/` does not store it. See [training.md](training.md#anonymous-statistics).
 
 ## Defaults
 
@@ -53,6 +74,7 @@ Never sent: face embeddings, recordings in bulk, the database, secrets.
 - Person detection and face recognition: **off**
 - Presence detection: **off**; only explicitly enrolled devices are checked
 - MQTT inbound commands: **off**
+- Anonymous statistics: **off**
 
 ## Audio
 

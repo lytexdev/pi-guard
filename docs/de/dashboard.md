@@ -119,6 +119,13 @@ pi-guard in dessen Bild findet, und wen es jeweils gesehen hat:
 
 Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer sehen den Knopf nicht.
 
+## Das Projekt unterstützen
+
+*Einstellungen → Updates → pi-guard besser machen* schickt einmal pro Woche einen Bericht mit anonymen Zahlen, sobald
+ein Admin es einschaltet und `PI_GUARD_SUPPORT_URL` (*Empfänger der Statistiken* in den Experten-Einstellungen) einen
+Empfänger nennt. *Genau zeigen, was jetzt gesendet würde* zeigt den Bericht so, wie er ginge. Was darin steht:
+[Datenschutz](datenschutz.md).
+
 ## Werkzeuge im Alltag
 
 - **Geräte ausprobieren:** Unter *Geräte & Kameras* spielt **Lautsprecher testen** drei Töne auf dem gewählten

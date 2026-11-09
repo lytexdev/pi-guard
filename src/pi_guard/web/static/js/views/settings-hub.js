@@ -96,7 +96,32 @@ function dataSection(box) {
       } }, icon("upload"), t("web.ex_import_button")))));
 }
 
-async function updateSection(box) {
+// Anonymous statistics: off until the owner switches them on, with the exact report shown first.
+async function contributionPanel(box) {
+  const draw = async () => {
+    const c = await api("/api/contribution");
+    const toggle = h("input", { type: "checkbox", id: "contribution", checked: c.enabled, disabled: !c.url && !c.enabled });
+    toggle.addEventListener("change", async () => {
+      const done = await attempt(() => api("/api/contribution", { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
+      if (!done) toggle.checked = !toggle.checked;
+      draw();
+    });
+    fill(box, h("section", { class: "panel stack" }, h("h2", {}, icon("chart-bar"), " ", t("web.co_title")),
+      h("p", {}, t("web.co_intro")),
+      h("ul", {}, ["web.co_sent", "web.co_never", "web.co_when"].map((key) => h("li", {}, t(key)))),
+      h("div", { class: "switch-row" }, h("label", { for: "contribution" }, t("web.co_switch")), h("div", { class: "control" }, toggle)),
+      c.url ? h("p", { class: "muted" }, h("small", {}, t("web.co_url", { url: c.url }), c.last_sent ? ` · ${t("web.co_last", { time: when(c.last_sent) })}` : ""))
+        : h("p", { class: "notice" }, t("web.co_no_url")),
+      h("details", {}, h("summary", {}, t("web.co_preview")), h("pre", { class: "mono wrap" }, JSON.stringify(c.report, null, 2)))));
+  };
+  await draw();
+}
+
+async function updateSection(root) {
+  const box = h("div");
+  const helping = h("div");
+  fill(root, box, helping);
+  contributionPanel(helping).catch(() => helping.remove());
   const draw = async () => {
     const u = await api("/api/system/update");
     const state = u.state?.state;

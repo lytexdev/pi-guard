@@ -115,8 +115,8 @@ def camera(rec: Any, embedding: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 def test_a_face_from_the_camera_is_learned(recognizer: Any) -> None:
     lena = identity()
     recognizer.enroll_many("Lena", views(lena, 10), "test")
-    total = recognizer.learn("lena", *camera(recognizer, views(lena, 1)[0]), "web:admin")
-    assert total == 11
+    total, score = recognizer.learn("lena", *camera(recognizer, views(lena, 1)[0]), "web:admin")
+    assert total == 11 and 0.2 < score < 1
     assert recognizer.store.details("Lena")[-1]["source"] == "camera"
     assert recognizer.store.details("Lena")[0]["source"] is None  # uploads stay unmarked
 

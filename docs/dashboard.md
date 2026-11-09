@@ -130,6 +130,12 @@ whom it saw in each:
 
 Only the numbers of a face are stored, as with any enrollment. Viewers do not see the button.
 
+## Helping the project
+
+*Settings → Updates → Help make pi-guard better* sends one report of anonymous counts a week, once an admin switches
+it on and `PI_GUARD_SUPPORT_URL` (*Statistics receiver* in the expert settings) names a receiver. *Show exactly what
+would be sent now* shows the report as it would go. What it holds: [privacy.md](privacy.md#anonymous-statistics).
+
 ## Everyday tools
 
 - **Trying out devices:** under *Devices & cameras*, **Test speaker** plays three tones on the chosen

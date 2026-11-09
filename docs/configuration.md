@@ -35,6 +35,7 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 | `RECORDINGS_DIR` | `DATA_DIR/recordings` | |
 | `CONFIG_FILE` | `/etc/pi-guard/config.yaml` | |
 | `RUNTIME_DIR` | `/run/pi-guard` | tmpfs: latest frames, heartbeat |
+| `SUPPORT_URL` | – | `https://` receiver of the anonymous statistics; sent only after an admin switches them on under Settings → Updates, see [training.md](training.md#anonymous-statistics) |
 
 ### Telegram
 

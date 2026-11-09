@@ -24,7 +24,13 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
 - Mit Signal (optional) werden sie Ende-zu-Ende-verschlüsselt verschickt.
 - Mit MQTT (optional) gehen nur Zustände an Ihren eigenen Server – keine
   Bilder, keine Namen.
-- Sonst nichts: keine Cloud, keine Telemetrie, keine Werbung.
+- Anonyme Statistiken nur, wenn ein Admin *pi-guard besser machen* unter Einstellungen → Updates einschaltet und
+  `PI_GUARD_SUPPORT_URL` einen Empfänger nennt: einmal pro Woche Anzahlen und Verteilungen aus den letzten sieben
+  Tagen, etwa wie groß Gesichter waren und wie ähnlich sie den eingetragenen Personen waren, und die
+  Ähnlichkeit von Gesichtern, die ein Admin mit *Wer ist das?* bestätigt oder korrigiert hat. Nie Bilder,
+  Gesichtsabdrücke, Namen, Uhrzeiten, Adressen oder eine Kennung des Haushalts. Die Seite zeigt vorher genau, was
+  gesendet würde.
+- Sonst nichts: keine Cloud, keine Werbung.
 
 ## Standardmäßig ausgeschaltet
 
@@ -32,6 +38,7 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
 - Personen- und Gesichtserkennung
 - Anwesenheitserkennung
 - Steuerung über MQTT
+- Anonyme Statistiken
 
 ## Worauf Sie achten sollten
 

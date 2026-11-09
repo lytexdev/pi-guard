@@ -188,6 +188,8 @@ class Settings(BaseSettings):
     # How the dashboard is reached from outside, e.g. https://guard.example.org behind a
     # reverse proxy. Only this name and addresses of the home network are accepted then.
     dashboard_public_url: str | None = None
+    # Where anonymous statistics go when the owner switches them on (diagnostics/contribution.py).
+    support_url: str | None = None
     dashboard_allow_unauthenticated: bool = False
     dashboard_rate_limit_per_minute: int = Field(240, ge=30, le=10000)
     dashboard_honeypot: bool = True
@@ -300,6 +302,16 @@ class Settings(BaseSettings):
         value = value.strip().rstrip("/")
         if not re.match(r"^https://[A-Za-z0-9.-]{1,253}(:\d{1,5})?$", value):
             raise ValueError("expected a URL like https://guard.example.org")
+        return value
+
+    @field_validator("support_url")
+    @classmethod
+    def _check_support_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        if not re.match(r"^https://[A-Za-z0-9.-]{1,253}(:\d{1,5})?(/[A-Za-z0-9._~/-]*)?$", value):
+            raise ValueError("expected a URL like https://stats.example.org/v1/report")
         return value
 
     @field_validator("wireguard_endpoint", "wireguard_endpoint_v6", "wireguard_relay")
