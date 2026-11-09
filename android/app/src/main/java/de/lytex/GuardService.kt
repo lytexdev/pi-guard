@@ -76,6 +76,7 @@ class GuardService : Service() {
         }
         connect()
         main.post(periodic)
+        work.execute { Crashes.sendPending(this, store) }
         work.execute { Vpn.resume(this, store) }
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkChange)
     }

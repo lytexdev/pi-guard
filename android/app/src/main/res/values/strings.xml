@@ -91,6 +91,10 @@
     <string name="pin_set">Set PIN</string>
     <string name="pin_remove">Remove PIN</string>
     <string name="pin_hint">At least 4 digits</string>
+    <string name="help_title">Help make pi-guard better</string>
+    <string name="help_hint">Optional, off until you switch it on. Crash reports hold only where in the app a crash happened, never what you see or type. Usage data are this app\'s and Android\'s version. Both go only to your pi-guard, which passes them on only if its owner agreed too. You can change this at any time in the app settings.</string>
+    <string name="help_crashes">Send crash reports</string>
+    <string name="help_usage">Send anonymous usage data</string>
     <string name="action_ack">All fine</string>
     <string name="action_alarm">Sound alarm</string>
     <string name="action_ack_done">Marked as all fine</string>

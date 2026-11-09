@@ -69,6 +69,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- The phone app asks at setup, and later in its settings, whether to send crash reports and anonymous usage data;
+  both off by default. Crash reports hold only the exception type and code places. They go only to the user's own
+  pi-guard, which passes them on in its anonymous report only if its owner agreed too (report version 2).
+- docs/mobile.md explains using the app with your own pi-guard: the official APK with updates from GitHub, an
+  uploaded one, or one built from the source.
 - Emergency data add-on: medical information of the people at home, encrypted in its own database, seen and changed
   only by admins with their password each time, every access audited. A rescue link shows one person's sheet for 15 to
   60 minutes, by default only with a six-digit PIN that five wrong tries end; it puts allergies, illnesses, medicines

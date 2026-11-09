@@ -49,6 +49,7 @@ PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.c
           "/api/login/channels", "/api/login/code", "/api/login/code/verify",
           "/api/login/pgp/begin", "/api/login/pgp/finish",
           "/api/mobile/session", "/api/mobile/ws", "/api/mobile/report", "/api/mobile/action",
+          "/api/mobile/crash",
           "/api/push/action",
           "/api/mobile/emergency", "/api/mobile/calendar", "/api/mobile/vpn", "/api/mobile/reach",
           "/api/mobile/vpn/pq",

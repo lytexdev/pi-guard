@@ -34,7 +34,7 @@ PLATFORMS = ("android", "ios", "linux", "windows", "macos")
 REPORT_FIELDS = {"latitude": float, "longitude": float, "accuracy": float, "altitude": float,
                  "speed": float, "located_at": str, "battery": int, "charging": bool,
                  "network": str, "ssid": str, "ip": str, "model": str, "os": str, "app": str,
-                 "vpn": bool}  # fmt: skip
+                 "vpn": bool, "usage_ok": bool}  # fmt: skip
 Send = Callable[[str], Awaitable[None]]
 
 

@@ -86,3 +86,17 @@ Android fragt vor der Installation immer nach, wenn eine App nicht aus einem Sto
   App-Sperre und entferne verlorene Handys: Das beendet sofort seine Anmeldung und seinen VPN-Zugang.
 - Das Zertifikat wird beim ersten Start festgelegt. Was nicht von deinem pi-guard oder einer öffentlichen Stelle kommt, wird
   abgelehnt.
+
+## pi-guard besser machen
+
+Beim Einrichten und später in den App-Einstellungen gibt es zwei Schalter, beide aus, bis du sie einschaltest:
+**Absturzberichte** (nur Art des Fehlers und Stellen im Code, nie die Meldung und nichts, was du gesehen oder
+eingegeben hast) und **anonyme Nutzungsdaten** (Version der App und von Android). Beides geht nur an deinen eigenen
+pi-guard, und der gibt es nur im anonymen Wochenbericht weiter, wenn auch sein Besitzer zugestimmt hat.
+
+## Die App mit dem eigenen pi-guard
+
+Die App funktioniert mit jedem pi-guard. Die offizielle APK aktualisiert sich über die signierten GitHub-Releases,
+die dein pi-guard selbst holt. Wer die App selbst baut (`./scripts/build-android.sh VERSION` mit eigenem Schlüssel),
+schaltet *App-Updates von GitHub holen* aus, denn Android nimmt keine Updates mit fremdem Schlüssel an, und
+veröffentlicht seine Versionen mit `--publish HOST`.

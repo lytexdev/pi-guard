@@ -172,5 +172,7 @@ receiver runs and the URL is set, nothing is sent.
 .venv/bin/pgtrain faces calibrate --reports ~/pi-guard-reports
 ```
 
-The receiver accepts only well-formed reports up to 16 KB, keeps no addresses and writes one file per report into a
+Report version 2 adds, from phones whose users agreed, app and Android versions and crash places;
+`reports summary` lists the most frequent crashes. The receiver accepts versions 1 and 2, and only well-formed
+reports up to 16 KB, keeps no addresses and writes one file per report into a
 folder per week. It needs HTTPS in front, because the Pi sends only to `https://` addresses.

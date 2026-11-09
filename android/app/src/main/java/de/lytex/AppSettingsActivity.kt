@@ -42,6 +42,8 @@ class AppSettingsActivity : AppCompatActivity() {
         findViewById<Button>(R.id.vpn_toggle).setOnClickListener { startActivity(Intent(this, VpnActivity::class.java)) }
         findViewById<Button>(R.id.look_choose).setOnClickListener { chooseLook() }
         findViewById<Button>(R.id.look_shortcut).setOnClickListener { makeShortcut() }
+        check(R.id.share_crashes, store.shareCrashes) { store.shareCrashes = it }
+        check(R.id.share_usage, store.shareUsage) { store.shareUsage = it }
         check(R.id.location, store.shareLocation) {
             if (it) askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) else store.shareLocation = false
         }

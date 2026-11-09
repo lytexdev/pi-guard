@@ -56,6 +56,7 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/mobile/ws", device_socket),
         web.post("/api/mobile/report", report),
         web.post("/api/mobile/action", alert_action),
+        web.post("/api/mobile/crash", crash_report),
         web.post("/api/mobile/emergency", emergency),
         web.post("/api/mobile/calendar", calendar),
         web.post("/api/mobile/vpn", vpn),
@@ -167,6 +168,19 @@ async def device_socket(request: web.Request) -> web.WebSocketResponse:
     finally:
         hub.detach(device["id"], socket.send_str)
     return socket
+
+
+async def crash_report(request: web.Request) -> web.Response:
+    """A crash of the app, sent only with its user's consent. Kept for the anonymous
+    statistics, which pass it on only if this Pi's owner switched them on."""
+    from pi_guard.diagnostics.contribution import clean_crash, keep_crash
+
+    _device(request)
+    crash = clean_crash(await read_json(request))
+    if crash is None:
+        raise web.HTTPBadRequest(text="not a crash report")
+    keep_crash(dashboard(request).app, crash)
+    return web.json_response({"ok": True})
 
 
 async def alert_action(request: web.Request) -> web.Response:

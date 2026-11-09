@@ -47,6 +47,8 @@ object Locator {
         report.put("model", "${Build.MANUFACTURER} ${Build.MODEL}")
         report.put("os", "Android ${Build.VERSION.RELEASE}")
         report.put("app", context.packageManager.getPackageInfo(context.packageName, 0).versionName)
+        // Lets this phone's app and Android version count in the anonymous statistics.
+        report.put("usage_ok", Store(context).shareUsage)
         context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))?.let {
             val level = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
             val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, 100)

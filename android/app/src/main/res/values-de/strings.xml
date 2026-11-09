@@ -91,6 +91,10 @@
     <string name="pin_set">PIN festlegen</string>
     <string name="pin_remove">PIN entfernen</string>
     <string name="pin_hint">Mindestens 4 Ziffern</string>
+    <string name="help_title">pi-guard besser machen</string>
+    <string name="help_hint">Freiwillig und aus, bis du es einschaltest. Absturzberichte enthalten nur, wo in der App etwas abgestürzt ist, nie was du siehst oder eingibst. Nutzungsdaten sind die Version dieser App und von Android. Beides geht nur an deinen pi-guard, und der gibt es nur weiter, wenn auch sein Besitzer zugestimmt hat. Du kannst es jederzeit in den App-Einstellungen ändern.</string>
+    <string name="help_crashes">Absturzberichte senden</string>
+    <string name="help_usage">Anonyme Nutzungsdaten senden</string>
     <string name="action_ack">Alles in Ordnung</string>
     <string name="action_alarm">Alarm abspielen</string>
     <string name="action_ack_done">Als in Ordnung markiert</string>

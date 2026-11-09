@@ -82,3 +82,27 @@ always asks before installing an app that does not come from a store, so updates
   app lock, and remove lost phones: that ends its login and its VPN access at once.
 - The certificate is pinned at the first start. Anything not issued by your pi-guard, or by a public authority,
   is refused.
+
+## Helping the project
+
+At setup and later in the app settings, *Help make pi-guard better* offers two switches, both off until you turn them
+on:
+
+- **Crash reports:** after a crash the app keeps the exception's type and the places in its code, never the message,
+  which can hold addresses or names, nor anything you saw or typed. On the next start it goes to your pi-guard if you
+  agreed, and is deleted either way.
+- **Usage data:** this app's and Android's version.
+
+Both go only to your own pi-guard. It passes them on only inside its anonymous weekly report, and only if its owner
+switched that on as well, see [privacy.md](privacy.md#anonymous-statistics).
+
+## Using the app with your own pi-guard
+
+The app works with any pi-guard: it finds it in the home network or takes its address, and trusts only that
+pi-guard's own certificate authority after you compared its fingerprint.
+
+| Way | How it updates |
+|---|---|
+| The official APK | From the GitHub releases (`apps-*`), signed. Your pi-guard fetches new versions by itself and offers them to the phone. |
+| Uploaded to your pi-guard | Dashboard → *Add-ons → Phone app*; your pi-guard hands it to its phones. |
+| Built from the source | `./scripts/build-android.sh VERSION` with your own keystore. Android refuses updates signed with another key, so switch off *Fetch app updates from GitHub* (`PI_GUARD_APP_UPDATES_FROM_GITHUB=false`) and publish your builds with `--publish HOST`. |

@@ -67,6 +67,9 @@ Once a week the Pi sends, for the last seven days:
 - how many bodies and pictures a person event had, and which detector ran
 - the version, the camera resolutions, whether recognition is on, the number of cameras and enrolled people (as
   0-4 or "5+"), and the threshold and margin
+- from phones whose users agreed in the app (*Help make pi-guard better*, off by default): how many run which app and
+  Android version, and the app's crashes, each only as exception type and the places in the code, never its message;
+  sent once, then forgotten
 
 Never: pictures, face prints, names, times of day, event times, addresses or any number that stays the same between
 reports and could tell a home apart. The receiver sees the Pi's IP address, as any server does; the one in

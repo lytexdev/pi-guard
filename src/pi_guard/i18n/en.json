@@ -744,7 +744,7 @@
   "web.lf_no_people": "Nobody is enrolled yet. Add people on the People page first.",
   "web.co_title": "Help make pi-guard better",
   "web.co_intro": "If you agree, this Pi sends a few anonymous numbers once a week. They show how well people and faces are found in real homes, and help set the thresholds for everybody.",
-  "web.co_sent": "Sent: counts of events, how big faces were, how similar they were to the people here, and the similarity of faces you confirmed or corrected with “Who is this?”. All as counts per range, from the last seven days.",
+  "web.co_sent": "Sent: counts of events, how big faces were, how similar they were to the people here, and the similarity of faces you confirmed or corrected with “Who is this?”. All as counts per range, from the last seven days. From phones whose users agreed in the app: app and Android versions and crash places.",
   "web.co_never": "Never sent: pictures, face prints, names, times, addresses, or anything that tells this home apart.",
   "web.co_when": "You can switch it off at any time. Nothing is sent before you switch it on.",
   "web.co_switch": "Send anonymous statistics",

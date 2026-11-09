@@ -744,7 +744,7 @@
   "web.lf_no_people": "Noch niemand ist eingetragen. Bitte zuerst auf der Seite Personen jemanden hinzufügen.",
   "web.co_title": "pi-guard besser machen",
   "web.co_intro": "Wenn du zustimmst, schickt dieser Pi einmal pro Woche ein paar anonyme Zahlen. Sie zeigen, wie gut Personen und Gesichter in echten Wohnungen gefunden werden, und helfen, die Schwellen für alle einzustellen.",
-  "web.co_sent": "Gesendet: wie viele Ereignisse es gab, wie groß Gesichter waren, wie ähnlich sie den Personen hier waren, und wie ähnlich Gesichter waren, die du mit „Wer ist das?“ bestätigt oder korrigiert hast. Alles als Anzahl je Bereich, aus den letzten sieben Tagen.",
+  "web.co_sent": "Gesendet: wie viele Ereignisse es gab, wie groß Gesichter waren, wie ähnlich sie den Personen hier waren, und wie ähnlich Gesichter waren, die du mit „Wer ist das?“ bestätigt oder korrigiert hast. Alles als Anzahl pro Bereich, aus den letzten sieben Tagen. Von Handys, deren Nutzer in der App zugestimmt haben: App- und Android-Versionen und Absturzstellen.",
   "web.co_never": "Nie gesendet: Bilder, Gesichtsabdrücke, Namen, Uhrzeiten, Adressen oder irgendetwas, woran man diese Wohnung erkennt.",
   "web.co_when": "Du kannst es jederzeit ausschalten. Bevor du es einschaltest, wird nichts gesendet.",
   "web.co_switch": "Anonyme Statistiken senden",
