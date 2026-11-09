@@ -36,6 +36,8 @@ nur, wenn sie verschlüsselt ist.
 kosten keine Tokens, gleiche Fragen kommen eine Stunde lang aus dem Zwischenspeicher, und
 ein Tageslimit begrenzt die Kosten. Fragen gehen an den gewählten Anbieter. Der Assistent
 bekommt keine Bilder, Namen oder Daten aus Ihrem Zuhause und kann nichts schalten.
+Einstellungen erklärt und ändert er unter *Einstellungen → Allgemein → Frag zu Einstellungen*, immer mit Bestätigung und
+Rückgängig, siehe [Dashboard](dashboard.md#fragen-zu-einstellungen-und-änderungen-rückgängig-machen).
 
 **Eigene Dateien und Dokumente:** Der Assistent kann TXT, MD, JSON und PDF sowie
 Paperless-ngx und Nextcloud durchsuchen, etwa nach Ihrer Steuer-ID. Das gilt nur für Admins.

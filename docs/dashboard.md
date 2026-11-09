@@ -268,6 +268,22 @@ In the expert view, *Messengers* ends with *Test messages*: one test message thr
 to every admin there or into the channel of Slack, Matrix, Rocket.Chat or Mastodon. Add-ons that are part of
 pi-guard carry a check mark; hovering, focusing or tapping it says *Verified*.
 
+## Asking about settings, and undoing changes
+
+*Settings → General* starts with *Ask about settings*: "What does motion sensitivity do?" or "Keep recordings for 14
+days". Without the AI assistant it lists the settings that match your words, with their help text and value. With the
+assistant it also explains them and may propose one change, shown as *before → after*. Nothing changes until you tap
+*Change* and confirm.
+
+What the AI gets: labels, help texts and the values of switches, numbers and choices. Never secrets, lists such as
+chat IDs, addresses, or the time zone. Settings about login, dashboard access, VPN, updates and the assistant itself
+are explained but never proposed. A proposal passes the same checks as the form.
+
+*Recent changes* lists every change, from the form, the assistant or an undo, with who made it and the value before and
+after. *Undo* puts the earlier values back; a value that was not set before is removed again, so `pi-guard.env` counts.
+Changed secrets are marked but never kept, so they cannot be undone. The last 200 changes are kept. Like every
+setting, a change takes effect after a restart.
+
 ## Where notifications go
 
 Under Settings › Notifications every kind of message has its own ways: tap *All ways* below it and pick, for example,

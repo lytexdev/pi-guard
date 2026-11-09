@@ -30,6 +30,8 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
   Ähnlichkeit von Gesichtern, die ein Admin mit *Wer ist das?* bestätigt oder korrigiert hat. Nie Bilder,
   Gesichtsabdrücke, Namen, Uhrzeiten, Adressen oder eine Kennung des Haushalts. Die Seite zeigt vorher genau, was
   gesendet würde.
+- *Frag zu Einstellungen* mit eingeschaltetem KI-Assistenten schickt dem gewählten Anbieter Bezeichnungen, Hilfetexte
+  und die Werte von Schaltern, Zahlen und Auswahlen, nie Geheimnisse, Listen oder die Zeitzone.
 - Sonst nichts: keine Cloud, keine Werbung.
 
 ### Privacy-Upstream (optional)

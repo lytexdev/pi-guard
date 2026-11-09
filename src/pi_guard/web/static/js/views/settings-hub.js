@@ -286,6 +286,14 @@ export async function render(main, params = []) {
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
     if (current === "backup") await backupPanel(extra);
+    if (current === "general") {
+      const { helpPanel, historyPanel } = await import("./settings-help.js");
+      const help = h("div");
+      const history = h("div");
+      extra.append(help, history);
+      const redraw = await historyPanel(history);
+      helpPanel(help, redraw);
+    }
   } else if (current === "devices") {
     const view = await import("./devices.js");
     await view.render(body, [], { embedded: true, register: (fn) => { save = fn; }, onSaved: () => { saveBar.classList.add("hidden"); restartPrompt(); } });

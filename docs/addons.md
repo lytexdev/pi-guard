@@ -140,6 +140,9 @@ planning. It cannot invent commands.
 Device state only exists if the device reports it over MQTT, so the dishwasher question needs a
 dishwasher that does.
 
+Settings are explained and changed under *Settings → General → Ask about settings*, always with a confirmation and an
+undo, see [the dashboard page](dashboard.md#asking-about-settings-and-undoing-changes).
+
 ### Looking at cameras
 
 With "The AI may look at camera pictures" ticked, "Was siehst du im Wohnzimmer?" sends one

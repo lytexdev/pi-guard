@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- *Ask about settings* explains settings, by search or with the AI assistant, which may propose one change shown as
+  before and after; nothing changes without a confirmation. *Recent changes* lists every settings change with an undo.
 - After an SOS the phone sends its place every minute for 30 minutes, for admins to follow in the dashboard, until
   *I am safe*. Opt-in: photos from both cameras and 20 seconds of sound from the phone, and 20 seconds from the Pi's
   microphone, for the emergency contacts and admins.

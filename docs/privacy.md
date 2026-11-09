@@ -35,6 +35,7 @@ runs with `UMask=0077`; databases are `0600`).
 | Your browser's public IP address | `api.ipify.org`, and the Pi asks `ipwho.is` about unknown addresses | when the overview is open (connection panel) |
 | Questions to the AI assistant, voice messages sent to it | the provider you chose (OpenAI, Mistral, your own) | add-on on, only what you ask |
 | Excerpts from your files, Paperless-ngx and Nextcloud | the AI provider | only if you allow it; never with Ollama |
+| Labels, help texts and switch, number and choice values of settings (never secrets, lists or the time zone) | the AI provider | only when you use *Ask about settings* with the assistant on |
 | Names of devices and cameras | the AI provider | only if "AI may plan actions" is ticked |
 | A camera picture | the AI provider | only if allowed, and after you confirm each time |
 | Town for the weather | Open-Meteo | add-on on, when you ask for the weather |

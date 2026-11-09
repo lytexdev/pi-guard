@@ -28,6 +28,7 @@ from pi_guard.config import OVERRIDE_ENV, OVERRIDE_YAML, read_overrides
 from pi_guard.config.files import EventName, FileConfig
 from pi_guard.config.settings import Settings
 from pi_guard.core.permissions import Role
+from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.enrollment import EnrollmentSession, video_frames
 from pi_guard.detection.faces import EnrollmentError, FaceRecognizer
 from pi_guard.diagnostics.contribution import record_correction
@@ -54,6 +55,9 @@ def routes() -> list[web.RouteDef]:
     return [
         web.get("/api/settings", get_settings),
         web.put("/api/settings", put_settings),
+        web.get("/api/settings/history", settings_history),
+        web.post("/api/settings/ask", settings_ask),
+        web.post("/api/settings/history/{id:\\d+}/revert", settings_revert),
         web.get("/api/config", get_config),
         web.put("/api/config", put_config),
         web.get("/api/notifications", notification_rules),
@@ -130,17 +134,22 @@ def _plain(value: Any) -> Any:
     return value.value if hasattr(value, "value") else value
 
 
+SOURCES = ("dashboard", "assistant")
+
+
 async def put_settings(request: web.Request) -> web.Response:
     d = dashboard(request)
     data = await read_json(request)
-    await apply_settings(d, data, _actor(request))
+    source = request.query.get("source", "dashboard")
+    await apply_settings(d, data, _actor(request), source if source in SOURCES else "dashboard")
     return web.json_response({"ok": True, "restart_required": True})
 
 
-async def apply_settings(d: Any, data: dict[str, Any], actor: str) -> None:
+async def apply_settings(
+    d: Any, data: dict[str, Any], actor: str, source: str = "dashboard"
+) -> None:
     """Check and write changes; they take effect at the next start."""
-    current_overrides = read_overrides(d.settings.data_dir)
-    rendered = dict(current_overrides)
+    rendered = dict(read_overrides(d.settings.data_dir))
     try:
         for key, value in data.items():
             field_ = BY_KEY.get(key)
@@ -149,20 +158,102 @@ async def apply_settings(d: Any, data: dict[str, Any], actor: str) -> None:
             if field_.kind == "secret" and not str(value).strip():
                 continue  # empty means: keep the current secret
             rendered[key] = to_env(field_, value)
-        # Validate the complete result before anything is written.
+    except ValueError as exc:
+        raise web.HTTPBadRequest(text=str(exc)[:500]) from None
+    await _write_overrides(d, rendered, actor, source)
+
+
+HISTORY_SCHEMA = """CREATE TABLE IF NOT EXISTS settings_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, actor TEXT NOT NULL,
+    source TEXT NOT NULL, changes TEXT NOT NULL)"""
+HISTORY_KEEP = 200
+
+
+async def _write_overrides(d: Any, rendered: dict[str, str], actor: str, source: str) -> None:
+    """Validate the whole result, write it, and keep what it replaced so it can be undone."""
+    before = read_overrides(d.settings.data_dir)
+    try:
         Settings(**{**_base_values(d.settings), **rendered})
     except ValidationError as exc:
         # Only messages: the input (possibly a token) is never echoed back.
         text = "; ".join(f"{'.'.join(map(str, e['loc'])) or 'settings'}: {e['msg']}"
                          for e in exc.errors())  # fmt: skip
         raise web.HTTPBadRequest(text=text[:500]) from None
-    except ValueError as exc:
-        raise web.HTTPBadRequest(text=str(exc)[:500]) from None
     lines = ["# Written by the pi-guard dashboard; takes precedence over pi-guard.env."]
     lines += [f"PI_GUARD_{key.upper()}={value}" for key, value in sorted(rendered.items())]
     path = d.settings.data_dir / OVERRIDE_ENV
     await asyncio.to_thread(atomic_write, path, ("\n".join(lines) + "\n").encode())
-    d.app.db.audit(actor, "settings", ",".join(sorted(data)))
+    changed = sorted(k for k in set(before) | set(rendered) if before.get(k) != rendered.get(k))
+    d.app.db.audit(actor, "settings", ",".join(changed))
+    if changed:
+        # Secrets are never kept, not even here: such a change cannot be undone.
+        changes = {k: None if k in SECRETS else [before.get(k), rendered.get(k)] for k in changed}
+        db = d.app.db
+        db.execute(HISTORY_SCHEMA)
+        db.execute("INSERT INTO settings_history (ts, actor, source, changes) VALUES (?, ?, ?, ?)",
+                   (utcnow().isoformat(), actor, source, json.dumps(changes)))  # fmt: skip
+        db.execute(
+            "DELETE FROM settings_history WHERE id <= (SELECT MAX(id) FROM settings_history) - ?",
+            (HISTORY_KEEP,),
+        )
+
+
+async def settings_ask(request: web.Request) -> web.Response:
+    """Explains settings, with the assistant if it runs, and may propose one change."""
+    from pi_guard.addons import settings_help
+    from pi_guard.addons.assistant import AssistantError
+
+    d = dashboard(request)
+    question = str((await read_json(request)).get("question", ""))
+    addons = getattr(d.app, "addons", None)
+    assistant = getattr(addons, "assistant", None)
+    try:
+        found = await settings_help.ask(assistant, d.settings, question, d.settings.language)
+    except AssistantError as exc:
+        raise web.HTTPConflict(text=exc.key) from None
+    if found.proposal:
+        d.app.db.audit(_actor(request), "settings.proposed", found.proposal["key"])
+    return web.json_response({
+        "answer": found.answer, "found": found.found, "proposal": found.proposal,
+        "ai": found.answer is not None,
+    })  # fmt: skip
+
+
+async def settings_history(request: web.Request) -> web.Response:
+    """The last changes, with the value before and after, so one can be undone."""
+    db = dashboard(request).app.db
+    db.execute(HISTORY_SCHEMA)
+    rows = db.execute("SELECT id, ts, actor, source, changes FROM settings_history "
+                      "ORDER BY id DESC LIMIT 50").fetchall()  # fmt: skip
+    return web.json_response([{"id": r[0], "time": r[1], "actor": r[2], "source": r[3],
+                               "changes": json.loads(r[4])} for r in rows])  # fmt: skip
+
+
+async def settings_revert(request: web.Request) -> web.Response:
+    """Puts back what one change replaced. A value missing before is removed again, so the
+    setting from pi-guard.env counts. Secrets stay as they are."""
+    d = dashboard(request)
+    db = d.app.db
+    db.execute(HISTORY_SCHEMA)
+    row = db.execute("SELECT changes FROM settings_history WHERE id = ?",
+                     (int(request.match_info["id"]),)).fetchone()  # fmt: skip
+    if row is None:
+        raise web.HTTPNotFound()
+    rendered = dict(read_overrides(d.settings.data_dir))
+    reverted = 0
+    for key, change in json.loads(row[0]).items():
+        if change is None or key not in BY_KEY:
+            continue
+        old = change[0]
+        if old is None:
+            rendered.pop(key, None)
+        else:
+            rendered[key] = old
+        reverted += 1
+    if not reverted:
+        raise web.HTTPConflict(text="web.set_cannot_undo")
+    await _write_overrides(d, rendered, _actor(request), "revert")
+    return web.json_response({"ok": True, "restart_required": True})
 
 
 def _base_values(settings: Settings) -> dict[str, Any]:

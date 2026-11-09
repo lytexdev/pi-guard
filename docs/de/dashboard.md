@@ -204,6 +204,23 @@ Im Expertenmodus endet *Messenger* mit *Testnachrichten*: eine Testnachricht üb
 jeden Admin dort oder in den Kanal von Slack, Matrix, Rocket.Chat oder Mastodon. Add-ons, die zu pi-guard gehören,
 tragen ein Häkchen; Darüberfahren, Fokus oder Antippen zeigt *Verifiziert*.
 
+## Fragen zu Einstellungen und Änderungen rückgängig machen
+
+*Einstellungen → Allgemein* beginnt mit *Frag zu Einstellungen*: „Was macht die Bewegungsempfindlichkeit?“ oder
+„Aufnahmen 14 Tage behalten“. Ohne KI-Assistent zeigt es die Einstellungen, die zu deinen Worten passen, mit Hilfetext und
+Wert. Mit Assistent erklärt es sie auch und kann eine Änderung vorschlagen, angezeigt als *vorher → nachher*. Es ändert
+sich nichts, bis du *Ändern* tippst und bestätigst.
+
+Was die KI bekommt: Bezeichnungen, Hilfetexte und die Werte von Schaltern, Zahlen und Auswahlen. Nie Geheimnisse, Listen
+wie Chat-IDs, Adressen oder die Zeitzone. Einstellungen zu Anmeldung, Dashboard-Zugang, VPN, Updates und dem Assistenten
+selbst werden erklärt, aber nie vorgeschlagen. Ein Vorschlag durchläuft dieselben Prüfungen wie das Formular.
+
+*Letzte Änderungen* zeigt jede Änderung, aus dem Formular, vom Assistenten oder durch Rückgängig, mit wer sie gemacht hat
+und dem Wert vorher und nachher. *Rückgängig* stellt die früheren Werte wieder her; ein Wert, der vorher nicht gesetzt war,
+wird wieder entfernt, sodass `pi-guard.env` gilt. Geänderte Geheimnisse werden vermerkt, aber nie gespeichert, und lassen
+sich daher nicht rückgängig machen. Die letzten 200 Änderungen bleiben. Wie jede Einstellung wirkt eine Änderung nach einem
+Neustart.
+
 Unter Einstellungen › Benachrichtigungen legst du bei jeder Nachricht fest, **wohin** sie geht: unter *Alle Wege*
 kannst du zum Beispiel nur Signal wählen, oder Telegram und die PiGuard-App. Das wirkt sofort.
 
