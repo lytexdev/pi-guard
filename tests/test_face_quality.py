@@ -48,9 +48,10 @@ def recognizer(tmp_path: Path) -> Any:
     rec._cv2 = cv2
     rec.settings = FaceSettings()
     rec.store = BiometricStore(tmp_path / "bio.db")
-    rec._cache = None
+    rec._cache = rec._rejected = None
     probe: dict[str, np.ndarray] = {}
     rec.problem = lambda image, face, enrolling: (None, image)  # type: ignore[method-assign]
+    rec.learn_problem = lambda image, face: (None, image)  # type: ignore[method-assign]
     rec._embed = lambda aligned: probe["value"]  # type: ignore[method-assign]
     rec.probe = probe
     yield rec
@@ -103,6 +104,66 @@ def test_somebody_else_in_a_video_is_left_out() -> None:
     samples = views(ben, 10) + views(identity(), 2)
     kept, outliers = consistent(samples)
     assert outliers == 2 and len(kept) == 10
+
+
+def camera(rec: Any, embedding: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """A camera picture whose one face shows `embedding`."""
+    rec.probe["value"] = embedding
+    return np.zeros((4, 4, 3), np.uint8), np.zeros(15, np.float32)
+
+
+def test_a_face_from_the_camera_is_learned(recognizer: Any) -> None:
+    lena = identity()
+    recognizer.enroll_many("Lena", views(lena, 10), "test")
+    total = recognizer.learn("lena", *camera(recognizer, views(lena, 1)[0]), "web:admin")
+    assert total == 11
+    assert recognizer.store.details("Lena")[-1]["source"] == "camera"
+    assert recognizer.store.details("Lena")[0]["source"] is None  # uploads stay unmarked
+
+
+def test_only_enrolled_people_and_fitting_faces_are_learned(recognizer: Any) -> None:
+    from pi_guard.detection.faces import EnrollmentError
+
+    lena, oma = identity(), identity()
+    recognizer.enroll_many("Lena", views(lena, 10), "test")
+    recognizer.enroll_many("Oma", views(oma, 10), "test")
+    with pytest.raises(EnrollmentError, match=r"faces\.learn_not_enrolled"):
+        recognizer.learn("Fremder", *camera(recognizer, identity()), "web:admin")
+    with pytest.raises(EnrollmentError, match=r"faces\.learn_too_different"):
+        recognizer.learn("Lena", *camera(recognizer, identity()), "web:admin")  # a wrong click
+    with pytest.raises(EnrollmentError, match=r"faces\.looks_like_other"):
+        recognizer.learn("Lena", *camera(recognizer, blend(views(oma, 1)[0], lena, 0.2)),
+                         "web:admin")  # fmt: skip
+    recognizer.learn_problem = lambda image, face: ("faces.learn_too_small", image)
+    with pytest.raises(EnrollmentError, match=r"faces\.learn_too_small"):
+        recognizer.learn("Lena", *camera(recognizer, views(lena, 1)[0]), "web:admin")
+    assert [c for _, c, _ in recognizer.store.people()] == [10, 10]
+
+
+def test_a_face_that_is_not_somebody_stops_being_them(recognizer: Any) -> None:
+    mama = identity()
+    recognizer.enroll_many("Mama", views(mama, 15, 0.4), "test")
+    neighbour = blend(mama, identity(), 0.5)  # taken for Mama, less like her than she is
+    assert look(recognizer, neighbour).name == "Mama"
+    recognizer.reject("Mama", *camera(recognizer, neighbour))
+    again = look(recognizer, unit(neighbour + 0.1 * identity()))
+    assert again.verdict is Verdict.UNCERTAIN and again.reason == "faces.rejected"
+    for picture in views(mama, 10, 0.4):
+        assert look(recognizer, picture).name == "Mama"  # Mama herself still is
+
+
+def test_rejections_go_with_the_person(recognizer: Any) -> None:
+    from pi_guard.detection.faces import EnrollmentError
+
+    mama = identity()
+    recognizer.enroll_many("Mama", views(mama, 5), "test")
+    with pytest.raises(EnrollmentError, match=r"faces\.learn_not_enrolled"):
+        recognizer.reject("Papa", *camera(recognizer, identity()))
+    recognizer.reject("Mama", *camera(recognizer, identity()))
+    assert recognizer.store.rename("Mama", "Mutti")
+    assert [n for n, _ in recognizer.store.rejections()] == ["Mutti"]
+    recognizer.delete("Mutti")
+    assert recognizer.store.rejections() == []
 
 
 def test_scores_use_several_samples() -> None:

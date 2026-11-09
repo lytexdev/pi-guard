@@ -114,6 +114,22 @@ well the pictures agree; look-alikes in the family lower it. *Test with a photo*
 Faces turned a little to each side help, because people rarely look into a camera. Both eyes must stay
 visible: the face models cannot use a pure side profile. Pictures enrolled earlier count as front views.
 
+### Learning from the camera
+
+Photos from a phone and pictures from a camera across the room look different to the face models. **Who is
+this?** on a person event, on the overview or the events page, shows the faces pi-guard finds in its picture and
+whom it saw in each:
+
+- **This is …** stores the face as one more picture of a person already on the People page, so the camera's angle
+  and light are learned. New people are added on the People page, with their consent. The face must be at least
+  56 pixels wide, sharp and roughly facing the camera; a smaller one would teach more noise than face. A face that
+  hardly resembles the person's stored pictures, or looks more like somebody else, is refused, which catches a
+  wrong click. In the person's details these pictures are marked *from the camera*.
+- **This is not …** on a recognised face notes it as somebody else. From then on, a face more similar to it than to
+  that person is *uncertain*, not that person. It is deleted with the person.
+
+Only the numbers of a face are stored, as with any enrollment. Viewers do not see the button.
+
 ## Everyday tools
 
 - **Trying out devices:** under *Devices & cameras*, **Test speaker** plays three tones on the chosen

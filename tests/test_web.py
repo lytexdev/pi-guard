@@ -307,6 +307,75 @@ async def test_photo_and_image_tools(web) -> None:  # type: ignore[no-untyped-de
     assert traversal.status == 404
 
 
+async def test_a_face_in_an_event_picture_is_learned(web) -> None:  # type: ignore[no-untyped-def]
+    from pi_guard.core.timeutil import utcnow
+    from pi_guard.detection.faces import EnrollmentError, Identification, Verdict
+    from pi_guard.detection.persons import PersonResult
+
+    client, app = web
+    csrf = await _login(client)
+    face = np.array([[100, 50, 60, 60, *([0] * 10), 0.9]], np.float32)
+    calls: list[tuple[str, str]] = []
+
+    class Faces:
+        store = SimpleNamespace(people=lambda: [("Lena", 10, "")], exists=lambda n: "Lena")
+
+        def identify(self, image: Any, face: Any) -> Identification:
+            return Identification(Verdict.KNOWN, "Lena", 0.6)
+
+        def learn_problem(self, image: Any, face: Any) -> tuple[str | None, Any]:
+            return None, image
+
+        def learn(self, name: str, image: Any, face: Any, actor: str) -> int:
+            if name == "Ben":
+                raise EnrollmentError("faces.learn_not_enrolled")
+            calls.append(("learn", name))
+            return 11
+
+        def reject(self, name: str, image: Any, face: Any) -> None:
+            calls.append(("reject", name))
+
+        def quality(self, name: str) -> dict[str, Any]:
+            return {"score": 50}
+
+    class Persons:
+        def detect(self, path: Path) -> PersonResult:
+            return PersonResult(1, face, np.zeros((720, 1280, 3), np.uint8))
+
+    app.analysis = SimpleNamespace(faces=Faces(), persons=Persons())
+    shots = app.media_dir / "snapshots"
+    shots.mkdir(parents=True, exist_ok=True)
+    (shots / "person_1.jpg").write_bytes(b"jpeg")
+    app.db.add_event(utcnow(), "known_person", "living_room", {"snapshot": "person_1.jpg"})
+    app.db.add_event(utcnow(), "known_person", "living_room", {"snapshot": "../pi-guard.db"})
+    app.db.add_event(utcnow(), "motion_detected", "living_room", {"snapshot": "person_1.jpg"})
+    headers = {"X-CSRF-Token": csrf}
+
+    found = await (await client.get("/api/events/1/faces")).json()
+    assert found["faces"] == [{"box": [100, 50, 60, 60], "verdict": "known", "name": "Lena",
+                               "score": 0.6, "learn_problem": None}]  # fmt: skip
+    assert (found["width"], found["height"], found["people"]) == (1280, 720, ["Lena"])
+    assert (await client.get("/api/events/2/faces")).status == 410  # no way out of the folder
+    assert (await client.get("/api/events/3/faces")).status == 404  # not a person event
+
+    learned = await client.post("/api/events/1/faces/0", json={"name": "Lena", "is": True},
+                                headers=headers)  # fmt: skip
+    assert (await learned.json())["total"] == 11
+    no = await client.post("/api/events/1/faces/0", json={"name": "Lena", "is": False},
+                           headers=headers)  # fmt: skip
+    assert no.status == 200 and calls == [("learn", "Lena"), ("reject", "Lena")]
+    refused = await client.post("/api/events/1/faces/0", json={"name": "Ben", "is": True},
+                                headers=headers)  # fmt: skip
+    assert refused.status == 422 and await refused.text() == "faces.learn_not_enrolled"
+    missing = await client.post("/api/events/1/faces/5", json={"name": "Lena", "is": True},
+                                headers=headers)  # fmt: skip
+    assert missing.status == 404
+    bad = await client.post("/api/events/1/faces/0", json={"name": "Lena"}, headers=headers)
+    assert bad.status == 400
+    actions = [r[0] for r in app.db.execute("SELECT action FROM audit WHERE action LIKE 'faces.%'")]
+    assert actions == ["faces.learn", "faces.reject"]
+
+
 async def test_people_require_consent(web) -> None:  # type: ignore[no-untyped-def]
     from aiohttp import FormData
 

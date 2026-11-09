@@ -30,6 +30,7 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Renaming a trusted person took effect for recognition only after a restart; until then it reported the old name.
 - A computer whose VPN gets no answer keeps its tunnel instead of replacing the interface every 12 seconds, which
   looked like a new network to the system and every program on it. Other ways and keys are now set on the running
   tunnel.
@@ -57,6 +58,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- *Who is this?* on a person event in the dashboard: say which enrolled person a face is, and pi-guard learns the
+  camera's angle and light; or say that a recognised face is not that person, and similar faces stop counting as them.
+  Only people already enrolled can be chosen, only clear faces of at least 56 pixels are learned, and only the
+  numbers of a face are stored.
 - Pi updates are signed. The update button and `scripts/update.sh` install only release tags signed with a key that stays
   on your computer, so someone who gets into the GitHub account cannot run anything as root on a Pi. Until you make the
   key with `scripts/release.sh key` and install once by hand, the button reports that there is no key. See

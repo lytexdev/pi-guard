@@ -33,7 +33,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   videos or a picture taken by the camera — or straight from an alert about an
   unknown person. A bar shows how well each person is learned and which pictures
   are missing. Unknown people are reported with a photo. Several pictures are judged together, so a family
-  member seen badly once is not reported as a stranger.
+  member seen badly once is not reported as a stranger. *Who is this?* on an event teaches pi-guard a face the
+  camera saw, or that a face is not someone.
 - **Alarm.** Sound the alarm (or your own uploaded sound) on a speaker, and stop
   it, from the chat.
 - **Emergency contacts.** If alerts stay unconfirmed, backup contacts get a

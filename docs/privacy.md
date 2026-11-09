@@ -90,6 +90,9 @@ Art. 9 GDPR. pi-guard:
 
 - keeps face data collected during an enrollment session in memory only, until
   the admin confirms consent; cancelled or expired sessions leave nothing behind
+- learns from an event picture only when an admin says whose face it is, and only for people already enrolled;
+  it stores the face's numbers, not the picture. A face an admin marks as *not* someone is stored the same way,
+  in the same database, and deleted with that person
 
 `/sharper` finds *where* a person is in the picture to frame it (body or face
 detection); it does not identify anyone and works without face recognition.

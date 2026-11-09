@@ -68,6 +68,9 @@ Fotos und Videobilder sofort nach dem Auswerten gelöscht; die Gesichtsdaten
 bleiben nur im Arbeitsspeicher, bis Sie die Zustimmung bestätigen.
 Live-Aufnahmen im Browser oder in der App entstehen nur, wenn Sie die Knöpfe drücken, ohne Ton, und werden
 beim Hochladen wie jedes andere Foto behandelt.
+Aus einem Ereignisbild lernt pi-guard nur, wenn ein Admin sagt, wessen Gesicht es ist, und nur für schon
+eingetragene Personen; gespeichert werden die Merkmalswerte, nicht das Bild. Ein Gesicht, das ein Admin als
+*nicht* diese Person markiert, wird genauso in derselben Datenbank gespeichert und mit der Person gelöscht.
 
 **Schärfer und normale Sätze.** „Schärfer“ sucht nur, *wo* eine Person im Bild
 ist, nicht *wer* sie ist. Geschriebene Sätze werden auf dem Gerät anhand von

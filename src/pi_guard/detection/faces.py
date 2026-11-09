@@ -18,6 +18,12 @@ How mistakes are kept out (family members often look alike):
 - an "unknown" face is marked clear only when it is big and sharp enough that a family
   member would have been recognised; analysis.py raises the alarm for a stranger at once
   only then, and otherwise waits for more pictures
+
+Learning from the camera: an admin can say of a face in an event picture "this is X" or
+"this is not X". Only people already enrolled can be chosen, because enrolling needs their
+consent. "This is X" stores the face as one more sample when it is clear enough, so the
+camera's own angle and light are learned. "This is not X" stores it as a rejection: a face
+later found more similar to X's rejections than to X is "uncertain", not X.
 """
 
 from __future__ import annotations
@@ -84,6 +90,10 @@ TOP_K = 3
 PERSON_MARGIN = 0.06  # lead over the next most similar person needed for "known"
 SAME_PERSON_MIN = 0.30  # samples of one upload must be at least this similar to each other
 DOMINANT_FACE = 2.5  # a face this many times bigger than the others is the subject
+# A face from the camera said to be X must resemble X's samples at least this much. Pictures
+# of one person from a phone and a distant camera are often far apart, so this only catches
+# a wrong click: unrelated people are usually around 0.1.
+LEARN_MIN_MATCH = 0.2
 
 
 # How well a person is learned: an estimate from what was stored, for advice to the user.
@@ -100,11 +110,14 @@ class FaceSample(np.ndarray):
 
     pose: str | None = None
     light: float | None = None
+    source: str | None = None  # "camera" when learned from an event picture
 
 
-def with_context(embedding: Embedding, pose: str, light: float) -> FaceSample:
+def with_context(
+    embedding: Embedding, pose: str, light: float, source: str | None = None
+) -> FaceSample:
     sample = embedding.view(FaceSample)
-    sample.pose, sample.light = pose, light
+    sample.pose, sample.light, sample.source = pose, light, source
     return sample
 
 
@@ -214,7 +227,12 @@ class BiometricStore:
             PRAGMA foreign_keys=ON;
         """)
         columns = {row[1] for row in self._conn.execute("PRAGMA table_info(samples)")}
-        for column, kind in (("pose", "TEXT"), ("light", "REAL")):
+        self._conn.execute(
+            "CREATE TABLE IF NOT EXISTS rejections (id INTEGER PRIMARY KEY, "
+            "person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE, "
+            "embedding BLOB NOT NULL, created_at TEXT NOT NULL)"
+        )
+        for column, kind in (("pose", "TEXT"), ("light", "REAL"), ("source", "TEXT")):
             if column not in columns:
                 self._conn.execute(f"ALTER TABLE samples ADD COLUMN {column} {kind}")
         columns = {row[1] for row in self._conn.execute("PRAGMA table_info(people)")}
@@ -258,14 +276,15 @@ class BiometricStore:
             0
         ]
         self._conn.execute(
-            "INSERT INTO samples (person_id, embedding, created_at, pose, light) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO samples (person_id, embedding, created_at, pose, light, source) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             (
                 person_id,
                 np.asarray(embedding, dtype=np.float32).tobytes(),
                 now,
                 getattr(embedding, "pose", None),
                 getattr(embedding, "light", None),
+                getattr(embedding, "source", None),
             ),
         )
         self._conn.execute(
@@ -277,6 +296,37 @@ class BiometricStore:
             "SELECT COUNT(*) FROM samples WHERE person_id = ?", (person_id,)
         ).fetchone()[0]
         return count
+
+    def exists(self, name: str) -> str | None:
+        """The stored spelling of this name, or None."""
+        row = self._conn.execute(
+            "SELECT name FROM people WHERE name = ? COLLATE NOCASE", (name.strip(),)
+        ).fetchone()
+        return str(row[0]) if row else None
+
+    def reject(self, name: str, embedding: Embedding, keep: int) -> bool:
+        """Remember a face that is not this person; the newest `keep` stay."""
+        row = self._conn.execute(
+            "SELECT id FROM people WHERE name = ? COLLATE NOCASE", (name,)
+        ).fetchone()
+        if row is None:
+            return False
+        self._conn.execute(
+            "INSERT INTO rejections (person_id, embedding, created_at) VALUES (?, ?, ?)",
+            (row[0], np.asarray(embedding, dtype=np.float32).tobytes(), utcnow().isoformat()),
+        )
+        self._conn.execute(
+            "DELETE FROM rejections WHERE person_id = ? AND id NOT IN "
+            "(SELECT id FROM rejections WHERE person_id = ? ORDER BY id DESC LIMIT ?)",
+            (row[0], row[0], keep),
+        )
+        return True
+
+    def rejections(self) -> list[tuple[str, Embedding]]:
+        rows = self._conn.execute(
+            "SELECT p.name, r.embedding FROM rejections r JOIN people p ON p.id = r.person_id"
+        )
+        return [(name, np.frombuffer(blob, dtype=np.float32)) for name, blob in rows]
 
     def people(self) -> list[tuple[str, int, str]]:
         return [
@@ -296,7 +346,8 @@ class BiometricStore:
     def details(self, name: str) -> list[dict[str, Any]]:
         """One row per stored sample; pictures are not kept, only these numbers."""
         rows = self._conn.execute(
-            "SELECT s.id, s.created_at, s.embedding, p.enrolled_by, s.pose, s.light FROM samples s "
+            "SELECT s.id, s.created_at, s.embedding, p.enrolled_by, s.pose, s.light, s.source "
+            "FROM samples s "
             "JOIN people p ON p.id = s.person_id WHERE p.name = ? COLLATE NOCASE ORDER BY s.id",
             (name,),
         ).fetchall()
@@ -306,7 +357,7 @@ class BiometricStore:
         return [
             {"id": r[0], "created": r[1], "by": r[3], "bytes": len(r[2]), "numbers": len(v),
              "match": round(float(np.dot(v, mean / (np.linalg.norm(mean) or 1.0))), 2),
-             "pose": r[4], "light": r[5]}
+             "pose": r[4], "light": r[5], "source": r[6]}
             for r, v in zip(rows, vectors, strict=True)
         ]  # fmt: skip
 
@@ -355,6 +406,7 @@ class FaceRecognizer:
         self._detector = detector
         self._sface: Any = cv2.FaceRecognizerSF.create(str(SFACE.path(models_dir)), "")
         self._cache: list[tuple[str, Embedding]] | None = None
+        self._rejected: list[tuple[str, Embedding]] | None = None
 
     # --- faces --------------------------------------------------------------------------
 
@@ -395,6 +447,20 @@ class FaceRecognizer:
             and abs(turn_of(face)) <= MAX_TURN[0]
             and self._sharpness(aligned) >= CLEAR_SHARPNESS
         )
+
+    def learn_problem(
+        self, image: Image, face: npt.NDArray[np.float32]
+    ) -> tuple[str | None, Image]:
+        """Why this camera face cannot be learned, or None. Stricter than recognition: a
+        sample must be at least as clear as a face that is trusted to be a stranger."""
+        if min(float(face[2]), float(face[3])) < CLEAR_FACE_PX:
+            return "faces.learn_too_small", image
+        if abs(turn_of(face)) > MAX_TURN[0]:
+            return "faces.turned", image
+        aligned = self._aligned(image, face)
+        if self._sharpness(aligned) < CLEAR_SHARPNESS:
+            return "faces.blurry", aligned
+        return None, aligned
 
     def prepare(self, photo: Path) -> FaceSample:
         """Embedding of the person in `photo` (one clear face); the photo is not kept."""
@@ -455,6 +521,41 @@ class FaceRecognizer:
                      report.stored, report.total)  # fmt: skip
         return report
 
+    def learn(self, name: str, image: Image, face: npt.NDArray[np.float32], actor: str) -> int:
+        """An admin says this face from a camera picture is `name`, an enrolled person."""
+        stored = self.store.exists(name)
+        if stored is None:
+            raise EnrollmentError("faces.learn_not_enrolled")
+        problem, aligned = self.learn_problem(image, face)
+        if problem:
+            raise EnrollmentError(problem)
+        embedding = self._embed(aligned)
+        own = [(n, s) for n, s in self._samples() if n == stored]
+        if own and person_scores(embedding, own)[stored] < LEARN_MIN_MATCH:
+            raise EnrollmentError("faces.learn_too_different")
+        light = float(self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY).mean())
+        return self.enroll(stored, with_context(embedding, pose_of(face), light, "camera"), actor)
+
+    def reject(self, name: str, image: Image, face: npt.NDArray[np.float32]) -> None:
+        """An admin says this face is not `name`. Any face the camera could match counts."""
+        stored = self.store.exists(name)
+        if stored is None:
+            raise EnrollmentError("faces.learn_not_enrolled")
+        problem, aligned = self.problem(image, face, enrolling=False)
+        if problem:
+            raise EnrollmentError(problem)
+        self.store.reject(stored, self._embed(aligned), self.settings.max_samples_per_person)
+        self._rejected = None
+        log.info("a face was marked as not an enrolled person")
+
+    def _rejections(self) -> list[tuple[str, Embedding]]:
+        if self._rejected is None:
+            self._rejected = [
+                (name, sample / (np.linalg.norm(sample) or 1.0))
+                for name, sample in self.store.rejections()
+            ]
+        return self._rejected
+
     def enroll(self, name: str, embedding: Embedding, actor: str) -> int:
         report = self.enroll_many(name, [embedding], actor)
         if report.conflicts:
@@ -462,11 +563,12 @@ class FaceRecognizer:
         return report.total
 
     def delete(self, name: str) -> bool:
-        self._cache = None
+        self._cache = self._rejected = None
         return self.store.delete(name)
 
     def forget_cache(self) -> None:
         self._cache = None
+        self._rejected = None
 
     def quality(
         self, name: str, similar: dict[str, tuple[str, float]] | None = None
@@ -505,17 +607,28 @@ class FaceRecognizer:
         if problem:
             # Too small or blurry to tell: never claim it is a family member.
             return Identification(Verdict.UNCERTAIN, None, 0.0, reason=problem)
-        scores = person_scores(self._embed(aligned), samples)
+        probe = self._embed(aligned)
+        scores = person_scores(probe, samples)
         ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
         best_name, best = ranked[0]
         runner_up, second = ranked[1] if len(ranked) > 1 else (None, 0.0)
         result = classify(best_name, best, self.settings)
         if result.verdict is Verdict.KNOWN and runner_up and best - second < PERSON_MARGIN:
             result = Identification(Verdict.UNCERTAIN, None, best, reason="faces.look_alike")
+        if result.verdict is Verdict.KNOWN and self._rejected_as(probe, best_name, best):
+            result = Identification(Verdict.UNCERTAIN, None, best, reason="faces.rejected")
         clear = result.verdict is Verdict.UNKNOWN and self._clear(face, aligned)
         return Identification(
             result.verdict, result.name, best, runner_up, second, result.reason, clear
         )
+
+    def _rejected_as(self, probe: Embedding, name: str, score: float) -> bool:
+        """Is this face closer to a face an admin said is not `name` than to `name`? A
+        margin would also catch `name` when the rejected face was a close look-alike."""
+        rejected = [(n, s) for n, s in self._rejections() if n == name]
+        if not rejected:
+            return False
+        return person_scores(probe, rejected)[name] >= score
 
 
 def classify(name: str | None, score: float, settings: FaceSettings) -> Identification:

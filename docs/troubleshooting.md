@@ -88,6 +88,8 @@ sudo journalctl -u pi-guard -n 100
 - Faces too small to recognise are the most common reason. A face needs at least 36 pixels, and 56 for a stranger
   alarm from one picture. People found by a camera across a room are often around 110 of 720 pixels tall, with a face
   of about 15. A camera nearer the door, at head height, helps more than any setting.
+- A family member seen clearly but not recognised: *Who is this?* on the event teaches pi-guard that camera's view of
+  them, see *Learning from the camera* in [dashboard.md](dashboard.md).
 - Without the YOLOX model (`pi-guard models list`), many people are not found at all, so their faces are never
   checked.
 

@@ -276,6 +276,8 @@ On motion, up to three pictures two seconds apart are checked while the motion l
   roughly facing the camera. A less clear face that matches nobody must do so in two pictures. A face next to a
   recognised family member that matches nobody is a stranger at once. Everything else is reported as a person.
   `person_detected` is a high alert when away as well, so waiting for a better picture never hides anyone.
+- **Corrections:** a face an admin marked as *not X* on the events page makes a later face *uncertain* instead of X
+  when it is more similar to that face than to X. See *Learning from the camera* in [dashboard.md](dashboard.md).
 
 With `compare_body_detectors: true`, HOG runs beside YOLOX and the events page shows what each found. It costs about
 up to 0.3 s per picture on a Pi 4.
