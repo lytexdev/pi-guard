@@ -51,7 +51,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
 - **Nothing leaves the device** except the messages you ask for. No cloud
-  account, no open ports, no telemetry.
+  account, no open ports, no telemetry. If you want to help, you can switch on
+  a weekly report of anonymous counts, shown to you before anything is sent.
 
 ## Everything around it
 
@@ -64,6 +65,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | **Add-ons** | Service watcher, network analysis, smart home, remote commands, AI assistant with its costs, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
 | **Plugins** | Your own add-ons with commands, pages and API routes, from a ZIP or a Git link, checked before they run. See [plugins](docs/plugins.md). |
 | **Ways home** | IPv4, IPv6, a rented server or Tailscale, for every kind of internet connection. See [network](docs/network.md#ways-home-from-outside). |
+| **Training** | `pgtrain` on a computer with an NVIDIA GPU: is this me, similar photos, thresholds from your photos and the Pis' anonymous statistics, and a person detector trained on pictures of rooms. Pictures stay on that computer. See [training](docs/training.md). |
 | **Updates** | Agents and apps update themselves with signed releases, which a compromised Pi cannot fake. The Pi installs only signed releases too, so a hacked GitHub account cannot reach it. See [updates](docs/updates.md). |
 
 ### Getting the apps
@@ -166,13 +168,15 @@ pi-guard logs -f
 | [Plugins](docs/plugins.md) | Write your own add-ons |
 | [API](docs/api.md) | Tokens and endpoints for your own scripts |
 | [Home servers](docs/agent.md) | Connect PCs and NAS: status, safe shutdown, Docker |
+| [Training](docs/training.md) | Thresholds and a better person detector, on your own GPU |
 | [Architecture](docs/architecture.md) | how the parts fit together |
 | [Performance](docs/performance.md) | measurements and limits |
 | [Troubleshooting](docs/troubleshooting.md) | common problems |
 
 German: [Installation](docs/de/installation.md) ·
 [Bedienung](docs/de/bedienung.md) · [Dashboard](docs/de/dashboard.md) ·
-[Netzwerk](docs/de/netzwerk.md) · [Datenschutz](docs/de/datenschutz.md)
+[Netzwerk](docs/de/netzwerk.md) · [Datenschutz](docs/de/datenschutz.md) ·
+[Training](docs/de/training.md)
 
 ## Privacy
 
