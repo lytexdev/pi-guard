@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch pi-guard Tor want flag
+
+[Path]
+PathChanged=/var/lib/pi-guard/privacy/tor.want
+PathExistsGone=/var/lib/pi-guard/privacy/tor.want
+Unit=pi-guard-tor-ctl.service
+
+[Install]
+WantedBy=multi-user.target

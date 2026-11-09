@@ -4,6 +4,7 @@ import { topologyPanel } from "./topology.js";
 import { meter } from "./overview.js";
 import { restartPrompt } from "./settings.js";
 import { quantumPanel, reachPanel } from "./reach.js";
+import { privacyPanels } from "./privacy.js";
 
 function piholePanel(p, redraw) {
   if (!p) return h("section", { class: "panel" }, h("h2", {}, icon("brand-pihole"), " Pi-hole"), h("p", { class: "muted" }, t("web.pihole_off")));
@@ -360,7 +361,7 @@ export async function render(main, data, params = []) {
   if (tab === "devices") fill(body, devicesPanel(data.devices, redraw));
   if (tab === "blocks") fill(body, await blocksPanel(data));
   if (tab === "lists") fill(body, await blockPanel(data.pihole_enabled));
-  if (tab === "vpn") fill(body, reachPanel(), quantumPanel(), wireguardPanel(data, redraw));
+  if (tab === "vpn") fill(body, privacyPanels(), reachPanel(), quantumPanel(), wireguardPanel(data, redraw));
   if (tab === "map") fill(body, await topologyPanel(deviceDialog));
   if (tab === "analysis") {
     const view = await import("./addons.js");

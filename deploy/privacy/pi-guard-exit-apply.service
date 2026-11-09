@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply pi-guard privacy upstream WireGuard exit
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-guard-exit-apply
+Nice=5

@@ -152,6 +152,7 @@ class Dashboard:
         self._tasks: set[asyncio.Task[None]] = set()
         self._ssl: ssl.SSLContext | None = None
         self.wg_peers = None
+        self.privacy = None
         if s.wireguard_enabled:
             from pi_guard.network.wgpeers import PeerStore
 
@@ -160,6 +161,13 @@ class Dashboard:
             from pi_guard.web.api_network import apply_quantum
 
             apply_quantum(self)
+        from pi_guard.privacy.service import PrivacyService
+
+        self.privacy = PrivacyService(
+            s.data_dir,
+            self._secret_key(),
+            home_network=s.wireguard_home_network or None,
+        )
         self.web = self._build()
 
     def tls_names(self) -> list[str]:
@@ -209,6 +217,7 @@ class Dashboard:
             api_manage,
             api_mobile,
             api_network,
+            api_privacy,
             api_security,
             api_system,
             api_tools,
@@ -234,7 +243,7 @@ class Dashboard:
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
         for module in (api_account, api_addons, api_agents, api_core, api_export, api_login,
-                       api_live, api_manage, api_network, api_security, api_system,
+                       api_live, api_manage, api_network, api_privacy, api_security, api_system,
                        api_mobile, api_tools, api_updates, api_v1):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:

@@ -6,6 +6,13 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Optional privacy upstream on the Pi: multi-hop exit (custom WireGuard or Mullvad), DNS privacy
+  modes, Pi-side kill switch, Tor when installed, privacy profiles and diagnostics under
+  Network › VPN. Off by default; `sudo ./scripts/privacy-server.sh install` once. AmneziaWG,
+  Shadowsocks and Xray stay capability-gated and disabled on a stock Pi kernel.
+
 ### Changed
 
 - People are found far more often: YOLOX-Nano replaces the HOG detector once `pi-guard models download` fetched it.

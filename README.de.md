@@ -47,7 +47,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Zwei-Faktor-Code oder Hardware-Schlüssel; mehrere Benutzer (Admins und Betrachter);
   eigene Farben, Schrift und Logo; Wochenplan, Sicherheitscheck, Speicher-Bereinigung und
   WLAN-QR-Codes. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
-- **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-Status,
+- **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-VPN,
+  optionaler Privacy-Upstream (Multi-Hop / Mullvad / Tor),
   feste IP-Adresse. Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
 - **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md), [Handy-App](docs/de/mobile.md), Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /

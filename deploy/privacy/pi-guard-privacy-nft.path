@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch pi-guard privacy nft plan
+
+[Path]
+PathChanged=/var/lib/pi-guard/privacy/nft.plan
+Unit=pi-guard-privacy-nft.service
+
+[Install]
+WantedBy=multi-user.target

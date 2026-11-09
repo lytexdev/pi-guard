@@ -1,0 +1,30 @@
+#!/bin/bash
+# Refreshes privacy status files under /run/pi-guard-status (no secrets).
+set -euo pipefail
+IFACE="${PI_GUARD_EXIT_IFACE:-pgexit}"
+STATUS_DIR="${PI_GUARD_STATUS_DIR:-/run/pi-guard-status}"
+mkdir -p "$STATUS_DIR"
+
+if ip link show "$IFACE" >/dev/null 2>&1; then
+    HANDSHAKE="$(wg show "$IFACE" latest-handshakes 2>/dev/null | awk 'NR==1 {print $2}')"
+    NOW="$(date +%s)"
+    AGE=""
+    if [[ -n "${HANDSHAKE:-}" && "$HANDSHAKE" =~ ^[0-9]+$ && "$HANDSHAKE" -gt 0 ]]; then
+        AGE=$((NOW - HANDSHAKE))
+    fi
+    ENDPOINT="$(wg show "$IFACE" endpoints 2>/dev/null | awk 'NR==1 {print $2}')"
+    RX="$(wg show "$IFACE" transfer 2>/dev/null | awk 'NR==1 {print $2}')"
+    TX="$(wg show "$IFACE" transfer 2>/dev/null | awk 'NR==1 {print $3}')"
+    printf 'up=1\nendpoint=%s\nhandshake_age=%s\nrx=%s\ntx=%s\n' \
+        "${ENDPOINT:-}" "${AGE:-}" "${RX:-0}" "${TX:-0}" > "$STATUS_DIR/privacy.exit"
+else
+    printf 'up=0\n' > "$STATUS_DIR/privacy.exit"
+fi
+
+if nft list table inet pi_guard_privacy >/dev/null 2>&1; then
+    MODE=on
+    nft list table inet pi_guard_privacy 2>/dev/null | grep -q 'policy drop' && MODE=strict
+    printf 'applied=1\nmode=%s\n' "$MODE" > "$STATUS_DIR/privacy.nft"
+else
+    printf 'applied=0\nmode=off\n' > "$STATUS_DIR/privacy.nft"
+fi

@@ -10,7 +10,46 @@ The VPN connects phones and computers to your home, like a commercial VPN app, b
 | Kill switch | through Android | yes | always on, by WireGuard | |
 | Lockdown | through Android | yes | no | |
 | Split tunneling | per app | per program | no | |
-| Quantum-resistant tunnel | no | yes | no | |
+| Quantum-resistant tunnel | yes | yes | yes | |
+
+## Privacy upstream (optional)
+
+Devices still connect to your Pi. On the Pi you can optionally send that traffic onward through another
+hop before it reaches the internet: a custom WireGuard server, Mullvad, or Tor.
+
+```text
+Device  →  Pi (home WireGuard)  →  optional exit  →  Internet
+```
+
+Everything stays **off** until you turn it on. Install once as root (does not install Tor or commercial VPN packages):
+
+```bash
+sudo ./scripts/privacy-server.sh install
+```
+
+Then open **Network › VPN** in the dashboard: profiles, multi-hop chain, providers, DNS, Pi-side kill switch, Tor and
+diagnostics. Emergency unlock if the Pi firewall ever blocks you:
+
+```bash
+sudo ./scripts/privacy-server.sh unlock
+```
+
+| Feature | Status |
+| --- | --- |
+| Custom WireGuard / `.conf` import as exit | yes |
+| Mullvad account → device → server (public API) | yes |
+| Mullvad native multi-hop (entry + exit) | when the relay list exposes a multihop port |
+| Independent nested WG tunnels beyond that | refused (not silently faked) |
+| DNS modes (system / custom / VPN-routed / provider / DoT) | yes; DoH/DoQ not shipped yet |
+| Pi upstream kill switch (nftables) | yes; LAN management stays allowed |
+| Tor SOCKS / VPN-then-Tor | only if `tor` is already installed |
+| AmneziaWG / Shadowsocks / Xray | capability-gated; off on a stock Pi kernel |
+| SSH remote VPS setup | plan/preview only; no auto-apply |
+
+Honest limits: the home VPN endpoint remains identifiable; multi-hop is not correlation-proof; same-provider entry and
+exit are not independent trust domains; Tor routing is not Tor Browser; obfuscation does not mean undetectable.
+
+See also [privacy.md](privacy.md) and the compatibility notes under *Things that already went wrong* in `AGENTS.md`.
 
 ## Installing on Linux
 
@@ -82,7 +121,9 @@ read later. pi-guard adds a key from two post-quantum methods to the tunnel, on 
 one piece of Rust code (`vpn/kem`).
 
 Through the running tunnel, the device sends fresh ML-KEM-1024 and HQC-256 keys, and the Pi answers with a secret for
-each. Both sides mix these with the device's starting key into a new key for WireGuard. The idea comes from how the
+each. Both sides mix these with the device's starting key into a **rotating WireGuard preshared key**. That is hybrid
+post-quantum key establishment feeding WireGuard; it is not the same as a static PSK alone, and WireGuard's own
+handshake remains Curve25519. The idea comes from how the
 [Mullvad app](https://github.com/mullvad/mullvadvpn-app) does it; the code is our own.
 
 - **Two methods** from different mathematics: a break of one leaves the other.

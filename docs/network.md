@@ -192,3 +192,9 @@ devices keep working but their QR codes cannot be shown again.
 
 FRITZ!OS 7.50+ also has WireGuard built in, an alternative without the Pi —
 but without Pi-hole as DNS and without management in the dashboard.
+
+### Privacy upstream
+
+Optional multi-hop exit on the Pi (Mullvad, custom WireGuard, Tor). Devices still
+use the home VPN; the Pi forwards selected traffic through an upstream hop.
+Install with `sudo ./scripts/privacy-server.sh install`. Details: [vpn.md](vpn.md#privacy-upstream-optional).

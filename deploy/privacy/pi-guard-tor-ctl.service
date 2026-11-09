@@ -1,0 +1,7 @@
+[Unit]
+Description=Start or stop Tor for pi-guard privacy
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-guard-tor-ctl
+Nice=10

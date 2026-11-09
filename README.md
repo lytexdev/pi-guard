@@ -46,7 +46,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   (admins and viewers) and your own colours, font and logo. Also a weekly plan, a security
   scan, storage clean-up and Wi-Fi QR codes.
 - **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
-  a WireGuard VPN with your own devices, a safe fixed-IP script.
+  a WireGuard VPN with your own devices, optional privacy upstream (multi-hop /
+  Mullvad / Tor), a safe fixed-IP script.
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
@@ -160,7 +161,7 @@ pi-guard logs -f
 | [Mobile app](docs/mobile.md) | Android app with VPN, alerts, finding phones and SOS |
 | [Desktop app](docs/desktop.md) | The dashboard as an app for Windows, Linux and macOS |
 | [Updates](docs/updates.md) | How agents and apps update themselves, signed and verified |
-| [VPN](docs/vpn.md) | Kill switch, lockdown, split tunneling, quantum-resistant tunnel |
+| [VPN](docs/vpn.md) | Kill switch, lockdown, split tunneling, quantum-resistant tunnel, privacy upstream |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
 | [Add-ons](docs/addons.md) | Service watcher, network analysis, smart home, remote commands, AI assistant |
 | [WhatsApp](docs/whatsapp.md) | Official Cloud API setup and its limits |
