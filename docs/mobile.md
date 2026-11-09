@@ -34,7 +34,7 @@ app* and its token stops working at once.
 - **VPN options:** on the VPN screen, *Apps past the VPN* is split tunneling, *Connect automatically* connects whenever
   pi-guard cannot be reached directly. Kill switch and lockdown are Android's own always-on VPN with *Block connections
   without VPN*, which is the most reliable place for them: the system itself blocks everything past the tunnel.
-- **Updates:** come from your pi-guard once a day on Wi-Fi. The first one asks for a tap, after that the app updates
+- **Updates:** come from your pi-guard once a day on Wi-Fi; the pi-guard gets new signed versions from GitHub by itself. The first one asks for a tap, after that the app updates
   itself on Android 12 and newer. See [updates.md](updates.md).
 - **Name and icon:** *App settings → App name and icon* turns the app into Calculator, Notes, Weather, Clock, Files or
   Music, with a matching icon, for example to keep it inconspicuous. Android fixes these names when the app is built,

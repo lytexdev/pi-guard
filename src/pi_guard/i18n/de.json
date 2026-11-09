@@ -754,6 +754,8 @@
   "web.co_preview": "Genau zeigen, was jetzt gesendet würde",
   "web.setting_support_url": "Empfänger der Statistiken (https://…)",
   "web.tip_support_url": "Wohin anonyme Statistiken gehen, wenn sie unter Updates eingeschaltet sind. Leer: Es wird nichts gesendet",
+  "web.setting_app_updates_from_github": "App-Updates von GitHub holen",
+  "web.tip_app_updates_from_github": "Neue signierte Versionen der Handy-App, Desktop-App und des Agents kommen von GitHub und gehen an deine Geräte. Genommen werden nur Dateien mit der richtigen Signatur",
   "presence.no_devices": "Es ist noch kein Handy eingetragen. Im Dashboard unter Netzwerk beim Handy auf „Als vertrautes Gerät verwenden“ tippen.",
   "web.setup_have_title": "Schon bei der Installation eingerichtet",
   "web.setup_have_hint": "Diese Schritte werden übersprungen. Ändern lässt sich alles jederzeit unter Einstellungen.",

@@ -1,7 +1,7 @@
 # Updates
 
-Agents, desktop apps and the phone app update themselves from your pi-guard. The Pi itself installs signed releases, see
-[below](#updating-the-pi).
+Agents, desktop apps and the phone app update themselves from your pi-guard, and every pi-guard fetches new versions of
+them from GitHub by itself. The Pi itself installs signed releases, see [below](#updating-the-pi).
 
 ## Why this is safe
 
@@ -30,7 +30,33 @@ The phone app relies on Android, which installs an update only if it carries the
 The desktop app only updates itself in the Linux install from `scripts/install-desktop.sh`, not as AppImage or `.deb`.
 `AUTO_UPDATE=false` in `/etc/pi-guard-agent/agent.conf` switches it off for an agent.
 
-## Publishing a release
+## Releases on GitHub
+
+One command builds, signs and publishes the phone app, the desktop app and the agent:
+
+```bash
+./scripts/release-apps.sh 1.4.0                   # everything this computer can build
+./scripts/release-apps.sh 1.4.0 android desktop   # only these
+./scripts/release-apps.sh 1.4.0 --no-upload       # build and sign into dist/apps-1.4.0
+```
+
+It makes the GitHub release `apps-1.4.0` with all files to download (APK, AppImage, `.deb`, `.rpm`, `.pacman`,
+`.tar.gz`, the Windows installer when wine is there, the agent), a `SHA256SUMS`, and one signed manifest for each file
+devices update from, such as `android-apk.json` or `desktop-linux-x64.json`. It needs the update key, the app's
+keystore, and the GitHub CLI logged in (`gh auth login`).
+
+Every pi-guard looks at the newest `apps-*` release every 6 hours and takes a file only if its manifest is signed with
+the update key and the file matches the signed checksum, size and version. Its devices then fetch it from the Pi and
+check the same signature again. So people with their own pi-guard get updates as well, without you sending them
+anything. `PI_GUARD_APP_UPDATES_FROM_GITHUB=false` (*Fetch app updates from GitHub* in the expert settings) switches
+this off; then only what you publish to that Pi yourself, below, reaches its devices.
+
+**Why this does not run on GitHub.** Building there would need the signing keys there. Then anyone who breaks into the
+GitHub account could sign updates for every device, which is exactly what the keys on your computer prevent. With the
+keys at home, a broken-into account can only hold updates back. The phone app's version code is signed as well
+(`1.4.0+812`), so an old APK cannot pass as a new one.
+
+## Publishing a release to one pi-guard
 
 ```bash
 ./scripts/publish-update.sh agent linux-x86_64 0.2.0 agent/target/release/pi-guard-agent system

@@ -188,6 +188,8 @@ class Settings(BaseSettings):
     # How the dashboard is reached from outside, e.g. https://guard.example.org behind a
     # reverse proxy. Only this name and addresses of the home network are accepted then.
     dashboard_public_url: str | None = None
+    # Fetch signed releases of the agent, desktop and phone app from GitHub (core/app_updates.py).
+    app_updates_from_github: bool = True
     # Where anonymous statistics go when the owner switches them on (diagnostics/contribution.py).
     support_url: str | None = None
     dashboard_allow_unauthenticated: bool = False

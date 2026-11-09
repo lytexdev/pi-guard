@@ -116,6 +116,7 @@ FIELDS = (
     ),
     Field("dashboard_public_url", "dashboard", "text"),
     Field("support_url", "dashboard", "text"),
+    Field("app_updates_from_github", "dashboard", "bool"),
     Field("dashboard_trusted_proxies", "dashboard", "list"),
     Field("webpush_enabled", "dashboard", "bool"),
     Field("dashboard_honeypot", "dashboard", "bool"),
@@ -132,7 +133,8 @@ EXPERT = frozenset({
     "emergency_after_alerts", "emergency_after_minutes", "whatsapp_phone_number_id",
     "whatsapp_app_secret", "whatsapp_verify_token", "whatsapp_alert_template",
     "wireguard_endpoint_v6", "dashboard_auth", "dashboard_public_url",
-    "dashboard_trusted_proxies", "support_url", "webpush_enabled", "dashboard_honeypot",
+    "dashboard_trusted_proxies", "support_url", "app_updates_from_github", "webpush_enabled",
+    "dashboard_honeypot",
     "dashboard_ban_minutes",
     "dashboard_rate_limit_per_minute", "pihole_url", "mqtt_host", "mqtt_port",
 })  # fmt: skip

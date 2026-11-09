@@ -34,7 +34,7 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **VPN-Optionen:** Auf dem VPN-Bildschirm ist *Apps am VPN vorbei* das Split-Tunneling, *Automatisch verbinden* verbindet,
   sobald pi-guard nicht direkt erreichbar ist. Kill Switch und Lockdown sind Androids „Durchgehend aktives VPN“ mit
   „Verbindungen ohne VPN blockieren“: Das System selbst sperrt dann alles, was am Tunnel vorbei ginge.
-- **Updates:** kommen einmal am Tag im WLAN von deinem pi-guard. Das erste fragt nach einem Tippen, danach aktualisiert
+- **Updates:** kommen einmal am Tag im WLAN von deinem pi-guard; der holt neue signierte Versionen selbst von GitHub. Das erste fragt nach einem Tippen, danach aktualisiert
   sich die App ab Android 12 selbst.
 - **Name und Symbol:** *App-Einstellungen → App-Name und Symbol* macht aus der App einen Rechner, Notizen, Wetter, Uhr,
   Dateien oder Musik mit passendem Symbol, zum Beispiel um unauffällig zu bleiben. Android legt diese Namen beim Bauen der

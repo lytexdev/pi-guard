@@ -754,6 +754,8 @@
   "web.co_preview": "Show exactly what would be sent now",
   "web.setting_support_url": "Statistics receiver (https://…)",
   "web.tip_support_url": "Where anonymous statistics go when they are switched on under Updates. Empty: nothing is sent",
+  "web.setting_app_updates_from_github": "Fetch app updates from GitHub",
+  "web.tip_app_updates_from_github": "New signed versions of the phone app, desktop app and agent come from GitHub and go to your devices. Only files with the right signature are taken",
   "presence.no_devices": "No phone is registered yet. In the dashboard under Network, tap “Use as trusted device” next to the phone.",
   "web.setup_have_title": "Already set up during installation",
   "web.setup_have_hint": "These steps are skipped. Everything can be changed any time under Settings.",

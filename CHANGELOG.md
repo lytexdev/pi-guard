@@ -64,6 +64,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Apps update from GitHub: `scripts/release-apps.sh` builds, signs and publishes the phone app, desktop app and agent as
+  one release, and every pi-guard fetches new signed versions every 6 hours for its devices. Files whose signature,
+  checksum or version do not match are refused. The keys stay on the owner's computer, so a broken-into GitHub account
+  cannot sign anything.
 - The code word can have a hint, shown at login after the password.
 - Expert view: a test message through every messenger that is set up, not only Discord, email and Signal.
 - Person events in the dashboard say who was recognised, or why nobody could be named.
