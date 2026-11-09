@@ -195,3 +195,27 @@ The assistant loses its stored knowledge, the language add-on its translations. 
 The assistant page shows tokens per day and month. Enter the prices of your model from your provider's price list to see
 them in euros or dollars, and your budget to see what is left. Providers do not tell a normal API key its balance, so
 this is counted by pi-guard and leaves out speech; your provider's bill is what counts.
+
+## Emergency data
+
+Medical information of the people at home, for when help comes: blood type, allergies, illnesses and diagnoses,
+medicines and the medication plan, implants such as a pacemaker, organ donor card, people to call, doctor and health
+insurance. All but the name are optional.
+
+Health data are a special category under Art. 9 GDPR, so:
+
+- Each record is encrypted with AES-256-GCM in its own database (`DATA_DIR/medical.db`) with its own key
+  (`DATA_DIR/medical.key`), both readable by the service only. Deleted records are overwritten. This protects a copied
+  file; the running Pi can read them, as it must to show them.
+- Only admins see, change or share them, and each time with their password. Viewers never see them.
+- Every look, change, link, opened link and wrong PIN goes into the audit log, with the record's number, never its
+  content.
+- Nothing of it goes into chats, push messages or MQTT. It is part of the data export.
+
+**Rescue link:** *Rescue link* makes a link to one person's sheet, valid for 15, 30 or 60 minutes, read only. By
+default it also asks for a six-digit PIN: tell it by phone, not in the same message as the link. Five wrong PINs end
+the link, and *End now* ends it at once. The page puts what can harm the person first (allergies, illnesses,
+medicines, implants), works without a login and loads nothing from elsewhere, and can be printed. Only hashes of
+link and PIN are stored.
+
+Ask the people you add: these are their data.

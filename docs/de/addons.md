@@ -55,3 +55,20 @@ versteht es ohne KI.
 **MQTT selbst bereitstellen:** `sudo ./scripts/mqtt.sh setup` installiert Mosquitto mit Passwort.
 
 Details: [addons.md](../addons.md).
+
+**Notfalldaten:** Medizinische Angaben der Menschen im Haus für den Notfall: Blutgruppe, Allergien, Erkrankungen,
+Medikamente und Medikamentenplan, Implantate wie ein Herzschrittmacher, Organspendeausweis, anzurufende Personen,
+Hausarzt und Krankenkasse. Bis auf den Namen ist alles freiwillig.
+
+- Verschlüsselt (AES-256-GCM) in einer eigenen Datenbank mit eigenem Schlüssel, nur für den Dienst lesbar; Gelöschtes
+  wird überschrieben.
+- Nur Admins sehen, ändern oder teilen sie, und jedes Mal mit ihrem Passwort. Zuschauer sehen sie nie.
+- Jeder Blick, jede Änderung, jeder Link, jedes Öffnen und jede falsche PIN steht im Protokoll, mit der Nummer des
+  Eintrags, nie mit dem Inhalt.
+- Nichts davon geht in Chats, Push-Nachrichten oder MQTT. Es ist Teil des Datenexports.
+
+**Notfall-Link:** zeigt das Blatt einer Person 15, 30 oder 60 Minuten lang, nur lesend, ohne Anmeldung. Standardmäßig
+zusätzlich mit sechsstelliger PIN: Sag sie am Telefon, nicht in derselben Nachricht wie den Link. Fünf falsche PINs
+beenden den Link, *Jetzt beenden* sofort. Was der Person schaden kann, steht ganz oben; die Seite lässt sich drucken.
+
+Frag die Menschen, die du einträgst: Es sind ihre Daten.

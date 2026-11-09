@@ -69,6 +69,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Emergency data add-on: medical information of the people at home, encrypted in its own database, seen and changed
+  only by admins with their password each time, every access audited. A rescue link shows one person's sheet for 15 to
+  60 minutes, by default only with a six-digit PIN that five wrong tries end; it puts allergies, illnesses, medicines
+  and implants first and can be printed.
 - Backups to Nextcloud, over rsync or into Borg, daily or weekly. Configuration, databases (copied with SQLite's backup),
   keys and face prints leave the Pi only encrypted with the backup passphrase (AES-256-GCM in sealed pieces, so a cut or
   changed backup does not decrypt). `pi-guard backup restore` unpacks into a folder without replacing anything.

@@ -216,6 +216,7 @@ class Dashboard:
             api_live,
             api_login,
             api_manage,
+            api_medical,
             api_mobile,
             api_network,
             api_security,
@@ -244,7 +245,7 @@ class Dashboard:
         webapp.router.add_post("/api/logout", self._logout)
         for module in (api_account, api_addons, api_agents, api_core, api_export, api_login,
                        api_live, api_manage, api_network, api_security, api_system,
-                       api_mobile, api_tools, api_updates, api_v1):  # fmt: skip
+                       api_medical, api_mobile, api_tools, api_updates, api_v1):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
             sub = web.Application()
@@ -325,7 +326,7 @@ class Dashboard:
         if (
             not path.startswith("/api/")
             or path in PUBLIC
-            or path.startswith(("/api/i18n/", "/api/updates/"))
+            or path.startswith(("/api/i18n/", "/api/updates/", "/api/emergency/"))
         ):
             return await handler(request)
         bearer = request.headers.get("Authorization", "")

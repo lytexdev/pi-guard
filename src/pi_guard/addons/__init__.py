@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from pi_guard.addons.commander import Commander
     from pi_guard.addons.heartbeat import HeartbeatWatcher
     from pi_guard.addons.jobs import Jobs
+    from pi_guard.addons.medical import MedicalRecords
     from pi_guard.addons.remote import RemoteActions
     from pi_guard.addons.smarthome import SmartHome
     from pi_guard.app import App
@@ -77,6 +78,11 @@ class Addons:
 
             self.agents = AgentHub(app.db)
         self.languages = settings.languages.enabled
+        self.medical: MedicalRecords | None = None
+        if settings.medical.enabled:
+            from pi_guard.addons.medical import MedicalRecords
+
+            self.medical = MedicalRecords(s.data_dir)
         self.jobs: Jobs | None = None
         self.commander: Commander | None = None
         if self.assistant is not None:

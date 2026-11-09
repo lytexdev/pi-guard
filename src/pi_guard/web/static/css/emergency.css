@@ -1,0 +1,20 @@
+/* The rescuer's page: plain, large, readable in sunlight and on paper. */
+:root { --bg: #fff; --text: #111; --muted: #555; --line: #ccc; --alert: #b42318; --accent: #0b5cad; }
+@media (prefers-color-scheme: dark) { :root { --bg: #111; --text: #f2f2f2; --muted: #aaa; --line: #333; --alert: #ff6b5e; --accent: #5cb3ff; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 18px/1.5 system-ui, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+.muted { color: var(--muted); }
+.alert { border-left: 6px solid var(--alert); padding: 10px 14px; margin: 14px 0; background: color-mix(in srgb, var(--alert) 10%, transparent); }
+.alert p { margin: 0; white-space: pre-line; }
+.alert h2 { color: var(--alert); margin: 0 0 4px; font-size: 1.1rem; text-transform: uppercase; letter-spacing: .04em; }
+dl { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr); gap: 6px 14px; margin: 14px 0; }
+dt { font-weight: 600; overflow-wrap: anywhere; hyphens: auto; } dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+section { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 12px; }
+section h2 { font-size: 1.1rem; margin: 0 0 4px; } section p { margin: 0; white-space: pre-line; }
+form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+input { font: inherit; font-size: 1.6rem; letter-spacing: .3em; width: 9ch; padding: 6px 10px; border: 2px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); }
+button { font: inherit; padding: 8px 18px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+footer { margin-top: 24px; font-size: .85rem; }
+@media print { button, form, footer .noprint { display: none; } body { font-size: 12pt; } }
