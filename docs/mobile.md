@@ -32,6 +32,10 @@ app* and its token stops working at once.
 - **Find a phone:** from *Add-ons → Mobile app* or `/findphone name` in chat. It rings at full volume and
   vibrates. Location, map and details are only sent if the phone's owner switched on *Share location*. The phone
   shows that someone is looking for it. The Pi fetches map tiles from OpenStreetMap, and only when someone opens the map.
+- **Place link:** *Place link* asks the phone for its place right now, without ringing, and shows a link with how exact
+  it is (± metres), to open, copy or share. Indoors a phone may have no GPS fix; then nothing new comes. The link opens
+  in the map chosen as *Map for places* (`PI_GUARD_MAP_PROVIDER`): OpenStreetMap, Google Maps, Apple Maps, Bing, HERE,
+  or the map app of the device. That map's company learns the place only when someone opens the link.
 - **VPN options:** on the VPN screen, *Apps past the VPN* is split tunneling, *Connect automatically* connects whenever
   pi-guard cannot be reached directly. Kill switch and lockdown are Android's own always-on VPN with *Block connections
   without VPN*, which is the most reliable place for them: the system itself blocks everything past the tunnel.

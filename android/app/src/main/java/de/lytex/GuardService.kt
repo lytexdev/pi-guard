@@ -161,6 +161,8 @@ class GuardService : Service() {
     private fun received(message: JSONObject) {
         when (message.optString("type")) {
             "alert" -> showAlert(message)
+            // A fresh place for a map link, without ringing; only if this phone shares it.
+            "locate" -> work.execute { runCatching { send(Locator.report(this, store.shareLocation)) } }
             "find" -> if (message.optBoolean("ring")) {
                 main.post(::ring)
                 // The owner decides: the phone rings either way, its location only goes out if shared.

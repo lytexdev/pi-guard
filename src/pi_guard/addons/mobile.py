@@ -65,13 +65,23 @@ def clean_report(raw: Any) -> dict[str, Any]:
     return report
 
 
-def map_link(report: dict[str, Any]) -> str | None:
+# Where a place opens. "geo" is the map app of the device that opens the link.
+MAP_PROVIDERS = {
+    "openstreetmap": "https://www.openstreetmap.org/?mlat={lat}&mlon={lon}#map=18/{lat}/{lon}",
+    "google": "https://www.google.com/maps/search/?api=1&query={lat},{lon}",
+    "apple": "https://maps.apple.com/?ll={lat},{lon}&q={lat},{lon}&z=18",
+    "bing": "https://www.bing.com/maps?cp={lat}~{lon}&lvl=18&sp=point.{lat}_{lon}_",
+    "here": "https://wego.here.com/?map={lat},{lon},18",
+    "geo": "geo:{lat},{lon}?q={lat},{lon}",
+}
+
+
+def map_link(report: dict[str, Any], provider: str = "openstreetmap") -> str | None:
     if "latitude" not in report or "longitude" not in report:
         return None
-    lat, lon = report["latitude"], report["longitude"]
-    return (
-        f"https://www.openstreetmap.org/?mlat={lat:.6f}&mlon={lon:.6f}#map=17/{lat:.6f}/{lon:.6f}"
-    )
+    pattern = MAP_PROVIDERS.get(provider, MAP_PROVIDERS["openstreetmap"])
+    # Six decimals are about 10 cm: as exact as any phone can be.
+    return pattern.format(lat=f"{report['latitude']:.6f}", lon=f"{report['longitude']:.6f}")
 
 
 class MobileHub:

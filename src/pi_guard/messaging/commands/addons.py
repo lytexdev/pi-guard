@@ -306,7 +306,7 @@ async def find_phone(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     except ProviderUnavailableError:
         lines.append(ctx.t("mobile.offline", name=device["name"]))
     ctx.app.db.audit(ctx.user.key, "mobile.find", str(device["id"]))
-    link = map_link(device["info"])
+    link = map_link(device["info"], ctx.app.settings.map_provider)
     if link:
         lines.append(ctx.t("mobile.last_place", link=link))
     if "battery" in device["info"]:

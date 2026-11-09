@@ -29,6 +29,30 @@ function mapOf(info) {
   return box;
 }
 
+// A fresh place from the phone, then a link to it in the chosen map. Waits up to 30 seconds.
+async function placeLink(device, place) {
+  const before = device.info.located_at || "";
+  if (!await attempt(() => api(`/api/mobile/devices/${device.id}/locate`, { method: "POST" }))) return;
+  fill(place, h("p", { class: "muted" }, t("web.mob_locating")));
+  for (let i = 0; i < 15; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (!place.isConnected) return;
+    const now = (await api("/api/mobile/devices").catch(() => ({ devices: [] }))).devices.find((d) => d.id === device.id);
+    if (now?.map && (now.info.located_at || "") > before) {
+      const accuracy = now.info.accuracy != null ? t("web.mob_accuracy", { meters: Math.round(now.info.accuracy) }) : "";
+      const link = h("input", { class: "mono", readonly: true, value: now.map, "aria-label": t("web.mob_place_link") });
+      fill(place, h("div", { class: "stack tight" },
+        h("small", {}, [when(now.info.located_at), accuracy].filter(Boolean).join(" · ")), link,
+        h("div", { class: "row" },
+          h("a", { class: "button primary", href: now.map, target: "_blank", rel: "noopener" }, icon("world"), t("web.mob_open")),
+          h("button", { onclick: async () => { try { await navigator.clipboard.writeText(now.map); toast(t("web.copied")); } catch { link.select(); } } }, icon("copy"), t("web.copy")),
+          navigator.share ? h("button", { onclick: () => navigator.share({ title: device.name, url: now.map }).catch(() => {}) }, icon("upload"), t("web.share")) : null)));
+      return;
+    }
+  }
+  fill(place, h("p", { class: "notice" }, t("web.mob_no_place")));
+}
+
 function card(device, draw) {
   const info = device.info;
   const place = h("div", { class: "stack tight" });
@@ -38,7 +62,8 @@ function card(device, draw) {
       h("small", { class: "block" }, device.last_seen ? t("web.last_used", { time: when(device.last_seen) }) : t("web.never_used")), facts ? h("small", { class: "block" }, facts) : null),
     h("button", { title: t("web.mob_find_tip"), disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/find`, { method: "POST" }), t("web.mob_ringing")) }, icon("bell-ringing"), t("web.mob_find")),
     h("button", { class: "ghost", disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/stop`, { method: "POST" })) }, t("web.mob_stop")),
-    info.latitude != null ? h("button", { class: "icon-only", title: t("web.mob_map_tip"), onclick: () => fill(place, mapOf(info), h("a", { href: device.map, target: "_blank", rel: "noopener" }, t("web.mob_open_map")), info.located_at ? h("small", { class: "muted" }, when(info.located_at)) : null) }, icon("world")) : null,
+    h("button", { title: t("web.mob_place_tip"), disabled: !device.online, onclick: () => placeLink(device, place) }, icon("map-pin"), t("web.mob_place_link")),
+    info.latitude != null ? h("button", { class: "icon-only", title: t("web.mob_map_tip"), onclick: () => fill(place, mapOf(info), h("a", { href: device.map, target: "_blank", rel: "noopener" }, t("web.mob_open")), info.located_at ? h("small", { class: "muted" }, when(info.located_at)) : null) }, icon("world")) : null,
     h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
       if (await confirmDialog(t("web.mob_remove", { name: device.name }), t("web.delete"), true) && await attempt(() => api(`/api/mobile/devices/${device.id}`, { method: "DELETE" }), t("web.deleted"))) draw();
     } }, icon("trash")), place);

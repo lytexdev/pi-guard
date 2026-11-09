@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import zipfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -702,6 +703,39 @@ async def test_an_alert_button_on_the_phone(tmp_path: Path) -> None:
         assert bad.status == 400
         nobody = await client.post("/api/mobile/action", json={"action": "ack"})
         assert nobody.status == 401
+    finally:
+        await client.close()
+        app.db.close()
+
+
+@pytest.mark.parametrize(
+    ("provider", "part"),
+    [("openstreetmap", "openstreetmap.org/?mlat=52.516300&mlon=13.377700"),
+     ("google", "google.com/maps/search/?api=1&query=52.516300,13.377700"),
+     ("apple", "maps.apple.com/?ll=52.516300,13.377700"),
+     ("geo", "geo:52.516300,13.377700"),
+     ("nonsense", "openstreetmap.org")],
+)  # fmt: skip
+def test_a_place_opens_in_the_chosen_map(provider: str, part: str) -> None:
+    from pi_guard.addons.mobile import map_link
+
+    assert part in (map_link({"latitude": 52.5163, "longitude": 13.3777}, provider) or "")
+
+
+async def test_a_phone_is_asked_for_its_place_without_ringing(tmp_path: Path) -> None:
+    client, app, headers, _ = await _paired(tmp_path)
+    try:
+        device_id = (await (await client.get("/api/mobile/devices")).json())["devices"][0]["id"]
+        offline = await client.post(f"/api/mobile/devices/{device_id}/locate", headers=headers)
+        assert offline.status == 409  # not connected
+        received: list[str] = []
+
+        async def phone(text: str) -> None:
+            received.append(text)
+
+        app.mobile.attach(device_id, phone)
+        asked = await client.post(f"/api/mobile/devices/{device_id}/locate", headers=headers)
+        assert asked.status == 200 and json.loads(received[0]) == {"type": "locate"}  # no ring
     finally:
         await client.close()
         app.db.close()

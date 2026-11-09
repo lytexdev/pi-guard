@@ -31,6 +31,11 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
   vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
   zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
+- **Standort-Link:** *Standort-Link* fragt das Handy sofort nach seinem Standort, ohne Klingeln, und zeigt einen Link mit
+  der Genauigkeit (± Meter) zum Öffnen, Kopieren oder Teilen. Drinnen hat ein Handy manchmal kein GPS; dann kommt nichts
+  Neues. Der Link öffnet die Karte, die unter *Karte für Standorte* (`PI_GUARD_MAP_PROVIDER`) gewählt ist: OpenStreetMap,
+  Google Maps, Apple Karten, Bing, HERE oder die Karten-App des Geräts. Der Kartenanbieter erfährt den Ort erst, wenn
+  jemand den Link öffnet.
 - **VPN-Optionen:** Auf dem VPN-Bildschirm ist *Apps am VPN vorbei* das Split-Tunneling, *Automatisch verbinden* verbindet,
   sobald pi-guard nicht direkt erreichbar ist. Kill Switch und Lockdown sind Androids „Durchgehend aktives VPN“ mit
   „Verbindungen ohne VPN blockieren“: Das System selbst sperrt dann alles, was am Tunnel vorbei ginge.

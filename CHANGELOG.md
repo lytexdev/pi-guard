@@ -66,6 +66,8 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- *Place link* for a phone: asks it for its place now, without ringing, and shows a link with its accuracy to open,
+  copy or share. The map is a setting: OpenStreetMap, Google Maps, Apple Maps, Bing, HERE or the device's map app.
 - Alerts have buttons: *All fine* and *Sound alarm*, under each alert in the phone app and in browser push
   notifications, for admins. A push notification carries a token for one tap that is valid for an hour.
 - The phone app asks for its PIN on a number pad with dots, and a new PIN is typed twice.

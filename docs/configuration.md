@@ -28,6 +28,7 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 |---|---|---|
 | `LANGUAGE` | `en` | `en` or `de`; default for users who have not chosen one |
 | `TIMEZONE` | `Europe/Berlin` | used for messages, quiet hours, schedules |
+| `MAP_PROVIDER` | `openstreetmap` | where a phone's place opens: `openstreetmap`, `google`, `apple`, `bing`, `here`, or `geo` for the device's map app |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `LOG_FORMAT` | `text` | `json` for one JSON object per line |
 | `LOG_FILE` | – | optional rotating log file (journald is used anyway) |

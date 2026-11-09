@@ -7,9 +7,10 @@ only shows whether they are set.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, get_args
 from zoneinfo import available_timezones
 
+from pi_guard.config.settings import MapProvider
 from pi_guard.i18n import LANGUAGES
 
 
@@ -29,6 +30,7 @@ TIMEZONES = tuple(sorted(z for z in available_timezones() if "/" in z or z == "U
 FIELDS = (
     Field("language", "general", "language"),
     Field("timezone", "general", "choice", options=TIMEZONES),
+    Field("map_provider", "general", "choice", options=get_args(MapProvider)),
     Field("log_level", "general", "choice", options=("DEBUG", "INFO", "WARNING", "ERROR")),
     Field("recording_enabled", "recording", "bool"),
     Field("recording_continuous", "recording", "bool"),

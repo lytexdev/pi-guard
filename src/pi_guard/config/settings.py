@@ -18,6 +18,7 @@ _PHONE_RE = re.compile(r"^\+[1-9]\d{6,14}$")
 
 IntList = Annotated[list[int], NoDecode]
 StrList = Annotated[list[str], NoDecode]
+MapProvider = Literal["openstreetmap", "google", "apple", "bing", "here", "geo"]
 
 
 def _split(value: object) -> object:
@@ -36,6 +37,8 @@ class Settings(BaseSettings):
 
     language: str = Field("en", pattern=r"^[a-z]{2}(-[a-z]{2})?$")
     timezone: str = "Europe/Berlin"
+    # Which map a phone's place opens in, see MAP_PROVIDERS in addons/mobile.py.
+    map_provider: MapProvider = "openstreetmap"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["text", "json"] = "text"
     log_file: Path | None = None
