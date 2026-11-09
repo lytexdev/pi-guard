@@ -95,6 +95,10 @@ class Store(context: Context) {
     var shareLocation: Boolean
         get() = prefs.getBoolean("location", false)
         set(value) = prefs.edit().putBoolean("location", value).apply()
+    /** After an SOS, photos and a sound clip for the contacts. Off until the person says yes. */
+    var sosMedia: Boolean
+        get() = prefs.getBoolean("sos_media", false)
+        set(value) = prefs.edit().putBoolean("sos_media", value).apply()
     /** Help the project: both off until the person says yes, at setup or in the settings. */
     var shareCrashes: Boolean
         get() = prefs.getBoolean("share_crashes", false)

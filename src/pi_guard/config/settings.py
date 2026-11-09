@@ -64,6 +64,8 @@ class Settings(BaseSettings):
 
     # Phones with the pi-guard app (see docs/mobile.md)
     mobile_enabled: bool = True
+    # After an SOS from a phone, the Pi's microphone records a short clip for the contacts.
+    mobile_sos_home_audio: bool = False
 
     # Email (optional, alerts and exports only; see docs/email.md)
     email_enabled: bool = False

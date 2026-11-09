@@ -61,6 +61,7 @@ FIELDS = (
     Field("discord_admin_user_ids", "discord", "list"),
     Field("discord_viewer_user_ids", "discord", "list"),
     Field("mobile_enabled", "mobile", "bool"),
+    Field("mobile_sos_home_audio", "mobile", "bool"),
     Field("email_enabled", "email", "bool"),
     Field("email_host", "email", "text"),
     Field("email_port", "email", "int", 1, 65535),

@@ -530,6 +530,10 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .phone-map .pin { position: absolute; width: 14px; height: 14px; margin: -7px; border-radius: 50%; background: var(--danger); border: 2px solid #fff; }
 .phone-map small { position: absolute; right: 4px; bottom: 2px; background: rgba(255, 255, 255, .8); color: #111; padding: 0 4px; }
 .phone-card { flex-wrap: wrap; }
+.phone-card > .grow { flex: 1 1 14rem; min-width: 12rem; }
+.phone-card > .phone-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.phone-card > .phone-place { flex-basis: 100%; }
+.phone-card > .phone-place:empty { display: none; }
 
 /* Tables turn into stacked rows on a phone: nothing to scroll sideways. */
 @media (max-width: 600px) {

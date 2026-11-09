@@ -51,7 +51,8 @@ PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.c
           "/api/mobile/session", "/api/mobile/ws", "/api/mobile/report", "/api/mobile/action",
           "/api/mobile/crash",
           "/api/push/action",
-          "/api/mobile/emergency", "/api/mobile/calendar", "/api/mobile/vpn", "/api/mobile/reach",
+          "/api/mobile/emergency", "/api/mobile/emergency/media", "/api/mobile/emergency/end",
+          "/api/mobile/calendar", "/api/mobile/vpn", "/api/mobile/reach",
           "/api/mobile/vpn/pq",
           "/api/mobile/app/latest", "/api/mobile/app/apk"}  # fmt: skip
 # Reachable while the default password has not been changed yet.

@@ -5,6 +5,7 @@
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center" android:text="@string/emergency_title" android:textColor="#FFFFFF" android:textSize="30sp" android:textStyle="bold" />
     <TextView android:id="@+id/count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:gravity="center" android:textColor="#FFFFFF" android:textSize="20sp" />
     <Button android:id="@+id/cancel" android:layout_width="match_parent" android:layout_height="160dp" android:layout_marginTop="32dp" android:text="@string/emergency_cancel" android:textColor="@color/emergency" android:textSize="24sp" android:textStyle="bold" app:backgroundTint="#FFFFFF" app:cornerRadius="16dp" app:icon="@drawable/ic_x" app:iconSize="28dp" app:iconTint="@color/emergency" />
+    <Button android:id="@+id/safe" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/sos_safe" android:textColor="@color/emergency" android:visibility="gone" app:backgroundTint="#FFFFFF" app:cornerRadius="16dp" />
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:gravity="center" android:text="@string/emergency_note" android:textColor="#FFFFFF" />
 </LinearLayout>
 </FrameLayout>

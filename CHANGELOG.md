@@ -8,6 +8,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- After an SOS the phone sends its place every minute for 30 minutes, for admins to follow in the dashboard, until
+  *I am safe*. Opt-in: photos from both cameras and 20 seconds of sound from the phone, and 20 seconds from the Pi's
+  microphone, for the emergency contacts and admins.
+- Phones can be reported lost in the dashboard, with the password: the phone shows it and sends its place every
+  minute until *Found*, which deletes the track.
 - Optional privacy upstream on the Pi: multi-hop exit (custom WireGuard or Mullvad), DNS privacy
   modes, Pi-side kill switch, Tor when installed, privacy profiles and diagnostics under
   Network › VPN. Off by default; `sudo ./scripts/privacy-server.sh install` once. AmneziaWG,

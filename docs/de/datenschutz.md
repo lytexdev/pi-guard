@@ -107,6 +107,13 @@ SOS schickt den Standort an die Notfallkontakte, auch über ihre Messenger. Dazu
 vier): Notfallkontakte sehen in diesem Moment also ins Haus. Kartenkacheln holt der Pi, wenn jemand eine Karte öffnet;
 OpenStreetMap erfährt dadurch ungefähr, wo das Handy ist, aber nicht, wer schaut.
 
+Nach einem SOS und solange ein Handy als vermisst gemeldet ist, werden seine Standorte als Spur in `pi-guard.db`
+gespeichert: 30 Minuten nach einem SOS, bei einem vermissten Handy bis *Gefunden*, und nie länger als 7 Tage. *Ich bin in
+Sicherheit*, *Gefunden* und das Entfernen des Handys löschen die Spur. Ein Handy als vermisst zu melden braucht das
+Passwort des Admins, steht im Audit-Log, und das Handy zeigt es auf seinem Bildschirm an. Fotos und Ton nach einem SOS
+schaltet man auf dem Handy ein, Ton vom Mikrofon des Pi im Dashboard; beides geht an Notfallkontakte und Admins und wird
+nicht gespeichert.
+
 ## Vertraute Personen
 
 Pro Bild werden neben den 128 Zahlen auch Blickrichtung und Helligkeit gespeichert, nicht das Bild selbst.

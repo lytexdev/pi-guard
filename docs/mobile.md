@@ -50,6 +50,21 @@ app* and its token stops working at once.
 - **SOS:** one tap starts a 10-second countdown; tapping again cancels. Then all emergency contacts and admins
   get a message with location, mode, battery and network, and a current picture of each camera. **This does not replace 112.** It needs a connection
   to pi-guard, and pi-guard must be running.
+  - For 30 minutes after an SOS the phone sends its place every minute, and admins follow it under *Add-ons → Mobile app
+    → Places*. *I am safe*, on the emergency screen or in the notification, ends it and tells everyone; the places are
+    then deleted.
+  - With *App settings → Photos and sound after an SOS* (off by default), both cameras take a photo and the
+    microphone records 20 seconds while the emergency screen is open. They go to the emergency contacts and admins
+    and are not kept on the phone or the Pi. Sound arrives through Telegram and WhatsApp; other messengers get the
+    words only. Android lets an app use camera and microphone only while it is in front, so nothing is taken in the
+    background.
+  - *Record the microphone at home after an SOS* in the dashboard's phone settings (off by default) adds 20 seconds
+    from the Pi's microphone. It needs microphone recording and plays the same chime as listening live.
+- **Lost phone:** *Report lost* on the phone's card asks for your password and an optional text for its screen. The
+  phone then shows that it is reported lost and sends its place every minute until someone taps *Found*, which
+  deletes the places. Only the dashboard ends this, not the phone: whoever holds it may not be its owner. The
+  places come only if *Share location* is on, so switch it on before a phone goes missing. Places are kept for at
+  most 7 days.
 - **Call:** on the Live page, *Call* streams your microphone to the speaker while you hear the camera. It also
   works in a normal browser. Expect a delay of a second or two.
 - **Calendar:** with *Away during calendar entries*, busy entries for the next 14 days count as away, even if

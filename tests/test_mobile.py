@@ -739,3 +739,162 @@ async def test_a_phone_is_asked_for_its_place_without_ringing(tmp_path: Path) ->
     finally:
         await client.close()
         app.db.close()
+
+
+async def _sos_files(tmp_path: Path, monkeypatch: Any) -> tuple[Any, Any, Any, list[Reply]]:
+    client, app, headers, bearer = await _paired(tmp_path)
+    sent: list[Reply] = []
+
+    async def send(_: str, __: str, reply: Reply) -> None:
+        assert (reply.photo or reply.audio or tmp_path).exists()  # still there while sending
+        sent.append(reply)
+
+    async def admins(*_: Any, **__: Any) -> None:
+        return None
+
+    app.providers["signal"] = object()
+    app.cameras.clear()
+    monkeypatch.setattr(app.escalation, "contacts", [("signal", "+49")], raising=False)
+    monkeypatch.setattr(app.messenger, "send", send)
+    monkeypatch.setattr(app.messenger, "notify_admins", admins)
+    return client, app, (headers, bearer), sent
+
+
+async def test_the_phone_sends_photo_and_sound_only_during_its_emergency(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, app, (_, bearer), sent = await _sos_files(tmp_path, monkeypatch)
+    photo = b"\xff\xd8\xff\xe0" + b"0" * 100
+    sound = b"\x00\x00\x00\x18ftypM4A " + b"0" * 100
+    url = "/api/mobile/emergency/media"
+    try:
+        before = await client.post(f"{url}?kind=photo", data=photo, headers=bearer)
+        assert before.status == 409  # no emergency, no upload
+        await client.post("/api/mobile/emergency", json={}, headers=bearer)
+        sent.clear()
+        assert (await client.post(f"{url}?kind=photo", data=photo, headers=bearer)).status == 200
+        assert (await client.post(f"{url}?kind=audio", data=sound, headers=bearer)).status == 200
+        assert sent[0].photo is not None and sent[1].audio is not None
+        assert sent[0].tone == "alert"
+        assert not sent[0].photo.exists()  # nothing of it stays on the Pi
+        wrong = await client.post(f"{url}?kind=photo", data=sound, headers=bearer)
+        assert wrong.status == 400
+        for _ in range(4):
+            await client.post(f"{url}?kind=photo", data=photo, headers=bearer)
+        assert (await client.post(f"{url}?kind=photo", data=photo, headers=bearer)).status == 429
+        assert (await client.post(f"{url}?kind=photo", data=photo)).status == 401
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_places_are_kept_during_an_emergency_and_deleted_after(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, app, (headers, bearer), sent = await _sos_files(tmp_path, monkeypatch)
+    try:
+        place = {"latitude": 52.5, "longitude": 13.4, "accuracy": 9.0}
+        await client.post("/api/mobile/report", json=place, headers=bearer)
+        assert app.mobile.track(1) == []  # no emergency: only the last place
+        body = await (await client.post("/api/mobile/emergency", json=place, headers=bearer)).json()
+        assert body["track_minutes"] == 30
+        await client.post("/api/mobile/report", json={**place, "latitude": 52.6}, headers=bearer)
+        track = await (await client.get("/api/mobile/devices/1/track", headers=headers)).json()
+        assert [p["latitude"] for p in track["track"]] == [52.6, 52.5]
+        assert track["state"]["kind"] == "emergency" and "openstreetmap" in track["track"][0]["map"]
+        listed = await (await client.get("/api/mobile/devices", headers=headers)).json()
+        assert listed["devices"][0]["tracking"]["kind"] == "emergency"
+        sent.clear()
+        assert (await client.post("/api/mobile/emergency/end", headers=bearer)).status == 200
+        assert "safe" in sent[0].text
+        assert app.mobile.track(1) == [] and not app.mobile.tracking(1)
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_an_emergency_track_ends_on_its_own(db: Any) -> None:
+    hub = MobileHub(db)
+    device, _ = hub.create("Handy", "android", "admin")
+    hub.start(device, "emergency")
+    assert hub.tracking(device)
+    state = db.get("mobile.tracking")
+    state[str(device)]["since"] = (datetime.now(UTC) - timedelta(minutes=31)).isoformat()
+    db.set("mobile.tracking", state)
+    assert not hub.tracking(device) and hub.states() == {}
+    hub.report(device, {"latitude": 1.0, "longitude": 2.0})
+    assert hub.track(device) == []
+
+
+async def test_a_lost_phone_needs_the_password_and_learns_it_when_online(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, app, (headers, bearer), _ = await _sos_files(tmp_path, monkeypatch)
+    url = "/api/mobile/devices/1/lost"
+    try:
+        wrong = await client.post(url, json={"password": "nope"}, headers=headers)
+        assert wrong.status == 403 and not app.mobile.tracking(1)
+        body = {"password": PASSWORD, "message": "Bitte  anrufen:\n 0170"}
+        assert (await client.post(url, json=body, headers=headers)).status == 200
+        socket = await client.ws_connect("/api/mobile/ws", headers=bearer)
+        message = await socket.receive_json()
+        assert message == {"type": "lost", "message": "Bitte anrufen: 0170", "every": 60}
+        await client.post("/api/mobile/report", json={"latitude": 1.0, "longitude": 2.0},
+                          headers=bearer)  # fmt: skip
+        assert len(app.mobile.track(1)) == 1
+        # The phone cannot end its own search: whoever holds it may not be its owner.
+        assert (await client.post("/api/mobile/emergency/end", headers=bearer)).status == 409
+        assert (await client.post("/api/mobile/devices/1/found", headers=headers)).status == 200
+        assert (await socket.receive_json()) == {"type": "found"}
+        assert app.mobile.track(1) == [] and not app.mobile.tracking(1)
+        await socket.close()
+        missing = await client.post("/api/mobile/devices/9/lost", json=body, headers=headers)
+        assert missing.status == 404
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_removing_a_phone_deletes_its_track(db: Any) -> None:
+    hub = MobileHub(db)
+    device, _ = hub.create("Handy", "android", "admin")
+    hub.start(device, "lost")
+    hub.report(device, {"latitude": 1.0, "longitude": 2.0})
+    hub.delete(device)
+    assert hub.track(device) == [] and hub.states() == {}
+
+
+async def test_the_home_microphone_records_a_clip_after_an_sos(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import asyncio
+
+    from pi_guard.cameras.live import AudioFanout
+    from pi_guard.web import api_mobile
+
+    sent: list[tuple[str, bytes]] = []
+
+    async def everyone(_: Any, text: str, photo: Any = None, audio: Any = None) -> int:
+        sent.append((text, audio.read_bytes()))
+        return 1
+
+    fanout = AudioFanout()
+    camera = SimpleNamespace(microphone="hw:1", segment_dir=tmp_path, live_fps=5, live_audio=fanout)
+    sounds = SimpleNamespace(path=lambda _: None)
+    audio = SimpleNamespace(recording_enabled=False, playback_enabled=False, sounds=sounds)
+    settings = SimpleNamespace(language="en")
+    db = SimpleNamespace(audit=lambda *_: None)
+    app = SimpleNamespace(audio=audio, cameras={"flur": camera}, settings=settings, db=db)
+    d = SimpleNamespace(app=app, microphones={})
+    monkeypatch.setattr(api_mobile, "HOME_CLIP_SECONDS", 0.2)
+    monkeypatch.setattr(api_mobile, "_to_everyone", everyone)
+    await api_mobile._home_clip(d, "Handy")
+    assert sent == []  # microphone recording is off: nothing is recorded
+    audio.recording_enabled = True
+    job = asyncio.create_task(api_mobile._home_clip(d, "Handy"))
+    await asyncio.sleep(0.05)
+    fanout.publish(b"mp3-1")
+    fanout.publish(b"mp3-2")
+    await job
+    assert sent == [(sent[0][0], b"mp3-1mp3-2")] and "Handy" in sent[0][0]
+    assert fanout.listeners == 0

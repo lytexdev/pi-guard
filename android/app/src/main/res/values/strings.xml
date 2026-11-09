@@ -130,4 +130,13 @@
     <string name="find_stop">Stop</string>
     <string name="alert_title">pi-guard alert</string>
     <string name="back">Back</string>
+    <string name="sos_media">Photos and sound after an SOS</string>
+    <string name="sos_media_hint">While the emergency screen is open, both cameras take a photo and the microphone records 20 seconds. They go to your emergency contacts and the admins, nothing stays on the phone.</string>
+    <string name="sos_taking">Taking photos and recording sound… %d s</string>
+    <string name="sos_safe">I am safe</string>
+    <string name="sos_tracking">For 30 minutes this phone sends its place to pi-guard every minute, for the admins to follow.</string>
+    <string name="sos_tracking_title">Emergency: your place is shared</string>
+    <string name="lost_title">This phone is reported lost</string>
+    <string name="lost_text">Its place goes to pi-guard every minute until it is found.</string>
+    <string name="channel_emergency">Emergency and lost phone</string>
 </resources>

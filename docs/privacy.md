@@ -205,6 +205,12 @@ location to the emergency contacts, also through their messengers. It also sends
 to four) to them, so whoever is an emergency contact can see inside the home in that moment. Map tiles are fetched by
 the Pi when someone opens a map, which tells OpenStreetMap roughly where the phone is, but not who is looking.
 
+After an SOS, and while a phone is reported lost, its places are kept as a track in `pi-guard.db`: for 30 minutes
+after an SOS, until *Found* for a lost phone, and never longer than 7 days. *I am safe*, *Found* and removing the
+phone delete the track. Reporting a phone lost needs the admin's password, is written to the audit log, and the
+phone shows it on its screen. Photos and sound after an SOS are opt-in on the phone, and sound from the Pi's
+microphone is opt-in in the dashboard; both are passed on to the emergency contacts and admins and not stored.
+
 ## Calendars
 
 Calendar links (Google, Proton and others) work like passwords: they stay on the Pi, are never shown again, logged or

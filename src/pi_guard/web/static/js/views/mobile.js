@@ -1,5 +1,5 @@
 // Phones with the app: finding them, where they are, and the app itself for updates.
-import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when, whileShown } from "../api.js";
 
 const ZOOM = 16;
 const TILE = "/api/mobile/map"; // through the Pi, see map_tile
@@ -53,20 +53,54 @@ async function placeLink(device, place) {
   fill(place, h("p", { class: "notice" }, t("web.mob_no_place")));
 }
 
+// The places of a lost phone or of an emergency, newest first, refreshed while shown.
+async function trackOf(device, place) {
+  const box = h("div", { class: "stack tight", "aria-live": "polite" });
+  fill(place, box);
+  const draw = async () => {
+    const data = await api(`/api/mobile/devices/${device.id}/track`).catch(() => null);
+    if (!box.isConnected || !data) return;
+    const points = data.track;
+    fill(box, points.length ? [mapOf(points[0]),
+      h("ol", { class: "list" }, points.slice(0, 30).map((p) => h("li", {},
+        h("a", { href: p.map, target: "_blank", rel: "noopener" }, when(p.time)),
+        p.accuracy != null ? h("small", { class: "muted" }, " · ", t("web.mob_accuracy", { meters: Math.round(p.accuracy) })) : null)))]
+      : h("p", { class: "muted" }, t("web.mob_track_empty")));
+    if (data.state) whileShown(box, draw, 30000);
+  };
+  await draw();
+}
+
+async function reportLost(device, draw) {
+  const message = await askDialog(t("web.mob_lost_message"), { confirmLabel: t("web.next") });
+  if (message === null) return;
+  const password = await askDialog(t("web.confirm_password"), { type: "password" });
+  if (!password) return;
+  if (await attempt(() => api(`/api/mobile/devices/${device.id}/lost`, { method: "POST", body: { message, password } }), t("web.mob_lost_done"))) draw();
+}
+
 function card(device, draw) {
   const info = device.info;
-  const place = h("div", { class: "stack tight" });
+  const place = h("div", { class: "stack tight phone-place" });
   const facts = [info.model, info.os, info.battery != null ? `${info.battery} %${info.charging ? " ⚡" : ""}` : null, info.network, info.ssid, info.ip].filter(Boolean).join(" · ");
   return h("li", { class: "phone-card" }, icon("device-mobile"),
-    h("div", { class: "grow" }, h("div", {}, device.name, " ", h("span", { class: `badge ${device.online ? "ok" : ""}` }, t(device.online ? "web.mob_online" : "web.mob_offline"))),
+    h("div", { class: "grow" }, h("div", {}, device.name, " ", h("span", { class: `badge ${device.online ? "ok" : ""}` }, t(device.online ? "web.mob_online" : "web.mob_offline")),
+      device.tracking ? [" ", h("span", { class: "badge danger" }, t(device.tracking.kind === "lost" ? "web.mob_is_lost" : "web.mob_is_emergency"))] : null),
       h("small", { class: "block" }, device.last_seen ? t("web.last_used", { time: when(device.last_seen) }) : t("web.never_used")), facts ? h("small", { class: "block" }, facts) : null),
+    h("div", { class: "phone-actions" },
     h("button", { title: t("web.mob_find_tip"), disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/find`, { method: "POST" }), t("web.mob_ringing")) }, icon("bell-ringing"), t("web.mob_find")),
     h("button", { class: "ghost", disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/stop`, { method: "POST" })) }, t("web.mob_stop")),
     h("button", { title: t("web.mob_place_tip"), disabled: !device.online, onclick: () => placeLink(device, place) }, icon("map-pin"), t("web.mob_place_link")),
     info.latitude != null ? h("button", { class: "icon-only", title: t("web.mob_map_tip"), onclick: () => fill(place, mapOf(info), h("a", { href: device.map, target: "_blank", rel: "noopener" }, t("web.mob_open")), info.located_at ? h("small", { class: "muted" }, when(info.located_at)) : null) }, icon("world")) : null,
+    device.tracking
+      ? [h("button", { onclick: () => trackOf(device, place) }, icon("walk"), t("web.mob_track")),
+        h("button", { class: "primary", onclick: async () => {
+          if (await confirmDialog(t("web.mob_found_confirm", { name: device.name }), t("web.mob_found")) && await attempt(() => api(`/api/mobile/devices/${device.id}/found`, { method: "POST" }), t("web.mob_found_done"))) draw();
+        } }, icon("check"), t("web.mob_found"))]
+      : h("button", { title: t("web.mob_lost_tip"), onclick: () => reportLost(device, draw) }, icon("alert-triangle"), t("web.mob_lost")),
     h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
       if (await confirmDialog(t("web.mob_remove", { name: device.name }), t("web.delete"), true) && await attempt(() => api(`/api/mobile/devices/${device.id}`, { method: "DELETE" }), t("web.deleted"))) draw();
-    } }, icon("trash")), place);
+    } }, icon("trash"))), place);
 }
 
 export async function render(main) {
