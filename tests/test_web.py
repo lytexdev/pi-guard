@@ -865,3 +865,34 @@ async def test_every_messenger_can_send_a_test(web) -> None:  # type: ignore[no-
     assert sent.status == 200 and "test" in app.providers["telegram"].last().text.lower()
     off = await client.post("/api/messengers/whatsapp/test", headers={"X-CSRF-Token": csrf})
     assert off.status == 409
+
+
+async def test_the_live_marks_need_yolox_and_are_cached(web, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from pi_guard.web import api_live
+
+    client, app = web
+    await _login(client)
+    plain = await (await client.get("/api/live/living_room/overlay")).json()
+    assert plain == {"fps": 0.0}  # no detection unless asked for
+    calls = []
+
+    class Detector:
+        body_detector = "yolox"
+
+        def objects(self, image: Any) -> list[Any]:
+            calls.append(1)
+            return [((10.0, 20.0, 30.0, 40.0), "dog", 0.8)]
+
+    monkeypatch.setattr(app, "person_locator", lambda: Detector())
+    import cv2
+
+    frame = cv2.imencode(".jpg", np.zeros((100, 200, 3), np.uint8))[1].tobytes()
+    await app.cameras["living_room"].live_frames.publish(frame)
+    api_live._overlay.clear()
+    first = await (await client.get("/api/live/living_room/overlay?objects=1")).json()
+    assert first["objects"] == [{"box": [0.05, 0.2, 0.15, 0.4], "label": "dog", "score": 0.8}]
+    await client.get("/api/live/living_room/overlay?objects=1")
+    assert len(calls) == 1  # one check per second, however often asked
+    monkeypatch.setattr(app, "person_locator", lambda: None)
+    api_live._overlay.clear()
+    assert (await client.get("/api/live/living_room/overlay?objects=1")).status == 409

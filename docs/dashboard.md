@@ -291,7 +291,7 @@ and *Sound alarm*. The notification carries a token for one tap, valid for an ho
 | Page | |
 |---|---|
 | Overview | mode (home/away/automatic), cameras, open alerts with *Everything is fine*, storage, memory, temperature, the last 24 hours |
-| Live | live picture (pinch, mouse wheel or buttons to zoom, full screen), photo, *Sharper*, zoom into nine areas and *Brighter* on the taken picture, listen live, hold-to-talk through the speaker, sounds, alarm, volume |
+| Live | live picture (pinch, mouse wheel or buttons to zoom, full screen), photo, *Sharper*, zoom into nine areas and *Brighter* on the taken picture, listen live, hold-to-talk through the speaker, sounds, alarm, volume; *FPS* shows the frame rate and *Mark* marks people and things, checked at most once a second while it is on |
 | Events | filter by type and camera, thumbnails, movement per day and by time of day; a person event says who was recognised, or why nobody could be named |
 | People | trusted people: add with photos/videos or a camera picture (consent checkbox), add more pictures, rename, delete |
 | Network | Pi-hole statistics and pause, WireGuard peers, devices in the LAN (see [network.md](network.md)) |

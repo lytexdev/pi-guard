@@ -39,7 +39,8 @@ async function evidencePanel() {
       h("div", { class: "grow clip" }, h("div", {}, `${f.camera} · ${when(f.start_utc)}`),
         h("small", { class: "mono" }, `SHA-256 ${f.sha256.slice(0, 24)}… · ${Math.round(f.duration_seconds / 60)} min · ${(f.size / 1e6).toFixed(1)} MB`)),
       h("a", { class: "button", href: `/api/media/evidence/${encodeURIComponent(f.file)}`, download: "" }, "MP4"),
-      h("a", { class: "button", href: `/api/media/evidence/${encodeURIComponent(f.metadata)}`, download: "" }, "JSON")))));
+      h("a", { class: "button", href: `/api/media/evidence/${encodeURIComponent(f.metadata)}`, download: "" }, "JSON"),
+      f.report ? h("a", { class: "button", href: `/api/media/evidence/${encodeURIComponent(f.report)}`, download: "", title: t("web.ev_report_tip") }, icon("file-text"), t("web.ev_report")) : null))));
 }
 
 export async function render(main) {

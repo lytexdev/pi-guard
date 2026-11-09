@@ -378,7 +378,8 @@ class Dashboard:
         path = request.path
         if request.method not in ("GET", "HEAD"):
             return path in VIEWER_POST
-        is_video = path.startswith("/api/live/") and path.endswith("/video")  # listening is not
+        live = path.startswith("/api/live/")
+        is_video = live and path.endswith(("/video", "/overlay"))  # listening is not
         return path in VIEWER_GET or is_video or path.startswith("/api/media/")
 
     def _setup_required(self, session: Session) -> bool:

@@ -34,7 +34,9 @@ presence_app = typer.Typer(no_args_is_help=True, help="Wi-Fi presence detection.
 models_app = typer.Typer(no_args_is_help=True, help="Optional detection models.")
 faces_app = typer.Typer(no_args_is_help=True, help="Enrolled people (face recognition).")
 dashboard_app = typer.Typer(no_args_is_help=True, help="Web dashboard access.")
+evidence_app = typer.Typer(no_args_is_help=True, help="Evidence videos.")
 for sub, name in (
+    (evidence_app, "evidence"),
     (config_app, "config"),
     (audio_app, "audio"),
     (telegram_app, "telegram"),
@@ -301,6 +303,19 @@ def logs(
         raise typer.Exit(1)
     args = ["journalctl", "-u", "pi-guard", "-n", str(lines), "--no-pager"]
     os.execvp("journalctl", args + (["-f"] if follow else []))  # noqa: S606
+
+
+@evidence_app.command("verify")
+def evidence_verify(record: Path) -> None:
+    """Check an evidence record: its signature, and that the video beside it is unchanged."""
+    from pi_guard.recording.evidence import verify
+
+    problems = verify(record)
+    for problem in problems:
+        typer.echo(f"✗ {problem}")
+    if problems:
+        raise typer.Exit(1)
+    typer.echo("✓ signature and video checksum match")
 
 
 @config_app.command("check")

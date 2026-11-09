@@ -66,6 +66,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- The live picture can show its frame rate and mark people and things, with their names and how sure YOLOX is. The Pi
+  checks at most one picture per second for this, and only while it is switched on.
+- Evidence videos come with a signed record and a readable report: clock synchronisation, the video's own data, the
+  events in that time, device model and serial, and checksums of the video and of every segment it was cut from.
+  `pi-guard evidence verify` checks a copy.
 - Logging in with a code by messenger or email (`code` in `PI_GUARD_DASHBOARD_AUTH`): to the owner's admin accounts in
   Signal, Discord, WhatsApp, Telegram, the phone app or a chat app, or to the account's own email address. Only with a
   code word or two-factor codes, which are asked after it.

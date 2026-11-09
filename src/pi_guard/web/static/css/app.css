@@ -634,3 +634,8 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 
 .verified-mark { background: none; border: 0; padding: 2px; margin-left: 6px; color: var(--ok, #3ddc97); cursor: help; vertical-align: middle; line-height: 0; }
 .verified-mark .icon { width: 18px; height: 18px; }
+.stage .marks { position: absolute; inset: 0; transform-origin: 0 0; pointer-events: none; }
+.stage .mark { position: absolute; border: 2px solid var(--warn); border-radius: 4px; }
+.stage .mark.person { border-color: var(--accent); }
+.stage .mark small { position: absolute; left: -2px; top: -1.4em; padding: 0 4px; border-radius: 3px; background: rgba(0, 0, 0, .7); color: #fff; font-size: .72rem; white-space: nowrap; }
+.stage .fps { font-variant-numeric: tabular-nums; }

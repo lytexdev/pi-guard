@@ -139,6 +139,21 @@ Evidence videos are kept for 90 days, longer than normal footage. They record so
 the microphone is switched on, and the microphone is announced with a chime. The checksum
 shows whether a file was changed later; it does not replace legal advice on using footage.
 
+Each evidence video comes with a JSON record and a readable report: camera and room, start and end in UTC and local
+time, whether the clock was set from a time server, who asked for it and the mode, the video's own data (codec,
+resolution, frame rate, real length), the events in that time, the device's model and serial number, and the
+checksums of the video and of every recording segment it was cut from. The camera's address is left out, because for a
+network camera it can hold a password. The record is signed with a key that this device makes for itself
+(`DATA_DIR/evidence-ed25519.pem`, readable by the service only); its public half is in the record. To check a copy:
+
+```bash
+sha256sum evidence_….mp4           # must match "sha256" in the record
+pi-guard evidence verify evidence_….json
+```
+
+A signature of the device's own key shows that record and video were not changed after they left the device. It is not
+a qualified electronic signature, and the time is only as right as the clock was.
+
 ## Legal notes for Germany
 
 This is an overview, not legal advice. If you are unsure, ask a lawyer or your
