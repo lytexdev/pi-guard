@@ -40,6 +40,9 @@ class FakeRecognizer:
     def quality(self, name: str) -> dict[str, Any]:
         return {"score": 50, "level": "ok", "views": {}, "tips": [{"key": "faces.tip_light"}]}
 
+    def forget_cache(self) -> None:
+        pass
+
     def enroll_many(self, name: str, samples: list[np.ndarray], actor: str) -> Any:
         from pi_guard.detection.faces import EnrollReport
 

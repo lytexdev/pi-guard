@@ -43,7 +43,9 @@ It installs WireGuard if needed, after checking its signature. Only the user who
 
 ## Kill switch and lockdown
 
-- **Kill switch** (on by default): while the VPN is wanted, nothing goes past the tunnel, even if it fails.
+- **Kill switch** (on by default): while the VPN is wanted, nothing goes past the tunnel, even if it fails. After a
+  restart of the computer the VPN is only wanted again with *auto-connect*. A restart of the service alone changes
+  nothing.
 - **Lockdown:** nothing reaches the internet without the VPN, also while disconnected and after a restart. The service
   starts before the network does.
 
@@ -51,9 +53,11 @@ Both are nftables rules for IPv4 and IPv6 alike, with a default of *drop*. They 
 the service crashes, the system stays closed instead of open. *Local devices stay reachable* keeps the home network and
 private addresses open; switch it off in foreign networks.
 
-If lockdown ever locks you out:
+Stopping the service leaves the rules and the tunnel's routes in place, on purpose. If the kill switch or lockdown ever
+locks you out, no restart of the computer is needed:
 
 ```bash
+sudo systemctl stop pi-guard-vpn
 sudo pi-guard-vpn unlock
 ```
 

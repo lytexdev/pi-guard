@@ -36,6 +36,7 @@ from pi_guard.detection.enrollment import EnrollmentSession
 from pi_guard.detection.faces import BiometricStore, FaceRecognizer
 from pi_guard.detection.motion import MotionDetector
 from pi_guard.detection.persons import PersonDetector
+from pi_guard.diagnostics.contribution import Contribution
 from pi_guard.diagnostics.scan import SecurityScan
 from pi_guard.i18n import LANGUAGES, load_extra, t
 from pi_guard.integrations.mqtt.bridge import MqttBridge
@@ -141,6 +142,7 @@ class App:
         self.webpush: WebPush | None = None
         self.escalation = Escalation(self)
         self.notifier = Notifier(self)
+        self.contribution = Contribution(self)
         self.pihole: Pihole | None = None
         if s.pihole_enabled:
             password = s.pihole_password.get_secret_value() if s.pihole_password else None
@@ -191,7 +193,8 @@ class App:
             log.error("OpenCV is not installed; motion detection is disabled")
             return
         models_dir = s.data_dir / "models"
-        persons = PersonDetector(models_dir) if s.person_detection_enabled else None
+        compare = self.config.file.faces.compare_body_detectors
+        persons = PersonDetector(models_dir, compare) if s.person_detection_enabled else None
         faces = None
         if s.face_recognition_enabled and persons is not None:
             try:
@@ -303,6 +306,7 @@ class App:
             "retention": self.retention.run,
             "calendars": Feeds(self.db).run,
             "notifier": self.notifier.run,
+            "contribution": self.contribution.run,
         }
         if self.presence is not None:
             parts["presence"] = self.presence.run

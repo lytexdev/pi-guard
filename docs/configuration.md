@@ -35,6 +35,7 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 | `RECORDINGS_DIR` | `DATA_DIR/recordings` | |
 | `CONFIG_FILE` | `/etc/pi-guard/config.yaml` | |
 | `RUNTIME_DIR` | `/run/pi-guard` | tmpfs: latest frames, heartbeat |
+| `SUPPORT_URL` | – | `https://` receiver of the anonymous statistics; sent only after an admin switches them on under Settings → Updates, see [training.md](training.md#anonymous-statistics) |
 
 ### Telegram
 
@@ -260,8 +261,27 @@ faces:
   match_threshold: 0.40     # cosine similarity for a match
   uncertain_margin: 0.06    # +/- around the threshold reported as "uncertain"
   min_interval_seconds: 5   # per camera
-  max_samples_per_person: 10
+  max_samples_per_person: 40
+  compare_body_detectors: false  # also run the old HOG detector, see below
 ```
+
+## How person detection decides
+
+On motion, up to three pictures two seconds apart are checked while the motion lasts.
+
+- **Bodies:** YOLOX-Nano when `pi-guard models download` has fetched it, otherwise OpenCV's HOG detector. On 120
+  motion pictures of a real home, HOG found a person in none, YOLOX in 25.
+- **Faces:** YuNet on a 640 px copy of the picture, and again at full resolution on the upper part of each body,
+  where a face is often too small for the copy.
+- **Who:** a face that matches nobody is a stranger at once only when it is clear: at least 56 pixels, sharp and
+  roughly facing the camera. A less clear face that matches nobody must do so in two pictures. A face next to a
+  recognised family member that matches nobody is a stranger at once. Everything else is reported as a person.
+  `person_detected` is a high alert when away as well, so waiting for a better picture never hides anyone.
+- **Corrections:** a face an admin marked as *not X* on the events page makes a later face *uncertain* instead of X
+  when it is more similar to that face than to X. See *Learning from the camera* in [dashboard.md](dashboard.md).
+
+With `compare_body_detectors: true`, HOG runs beside YOLOX and the events page shows what each found. It costs about
+up to 0.3 s per picture on a Pi 4.
 
 ## How presence detection decides
 

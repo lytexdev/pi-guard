@@ -36,6 +36,8 @@ need() {
     else die "install wireguard-tools and nftables first"; fi
 }
 need
+# Installing wg-quick wakes up tunnels that were enabled long ago, and they are not ours to touch.
+old_tunnels() { find /etc/systemd/system -name 'wg-quick@*.service' -printf '%f\n' 2>/dev/null | sort -u; }
 BIN="$REPO/vpn/target/release/pi-guard-vpn"
 [[ -x "$BIN" ]] || die "build first: cd vpn && cargo build --release"
 [[ "$(uname -m)" == x86_64 ]] || die "Rosenpass has no ready release for $(uname -m); build it and put it into /usr/local/lib/pi-guard-vpn"
@@ -62,4 +64,8 @@ systemctl daemon-reload
 systemctl enable pi-guard-vpn
 systemctl restart pi-guard-vpn # a running service would keep the old program
 echo "running. Open the VPN page in the desktop app."
-echo "If lockdown ever locks you out: sudo pi-guard-vpn unlock"
+for unit in $(old_tunnels); do
+    echo "warning: $unit is enabled here and starts with this computer. If it is an old one, it can take over"
+    echo "         the home network: sudo systemctl disable --now $unit"
+done
+echo "If the kill switch or lockdown ever locks you out: sudo systemctl stop pi-guard-vpn && sudo pi-guard-vpn unlock"

@@ -9,6 +9,7 @@ pi-guard is one Python process (asyncio) plus one FFmpeg process per camera. Aro
 | `agent/` | small Rust program on connected computers |
 | `desktop/` | Electron app: shows the dashboard, drives the VPN service |
 | `android/` | phone app: shows the dashboard, has its own WireGuard client |
+| `training/` | `pgtrain` for a computer with a GPU: faces, thresholds, training the person detector, receiving statistics, see [training.md](training.md) |
 
 Settings changed in the dashboard live in `DATA_DIR/dashboard.env` and `DATA_DIR/dashboard.yaml`, and win over
 `.env` and `config.yaml`.
@@ -49,7 +50,7 @@ Settings changed in the dashboard live in `DATA_DIR/dashboard.env` and `DATA_DIR
 | `integrations/mqtt` | optional MQTT bridge |
 | `storage` | SQLite state |
 | `security` | file permissions, redaction, rate limiting |
-| `diagnostics` | `pi-guard doctor`, host metrics |
+| `diagnostics` | `pi-guard doctor`, host metrics, the optional anonymous statistics |
 | `web` | optional dashboard: aiohttp server, auth, security middleware, JSON API, static single-page app, Web Push |
 | `network` | Pi-hole client, LAN inventory, WireGuard status |
 | `i18n` | English and German texts |

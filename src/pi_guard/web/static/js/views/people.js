@@ -206,6 +206,7 @@ async function detailsDialog(person, redraw) {
   const draw = (items) => fill(list, items.map((r) => h("li", {}, icon("photo"),
     h("div", { class: "grow" }, h("div", {}, when(r.created)), h("small", {}, t("web.pp_sample", { numbers: r.numbers, bytes: r.bytes, match: Math.round(r.match * 100) }))),
     r.pose ? h("span", { class: "badge" }, t(`web.pq_view_${r.pose}`)) : null,
+    r.source === "camera" ? h("span", { class: "badge accent" }, t("web.pp_from_camera")) : null,
     r.match < 0.45 ? h("span", { class: "badge danger" }, t("web.pp_odd")) : null,
     h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
       if (await attempt(() => api(`/api/people-samples/${r.id}`, { method: "DELETE" }))) { items = items.filter((x) => x.id !== r.id); draw(items); redraw(); }

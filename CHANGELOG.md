@@ -8,6 +8,14 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- People are found far more often: YOLOX-Nano replaces the HOG detector once `pi-guard models download` fetched it.
+  On 120 motion pictures of a real home, HOG found a person in none, YOLOX in 25. HOG stays for installations without
+  the model, and `faces.compare_body_detectors` runs both to compare them on the events page.
+- Faces are also searched at full resolution in the head of each person, where they are often too small for the
+  smaller copy that was searched before.
+- Up to three pictures of a motion are judged together. Before, the first picture decided: a blurred first picture
+  ended the check, and a family member seen badly once raised the stranger alarm. Now an unclear face is a stranger
+  only if it matches nobody twice; a clear one or one next to a family member still is at once.
 - The dashboard shows a placeholder while a page loads, instead of an empty area.
 - The dashboard opens faster: it asks for the session once at the start and no longer waits for it when changing pages,
   the overview no longer waits for its two slowest panels, and the events page asks for everything at once.
@@ -22,6 +30,14 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Renaming a trusted person took effect for recognition only after a restart; until then it reported the old name.
+- A computer whose VPN gets no answer keeps its tunnel instead of replacing the interface every 12 seconds, which
+  looked like a new network to the system and every program on it. Other ways and keys are now set on the running
+  tunnel.
+- After a restart of the computer the VPN only comes back with auto-connect. Before, it came back whenever it had been
+  on, and the kill switch then blocked the internet.
+- The VPN page says when the Pi does not answer for a minute, usually because the computer was removed there.
+- `install-vpn.sh` warns about enabled `wg-quick@` services, which installing `wireguard-tools` can wake up.
 - A new installation with `install.sh` gets a random first password instead of `admin123`, which anyone in the network
   could have tried first. `pi-guard dashboard reset-password` chooses one too. Docker keeps `admin123` unless
   `PI_GUARD_DASHBOARD_FIRST_PASSWORD` is set.
@@ -42,6 +58,19 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- `training/` with `pgtrain`, for a computer with an NVIDIA GPU. It judges photos with the Pi's own code and models:
+  is this me, similar photos in a folder, and where the face thresholds should be. It teaches YOLOX-Nano, the Pi's
+  person detector, from YOLOX-L on any folder of pictures without labels, on several GPUs, and exports a file the Pi
+  loads as it is. On public COCO pictures it did not beat the official model; on one home camera it found 0.82 of the people instead of 0.56, on days it had not seen. A page on `127.0.0.1` does the face part. Pictures stay on that computer. See `docs/training.md`.
+- Anonymous statistics, off by default: once an admin switches them on and a receiver is set, the Pi sends counts
+  and histograms of the last week, above all how similar faces were that an admin confirmed or corrected. The
+  dashboard shows the exact report first. Never pictures, face prints, names or times. `pgtrain reports receive`
+  collects them, and `pgtrain faces calibrate --reports` uses them.
+- Person events keep the face sizes and similarity scores as numbers, for the statistics.
+- *Who is this?* on a person event in the dashboard: say which enrolled person a face is, and pi-guard learns the
+  camera's angle and light; or say that a recognised face is not that person, and similar faces stop counting as them.
+  Only people already enrolled can be chosen, only clear faces of at least 56 pixels are learned, and only the
+  numbers of a face are stored.
 - Pi updates are signed. The update button and `scripts/update.sh` install only release tags signed with a key that stays
   on your computer, so someone who gets into the GitHub account cannot run anything as root on a Pi. Until you make the
   key with `scripts/release.sh key` and install once by hand, the button reports that there is no key. See

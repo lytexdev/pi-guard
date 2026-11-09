@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -29,11 +30,12 @@ from pi_guard.config.settings import Settings
 from pi_guard.core.permissions import Role
 from pi_guard.detection.enrollment import EnrollmentSession, video_frames
 from pi_guard.detection.faces import EnrollmentError, FaceRecognizer
+from pi_guard.diagnostics.contribution import record_correction
 from pi_guard.i18n import LANGUAGES, t
 from pi_guard.notifications.rules import DEFAULTS, resolve
 from pi_guard.recording.evidence import MAX_MINUTES, evidence_files, record_evidence
 from pi_guard.recording.segments import ClipError
-from pi_guard.security.files import atomic_write
+from pi_guard.security.files import atomic_write, is_within
 from pi_guard.web.server import confirm_password, current, dashboard, read_json
 from pi_guard.web.settings_schema import BY_KEY, EXPERT, FIELDS, SECRETS, to_env
 
@@ -62,6 +64,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/people/{name}/samples", add_samples),
         web.post("/api/people/{name}/camera", add_from_camera),
         web.post("/api/people-test", test_recognition),
+        web.get("/api/events/{id:\\d+}/faces", event_faces),
+        web.post("/api/events/{id:\\d+}/faces/{index:\\d+}", learn_from_event),
         web.get("/api/evidence", evidence_list),
         web.post("/api/evidence", evidence_start),
         web.get("/api/people/{name}", person_details),
@@ -474,6 +478,72 @@ async def test_recognition(request: web.Request) -> web.Response:
         shutil.rmtree(workdir, ignore_errors=True)
 
 
+PERSON_EVENTS = {"person_detected", "unknown_person", "known_person"}
+
+
+async def _event_picture(request: web.Request) -> tuple[FaceRecognizer, Any]:
+    """The faces found in a person event's picture, found again: the event keeps no boxes."""
+    faces = _faces(request)
+    app = dashboard(request).app
+    persons = getattr(app.analysis, "persons", None)
+    if persons is None:
+        raise web.HTTPConflict(text="web.faces_disabled")
+    row = app.db.execute("SELECT type, data FROM events WHERE id = ?",
+                         (int(request.match_info["id"]),)).fetchone()  # fmt: skip
+    if row is None or row["type"] not in PERSON_EVENTS:
+        raise web.HTTPNotFound()
+    name = str(json.loads(row["data"]).get("snapshot") or "")
+    root = app.media_dir / "snapshots"
+    path = root / name
+    if not name or "/" in name or not is_within(path, root) or not path.is_file():
+        raise web.HTTPGone(text="web.lf_picture_gone")
+    return faces, await asyncio.to_thread(persons.detect, path)
+
+
+async def event_faces(request: web.Request) -> web.Response:
+    """Each face in an event picture: where it is, whom pi-guard saw, whether it can be learned."""
+    faces, result = await _event_picture(request)
+    found = []
+    for face in result.faces if result.faces is not None else []:
+        identity = await asyncio.to_thread(faces.identify, result.image, face)
+        problem, _ = await asyncio.to_thread(faces.learn_problem, result.image, face)
+        found.append({
+            "box": [round(float(v)) for v in face[:4]], "verdict": identity.verdict.value,
+            "name": identity.name, "score": round(identity.score, 2), "learn_problem": problem,
+        })  # fmt: skip
+    height, width = result.image.shape[:2] if result.image is not None else (0, 0)
+    return web.json_response({"faces": found, "width": width, "height": height,
+                              "people": [n for n, _, _ in faces.store.people()]})  # fmt: skip
+
+
+async def learn_from_event(request: web.Request) -> web.Response:
+    """`{"name": X, "is": true}`: this face is X. `"is": false`: it is not X."""
+    data = await read_json(request)
+    name, is_person = str(data.get("name") or "").strip(), data.get("is")
+    if not name or len(name) > 64 or not isinstance(is_person, bool):
+        raise web.HTTPBadRequest(text="invalid request")
+    faces, result = await _event_picture(request)
+    index = int(request.match_info["index"])
+    if result.faces is None or index >= len(result.faces):
+        raise web.HTTPNotFound()
+    face, actor = result.faces[index], _actor(request)
+    try:
+        if is_person:
+            total, score = await asyncio.to_thread(faces.learn, name, result.image, face, actor)
+        else:
+            score = await asyncio.to_thread(faces.reject, name, result.image, face)
+    except EnrollmentError as exc:
+        raise web.HTTPUnprocessableEntity(text=exc.key) from None
+    app = dashboard(request).app
+    action = "faces.learn" if is_person else "faces.reject"
+    app.db.audit(actor, action, f"event={request.match_info['id']}")
+    record_correction(app, is_person, score)  # only the score's bin, for the statistics
+    if not is_person:
+        return web.json_response({"ok": True})
+    quality = await asyncio.to_thread(faces.quality, faces.store.exists(name) or name)
+    return web.json_response({"ok": True, "total": total, "quality": quality})
+
+
 async def add_from_camera(request: web.Request) -> web.Response:
     faces = _faces(request)
     name = _name(request)
@@ -552,6 +622,7 @@ async def rename_person(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(text="invalid name")
     if not faces.store.rename(_name(request), new):
         raise web.HTTPConflict(text="not found or name taken")
+    faces.forget_cache()  # recognition would go on reporting the old name
     return web.json_response({"ok": True})
 
 

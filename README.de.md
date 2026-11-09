@@ -32,6 +32,10 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Videos oder einem Kamerabild eintragen – oder direkt aus einer Meldung über
   eine unbekannte Person. Unbekannte Personen werden mit Foto gemeldet.
   Ein Balken zeigt, wie gut jede Person eingeprägt ist und welche Bilder fehlen.
+  Mehrere Bilder werden zusammen bewertet, ein einmal schlecht gesehenes
+  Familienmitglied gilt also nicht gleich als fremd. *Wer ist das?* an einem
+  Ereignis bringt pi-guard ein Gesicht aus der Kamera bei, oder dass ein Gesicht
+  nicht jemand ist.
 - **Alarm:** Alarmton (auch einen eigenen) über einen Lautsprecher auslösen
   und wieder stoppen.
 - **Notfallkontakte:** Bleiben Meldungen unbestätigt, bekommen eingetragene
@@ -50,6 +54,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Home Assistant.
 - **Keine Cloud.** Kein Benutzerkonto bei einem Anbieter, keine offenen Ports,
   keine Telemetrie. Nur die Nachrichten, die Sie anfordern, verlassen das Gerät.
+  Wer helfen will, kann einen wöchentlichen Bericht mit anonymen Zahlen
+  einschalten; vorher zeigt pi-guard genau, was gesendet würde.
 
 ## Alles drumherum
 
@@ -62,6 +68,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 | **Add-ons** | Dienste-Wächter, Netzwerk-Analyse, Smart Home, Fernbefehle, KI-Assistent mit Kostenanzeige, weitere Sprachen sowie Alarme nach Slack, Matrix, Rocket.Chat und Mastodon. Jedes lässt sich ausschalten oder samt Daten entfernen. |
 | **Plugins** | Eigene Add-ons mit Befehlen, Seiten und API-Routen, als ZIP oder Git-Link, geprüft vor dem Start. |
 | **Wege von unterwegs** | IPv4, IPv6, Mietserver oder Tailscale, für jeden Internetanschluss. |
+| **Training** | `pgtrain` auf einem Computer mit NVIDIA-Grafikkarte: Bin ich das, ähnliche Fotos, Schwellen aus deinen Fotos und den anonymen Statistiken der Pis, und eine Personenerkennung, die an Bildern von Räumen lernt. Die Bilder bleiben auf diesem Computer. Siehe [Training](docs/de/training.md). |
 | **Updates** | Agents und Apps aktualisieren sich selbst mit signierten Versionen, die auch ein gehackter Pi nicht fälschen kann. Auch der Pi installiert nur signierte Versionen, ein gehacktes GitHub-Konto kommt also nicht an ihn heran. |
 
 ### Die Apps bekommen

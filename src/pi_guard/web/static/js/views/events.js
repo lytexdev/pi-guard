@@ -1,6 +1,7 @@
 // Events with filters, plus statistics drawn as plain SVG.
 import { api, h, svg, t, when, fill } from "../api.js";
 import { eventRow } from "./overview.js";
+import { state } from "../app.js";
 
 const TYPES = ["motion_detected", "person_detected", "unknown_person", "known_person",
   "camera_disconnected", "recording_failed", "storage_low", "arrival_detected", "mode_changed"];
@@ -45,6 +46,7 @@ export async function render(main) {
   const [overview, stats, evidence, first] = await Promise.all([api("/api/overview"), api("/api/stats?days=14"),
     evidencePanel(), api("/api/events?limit=30")]);
   const cameras = Object.fromEntries(overview.cameras.map((c) => [c.id, c.name]));
+  const learn = state.session.role !== "viewer" && overview.features.faces;
   const typeSel = h("select", { id: "type" }, h("option", { value: "" }, t("web.all_types")),
     TYPES.map((type) => h("option", { value: type }, t(`event.${type}`))));
   const camSel = h("select", { id: "camera" }, h("option", { value: "" }, t("web.all_cameras")),
@@ -54,7 +56,7 @@ export async function render(main) {
   let before = "";
   const show = (events, reset) => {
     if (reset && !events.length) list.append(h("li", { class: "empty" }, t("web.nothing")));
-    events.forEach((e) => list.append(eventRow(e, cameras)));
+    events.forEach((e) => list.append(eventRow(e, cameras, learn)));
     before = events.length ? events[events.length - 1].ts : before;
     more.classList.toggle("hidden", events.length < 30);
   };

@@ -453,7 +453,7 @@ def models_list() -> None:
 def models_download(
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask")] = False,
 ) -> None:
-    """Download the face models from the OpenCV Model Zoo (asks first)."""
+    """Download the person and face models (asks first)."""
     from pi_guard.detection.models import MODELS, ChecksumError, download
 
     models_dir = _config().settings.data_dir / "models"

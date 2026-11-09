@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-guard Training</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header><h1>pi-guard Training</h1><p class="muted">Läuft nur auf diesem Computer. Fotos verlassen ihn nicht.</p></header>
+<main>
+  <section>
+    <h2>Personen</h2>
+    <p class="muted">Fotos, auf denen eine Person gut zu sehen ist. Gleiche Bilder wie für den Pi: von vorne, leicht zur Seite, verschiedenes Licht. Nur mit Zustimmung der Person.</p>
+    <form id="add" class="row">
+      <input id="name" placeholder="Name" required maxlength="64">
+      <input id="photos" type="file" accept="image/*" multiple required>
+      <button>Hinzufügen</button>
+    </form>
+    <p id="add-result" class="muted"></p>
+    <div id="people"></div>
+  </section>
+
+  <section>
+    <h2>Wer ist das?</h2>
+    <p class="muted">Ein Foto prüfen, so wie der Pi es bewerten würde. Es wird nicht gespeichert.</p>
+    <input id="check" type="file" accept="image/*">
+    <div id="check-result"></div>
+  </section>
+
+  <section>
+    <h2>Ähnliche Fotos finden</h2>
+    <p class="muted">Durchsucht einen Ordner auf diesem Computer nach Fotos einer Person.</p>
+    <form id="search" class="row">
+      <select id="search-name"></select>
+      <input id="folder" placeholder="/home/…/Bilder" required>
+      <button>Suchen</button>
+    </form>
+    <div id="search-result" class="grid"></div>
+  </section>
+
+  <section>
+    <h2>Schwellen</h2>
+    <p class="muted">Aus den Fotos oben: Wie oft würde der Pi Familie erkennen, wie oft jemand Fremdes für Familie halten? Braucht mindestens zwei Personen.</p>
+    <button id="calibrate">Berechnen</button>
+    <div id="calibrate-result"></div>
+  </section>
+</main>
+<script src="/static/app.js" type="module"></script>
+</body>
+</html>

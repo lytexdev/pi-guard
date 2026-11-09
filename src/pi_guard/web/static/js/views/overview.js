@@ -3,6 +3,9 @@ import { api, attempt, duration, h, icon, t, when, fill } from "../api.js";
 import { skeleton, supportNote } from "../widgets.js";
 import { state } from "../app.js";
 import { topologyPanel } from "./topology.js";
+import { learnDialog } from "./learn.js";
+
+const PERSON_EVENTS = ["person_detected", "unknown_person", "known_person"];
 
 export function meter(percent, warnAt = 75, dangerAt = 90) {
   const fill = h("i");
@@ -16,15 +19,22 @@ export function stateDot(state) {
   return h("span", { class: `dot ${cls}` });
 }
 
-export function eventRow(event, cameras = {}) {
+// `learn`: offer "Who is this?" on person events (admins, with face recognition on).
+export function eventRow(event, cameras = {}, learn = false) {
   const snap = event.data?.snapshot;
+  const canLearn = learn && snap && event.id != null && PERSON_EVENTS.includes(event.type);
   return h("li", {},
     snap ? h("img", { class: "thumb", src: `/api/media/snapshots/${encodeURIComponent(snap)}`,
                       alt: "", loading: "lazy" })
          : h("span", { class: "thumb row", "aria-hidden": "true" }),
     h("div", { class: "grow" },
       h("div", {}, t(`event.${event.type}`)),
-      h("small", {}, [when(event.ts), event.camera ? ` · ${cameras[event.camera] || event.camera}` : ""])));
+      h("small", {}, [when(event.ts), event.camera ? ` · ${cameras[event.camera] || event.camera}` : ""]),
+      // Only while the two body detectors are compared, see faces.compare_body_detectors.
+      event.data?.hog != null
+        ? h("small", { class: "muted" }, ` · ${t("web.ev_detectors", { yolox: event.data.bodies, hog: event.data.hog })}`)
+        : null),
+    canLearn ? h("button", { onclick: () => learnDialog(event) }, t("web.lf_button")) : null);
 }
 
 let publicCheck = null;  // once per page load: the browser asks for its own public address
@@ -106,7 +116,7 @@ export async function render(main) {
               c.recording ? h("span", { class: "badge accent" }, "REC") : null)))]) : h("p", { class: "empty" }, t("web.no_cameras"))),
           h("section", { class: "panel" },
             h("div", { class: "row between" }, h("h2", {}, icon("bell"), " ", t("web.recent_events")), h("a", { href: "#/events" }, t("web.all"))),
-            h("ul", { class: "list" }, events.length ? events.map((e) => eventRow(e, cameras)) : h("li", { class: "empty" }, t("web.nothing"))))),
+            h("ul", { class: "list" }, events.length ? events.map((e) => eventRow(e, cameras, !viewer && o.features.faces)) : h("li", { class: "empty" }, t("web.nothing"))))),
         h("div", { class: "stack" },
           connection,
           h("section", { class: "panel" }, h("h2", {}, icon("cpu"), " ", t("web.system")),

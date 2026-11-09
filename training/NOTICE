@@ -1,0 +1,11 @@
+pgtrain, part of pi-guard (MIT, see ../LICENSE).
+
+src/pgtrain/yolox_model.py follows the network architecture and module names of YOLOX,
+Copyright (c) 2021-2022 Megvii Inc., licensed under the Apache License, Version 2.0:
+https://github.com/Megvii-BaseDetection/YOLOX/blob/main/LICENSE
+
+The YOLOX weights that `pgtrain models` downloads (yolox_nano.pth, yolox_l.pth,
+yolox_nano.onnx) come from the YOLOX releases under the same licence. A model trained
+with pgtrain is derived from them and from the pictures it learned from.
+
+The face models (YuNet, MIT; SFace, Apache-2.0) come from the OpenCV Model Zoo.

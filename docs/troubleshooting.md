@@ -85,6 +85,13 @@ sudo journalctl -u pi-guard -n 100
   sharpness 22; MJPEG 150 %, 30; YUYV 75 %, 53.
 - A camera without a focus control in `v4l2-ctl --list-ctrls` has a fixed lens: software cannot focus it. Some have a
   ring around the lens. Otherwise more light helps most, because it shortens the exposure and so the motion blur.
+- Faces too small to recognise are the most common reason. A face needs at least 36 pixels, and 56 for a stranger
+  alarm from one picture. People found by a camera across a room are often around 110 of 720 pixels tall, with a face
+  of about 15. A camera nearer the door, at head height, helps more than any setting.
+- A family member seen clearly but not recognised: *Who is this?* on the event teaches pi-guard that camera's view of
+  them, see *Learning from the camera* in [dashboard.md](dashboard.md).
+- Without the YOLOX model (`pi-guard models list`), many people are not found at all, so their faces are never
+  checked.
 
 ## Storage
 
@@ -137,6 +144,14 @@ to a USB SSD.
 - *Your home does not answer*: check the internet at both ends and the port forwarding for UDP 51820. Under
   Network › VPN, *Check now* shows if your line has no public address of its own; then use another way. If the access
   was removed in the dashboard, disconnect and open the app once at home to get a new one.
+- *The Pi does not answer* on a computer: its access is usually gone from Network › VPN. WireGuard gets no reply then,
+  not even a refusal, and the kill switch keeps blocking the internet. Disconnect and connect again on the VPN page at
+  home: that gives the computer a new access. The Pi stays reachable while *Local devices stay reachable* is on.
+- *No internet on a computer after a restart, Wi-Fi is connected*: see [Kill switch and lockdown](vpn.md#kill-switch-and-lockdown).
+- *The home network or Pi-hole is gone on a computer, the internet works*: an older tunnel may claim the same addresses.
+  Run `ip route get` with your router's address; if it names something like `wg0` instead of your Wi-Fi or cable
+  interface, that tunnel is the cause. Installing `wireguard-tools` starts `wg-quick@` services that were enabled long ago, and
+  `install-vpn.sh` warns about them. Turn one off with `sudo systemctl disable --now wg-quick@wg0`.
 
 ## Signal
 
