@@ -1,0 +1,7 @@
+[Unit]
+Description=Apply pi-guard privacy nftables plan
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-guard-privacy-nft
+Nice=5

@@ -148,6 +148,9 @@ to a USB SSD.
   not even a refusal, and the kill switch keeps blocking the internet. Disconnect and connect again on the VPN page at
   home: that gives the computer a new access. The Pi stays reachable while *Local devices stay reachable* is on.
 - *No internet on a computer after a restart, Wi-Fi is connected*: see [Kill switch and lockdown](vpn.md#kill-switch-and-lockdown).
+- *VPN clients have no internet after enabling privacy upstream*: the Pi-side kill switch may be strict without an
+  exit. Deactivate under Network › VPN, or `sudo ./scripts/privacy-server.sh unlock`. Management from the LAN should
+  still work.
 - *The home network or Pi-hole is gone on a computer, the internet works*: an older tunnel may claim the same addresses.
   Run `ip route get` with your router's address; if it names something like `wg0` instead of your Wi-Fi or cable
   interface, that tunnel is the cause. Installing `wireguard-tools` starts `wg-quick@` services that were enabled long ago, and

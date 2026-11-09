@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch pi-guard privacy exit peer file
+
+[Path]
+PathChanged=/var/lib/pi-guard/privacy/exit.peer
+PathExists=/var/lib/pi-guard/privacy/exit.peer
+Unit=pi-guard-exit-apply.service
+
+[Install]
+WantedBy=multi-user.target

@@ -112,3 +112,9 @@ erneut anzeigen; für Laptops gibt es eine `.conf`-Datei. Entfernte Geräte sind
 nach wenigen Sekunden ausgesperrt.
 
 Technische Details: [network.md](../network.md#wireguard-home-vpn).
+
+### Privacy-Upstream
+
+Optionaler Multi-Hop-Exit auf dem Pi (Mullvad, eigener WireGuard, Tor). Geräte nutzen weiter das
+Heim-VPN; der Pi leitet ausgewählten Verkehr über einen Upstream-Hop. Installation:
+`sudo ./scripts/privacy-server.sh install`. Details: [vpn.md](../vpn.md#privacy-upstream-optional).

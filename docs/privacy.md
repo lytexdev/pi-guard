@@ -140,6 +140,15 @@ DNS query of every device in the home; that is a separate product with its
 own privacy settings (query logging, anonymisation) which you should review.
 pi-guard does not scan the network.
 
+### Privacy upstream (optional)
+
+When you enable multi-hop or Tor on the Pi, traffic from VPN clients can leave
+through an upstream exit (custom WireGuard, Mullvad, or Tor) instead of your
+home WAN. Mullvad account numbers and exit private keys are stored sealed with
+the dashboard secret, never returned by the API, and never written to logs.
+Exit-IP checks ask `api.ipify.org` only when you press the diagnostics button.
+Disabled features start no extra services. See [vpn.md](vpn.md#privacy-upstream-optional).
+
 Evidence videos are kept for 90 days, longer than normal footage. They record sound only if
 the microphone is switched on, and the microphone is announced with a chime. The checksum
 shows whether a file was changed later; it does not replace legal advice on using footage.

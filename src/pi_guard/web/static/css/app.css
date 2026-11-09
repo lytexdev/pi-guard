@@ -379,6 +379,11 @@ td.actions { white-space: nowrap; }
 .tabs a { padding: 10px 14px; color: var(--muted); white-space: nowrap; border-bottom: 2px solid transparent; }
 .tabs a:hover { text-decoration: none; color: var(--text); }
 .tabs a.active { color: var(--text); border-bottom-color: var(--accent); }
+/* Privacy upstream */
+.privacy .segmented.wrap { flex-wrap: wrap; }
+.privacy .chain-hops .badge { min-width: 1.6em; text-align: center; }
+.privacy-panel h3 { margin: 12px 0 6px; font-size: 1rem; }
+
 /* VPN */
 .panel.wg { display: grid; gap: 4px 28px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
 .panel.wg > h2, .panel.wg > p { grid-column: 1 / -1; }

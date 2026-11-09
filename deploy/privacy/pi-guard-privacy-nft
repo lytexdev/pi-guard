@@ -1,0 +1,62 @@
+#!/bin/bash
+# Applies the privacy upstream nftables plan written by pi-guard.
+#
+# The plan file is a full `nft -f` document produced by pi_guard.privacy.firewall.render.
+# We still refuse obviously hostile content (shell metacharacters outside comments) and
+# keep a copy of the previous ruleset for rollback. Management access from the LAN must
+# never be locked out by this script alone: the rendered plan always accepts LAN SSH /
+# dashboard when a home network is configured.
+set -euo pipefail
+PLAN="${PI_GUARD_PRIVACY_DIR:-/var/lib/pi-guard/privacy}/nft.plan"
+STATUS_DIR="${PI_GUARD_STATUS_DIR:-/run/pi-guard-status}"
+STATE_DIR="${PI_GUARD_PRIVACY_STATE:-/var/lib/pi-guard-privacy}"
+TABLE=pi_guard_privacy
+BACKUP="$STATE_DIR/nft.prev"
+
+mkdir -p "$STATUS_DIR" "$STATE_DIR"
+umask 077
+
+write_status() {
+    printf '%s\n' "$@" > "$STATUS_DIR/privacy.nft"
+}
+
+if [[ ! -f "$PLAN" || -L "$PLAN" ]]; then
+    # Clear our table if present.
+    nft "add table inet $TABLE; delete table inet $TABLE" 2>/dev/null || true
+    write_status "applied=0" "mode=off"
+    echo "pi-guard-privacy-nft: no plan"
+    exit 0
+fi
+
+# Reject shell/command injection attempts if a buggy writer ever put them in.
+if grep -E '`|\$\(|;\s*(rm|wget|curl|bash|sh|python)|\|[[:space:]]*sh' "$PLAN" >/dev/null; then
+    echo "pi-guard-privacy-nft: refused suspicious plan" >&2
+    write_status "applied=0" "mode=error"
+    exit 1
+fi
+if ! grep -q "table inet $TABLE" "$PLAN"; then
+    echo "pi-guard-privacy-nft: plan does not name our table" >&2
+    write_status "applied=0" "mode=error"
+    exit 1
+fi
+
+# Save previous table definition for rollback.
+nft list table inet "$TABLE" > "$BACKUP" 2>/dev/null || rm -f "$BACKUP"
+
+if ! nft -f "$PLAN"; then
+    echo "pi-guard-privacy-nft: apply failed; restoring previous" >&2
+    if [[ -f "$BACKUP" ]]; then
+        nft "add table inet $TABLE; delete table inet $TABLE" 2>/dev/null || true
+        nft -f "$BACKUP" || true
+    else
+        nft "add table inet $TABLE; delete table inet $TABLE" 2>/dev/null || true
+    fi
+    write_status "applied=0" "mode=error"
+    exit 1
+fi
+
+MODE=off
+grep -q 'policy drop' "$PLAN" && MODE=strict || MODE=open
+grep -q 'oifname "pgexit"' "$PLAN" && MODE=vpn
+write_status "applied=1" "mode=$MODE"
+echo "pi-guard-privacy-nft: applied ($MODE)"

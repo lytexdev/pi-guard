@@ -32,6 +32,14 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
   gesendet würde.
 - Sonst nichts: keine Cloud, keine Werbung.
 
+### Privacy-Upstream (optional)
+
+Wenn Multi-Hop oder Tor auf dem Pi aktiv ist, kann Verkehr von VPN-Clients über einen
+Upstream-Exit (eigener WireGuard, Mullvad oder Tor) statt über den Heim-WAN gehen.
+Mullvad-Kontonummern und Exit-Schlüssel liegen versiegelt auf dem Pi, erscheinen nicht in
+der API und nicht in Logs. Exit-IP-Prüfungen fragen `api.ipify.org` nur auf Knopfdruck.
+Ausgeschaltete Funktionen starten keine Extra-Dienste. Details: [vpn.md](../vpn.md#privacy-upstream-optional).
+
 ## Standardmäßig ausgeschaltet
 
 - Mikrofon / Tonaufnahme

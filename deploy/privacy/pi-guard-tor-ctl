@@ -1,0 +1,61 @@
+#!/bin/bash
+# Starts or stops Tor for pi-guard privacy. Never installs packages.
+#
+# Presence of privacy/tor.want means Tor should run with our drop-in config.
+# Absence means we remove the drop-in and leave the system Tor unit alone if
+# it was not started by us (tracked via a state flag).
+set -euo pipefail
+DIR="${PI_GUARD_PRIVACY_DIR:-/var/lib/pi-guard/privacy}"
+WANT="$DIR/tor.want"
+BRIDGES="$DIR/tor.bridges"
+DROPIN_DIR=/etc/tor/torrc.d
+DROPIN="$DROPIN_DIR/pi-guard.conf"
+STATE_DIR="${PI_GUARD_PRIVACY_STATE:-/var/lib/pi-guard-privacy}"
+FLAG="$STATE_DIR/tor-started-by-us"
+STATUS_DIR="${PI_GUARD_STATUS_DIR:-/run/pi-guard-status}"
+
+mkdir -p "$STATUS_DIR" "$STATE_DIR"
+write_status() {
+    printf '%s\n' "$@" > "$STATUS_DIR/privacy.tor"
+}
+
+if ! command -v tor >/dev/null; then
+    write_status "running=0" "bootstrap=" "circuit=0" "reason=not_installed"
+    echo "pi-guard-tor-ctl: tor not installed"
+    exit 0
+fi
+
+if [[ ! -f "$WANT" ]]; then
+    rm -f "$DROPIN"
+    if [[ -f "$FLAG" ]]; then
+        systemctl stop tor 2>/dev/null || true
+        rm -f "$FLAG"
+    fi
+    write_status "running=0" "bootstrap=" "circuit=0"
+    echo "pi-guard-tor-ctl: tor not wanted"
+    exit 0
+fi
+
+mkdir -p "$DROPIN_DIR"
+{
+    echo "# Managed by pi-guard privacy."
+    echo "SocksPort 9050"
+    if [[ -f "$BRIDGES" && ! -L "$BRIDGES" ]]; then
+        # Only Bridge / UseBridges lines; already validated by pi-guard.
+        grep -E '^(#|UseBridges |Bridge )' "$BRIDGES" || true
+    fi
+} > "$DROPIN"
+chmod 0644 "$DROPIN"
+
+systemctl reload tor 2>/dev/null || systemctl start tor
+touch "$FLAG"
+BOOT=0
+if [[ -r /run/tor/control.authcookie ]] || systemctl is-active --quiet tor; then
+    RUNNING=1
+    # Best-effort bootstrap from notice log; ignore failures.
+    BOOT="$(journalctl -u tor -n 50 --no-pager 2>/dev/null | sed -n 's/.*Bootstrapped \([0-9]\+\)%.*/\1/p' | tail -1 || true)"
+else
+    RUNNING=0
+fi
+write_status "running=$RUNNING" "bootstrap=${BOOT:-}" "circuit=$RUNNING"
+echo "pi-guard-tor-ctl: tor running=$RUNNING"

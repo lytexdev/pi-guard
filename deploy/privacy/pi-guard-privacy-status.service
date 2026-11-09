@@ -1,0 +1,7 @@
+[Unit]
+Description=Refresh pi-guard privacy status files
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pi-guard-privacy-status
+Nice=10
