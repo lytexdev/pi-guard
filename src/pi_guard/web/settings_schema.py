@@ -79,6 +79,7 @@ FIELDS = (
     Field("mastodon_instance", "chatapps", "text"),
     Field("mastodon_token", "chatapps", "secret"),
     Field("signal_enabled", "signal", "bool"),
+    Field("signal_commands", "signal", "bool"),
     Field("signal_phone_number", "signal", "text"),
     Field("signal_admin_numbers", "signal", "list"),
     Field("signal_allowed_numbers", "signal", "list"),

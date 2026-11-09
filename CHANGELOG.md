@@ -15,6 +15,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- Signal only sends alerts by default and reads no message, also not from the owner: it is often linked to a private
+  number. `PI_GUARD_SIGNAL_COMMANDS=true` allows commands from its admins again.
 - *Home servers* and *Service watcher* are one add-on, *Server*. Whoever had one switched on has both.
 - The add-ons page groups its cards, filters by on and off, shows each card's state and what is missing, and keeps
   *Remove* in a menu instead of next to *Open*.

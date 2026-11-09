@@ -1613,6 +1613,8 @@
   "web.wg_key": "Public key",
   "web.group_signal": "Signal",
   "web.setting_signal_enabled": "Use Signal",
+  "web.setting_signal_commands": "Accept commands over Signal",
+  "web.tip_signal_commands": "Off: Signal only sends alerts and reads no message, also not from you. Right for a private number",
   "web.setting_signal_phone_number": "Signal number of this system",
   "web.setting_signal_admin_numbers": "Admin numbers",
   "web.setting_signal_allowed_numbers": "Allowed numbers",

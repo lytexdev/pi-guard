@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     email_export: Literal["off", "weekly", "monthly"] = "off"
 
     signal_enabled: bool = False
+    # Off: Signal only sends alerts and reads nothing; for a number that is also a private one.
+    signal_commands: bool = False
     signal_phone_number: str | None = None
     signal_admin_numbers: StrList = Field(default_factory=list)
     signal_allowed_numbers: StrList = Field(default_factory=list)

@@ -69,6 +69,9 @@ class Messenger:
     async def _handle(self, msg: Incoming) -> None:
         app = self._app
         sender = f"{msg.provider}:{msg.sender_id}"
+        if msg.provider == "signal" and not app.settings.signal_commands:
+            # Alerts only: often the owner's own number, so whatever people write stays unread.
+            return
         if msg.is_group and not self._group_allowed(msg):
             return
         user = app.users.get(msg.provider, msg.sender_id)
