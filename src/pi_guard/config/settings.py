@@ -428,9 +428,10 @@ class Settings(BaseSettings):
 
     def _check_dashboard(self) -> None:
         methods = {m.lower() for m in self.dashboard_auth}
-        if not methods or not methods <= {"password", "keyfile", "telegram", "webauthn", "none"}:
+        if not methods or not methods <= {"password", "keyfile", "telegram", "code", "webauthn",
+                                          "none"}:  # fmt: skip
             raise ValueError(
-                "PI_GUARD_DASHBOARD_AUTH: use password, keyfile, telegram, webauthn or none"
+                "PI_GUARD_DASHBOARD_AUTH: use password, keyfile, telegram, code, webauthn or none"
             )
         if "none" in methods:
             if len(methods) > 1:

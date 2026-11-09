@@ -54,10 +54,24 @@ uses it, the log says so at every start.
 |---|---|
 | `password` | the dashboard account (first login as `admin`, changed right away) |
 | `keyfile` | Choose a key file instead of typing a password. Create one under *Access* or with `pi-guard dashboard keyfile tablet -o tablet.key`. Only a hash is stored; delete the key there if a device is lost. |
+| `code` | A six-digit code to one of your own ways: the admin accounts linked in Signal, Discord, WhatsApp, Telegram, the phone app or a chat app, or the email address in your account's contact details (never to alert recipients). Valid 5 minutes, 5 tries. Offered only when a code word or two-factor codes are set, and they are asked after it, so a taken-over mailbox or chat alone cannot log in. |
 | `none` | No login. Only allowed on `127.0.0.1`, or with `PI_GUARD_DASHBOARD_ALLOW_UNAUTHENTICATED=true`. |
 
-Two-factor codes apply to both methods. Change the login or switch codes on
+Passkeys and OpenPGP keys need no setting: once one is added under *Access → Login security*, its button appears on
+the login page. For OpenPGP, the page shows a short text with a random part; sign it, for example with
+`gpg --clearsign`, and paste the result. The Pi checks it with GnuPG against the added keys only.
+
+Two-factor codes apply to every method. Change the login or switch codes on
 and off later under *Access → Your account*.
+
+**What is asked after the first step,** for the main account: two-factor codes if set, the code word if set, and one
+of up to five **security questions** if any are set, always in addition and never instead of the code word. A question
+has a free answer or is multiple choice, can have a hint, and is the same for one login attempt, so asking again does
+not bring an easier one. Answers count without upper and lower case and are stored only as hashes.
+
+**Contact details** (*Access → Contact details*, and for admins next to each user): name, email, phone, address and a
+note, all optional, with vCard to read from and save to an address book. They move with an account that is renamed,
+are deleted with it, and are part of the data export.
 
 ### More users
 

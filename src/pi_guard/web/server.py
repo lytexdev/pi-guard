@@ -8,6 +8,7 @@ every state-changing request also needs the session's CSRF token.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -45,6 +46,8 @@ COOKIE = "pg_session"
 PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.crt",
           "/api/login/telegram", "/api/login/telegram/poll", "/api/login/webauthn/begin",
           "/api/login/webauthn/finish", "/api/agent/ws", "/api/hello",
+          "/api/login/channels", "/api/login/code", "/api/login/code/verify",
+          "/api/login/pgp/begin", "/api/login/pgp/finish",
           "/api/mobile/session", "/api/mobile/ws", "/api/mobile/report", "/api/mobile/action",
           "/api/push/action",
           "/api/mobile/emergency", "/api/mobile/calendar", "/api/mobile/vpn", "/api/mobile/reach",
@@ -55,8 +58,10 @@ SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/
                  "/api/account/totp/confirm", "/api/setup/status"}  # fmt: skip
 # What viewers may do: watch. Everything else is closed to them, also anything added later.
 VIEWER_GET = {"/api/overview", "/api/events", "/api/stats", "/api/alerts", "/api/connection",
-              "/api/evidence", "/api/account"}  # fmt: skip
+              "/api/evidence", "/api/account", "/api/me/profile",
+              "/api/me/profile/vcard"}  # fmt: skip
 VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check", "/api/mobile/pair",
+               "/api/me/profile", "/api/me/profile/vcard",
                "/api/account/totp/begin", "/api/account/totp/confirm",
                "/api/account/totp/disable"}  # fmt: skip
 MODULES = ("discord", "whatsapp", "email", "mobile", "chatapps")
@@ -146,6 +151,9 @@ class Dashboard:
         from pi_guard.web.api_login import LoginFlows
 
         self.logins = LoginFlows()
+        from pi_guard.web.profiles import Profiles
+
+        self.profiles = Profiles(app.db)
         self.tls_dir = s.data_dir / "tls"
         self.microphones: dict[str, Any] = {}  # device -> api_live.MicrophoneStream
         self.gravity_state = False
@@ -423,6 +431,7 @@ class Dashboard:
 
     async def _session(self, request: web.Request) -> web.Response:
         session = self._resolve(request)
+        token = request.cookies.get(COOKIE)
         active = session is not None and not session.pending
         return web.json_response({
             "authenticated": bool(session and not session.pending),
@@ -433,6 +442,9 @@ class Dashboard:
             "pending_level": session.level if session else 0,
             "codeword": bool(session and self.auth.is_owner(session.username)
                              and self.auth.has_codeword),
+            "question": self.question_for(token)
+            if token and session and session.pending and self.auth.is_owner(session.username)
+            else None,
             # Only between password and code word: whoever sees it already knows the password.
             "codeword_hint": self.auth.codeword_hint
             if session and session.pending and self.auth.is_owner(session.username) else None,
@@ -456,6 +468,10 @@ class Dashboard:
         methods = set(self.settings.dashboard_methods)
         if self.auth.credentials():
             methods.add("webauthn")  # a registered key is meant to be used
+        from pi_guard.web.pgp import PgpKeys, available
+
+        if available() and PgpKeys(self.app.db).entries():
+            methods.add("pgp")
         if not self.settings.telegram_ready:
             methods.discard("telegram")
         return sorted(methods)
@@ -469,7 +485,20 @@ class Dashboard:
         if self.auth.totp_secret(username) is not None:
             return PENDING_ALL
         owner = self.auth.is_owner(username)
-        return PENDING_CODEWORD if owner and self.auth.has_codeword else PENDING_NONE
+        return PENDING_CODEWORD if owner and self.auth.has_knowledge_step else PENDING_NONE
+
+    def question_for(self, token: str) -> dict[str, Any] | None:
+        """The security question for this login attempt: chosen once, so that asking again
+        does not bring an easier one."""
+        questions = self.auth.questions()
+        if not questions:
+            return None
+        key = hashlib.sha256(token.encode()).hexdigest()
+        chosen = self.logins.questions.get(key)
+        if chosen is None or not any(q["id"] == chosen for q in questions):
+            chosen = secrets.choice(questions)["id"]
+            self.logins.questions[key] = chosen
+        return next(q for q in questions if q["id"] == chosen)
 
     async def _login(self, request: web.Request) -> web.Response:
         ip = self.guard.client_ip(request)
@@ -531,6 +560,11 @@ class Dashboard:
         used_recovery = False
         owner = self.auth.is_owner(session.username)
         passed = not owner or self.auth.check_codeword(str(data.get("codeword", "")))
+        if passed and owner and self.auth.has_questions:
+            asked = self.logins.questions.pop(hashlib.sha256(token.encode()).hexdigest(), None)
+            passed = asked is not None and self.auth.check_answer(
+                asked, str(data.get("answer", ""))
+            )
         if passed and session.level == PENDING_ALL:
             passed, used_recovery = self._second_factor(str(data.get("code", "")), session.username)
         if not passed:

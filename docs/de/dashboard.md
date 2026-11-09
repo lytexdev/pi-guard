@@ -46,6 +46,20 @@ die Anmeldung auf admin mit einem neuen Passwort zurück, das der Befehl anzeigt
 - Passwort ändern und Zwei-Faktor-Code ein-/ausschalten: *Zugang → Ihr Konto*.
 - Das Codewort kann einen Tipp haben. Er erscheint bei der Anmeldung erst nach dem richtigen Passwort und darf
   das Codewort nicht enthalten.
+- **Code per Messenger oder E-Mail** (`code` in `PI_GUARD_DASHBOARD_AUTH`): ein sechsstelliger Code an deine eigenen
+  Wege, also an die verknüpften Admin-Konten in Signal, Discord, WhatsApp, Telegram, der Handy-App oder einer Chat-App,
+  oder an die E-Mail-Adresse in den Kontaktdaten deines Kontos, nie an Empfänger von Meldungen. Er gilt 5 Minuten und
+  5 Versuche. Angeboten wird er nur, wenn ein Codewort oder Zwei-Faktor-Codes eingerichtet sind, und die werden danach
+  gefragt: Ein übernommenes Postfach oder Chat-Konto allein reicht nie.
+- **Passkeys und OpenPGP:** Sobald unter *Zugang → Anmeldung absichern* einer hinterlegt ist, erscheint sein Knopf
+  auf der Anmeldeseite. Bei OpenPGP zeigt die Seite einen kurzen Text; signiere ihn, etwa mit `gpg --clearsign`, und
+  füge das Ergebnis ein.
+- **Sicherheitsfragen:** bis zu fünf, mit freier Antwort oder Auswahl und optionalem Tipp. Bei jeder Anmeldung wird eine
+  gefragt, immer zusätzlich zum Codewort und nie statt ihm, und für einen Anmeldeversuch bleibt es dieselbe.
+  Groß- und Kleinschreibung zählt nicht; gespeichert wird nur ein Hash.
+- **Kontaktdaten** (*Zugang → Kontaktdaten*, für Admins auch neben jedem Benutzer): Name, E-Mail, Telefon, Adresse,
+  Notiz, alles freiwillig, mit vCard zum Einlesen und Speichern. Sie ziehen beim Umbenennen mit, werden mit dem Konto
+  gelöscht und sind Teil des Datenexports.
 
 ## Mehrere Benutzer
 

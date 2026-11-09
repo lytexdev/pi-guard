@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -364,6 +365,100 @@ async def test_a_login_challenge_cannot_add_a_key(tmp_path: Path) -> None:
         finish = await client.post("/api/account/webauthn/finish", headers=csrf,
                                    json={"flow": flow, "credential": {}})  # fmt: skip
         assert finish.status == 401
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_login_with_a_code_and_then_the_code_word(tmp_path: Path) -> None:
+    import re
+
+    client, app = await _client(tmp_path, dashboard_auth=["password", "code"])
+    try:
+        app.dashboard.guard.login_allowed = lambda ip: True  # many steps in one minute here
+        assert await (await client.get("/api/login/channels")).json() == []  # no second step yet
+        app.dashboard.auth.set_codeword(PASSWORD, "blaubeere")
+        assert await (await client.get("/api/login/channels")).json() == ["telegram"]
+        refused = await client.post("/api/login/code", json={"channel": "email"})
+        assert refused.status == 400  # no address in the account's details
+        start = await (await client.post("/api/login/code", json={"channel": "telegram"})).json()
+        code = re.search(r"\b(\d{6})\b", app.providers["telegram"].last().text).group(1)
+        wrong = await client.post(
+            "/api/login/code/verify", json={"id": start["id"], "code": "000000"}
+        )
+        assert wrong.status == 401
+        right = await client.post("/api/login/code/verify", json={"id": start["id"], "code": code})
+        assert (await right.json())["totp_required"]  # the code word comes next
+        assert (await client.get("/api/overview")).status == 401
+        word = await client.post("/api/login/totp", json={"codeword": "Blaubeere"})
+        assert word.status == 200 and (await client.get("/api/overview")).status == 200
+        again = await client.post("/api/login/code/verify", json={"id": start["id"], "code": code})
+        assert again.status == 410  # a code works once
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_a_code_dies_after_five_wrong_tries(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path, dashboard_auth=["password", "code"])
+    try:
+        app.dashboard.auth.set_codeword(PASSWORD, "blaubeere")
+        app.dashboard.guard.login_allowed = lambda ip: True  # count tries, not the rate limit
+        app.dashboard.guard.login_failed = lambda ip: None
+        start = await (await client.post("/api/login/code", json={"channel": "telegram"})).json()
+        for _ in range(5):
+            bad = {"id": start["id"], "code": "999999"}
+            await client.post("/api/login/code/verify", json=bad)
+        gone = await client.post("/api/login/code/verify", json={"id": start["id"], "code": "1"})
+        assert gone.status == 410
+    finally:
+        await client.close()
+        app.db.close()
+
+
+def test_security_questions_are_checked_without_case(db: Any) -> None:
+    s = store(db)
+    with pytest.raises(CredentialError):
+        s.add_question("wrong", {"question": "Erstes Haustier?", "kind": "text", "answer": "Bello"})
+    with pytest.raises(CredentialError, match="gives_away"):
+        s.add_question(PASSWORD, {"question": "Haustier?", "kind": "text", "answer": "Bello",
+                                  "hint": "bello war ein Hund"})  # fmt: skip
+    s.add_question(PASSWORD, {"question": "Erstes Haustier?", "kind": "text", "answer": " Bello "})
+    colour = {"question": "Lieblingsfarbe?", "kind": "choice", "options": ["Rot", "Grün", "Blau"],
+              "answer": 2, "hint": "Himmel"}  # fmt: skip
+    s.add_question(PASSWORD, colour)
+    shown = s.questions()
+    assert [q["id"] for q in shown] == [1, 2] and "answer" not in json.dumps(shown)
+    assert s.check_answer(1, "bello") and not s.check_answer(1, "Rex")
+    assert s.check_answer(2, "2") and s.check_answer(2, "blau") and not s.check_answer(2, "0")
+    with pytest.raises(CredentialError, match="choice"):
+        s.add_question(
+            PASSWORD, {"question": "x?", "kind": "choice", "options": ["a"], "answer": 0}
+        )
+    assert s.delete_question(PASSWORD, 1) and [q["id"] for q in s.questions()] == [2]
+
+
+async def test_a_question_comes_on_top_of_the_code_word(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        s = app.dashboard.auth
+        app.dashboard.guard.login_allowed = lambda ip: True
+        s.set_codeword(PASSWORD, "blaubeere")
+        s.add_question(
+            PASSWORD, {"question": "Erstes Haustier?", "kind": "text", "answer": "Bello"}
+        )
+        body = {"username": "admin", "password": PASSWORD}
+        assert (await (await client.post("/api/login", json=body)).json())["totp_required"]
+        first = (await (await client.get("/api/session")).json())["question"]
+        again = (await (await client.get("/api/session")).json())["question"]
+        assert first == again and first["question"] == "Erstes Haustier?"  # no picking an easy one
+        word_only = await client.post("/api/login/totp", json={"codeword": "blaubeere"})
+        assert word_only.status == 401
+        await client.get("/api/session")  # the page asks again before the next try
+        both = await client.post(
+            "/api/login/totp", json={"codeword": "blaubeere", "answer": "BELLO"}
+        )
+        assert both.status == 200 and (await client.get("/api/overview")).status == 200
     finally:
         await client.close()
         app.db.close()

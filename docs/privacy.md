@@ -14,6 +14,7 @@ It is not legal advice.
 | Latest frame per camera | `RUNTIME_DIR` (RAM) | overwritten every second |
 | Events, mode, users, invitations, audit log | `DATA_DIR/pi-guard.db` | events and audit: 30 days or the retention period, whichever is longer |
 | Face embeddings of enrolled people | `DATA_DIR/biometrics.db` | until deleted |
+| Contact details of dashboard accounts, OpenPGP public keys, security questions (answers only as hashes) | `DATA_DIR/pi-guard.db` | until deleted; contact details go with their account |
 | Saved sounds | `DATA_DIR/sounds` | until deleted |
 
 Files are owned by the `pi-guard` user and not readable by others (the service

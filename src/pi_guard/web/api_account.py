@@ -11,6 +11,7 @@ from aiohttp import web
 from pi_guard.security.files import atomic_write
 from pi_guard.web.api_mobile import forget_devices, role_changed
 from pi_guard.web.auth import CredentialError, totp_uri
+from pi_guard.web.profiles import ProfileError, clean, from_vcard, to_vcard
 from pi_guard.web.server import COOKIE, SETUP_DONE_KEY, current, dashboard, read_json
 
 
@@ -23,6 +24,13 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/account/totp/disable", totp_disable),
         web.post("/api/setup/done", setup_done),
         web.post("/api/me/password", my_password),
+        web.get("/api/me/profile", my_profile),
+        web.put("/api/me/profile", my_profile_save),
+        web.get("/api/me/profile/vcard", my_vcard),
+        web.post("/api/me/profile/vcard", read_vcard),
+        web.get("/api/profiles/{name}", profile_get),
+        web.put("/api/profiles/{name}", profile_save),
+        web.get("/api/profiles/{name}/vcard", profile_vcard),
         web.get("/api/dashboard-users", users),
         web.post("/api/dashboard-users", user_add),
         web.patch("/api/dashboard-users/{id:\\d+}", user_role),
@@ -53,7 +61,10 @@ async def credentials(request: web.Request) -> web.Response:
                                   str(data.get("password", "")))  # fmt: skip
     except CredentialError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
-    d.auth.end_other_sessions(d.auth.account()["username"], request.cookies.get(COOKIE))
+    old = current(request).username
+    new = d.auth.account()["username"]
+    d.profiles.rename(old, new)  # the contact details move with the account
+    d.auth.end_other_sessions(new, request.cookies.get(COOKIE))
     d.app.db.audit(_actor(request), "account.credentials")
     return web.json_response({"ok": True, "username": d.auth.account()["username"]})
 
@@ -179,8 +190,78 @@ async def user_delete(request: web.Request) -> web.Response:
     if username is None:
         raise web.HTTPNotFound()
     devices = await forget_devices(request, username)
+    d.profiles.delete(username)
     d.app.db.audit(_actor(request), "account.user_remove", f"{devices} device(s)")
     return web.json_response({"ok": True})
+
+
+# --- contact details ------------------------------------------------------------------------
+
+
+def _profile_name(request: web.Request) -> str:
+    d = dashboard(request)
+    name = request.match_info["name"]
+    special = name == "local" or name.startswith(("key:", "api:"))  # logins, not people
+    if special or not d.auth.exists(name):
+        raise web.HTTPNotFound()
+    return d.auth.account(name)["username"] if d.auth.is_owner(name) else name
+
+
+async def _save(request: web.Request, username: str) -> web.Response:
+    d = dashboard(request)
+    try:
+        values = d.profiles.set(username, await read_json(request))
+    except ProfileError as exc:
+        raise web.HTTPBadRequest(text=exc.key) from None
+    d.app.db.audit(_actor(request), "account.profile", username)
+    return web.json_response(values)
+
+
+def _vcard_response(username: str, data: dict[str, str]) -> web.Response:
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", username)[:40] or "contact"
+    return web.Response(
+        text=to_vcard(username, data),
+        content_type="text/vcard",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe}.vcf"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+async def my_profile(request: web.Request) -> web.Response:
+    return web.json_response(dashboard(request).profiles.get(current(request).username))
+
+
+async def my_profile_save(request: web.Request) -> web.Response:
+    return await _save(request, current(request).username)
+
+
+async def my_vcard(request: web.Request) -> web.Response:
+    name = current(request).username
+    return _vcard_response(name, dashboard(request).profiles.get(name))
+
+
+async def read_vcard(request: web.Request) -> web.Response:
+    """The fields of an uploaded card, checked but not stored: the page fills its form."""
+    text = (await request.content.read(64 * 1024 + 1)).decode("utf-8", errors="replace")
+    try:
+        return web.json_response(clean(from_vcard(text)))
+    except ProfileError as exc:
+        raise web.HTTPBadRequest(text=exc.key) from None
+
+
+async def profile_get(request: web.Request) -> web.Response:
+    return web.json_response(dashboard(request).profiles.get(_profile_name(request)))
+
+
+async def profile_save(request: web.Request) -> web.Response:
+    return await _save(request, _profile_name(request))
+
+
+async def profile_vcard(request: web.Request) -> web.Response:
+    name = _profile_name(request)
+    return _vcard_response(name, dashboard(request).profiles.get(name))
 
 
 # --- appearance -----------------------------------------------------------------------------

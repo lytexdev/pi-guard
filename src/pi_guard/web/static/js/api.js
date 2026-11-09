@@ -125,9 +125,12 @@ export function confirmDialog(message, confirmLabel, danger = false) {
 
 // A question with an answer. window.prompt does not exist in the desktop app, and it shows
 // passwords in plain text everywhere else. Resolves to null on cancel.
-export function askDialog(message, { value = "", type = "text", confirmLabel } = {}) {
+// `multiline` keeps line breaks, for pasted keys and certificates.
+export function askDialog(message, { value = "", type = "text", confirmLabel, multiline = false } = {}) {
   return new Promise((resolve) => {
-    const input = h("input", { type, value, "aria-label": message, autocomplete: type === "password" ? "current-password" : "off" });
+    const input = multiline
+      ? h("textarea", { rows: 10, class: "mono", spellcheck: false, "aria-label": message }, value)
+      : h("input", { type, value, "aria-label": message, autocomplete: type === "password" ? "current-password" : "off" });
     let answer = null;
     const dialog = h("dialog", {},
       h("form", { method: "dialog", class: "stack", onsubmit: () => { answer = input.value; } },

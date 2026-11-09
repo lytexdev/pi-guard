@@ -21,6 +21,11 @@ export async function render(root) {
     const needsCode = session.pending_level !== 2 && session.totp;
     const code = h("input", { id: "code", autocomplete: "one-time-code", maxlength: 24, required: true });
     const word = h("input", { id: "word", type: "password", autocomplete: "off", required: true });
+    // One security question, in addition: free text, or one of a few answers.
+    const q = session.question;
+    const answer = q?.kind === "text" ? h("input", { id: "answer", autocomplete: "off", required: true }) : null;
+    const choices = q?.kind === "choice" ? q.options.map((option, i) => h("label", { class: "choice" },
+      h("input", { type: "radio", name: "answer", value: String(i), required: true }), " ", option)) : [];
     const form = h("form", {},
       h("h1", {}, t("web.totp_title")),
       needsCode ? [h("p", { class: "muted" }, t("web.totp_hint")),
@@ -28,10 +33,13 @@ export async function render(root) {
           h("div", { class: "hint" }, t("web.recovery_hint")))] : null,
       session.codeword ? h("div", { class: "field" }, h("label", { for: "word" }, t("web.codeword")), word,
         session.codeword_hint ? h("div", { class: "hint" }, t("web.codeword_hint_show", { hint: session.codeword_hint })) : null) : null,
+      q ? h("div", { class: "field" }, h("label", { for: "answer" }, q.question), answer, choices.length ? h("div", { class: "stack tight", role: "radiogroup" }, choices) : null,
+        q.hint ? h("div", { class: "hint" }, t("web.codeword_hint_show", { hint: q.hint })) : null) : null,
       h("button", { class: "primary big", type: "submit" }, t("web.login")));
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      try { await api("/api/login/totp", { method: "POST", body: { code: code.value, codeword: word.value } }); location.hash = "#/overview"; location.reload(); }
+      const reply = answer ? answer.value : form.querySelector("input[name=answer]:checked")?.value || "";
+      try { await api("/api/login/totp", { method: "POST", body: { code: code.value, codeword: word.value, answer: reply } }); location.hash = "#/overview"; location.reload(); }
       catch (error) { fail(error); code.select(); }
     });
     fill(panel, panel.firstChild, form);
@@ -59,6 +67,34 @@ export async function render(root) {
       fill(info, t(answer.state === "denied" ? "web.tg_login_refused" : "web.tg_login_expired"));
     };
     poll();
+  }
+
+  // A code to one of the owner's messengers or to the account's email; the second step follows.
+  const NAMES = { telegram: "Telegram", signal: "Signal", discord: "Discord", whatsapp: "WhatsApp", email: "E-Mail",
+    mobile: "App", slack: "Slack", matrix: "Matrix", rocketchat: "Rocket.Chat", mastodon: "Mastodon" };
+  function codeForm(channels) {
+    const choose = h("select", { id: "channel" }, channels.map((c) => h("option", { value: c }, NAMES[c] || c)));
+    const code = h("input", { id: "logincode", inputmode: "numeric", autocomplete: "one-time-code", maxlength: 7, required: true });
+    const step = h("div", { class: "stack" });
+    let id = null;
+    const send = h("button", { class: "primary big", type: "button", onclick: async () => {
+      try {
+        id = (await api("/api/login/code", { method: "POST", body: { channel: choose.value } })).id;
+        fill(step, h("p", { class: "muted" }, t("web.code_sent", { channel: NAMES[choose.value] || choose.value })),
+          h("div", { class: "field" }, h("label", { for: "logincode" }, t("web.code_label")), code),
+          h("button", { class: "primary big", type: "submit" }, t("web.login")));
+        code.focus();
+      } catch (error) { toast(error.status === 429 ? t("web.login_rate_limited") : t(error.message), true); }
+    } }, icon("message"), t("web.code_send"));
+    const form = h("form", {}, h("h1", {}, t("web.code_title")), h("p", { class: "muted" }, t("web.code_intro")),
+      h("div", { class: "field" }, h("label", { for: "channel" }, t("web.code_channel")), choose), send, step,
+      h("button", { type: "button", class: "ghost", onclick: () => location.reload() }, t("web.cancel")));
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try { next(await api("/api/login/code/verify", { method: "POST", body: { id, code: code.value } })); }
+      catch (error) { toast(error.status === 410 ? t("web.code_expired") : t("web.code_wrong"), true); code.select(); }
+    });
+    fill(panel, panel.firstChild, form);
   }
 
   if (state.session.totp_pending) { totpForm(); return; }
@@ -112,6 +148,34 @@ export async function render(root) {
         toast(error.status === 409 ? t(error.message) : error.status ? t("web.login_failed") : explainKeyError(error), true);
       }
     } }, icon("key"), t("web.webauthn_login")));
+  }
+  if (methods.includes("code")) {
+    const channels = await api("/api/login/channels").catch(() => []);
+    if (channels.length) {
+      other();
+      panel.append(h("button", { class: "login-alt", onclick: () => codeForm(channels) }, icon("message"), t("web.code_button")));
+    }
+  }
+  if (methods.includes("pgp")) {
+    other();
+    panel.append(h("button", { class: "login-alt", onclick: async () => {
+      let start;
+      try { start = await api("/api/login/pgp/begin", { method: "POST", body: {} }); } catch (error) { fail(error); return; }
+      const signed = h("textarea", { id: "signed", rows: 8, class: "mono", required: true, spellcheck: false });
+      const form = h("form", {}, h("h1", {}, t("web.pgp_login")), h("p", { class: "muted" }, t("web.pgp_login_hint")),
+        h("pre", { class: "mono wrap" }, start.text),
+        h("div", { class: "row" }, h("button", { type: "button", onclick: () => navigator.clipboard?.writeText(start.text).then(() => toast(t("web.copied"))) }, icon("copy"), t("web.copy"))),
+        h("p", { class: "muted" }, h("code", {}, "gpg --clearsign")),
+        h("div", { class: "field" }, h("label", { for: "signed" }, t("web.pgp_signed")), signed),
+        h("button", { class: "primary big", type: "submit" }, t("web.login")),
+        h("button", { type: "button", class: "ghost", onclick: () => location.reload() }, t("web.cancel")));
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try { next(await api("/api/login/pgp/finish", { method: "POST", body: { flow: start.flow, signed: signed.value } })); }
+        catch (error) { toast(error.status === 410 ? t("web.pgp_expired") : t("web.pgp_wrong"), true); }
+      });
+      fill(panel, panel.firstChild, form);
+    } }, icon("key"), t("web.pgp_login")));
   }
   if (methods.includes("telegram")) {
     other();

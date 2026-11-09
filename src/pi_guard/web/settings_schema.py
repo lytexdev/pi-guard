@@ -24,7 +24,7 @@ class Field:
     options: tuple[str, ...] = field(default_factory=tuple)
 
 
-LOGIN_METHODS = ("password", "keyfile", "telegram", "webauthn", "none")
+LOGIN_METHODS = ("password", "keyfile", "telegram", "code", "webauthn", "none")
 TIMEZONES = tuple(sorted(z for z in available_timezones() if "/" in z or z == "UTC"))
 
 FIELDS = (
@@ -114,7 +114,7 @@ FIELDS = (
         "dashboard_auth",
         "dashboard",
         "multi",
-        options=("password", "keyfile", "telegram", "webauthn", "none"),
+        options=LOGIN_METHODS,
     ),
     Field("dashboard_public_url", "dashboard", "text"),
     Field("support_url", "dashboard", "text"),

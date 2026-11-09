@@ -1,5 +1,6 @@
 // A person's own login: password and second factor. All that viewers can change.
 import { askDialog, api, attempt, fill, h, icon, t, toast } from "../api.js";
+import { profileDialog } from "./profile.js";
 
 export async function render(main) {
   const draw = async () => {
@@ -27,6 +28,8 @@ export async function render(main) {
       } }, icon("shield-lock"), t("web.totp_setup")));
     }
     fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_account"))),
+      h("section", { class: "panel stack" }, h("h2", {}, icon("list-details"), " ", t("web.pf_title")), h("p", { class: "muted" }, t("web.pf_intro")),
+        h("div", {}, h("button", { onclick: () => profileDialog("/api/me/profile", t("web.pf_title")) }, icon("pencil"), t("web.pf_edit")))),
       h("section", { class: "panel stack" }, h("h2", {}, account.username),
         h("p", { class: "muted" }, t("web.account_viewer_hint")),
         h("div", { class: "field" }, h("label", { for: "ocur" }, t("web.current_password")), current),

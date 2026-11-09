@@ -66,6 +66,12 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Logging in with a code by messenger or email (`code` in `PI_GUARD_DASHBOARD_AUTH`): to the owner's admin accounts in
+  Signal, Discord, WhatsApp, Telegram, the phone app or a chat app, or to the account's own email address. Only with a
+  code word or two-factor codes, which are asked after it.
+- Security questions, free answer or multiple choice with a hint, asked in addition to the code word at login.
+- Logging in with an OpenPGP signature, checked by GnuPG against the added keys only.
+- Contact details for dashboard accounts, with vCard in and out, also in the data export.
 - *Place link* for a phone: asks it for its place now, without ringing, and shows a link with its accuracy to open,
   copy or share. The map is a setting: OpenStreetMap, Google Maps, Apple Maps, Bing, HERE or the device's map app.
 - Alerts have buttons: *All fine* and *Sound alarm*, under each alert in the phone app and in browser push

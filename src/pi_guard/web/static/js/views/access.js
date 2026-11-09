@@ -2,6 +2,10 @@
 import { askDialog, api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
 import { brandIcon } from "../widgets.js";
 import { createCredential, explainKeyError } from "../webauthn.js";
+import { profileDialog } from "./profile.js";
+
+const contact = (name) => h("button", { class: "icon-only", title: t("web.pf_title"),
+  onclick: () => profileDialog(`/api/profiles/${encodeURIComponent(name)}`, t("web.pf_of", { name })) }, icon("list-details"));
 
 function showCodes(codes) {
   const dialog = h("dialog", {}, h("h2", {}, t("web.recovery_title")), h("p", {}, t("web.recovery_save")),
@@ -37,11 +41,11 @@ async function peoplePanel(draw) {
   return h("section", { class: "panel stack" }, h("h2", {}, icon("users"), " ", t("web.users_title")),
     h("p", { class: "muted" }, t("web.users_hint")),
     h("ul", { class: "list" },
-      h("li", {}, icon("shield-lock"), h("div", { class: "grow" }, data.owner), h("span", { class: "badge accent" }, t("web.role_owner"))),
+      h("li", {}, icon("shield-lock"), h("div", { class: "grow" }, data.owner), h("span", { class: "badge accent" }, t("web.role_owner")), contact(data.owner)),
       data.users.map((u) => {
         const select = h("select", { "aria-label": t("web.role") }, roles(u.role));
         select.addEventListener("change", () => attempt(() => api(`/api/dashboard-users/${u.id}`, { method: "PATCH", body: { role: select.value } }), t("web.saved")));
-        return h("li", {}, icon("user"), h("div", { class: "grow" }, u.username, u.totp ? h("small", { class: "block" }, t("web.totp_on")) : null), select,
+        return h("li", {}, icon("user"), h("div", { class: "grow" }, u.username, u.totp ? h("small", { class: "block" }, t("web.totp_on")) : null), select, contact(u.username),
           h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
             if (await confirmDialog(t("web.users_delete", { name: u.username }), t("web.delete"), true)
                 && await attempt(() => api(`/api/dashboard-users/${u.id}`, { method: "DELETE" }), t("web.deleted"))) draw();
@@ -52,9 +56,41 @@ async function peoplePanel(draw) {
     } }, icon("plus"), t("web.users_add"))));
 }
 
+// A security question: asked in addition to the code word at login, never instead of it.
+function questionDialog(draw) {
+  const question = h("input", { id: "sq_q", maxlength: 200 });
+  const kind = h("select", { id: "sq_kind" }, ["text", "choice"].map((k) => h("option", { value: k }, t(`web.sq_kind_${k}`))));
+  const answer = h("input", { id: "sq_a", autocomplete: "off" });
+  const options = h("textarea", { id: "sq_o", rows: 4, placeholder: t("web.sq_options_hint") });
+  const right = h("select", { id: "sq_r" });
+  const hint = h("input", { id: "sq_h", maxlength: 100 });
+  const password = h("input", { id: "sq_p", type: "password", autocomplete: "current-password" });
+  const list = () => options.value.split("\n").map((o) => o.trim()).filter(Boolean);
+  const textBox = h("div", { class: "field" }, h("label", { for: "sq_a" }, t("web.sq_answer")), answer);
+  const choiceBox = h("div", { class: "stack hidden" }, h("div", { class: "field" }, h("label", { for: "sq_o" }, t("web.sq_options")), options),
+    h("div", { class: "field" }, h("label", { for: "sq_r" }, t("web.sq_right")), right));
+  options.addEventListener("input", () => fill(right, list().map((o, i) => h("option", { value: String(i) }, o))));
+  kind.addEventListener("change", () => { textBox.classList.toggle("hidden", kind.value !== "text"); choiceBox.classList.toggle("hidden", kind.value !== "choice"); });
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, t("web.sq_add")), h("p", { class: "muted" }, t("web.sq_hint")),
+    h("div", { class: "stack" }, h("div", { class: "field" }, h("label", { for: "sq_q" }, t("web.sq_question")), question),
+      h("div", { class: "field" }, h("label", { for: "sq_kind" }, t("web.sq_kind")), kind), textBox, choiceBox,
+      h("div", { class: "field" }, h("label", { for: "sq_h" }, t("web.sq_tip")), hint),
+      h("div", { class: "field" }, h("label", { for: "sq_p" }, t("web.confirm_password")), password)),
+    h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
+      h("button", { class: "primary", onclick: async () => {
+        const body = { password: password.value, question: question.value, kind: kind.value, hint: hint.value,
+          ...(kind.value === "text" ? { answer: answer.value } : { options: list(), answer: Number(right.value) }) };
+        if (await attempt(() => api("/api/account/questions", { method: "POST", body }), t("web.saved"))) { dialog.close(); draw(); }
+      } }, icon("check"), t("web.save"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 async function loginPanel(account, draw) {
   // Second factors and passkeys.
-  const keys = await api("/api/account/webauthn");
+  const [keys, questions, pgp] = await Promise.all([api("/api/account/webauthn"), api("/api/account/questions"),
+    api("/api/account/pgp").catch(() => ({ keys: [], available: false }))]);
   const name = h("input", { placeholder: t("web.webauthn_name"), maxlength: 40, "aria-label": t("web.webauthn_name") });
   const problem = h("div", { "aria-live": "polite" });
   return h("section", { class: "panel stack" }, h("h2", {}, icon("shield-lock"), " ", t("web.login_security")),
@@ -98,7 +134,28 @@ async function loginPanel(account, draw) {
     account.codeword ? h("button", { class: "danger", onclick: async () => {
       const password = await askDialog(t("web.confirm_password"), { type: "password" });
       if (password && await attempt(() => api("/api/account/codeword", { method: "POST", body: { password, codeword: "" } }), t("web.saved"))) draw();
-    } }, t("web.codeword_remove")) : null));
+    } }, t("web.codeword_remove")) : null),
+    h("h3", {}, t("web.sq_title")), h("p", { class: "muted" }, t("web.sq_hint")),
+    h("ul", { class: "list" }, questions.length ? questions.map((q) => h("li", {}, icon("key"),
+      h("div", { class: "grow" }, h("div", {}, q.question), h("small", { class: "muted" }, t(`web.sq_kind_${q.kind}`), q.hint ? ` · ${t("web.codeword_hint_show", { hint: q.hint })}` : "")),
+      h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+        const password = await askDialog(t("web.confirm_password"), { type: "password" });
+        if (password && await attempt(() => api(`/api/account/questions/${q.id}`, { method: "DELETE", body: { password } }), t("web.deleted"))) draw();
+      } }, icon("trash")))) : h("li", { class: "empty" }, t("web.sq_none"))),
+    questions.length < 5 ? h("div", {}, h("button", { onclick: () => questionDialog(draw) }, icon("plus"), t("web.sq_add"))) : null,
+    pgp.available ? [h("h3", {}, t("web.pgp_title")), h("p", { class: "muted" }, t("web.pgp_hint")),
+      h("ul", { class: "list" }, pgp.keys.map((k) => h("li", {}, icon("key"),
+        h("div", { class: "grow" }, h("div", {}, k.name || "–"), h("small", { class: "mono" }, k.fingerprint.replace(/(.{4})/g, "$1 ").trim())),
+        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+          const password = await askDialog(t("web.confirm_password"), { type: "password" });
+          if (password && await attempt(() => api(`/api/account/pgp/${k.fingerprint}`, { method: "DELETE", body: { password } }), t("web.deleted"))) draw();
+        } }, icon("trash"))))),
+      h("div", {}, h("button", { onclick: async () => {
+        const key = await askDialog(t("web.pgp_paste"), { multiline: true });
+        if (!key) return;
+        const password = await askDialog(t("web.confirm_password"), { type: "password" });
+        if (password && await attempt(() => api("/api/account/pgp", { method: "POST", body: { key, password } }), t("web.saved"))) draw();
+      } }, icon("plus"), t("web.pgp_add")))] : null);
 }
 
 export async function render(main) {
@@ -117,6 +174,7 @@ export async function render(main) {
             account.totp ? h("span", { class: "badge ok" }, t("web.totp_on")) : null),
           h("div", { class: "row" },
             h("a", { class: "button", href: "#/setup/account" }, icon("key"), t("web.account_change")),
+            h("button", { onclick: () => profileDialog("/api/me/profile", t("web.pf_title")) }, icon("list-details"), t("web.pf_title")),
             account.totp ? h("button", { class: "danger", onclick: async () => {
               const password = await askDialog(t("web.totp_disable_confirm"), { type: "password" });
               if (password && await attempt(() => api("/api/account/totp/disable", { method: "POST", body: { password } }), t("web.saved"))) draw();

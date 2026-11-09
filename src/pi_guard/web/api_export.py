@@ -57,6 +57,7 @@ def collect_all(d: Any) -> dict[str, list[dict[str, Any]]]:
         "cameras": [{"id": c.id, "name": c.name, "room": c.room, "source": c.source}
                     for c in app.config.file.cameras],
     }  # fmt: skip
+    data["accounts"] = [{"username": name, **values} for name, values in d.profiles.all().items()]
     if app.faces is not None:
         data["people"] = [{"name": n, "samples": c, "enrolled": e,
                            "profile": app.faces.store.profile(n)}
