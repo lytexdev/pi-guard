@@ -74,6 +74,7 @@ until they are added to it. A changed role counts at once; removing a person end
 sessions and removes their phones, computers and VPN access. A new password logs out all other
 browsers of that person; paired phones log themselves in again the next time they open. Adding a
 passkey, an API token or a key file asks for the password; a passkey the owner's. Hardware keys, recovery codes and the code word belong to the main account.
+The code word can have a hint. It is shown at login only after the right password, and it must not contain the word.
 
 ### Hardware keys and passkeys
 
@@ -243,9 +244,13 @@ reverse proxy with a real domain.
 
 ## Normal and expert view
 
-Settings open in the normal view with what most people need. The switch at the top shows everything, also the complex
+Settings open in the normal view with what most people need. The switch next to the title and the search shows everything, also the complex
 settings and the sections Integrations, Dashboard, Security and Data. It is remembered per device and works the same
 in the phone app. Nothing is lost by switching: hidden settings keep their values.
+
+In the expert view, *Messengers* ends with *Test messages*: one test message through each messenger that is set up,
+to every admin there or into the channel of Slack, Matrix, Rocket.Chat or Mastodon. Add-ons that are part of
+pi-guard carry a check mark; hovering, focusing or tapping it says *Verified*.
 
 ## Where notifications go
 
@@ -270,7 +275,7 @@ encrypted, and are delivered through the browser vendor's push service
 |---|---|
 | Overview | mode (home/away/automatic), cameras, open alerts with *Everything is fine*, storage, memory, temperature, the last 24 hours |
 | Live | live picture (pinch, mouse wheel or buttons to zoom, full screen), photo, *Sharper*, zoom into nine areas and *Brighter* on the taken picture, listen live, hold-to-talk through the speaker, sounds, alarm, volume |
-| Events | filter by type and camera, thumbnails, movement per day and by time of day |
+| Events | filter by type and camera, thumbnails, movement per day and by time of day; a person event says who was recognised, or why nobody could be named |
 | People | trusted people: add with photos/videos or a camera picture (consent checkbox), add more pictures, rename, delete |
 | Network | Pi-hole statistics and pause, WireGuard peers, devices in the LAN (see [network.md](network.md)) |
 | Devices | camera device, resolution, frame rate, motion settings, microphone and speaker as selection fields; trusted presence devices |

@@ -47,6 +47,19 @@ def test_code_word(db: Any) -> None:
     assert not s.has_codeword
 
 
+def test_a_code_word_hint_never_gives_the_word_away(db: Any) -> None:
+    s = store(db)
+    with pytest.raises(CredentialError, match="gives_away"):
+        s.set_codeword(PASSWORD, "Blaubeere", "es ist BLAUBEERE")
+    s.set_codeword(PASSWORD, "Blaubeere", "  eine   Frucht ")
+    assert s.codeword_hint == "eine Frucht"
+    s.set_codeword(PASSWORD, "Himbeere")
+    assert s.codeword_hint is None  # a new word without a hint drops the old hint
+    s.set_codeword(PASSWORD, "Himbeere", "rot")
+    s.set_codeword(PASSWORD, "")
+    assert s.codeword_hint is None
+
+
 async def test_login_with_totp_recovery_and_code_word(tmp_path: Path) -> None:
     client, app = await _client(tmp_path)
     try:
@@ -56,12 +69,14 @@ async def test_login_with_totp_recovery_and_code_word(tmp_path: Path) -> None:
 
         assert s.confirm_totp(totp_code(secret, int(time.time()) // 30))
         codes = s.new_recovery_codes()
-        s.set_codeword(PASSWORD, "blaubeere")
+        s.set_codeword(PASSWORD, "blaubeere", "eine Frucht")
+        assert (await (await client.get("/api/session")).json())["codeword_hint"] is None
         body = {"username": "admin", "password": PASSWORD}
         assert (await (await client.post("/api/login", json=body)).json())["totp_required"]
         assert (await client.get("/api/overview")).status == 401
         session = await (await client.get("/api/session")).json()
         assert session["totp"] and session["codeword"]
+        assert session["codeword_hint"] == "eine Frucht"  # only after the password
         # A wrong code word must not use up a recovery code.
         data = {"code": codes[0], "codeword": "falsch"}
         assert (await client.post("/api/login/totp", json=data)).status == 401

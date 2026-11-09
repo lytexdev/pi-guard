@@ -327,7 +327,9 @@ async function knowledgePanel(info) {
 
 const PROVIDERS = { mistral: "brand-mistral", openai: "brand-openai", anthropic: "brand-anthropic", gemini: "brand-gemini", grok: "brand-x", ollama: "brand-ollama", custom: "settings" };
 
-const verified = () => h("span", { class: "badge ok verified", title: t("web.verified_tip") }, icon("rosette-check"), t("web.verified"));
+// Only the icon; "Verified" and what it means appear on hover, focus and tap.
+const verified = () => h("button", { type: "button", class: "verified-mark", "data-tap-tip": "",
+  title: `${t("web.verified")}: ${t("web.verified_tip")}` }, icon("rosette-check"));
 
 function gitRow(p, redraw) {
   // Installed from a link: which branch, and how it stays current.

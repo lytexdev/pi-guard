@@ -50,6 +50,14 @@ export function installTooltips() {
     if (target && event.target.matches(":focus-visible")) show(target);
   });
   document.addEventListener("focusout", hide);
+  // Some marks are only an icon: their text appears on a tap as well, where there is no hover.
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest?.("[data-tap-tip]");
+    if (!target) return;
+    event.preventDefault();
+    event.stopPropagation();
+    show(target);
+  });
   for (const name of ["pointerdown", "keydown", "hashchange"]) addEventListener(name, hide, true);
   addEventListener("scroll", hide, { capture: true, passive: true });
 }

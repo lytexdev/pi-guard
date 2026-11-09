@@ -93,4 +93,5 @@ Then write `menu` to the camera's number from an admin phone.
 | Face enrollment by photo | yes | no |
 | Invitations | link + code | code (send it as a message) |
 | Group chats | allow-listed groups | no |
+| Answer to people who are not set up | "not allowed" with their ID | none: Signal is often linked to your own number, and friends who write to you must not get a bot answer. Invitation codes still work |
 | Official API | yes | no (signal-cli) |

@@ -854,3 +854,14 @@ def test_reset_password_shows_a_new_random_password(tmp_path: Path, monkeypatch:
     assert answer.exit_code == 0, answer.output
     password = answer.output.split("admin / ", 1)[1].split(";", 1)[0]
     assert len(password) >= 10 and password != auth.DEFAULT_PASSWORD
+
+
+async def test_every_messenger_can_send_a_test(web) -> None:  # type: ignore[no-untyped-def]
+    client, app = web
+    csrf = await _login(client)
+    listed = await (await client.get("/api/messengers")).json()
+    assert [m["name"] for m in listed] == ["telegram"] and listed[0]["admins"] >= 1
+    sent = await client.post("/api/messengers/telegram/test", headers={"X-CSRF-Token": csrf})
+    assert sent.status == 200 and "test" in app.providers["telegram"].last().text.lower()
+    off = await client.post("/api/messengers/whatsapp/test", headers={"X-CSRF-Token": csrf})
+    assert off.status == 409

@@ -173,5 +173,5 @@ improve recognition (*More photos of …*). See [privacy.md](privacy.md).
 With a speaker configured (`PI_GUARD_AUDIO_PLAYBACK_ENABLED=true`), admins can
 press *More functions → Alarm* or send `/alarm`. The bot asks once more, then
 the alarm sound repeats for 30 seconds at the maximum allowed volume, also
-during quiet hours. `/alarm aus` or *Stop the alarm* stops it immediately.
+during quiet hours, as one stream without gaps, so a USB speaker does not mute between rounds. `/alarm aus` or *Stop the alarm* stops it immediately.
 Any uploaded audio can be made the alarm sound with *Use as alarm sound*.

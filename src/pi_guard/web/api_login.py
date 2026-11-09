@@ -341,7 +341,8 @@ async def codeword(request: web.Request) -> web.Response:
     d = dashboard(request)
     data = await read_json(request)
     try:
-        d.auth.set_codeword(str(data.get("password", "")), str(data.get("codeword", "")))
+        d.auth.set_codeword(str(data.get("password", "")), str(data.get("codeword", "")),
+                            str(data.get("hint") or ""))  # fmt: skip
     except CredentialError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
     d.app.db.audit(f"web:{current(request).username}", "account.codeword")

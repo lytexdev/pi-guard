@@ -432,6 +432,9 @@ class Dashboard:
             "pending_level": session.level if session else 0,
             "codeword": bool(session and self.auth.is_owner(session.username)
                              and self.auth.has_codeword),
+            # Only between password and code word: whoever sees it already knows the password.
+            "codeword_hint": self.auth.codeword_hint
+            if session and session.pending and self.auth.is_owner(session.username) else None,
             "totp": bool(session and self.auth.totp_secret(session.username)),
             "setup_required": bool(active and session and self._setup_required(session)),
             "setup_done": bool(self.app.db.get(SETUP_DONE_KEY)),

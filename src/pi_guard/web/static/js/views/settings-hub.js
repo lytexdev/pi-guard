@@ -117,6 +117,24 @@ async function contributionPanel(box) {
   await draw();
 }
 
+const MESSENGER_NAMES = { telegram: "Telegram", signal: "Signal", discord: "Discord", whatsapp: "WhatsApp", email: "E-Mail",
+  slack: "Slack", rocketchat: "Rocket.Chat", matrix: "Matrix", mastodon: "Mastodon", mobile: "App" };
+
+// Expert view: a test message through every messenger that is set up.
+async function messengerTests() {
+  const list = await api("/api/messengers").catch(() => []);
+  return h("section", { class: "panel stack" }, h("h2", {}, icon("message"), " ", t("web.messengers_title")),
+    h("p", { class: "muted" }, t("web.messengers_intro")),
+    list.length ? h("ul", { class: "list" }, list.map((m) => h("li", {},
+      h("span", { class: `dot ${m.connected ? "ok" : "danger"}` }),
+      h("div", { class: "grow" }, h("div", {}, MESSENGER_NAMES[m.name] || m.name),
+        m.admins ? null : h("small", { class: "muted" }, t("web.messenger_no_admin"))),
+      h("button", { onclick: async () => {
+        const r = await attempt(() => api(`/api/messengers/${encodeURIComponent(m.name)}/test`, { method: "POST" }));
+        if (r) toast(t("web.messenger_test_sent", { count: r.sent }));
+      } }, icon("bell"), t("web.test"))))) : h("p", { class: "empty" }, t("web.nothing")));
+}
+
 async function updateSection(root) {
   const box = h("div");
   const helping = h("div");
@@ -217,7 +235,8 @@ export async function render(main, params = []) {
         h("a", { class: "grow", href: `#/settings/${id}${item.target ? `/${item.target}` : ""}` }, item.label), icon("chevron-right"))))])
       : h("p", { class: "muted" }, t("web.set_no_results")));
   });
-  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search)), modeSwitch(() => render(main, params)), results, hub);
+  // The view switch sits in the header with the title and the search, where it is seen first.
+  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_settings")), search), modeSwitch(() => render(main, params))), results, hub);
   installFolds(hub);
   let save = null;
   let stop = null;
@@ -238,6 +257,7 @@ export async function render(main, params = []) {
       if (modules.discord) extra.append(await discordPanel());
       if (modules.email) extra.append(emailPanel());
       extra.append(await signalPanel());
+      if (expertMode()) extra.append(await messengerTests());
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
   } else if (current === "devices") {

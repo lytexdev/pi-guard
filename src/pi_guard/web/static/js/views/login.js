@@ -26,7 +26,8 @@ export async function render(root) {
       needsCode ? [h("p", { class: "muted" }, t("web.totp_hint")),
         h("div", { class: "field" }, h("label", { for: "code" }, t("web.totp_code")), code,
           h("div", { class: "hint" }, t("web.recovery_hint")))] : null,
-      session.codeword ? h("div", { class: "field" }, h("label", { for: "word" }, t("web.codeword")), word) : null,
+      session.codeword ? h("div", { class: "field" }, h("label", { for: "word" }, t("web.codeword")), word,
+        session.codeword_hint ? h("div", { class: "hint" }, t("web.codeword_hint_show", { hint: session.codeword_hint })) : null) : null,
       h("button", { class: "primary big", type: "submit" }, t("web.login")));
     form.addEventListener("submit", async (event) => {
       event.preventDefault();

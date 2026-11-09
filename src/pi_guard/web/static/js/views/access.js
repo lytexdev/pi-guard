@@ -90,8 +90,10 @@ async function loginPanel(account, draw) {
     h("div", { class: "row" }, h("button", { onclick: async () => {
       const codeword = await askDialog(t("web.codeword_new"), { type: "password" });
       if (!codeword) return;
+      const hint = await askDialog(t("web.codeword_hint_new"), { confirmLabel: t("web.next") });
+      if (hint === null) return;
       const password = await askDialog(t("web.confirm_password"), { type: "password" });
-      if (password && await attempt(() => api("/api/account/codeword", { method: "POST", body: { password, codeword } }), t("web.saved"))) draw();
+      if (password && await attempt(() => api("/api/account/codeword", { method: "POST", body: { password, codeword, hint } }), t("web.saved"))) draw();
     } }, icon("key"), account.codeword ? t("web.codeword_change") : t("web.codeword_set")),
     account.codeword ? h("button", { class: "danger", onclick: async () => {
       const password = await askDialog(t("web.confirm_password"), { type: "password" });

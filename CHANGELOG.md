@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- The normal and expert switch of the settings sits next to the title and the search.
+- Verified add-ons show only a check mark; *Verified* appears on hover, focus or tap.
 - People are found far more often: YOLOX-Nano replaces the HOG detector once `pi-guard models download` fetched it.
   On 120 motion pictures of a real home, HOG found a person in none, YOLOX in 25. HOG stays for installations without
   the model, and `faces.compare_body_detectors` runs both to compare them on the events page.
@@ -30,6 +32,10 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- The alarm plays as one stream for its whole time. Starting the sound again for each round left gaps, and the USB
+  speaker could mute in them, so the alarm seemed to stop after a moment. The log now says when it started and ended.
+- Signal no longer answers people who are not set up. It is often linked to the owner's own number, so friends who wrote
+  to the owner got "not allowed" from the bot.
 - Renaming a trusted person took effect for recognition only after a restart; until then it reported the old name.
 - A computer whose VPN gets no answer keeps its tunnel instead of replacing the interface every 12 seconds, which
   looked like a new network to the system and every program on it. Other ways and keys are now set on the running
@@ -58,6 +64,9 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- The code word can have a hint, shown at login after the password.
+- Expert view: a test message through every messenger that is set up, not only Discord, email and Signal.
+- Person events in the dashboard say who was recognised, or why nobody could be named.
 - `training/` with `pgtrain`, for a computer with an NVIDIA GPU. It judges photos with the Pi's own code and models:
   is this me, similar photos in a folder, and where the face thresholds should be. It teaches YOLOX-Nano, the Pi's
   person detector, from YOLOX-L on any folder of pictures without labels, on several GPUs, and exports a file the Pi

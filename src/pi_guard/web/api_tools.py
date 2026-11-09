@@ -70,6 +70,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/email/export", email_export),
         web.get("/api/discord", discord_status),
         web.post("/api/discord/test", discord_test),
+        web.get("/api/messengers", messengers),
+        web.post("/api/messengers/{name}/test", messenger_test),
         web.get("/api/signal", signal_status),
         web.get("/api/signal/link", signal_link_state),
         web.post("/api/signal/link", signal_link),
@@ -285,6 +287,39 @@ async def discord_test(request: web.Request) -> web.Response:
                 log.warning("discord test message not delivered")
     if not sent:
         raise web.HTTPBadGateway(text="web.discord_not_delivered")
+    return web.json_response({"sent": sent})
+
+
+async def messengers(request: web.Request) -> web.Response:
+    """Every messenger that is set up, for test messages in the expert view."""
+    app = dashboard(request).app
+    return web.json_response([
+        {"name": name, "connected": bool(getattr(provider, "connected", True)),
+         "admins": sum(1 for u in app.users.all(name) if u.role is Role.ADMIN)}
+        for name, provider in sorted(app.providers.items())
+    ])  # fmt: skip
+
+
+async def messenger_test(request: web.Request) -> web.Response:
+    """One test message to each admin there, or to the channel of a chat app."""
+    d = dashboard(request)
+    app, name = d.app, request.match_info["name"]
+    if name not in app.providers:
+        raise web.HTTPConflict(text="web.messenger_off")
+    chats = [u.user_id for u in app.users.all(name) if u.role is Role.ADMIN]
+    if not chats and name in CHAT_APPS:
+        chats = [""]  # a chat app posts into its one channel
+    text = t("web.messenger_test_message", d.settings.language)
+    sent = 0
+    for chat in chats:
+        try:
+            await app.messenger.send(name, chat, Reply(text))
+            sent += 1
+        except (ProviderUnavailableError, RuntimeError, OSError):
+            log.warning("%s test message not delivered", name)
+    if not sent:
+        raise web.HTTPBadGateway(text="web.messenger_not_delivered")
+    d.app.db.audit(f"web:{current(request).username}", "messenger.test", name)
     return web.json_response({"sent": sent})
 
 

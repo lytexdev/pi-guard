@@ -44,6 +44,8 @@ die Anmeldung auf admin mit einem neuen Passwort zurück, das der Befehl anzeigt
   löschen Sie die Datei dort.
 - Beides zusammen: `PI_GUARD_DASHBOARD_AUTH=password,keyfile`.
 - Passwort ändern und Zwei-Faktor-Code ein-/ausschalten: *Zugang → Ihr Konto*.
+- Das Codewort kann einen Tipp haben. Er erscheint bei der Anmeldung erst nach dem richtigen Passwort und darf
+  das Codewort nicht enthalten.
 
 ## Mehrere Benutzer
 
@@ -180,8 +182,12 @@ Schriftgröße gelten pro Gerät. Schriften werden nicht aus dem Internet gelade
 
 ## Zertifikat installieren (einmal pro Gerät)
 
-In den Einstellungen wechselt ein Schalter oben zwischen **Normal** und **Experte**. Normal zeigt, was die meisten
+In den Einstellungen wechselt ein Schalter neben Überschrift und Suche zwischen **Normal** und **Experte**. Normal zeigt, was die meisten
 brauchen, Experte alles. Das gilt pro Gerät, auch in der Handy-App, und versteckte Einstellungen behalten ihre Werte.
+
+Im Expertenmodus endet *Messenger* mit *Testnachrichten*: eine Testnachricht über jeden eingerichteten Messenger, an
+jeden Admin dort oder in den Kanal von Slack, Matrix, Rocket.Chat oder Mastodon. Add-ons, die zu pi-guard gehören,
+tragen ein Häkchen; Darüberfahren, Fokus oder Antippen zeigt *Verifiziert*.
 
 Unter Einstellungen › Benachrichtigungen legst du bei jeder Nachricht fest, **wohin** sie geht: unter *Alle Wege*
 kannst du zum Beispiel nur Signal wählen, oder Telegram und die PiGuard-App. Das wirkt sofort.

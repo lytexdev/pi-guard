@@ -36,6 +36,7 @@ DEFAULT_PASSWORD = "admin123"  # noqa: S105 - documented first-login default, mu
 MIN_PASSWORD = 10
 RECOVERY_CODES = 10
 MIN_CODEWORD = 4
+MAX_HINT = 100
 # web_sessions.pending: what is still missing before a session counts.
 PENDING_NONE, PENDING_ALL, PENDING_CODEWORD = 0, 1, 2
 
@@ -524,20 +525,36 @@ class AuthStore:
             is not None
         )
 
-    def set_codeword(self, password: str, codeword: str) -> None:
-        """Empty `codeword` removes it."""
+    def set_codeword(self, password: str, codeword: str, hint: str = "") -> None:
+        """Empty `codeword` removes it, and its hint with it. The hint is shown at login only
+        after the password, so it must not give the word away."""
         if self.check_password(self.account()["username"], password) is None:
             raise CredentialError("web.wrong_password")
         word = codeword.strip().casefold()
         if not word:
-            self._db.execute("DELETE FROM web_factors WHERE name = 'codeword'")
+            self._db.execute("DELETE FROM web_factors WHERE name IN ('codeword', 'codeword_hint')")
             return
         if len(word) < MIN_CODEWORD:
             raise CredentialError("web.codeword_too_short")
+        hint = " ".join(hint.split())[:MAX_HINT]
+        if hint and word in hint.casefold():
+            raise CredentialError("web.codeword_hint_gives_away")
         self._db.execute(
             "INSERT OR REPLACE INTO web_factors (name, value) VALUES ('codeword', ?)",
             (hash_password(word, self._pepper),),
         )
+        self._db.execute("DELETE FROM web_factors WHERE name = 'codeword_hint'")
+        if hint:
+            self._db.execute(
+                "INSERT INTO web_factors (name, value) VALUES ('codeword_hint', ?)", (hint,)
+            )
+
+    @property
+    def codeword_hint(self) -> str | None:
+        row = self._db.execute(
+            "SELECT value FROM web_factors WHERE name = 'codeword_hint'"
+        ).fetchone()
+        return str(row["value"]) if row else None
 
     def check_codeword(self, word: str) -> bool:
         row = self._db.execute("SELECT value FROM web_factors WHERE name = 'codeword'").fetchone()

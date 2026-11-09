@@ -512,8 +512,6 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .foldable > h2:first-child::after, .foldable > .row.between:first-child > h2::after { content: "▾"; margin-left: 8px; color: var(--muted); font-size: .9em; display: inline-block; }
 .folded > h2:first-child::after, .folded > .row.between:first-child > h2::after { transform: rotate(-90deg); }
 .panel.folded > :not(:first-child) { display: none; }
-.verified { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; vertical-align: 2px; font-weight: 500; }
-.verified .icon { width: 14px; height: 14px; }
 .git-row { flex: 1 1 100%; align-items: center; }
 .donate-row { flex-wrap: wrap; }
 .donate-row .wrap { word-break: break-all; }
@@ -583,7 +581,7 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 .notif-ways summary { color: var(--muted); font-size: .9em; cursor: pointer; }
 
 /* Normal and expert */
-.mode-switch { margin-bottom: 4px; }
+.topbar .mode-switch { margin: 0; }
 
 /* Pictures of people */
 .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; }
@@ -626,3 +624,6 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 @media (prefers-reduced-motion: no-preference) { .skeleton .panel { animation: skeleton-pulse 1.4s ease-in-out infinite; } }
 
 .page { display: contents; }
+
+.verified-mark { background: none; border: 0; padding: 2px; margin-left: 6px; color: var(--ok, #3ddc97); cursor: help; vertical-align: middle; line-height: 0; }
+.verified-mark .icon { width: 18px; height: 18px; }

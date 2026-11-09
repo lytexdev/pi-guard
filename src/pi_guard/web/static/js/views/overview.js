@@ -20,6 +20,17 @@ export function stateDot(state) {
 }
 
 // `learn`: offer "Who is this?" on person events (admins, with face recognition on).
+// Who it was, for person events: a name, or why nobody could be named.
+function who(event) {
+  const d = event.data || {};
+  if (event.type === "known_person" && d.name) return t("web.ev_who_known", { name: d.name, score: Math.round((d.score || 0) * 100) });
+  if (event.type === "unknown_person") return d.known?.length ? t("web.ev_who_stranger_with", { names: d.known.join(", ") }) : null;
+  if (event.type !== "person_detected") return null;
+  if (!d.faces) return t("web.ev_who_no_face");
+  if (!d.scores) return t("web.ev_who_off");
+  return t("web.ev_who_unclear");
+}
+
 export function eventRow(event, cameras = {}, learn = false) {
   const snap = event.data?.snapshot;
   const canLearn = learn && snap && event.id != null && PERSON_EVENTS.includes(event.type);
@@ -28,7 +39,7 @@ export function eventRow(event, cameras = {}, learn = false) {
                       alt: "", loading: "lazy" })
          : h("span", { class: "thumb row", "aria-hidden": "true" }),
     h("div", { class: "grow" },
-      h("div", {}, t(`event.${event.type}`)),
+      h("div", {}, t(`event.${event.type}`), who(event) ? h("span", { class: "muted" }, ` · ${who(event)}`) : null),
       h("small", {}, [when(event.ts), event.camera ? ` · ${cameras[event.camera] || event.camera}` : ""]),
       // Only while the two body detectors are compared, see faces.compare_body_detectors.
       event.data?.hog != null
