@@ -1080,6 +1080,7 @@
   "web.ev_started": "Recording ({minutes} minutes). The video appears under Events.",
   "web.ev_title": "Evidence videos",
   "web.ev_recording": "A recording is running.",
+  "web.ev_detectors": "people found: YOLOX {yolox}, HOG {hog}",
   "web.ev_bad_request": "Please choose a camera and 1–30 minutes.",
   "web.ev_running": "This camera is already recording one.",
   "web.sec_title": "Security analysis (last {days} days)",

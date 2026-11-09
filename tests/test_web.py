@@ -548,7 +548,9 @@ async def test_setup_done_and_models_need_confirmation(web) -> None:  # type: ig
     assert (await client.post("/api/setup/done", headers=headers)).status == 200
     assert (await (await client.get("/api/session")).json())["setup_done"]
     models = await (await client.get("/api/models")).json()
-    assert {m["name"] for m in models} == {"yunet", "sface"} and all(m["size_mb"] for m in models)
+    assert {m["name"] for m in models} == {"yunet", "sface", "yolox"} and all(
+        m["size_mb"] for m in models
+    )
     no = await client.post("/api/models/download", json={}, headers=headers)
     assert no.status == 400
 

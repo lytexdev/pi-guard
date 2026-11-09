@@ -85,6 +85,11 @@ sudo journalctl -u pi-guard -n 100
   sharpness 22; MJPEG 150 %, 30; YUYV 75 %, 53.
 - A camera without a focus control in `v4l2-ctl --list-ctrls` has a fixed lens: software cannot focus it. Some have a
   ring around the lens. Otherwise more light helps most, because it shortens the exposure and so the motion blur.
+- Faces too small to recognise are the most common reason. A face needs at least 36 pixels, and 56 for a stranger
+  alarm from one picture. People found by a camera across a room are often around 110 of 720 pixels tall, with a face
+  of about 15. A camera nearer the door, at head height, helps more than any setting.
+- Without the YOLOX model (`pi-guard models list`), many people are not found at all, so their faces are never
+  checked.
 
 ## Storage
 

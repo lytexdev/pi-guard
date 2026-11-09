@@ -32,6 +32,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Videos oder einem Kamerabild eintragen – oder direkt aus einer Meldung über
   eine unbekannte Person. Unbekannte Personen werden mit Foto gemeldet.
   Ein Balken zeigt, wie gut jede Person eingeprägt ist und welche Bilder fehlen.
+  Mehrere Bilder werden zusammen bewertet, ein einmal schlecht gesehenes
+  Familienmitglied gilt also nicht gleich als fremd.
 - **Alarm:** Alarmton (auch einen eigenen) über einen Lautsprecher auslösen
   und wieder stoppen.
 - **Notfallkontakte:** Bleiben Meldungen unbestätigt, bekommen eingetragene

@@ -1080,6 +1080,7 @@
   "web.ev_started": "Aufnahme läuft ({minutes} Minuten). Das Video erscheint unter Ereignisse.",
   "web.ev_title": "Beweisvideos",
   "web.ev_recording": "Eine Aufnahme läuft gerade.",
+  "web.ev_detectors": "Personen gefunden: YOLOX {yolox}, HOG {hog}",
   "web.ev_bad_request": "Bitte Kamera und 1–30 Minuten wählen.",
   "web.ev_running": "Für diese Kamera läuft schon eine Aufnahme.",
   "web.sec_title": "Sicherheitsanalyse (letzte {days} Tage)",

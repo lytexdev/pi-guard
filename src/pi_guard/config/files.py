@@ -249,6 +249,8 @@ class FaceSettings(_Model):
     min_interval_seconds: float = Field(5.0, ge=1, le=300)
     # Many varied pictures (light, glasses, angles) make recognition reliable.
     max_samples_per_person: int = Field(40, ge=1, le=80)
+    # Also run the old body detector (HOG) and note what it found, to compare it with YOLOX.
+    compare_body_detectors: bool = False
 
 
 class HeartbeatTarget(_Model):

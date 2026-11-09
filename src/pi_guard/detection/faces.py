@@ -15,6 +15,9 @@ How mistakes are kept out (family members often look alike):
 - a person's score is the mean of their best few samples, not one lucky sample
 - "known" also needs a clear lead over the next most similar person
 - faces too small or blurry to judge are "uncertain", never "known"
+- an "unknown" face is marked clear only when it is big and sharp enough that a family
+  member would have been recognised; analysis.py raises the alarm for a stranger at once
+  only then, and otherwise waits for more pictures
 """
 
 from __future__ import annotations
@@ -63,6 +66,7 @@ class Identification:
     runner_up: str | None = None  # the next most similar person, for the test page
     runner_up_score: float = 0.0
     reason: str | None = None  # why a face could not be judged
+    clear: bool = False  # big and sharp enough to trust "unknown"
 
 
 # Quality limits: (enrollment, recognition). Sizes in pixels of the full picture.
@@ -73,6 +77,9 @@ MIN_DETECTION_SCORE = (0.88, 0.0)
 MAX_TURN = (0.42, 0.55)
 FRONT_TURN = 0.12  # up to here a face counts as looking at the camera
 MIN_SHARPNESS = (25.0, 8.0)  # variance of the Laplacian on the aligned 112x112 face
+# A face this clear that matches nobody is a stranger; a less clear one may be family.
+CLEAR_FACE_PX = 56
+CLEAR_SHARPNESS = 15.0
 TOP_K = 3
 PERSON_MARGIN = 0.06  # lead over the next most similar person needed for "known"
 SAME_PERSON_MIN = 0.30  # samples of one upload must be at least this similar to each other
@@ -101,11 +108,16 @@ def with_context(embedding: Embedding, pose: str, light: float) -> FaceSample:
     return sample
 
 
-def pose_of(face: npt.NDArray[np.float32]) -> str:
-    """Which way a face looks in the picture, from the nose between the eyes."""
+def turn_of(face: npt.NDArray[np.float32]) -> float:
+    """Horizontal offset of the nose from the middle between the eyes, per eye distance."""
     right_eye, left_eye, nose = face[4:6], face[6:8], face[8:10]
     eye_distance = float(np.linalg.norm(left_eye - right_eye)) or 1.0
-    offset = (float(nose[0]) - float(right_eye[0] + left_eye[0]) / 2) / eye_distance
+    return (float(nose[0]) - float(right_eye[0] + left_eye[0]) / 2) / eye_distance
+
+
+def pose_of(face: npt.NDArray[np.float32]) -> str:
+    """Which way a face looks in the picture, from the nose between the eyes."""
+    offset = turn_of(face)
     if abs(offset) <= FRONT_TURN:
         return "front"
     return "right" if offset > 0 else "left"
@@ -366,16 +378,23 @@ class FaceRecognizer:
             return "faces.too_small", image
         if float(face[14]) < MIN_DETECTION_SCORE[level]:
             return "faces.unclear", image
-        right_eye, left_eye, nose = face[4:6], face[6:8], face[8:10]
-        eye_distance = float(np.linalg.norm(left_eye - right_eye)) or 1.0
-        turn = abs(float(nose[0]) - float(right_eye[0] + left_eye[0]) / 2) / eye_distance
-        if turn > MAX_TURN[level]:
+        if abs(turn_of(face)) > MAX_TURN[level]:
             return "faces.turned", image
         aligned = self._aligned(image, face)
-        gray = self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY)
-        if float(self._cv2.Laplacian(gray, self._cv2.CV_64F).var()) < MIN_SHARPNESS[level]:
+        if self._sharpness(aligned) < MIN_SHARPNESS[level]:
             return "faces.blurry", aligned
         return None, aligned
+
+    def _sharpness(self, aligned: Image) -> float:
+        gray = self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY)
+        return float(self._cv2.Laplacian(gray, self._cv2.CV_64F).var())
+
+    def _clear(self, face: npt.NDArray[np.float32], aligned: Image) -> bool:
+        return (
+            min(float(face[2]), float(face[3])) >= CLEAR_FACE_PX
+            and abs(turn_of(face)) <= MAX_TURN[0]
+            and self._sharpness(aligned) >= CLEAR_SHARPNESS
+        )
 
     def prepare(self, photo: Path) -> FaceSample:
         """Embedding of the person in `photo` (one clear face); the photo is not kept."""
@@ -493,7 +512,10 @@ class FaceRecognizer:
         result = classify(best_name, best, self.settings)
         if result.verdict is Verdict.KNOWN and runner_up and best - second < PERSON_MARGIN:
             result = Identification(Verdict.UNCERTAIN, None, best, reason="faces.look_alike")
-        return Identification(result.verdict, result.name, best, runner_up, second, result.reason)
+        clear = result.verdict is Verdict.UNKNOWN and self._clear(face, aligned)
+        return Identification(
+            result.verdict, result.name, best, runner_up, second, result.reason, clear
+        )
 
 
 def classify(name: str | None, score: float, settings: FaceSettings) -> Identification:

@@ -52,6 +52,16 @@ encoder CPU and memory; slower CPU: higher Python and decode cost).
 | FFmpeg capture process (libx264) | 155–245 MB RSS, 30–50 % of one core |
 | HOG person detector, 640 px image | ~20 ms |
 | YuNet face detection, 640 px image | ~15 ms |
+
+On a Raspberry Pi 4 (measured 2026-11-08 on 1280×720 motion pictures, while recording):
+
+| | Value |
+|---|---|
+| HOG person detector, 640 px image | 313 ms (one thread) |
+| YOLOX-Nano person detector, 416 px | 298 ms (one thread), 187 ms (two) |
+| YuNet face detection, 640 px / 1280 px | 120 ms / 425 ms |
+| SFace face embedding | 276 ms per face |
+| Whole person check, before / with YOLOX, head crops and HOG beside it | median 177 ms / 375 ms |
 | Live view: parsing the MJPEG stream (60 KB frames) | 0.018 ms per frame (0.01 % of a core at 8 FPS) |
 | Image tools on a 1280×720 picture | sharpen 2 ms, zoom 3 ms, brighten 24 ms |
 

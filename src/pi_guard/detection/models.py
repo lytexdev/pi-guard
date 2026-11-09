@@ -1,4 +1,5 @@
-"""Optional ONNX models from the OpenCV Model Zoo, downloaded only on request.
+"""Optional ONNX models, downloaded only on request: faces from the OpenCV Model Zoo,
+people from the YOLOX project.
 
 Nothing is downloaded automatically. `pi-guard models download` shows what will
 be fetched, from where, and how large it is, and verifies SHA-256 checksums.
@@ -52,7 +53,16 @@ SFACE = Model(
     "Apache-2.0",
     "face recognition embeddings (only for enrolled trusted people)",
 )
-MODELS = (YUNET, SFACE)
+YOLOX = Model(
+    "yolox",
+    "yolox_nano.onnx",
+    "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.onnx",
+    "c789161ed43c8269fcd4e67c67eeeb4e80c622da2eb296a20bc6007bd18a0b7d",
+    3.7,
+    "Apache-2.0",
+    "person detection (finds people in any pose; without it a much weaker built-in detector runs)",
+)
+MODELS = (YUNET, SFACE, YOLOX)
 
 
 class ChecksumError(Exception):

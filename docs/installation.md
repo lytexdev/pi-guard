@@ -83,7 +83,7 @@ and the last few minutes last.
 | Feature | Enable | Also needed |
 |---|---|---|
 | Presence detection | `PI_GUARD_PRESENCE_ENABLED=true` | `presence.devices` in config.yaml |
-| Person detection | `PI_GUARD_PERSON_DETECTION_ENABLED=true` | optional: `pi-guard models download` |
+| Person detection | `PI_GUARD_PERSON_DETECTION_ENABLED=true` | `pi-guard models download`, without it only a much weaker detector runs |
 | Face recognition | `PI_GUARD_FACE_RECOGNITION_ENABLED=true` | `pi-guard models download`; read [privacy.md](privacy.md) |
 | Speaker | `PI_GUARD_AUDIO_PLAYBACK_ENABLED=true` | `audio.speaker` in config.yaml |
 | Microphone | `PI_GUARD_AUDIO_RECORDING_ENABLED=true` | `audio.microphone` or a camera's `microphone`; read [privacy.md](privacy.md) |

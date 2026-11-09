@@ -191,7 +191,8 @@ class App:
             log.error("OpenCV is not installed; motion detection is disabled")
             return
         models_dir = s.data_dir / "models"
-        persons = PersonDetector(models_dir) if s.person_detection_enabled else None
+        compare = self.config.file.faces.compare_body_detectors
+        persons = PersonDetector(models_dir, compare) if s.person_detection_enabled else None
         faces = None
         if s.face_recognition_enabled and persons is not None:
             try:

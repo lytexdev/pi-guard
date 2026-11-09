@@ -8,6 +8,14 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- People are found far more often: YOLOX-Nano replaces the HOG detector once `pi-guard models download` fetched it.
+  On 120 motion pictures of a real home, HOG found a person in none, YOLOX in 25. HOG stays for installations without
+  the model, and `faces.compare_body_detectors` runs both to compare them on the events page.
+- Faces are also searched at full resolution in the head of each person, where they are often too small for the
+  smaller copy that was searched before.
+- Up to three pictures of a motion are judged together. Before, the first picture decided: a blurred first picture
+  ended the check, and a family member seen badly once raised the stranger alarm. Now an unclear face is a stranger
+  only if it matches nobody twice; a clear one or one next to a family member still is at once.
 - The dashboard shows a placeholder while a page loads, instead of an empty area.
 - The dashboard opens faster: it asks for the session once at the start and no longer waits for it when changing pages,
   the overview no longer waits for its two slowest panels, and the events page asks for everything at once.

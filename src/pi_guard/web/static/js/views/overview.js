@@ -24,7 +24,11 @@ export function eventRow(event, cameras = {}) {
          : h("span", { class: "thumb row", "aria-hidden": "true" }),
     h("div", { class: "grow" },
       h("div", {}, t(`event.${event.type}`)),
-      h("small", {}, [when(event.ts), event.camera ? ` · ${cameras[event.camera] || event.camera}` : ""])));
+      h("small", {}, [when(event.ts), event.camera ? ` · ${cameras[event.camera] || event.camera}` : ""]),
+      // Only while the two body detectors are compared, see faces.compare_body_detectors.
+      event.data?.hog != null
+        ? h("small", { class: "muted" }, ` · ${t("web.ev_detectors", { yolox: event.data.bodies, hog: event.data.hog })}`)
+        : null));
 }
 
 let publicCheck = null;  // once per page load: the browser asks for its own public address

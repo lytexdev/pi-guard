@@ -163,7 +163,9 @@ button for admins, which starts a session with that picture.
 
 Recognised people do not silence alerts: motion is still reported in AWAY mode.
 Unknown people are reported with a photo (`unknown_person`), and an uncertain
-recognition is reported as such. More photos of different angles and lighting
+recognition is reported as such. Up to three pictures are judged together; a face too
+small or blurred to be sure is a stranger only if it matches nobody twice, see
+[configuration.md](configuration.md#how-person-detection-decides). More photos of different angles and lighting
 improve recognition (*More photos of …*). See [privacy.md](privacy.md).
 
 ## Alarm

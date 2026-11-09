@@ -129,7 +129,8 @@ Foto. Bitte lesen Sie vorher [Datenschutz](datenschutz.md).
    PI_GUARD_FACE_RECOGNITION_ENABLED=true
    ```
 
-2. Die Erkennungsmodelle herunterladen (etwa 37 MB, es wird vorher gefragt):
+2. Die Erkennungsmodelle herunterladen (etwa 41 MB, es wird vorher gefragt). Ohne sie
+   läuft nur ein viel schwächerer Personendetektor:
 
    ```bash
    sudo -u pi-guard pi-guard models download

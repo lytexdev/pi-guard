@@ -3,13 +3,15 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 import numpy as np
 import pytest
 
 from pi_guard.config.files import CameraConfig, FaceSettings, Zone
-from pi_guard.core.events import EventType
+from pi_guard.core.events import Event, EventType
+from pi_guard.detection import analysis
 from pi_guard.detection.analysis import MotionAnalysis
 from pi_guard.detection.faces import BiometricStore, Verdict, classify
 from pi_guard.detection.motion import MotionDetector, MotionEnd, MotionParams, MotionStart
@@ -161,58 +163,137 @@ def test_biometric_store_add_cap_and_delete(tmp_path: Path) -> None:
 
 
 class FakePersons:
-    def __init__(self, result: PersonResult) -> None:
-        self.result = result
+    """Returns the given results one per picture, the last one again when they run out."""
+
+    def __init__(self, *results: PersonResult) -> None:
+        self.results = list(results)
+        self.calls = 0
 
     def detect(self, path: Path) -> PersonResult:
-        return self.result
+        self.calls += 1
+        return self.results[min(self.calls, len(self.results)) - 1]
 
 
 class FakeFaces:
-    def __init__(self, verdict: Verdict) -> None:
-        self.verdict = verdict
+    """One list of (verdict, clear) per picture, one entry per face; the last list repeats."""
+
+    def __init__(self, *pictures: list[tuple[Verdict, bool]] | Verdict) -> None:
+        self.pictures = [[(p, False)] if isinstance(p, Verdict) else p for p in pictures]
+        self.calls = 0
+        self.face = 0
 
     def identify(self, image, face):  # type: ignore[no-untyped-def]
         from pi_guard.detection.faces import Identification
 
-        return Identification(self.verdict, "Erna" if self.verdict is Verdict.KNOWN else None, 0.7)
+        if self.face == 0:
+            self.calls += 1
+        picture = self.pictures[min(self.calls, len(self.pictures)) - 1]
+        verdict, clear = picture[self.face]
+        self.face = (self.face + 1) % len(picture)
+        return Identification(verdict, "Erna" if verdict is Verdict.KNOWN else None, 0.7,
+                              clear=clear)  # fmt: skip
 
 
-async def _analyse(tmp_path: Path, persons, faces) -> list[EventType]:  # type: ignore[no-untyped-def]
+@pytest.fixture(autouse=True)
+def _no_waiting(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(analysis, "ATTEMPT_SPACING_SECONDS", 0.0)
+
+
+async def _events(tmp_path: Path, persons, faces, moving: bool = False) -> list[Event]:  # type: ignore[no-untyped-def]
+    """`moving`: the motion goes on, so further pictures are taken."""
     app = make_app(tmp_path, person_detection_enabled=True)
     fake_snapshot(app)
+    if moving:
+        app.motion["living_room"] = SimpleNamespace(active=True)  # type: ignore[assignment]
     events = app.bus.subscribe("t")
-    analysis = MotionAnalysis(app, persons, faces)
-    analysis.on_change(MotionStart("living_room", 3.0))
-    await asyncio.sleep(0.2)
+    analysis_ = MotionAnalysis(app, persons, faces)
+    analysis_.on_change(MotionStart("living_room", 3.0))
+    await asyncio.sleep(0.3)
     app.db.close()
-    types = []
+    found = []
     while not events.empty():
-        types.append(events.get_nowait().type)
-    return types
+        found.append(events.get_nowait())
+    return found
+
+
+async def _analyse(tmp_path: Path, persons, faces, moving: bool = False) -> list[EventType]:  # type: ignore[no-untyped-def]
+    return [e.type for e in await _events(tmp_path, persons, faces, moving)]
 
 
 IMAGE = np.zeros((10, 10, 3), dtype=np.uint8)
 ONE_FACE = np.zeros((1, 15), dtype=np.float32)
+TWO_FACES = np.zeros((2, 15), dtype=np.float32)
+FACE = PersonResult(0, ONE_FACE, IMAGE)
+NOBODY = PersonResult(0, None, IMAGE)
+STRANGER, UNCLEAR = [(Verdict.UNKNOWN, True)], [(Verdict.UNKNOWN, False)]
 
 
 async def test_motion_then_known_person(tmp_path: Path) -> None:
-    persons = FakePersons(PersonResult(0, ONE_FACE, IMAGE))
-    types = await _analyse(tmp_path, persons, FakeFaces(Verdict.KNOWN))
+    types = await _analyse(tmp_path, FakePersons(FACE), FakeFaces(Verdict.KNOWN))
     assert types == [EventType.MOTION_DETECTED, EventType.KNOWN_PERSON]
 
 
-async def test_unrecognised_face_is_unknown_person(tmp_path: Path) -> None:
-    persons = FakePersons(PersonResult(0, ONE_FACE, IMAGE))
-    types = await _analyse(tmp_path, persons, FakeFaces(Verdict.UNKNOWN))
+async def test_clear_stranger_is_reported_at_once(tmp_path: Path) -> None:
+    persons = FakePersons(FACE)
+    events = await _events(tmp_path, persons, FakeFaces(STRANGER), moving=True)
+    assert [e.type for e in events] == [EventType.MOTION_DETECTED, EventType.UNKNOWN_PERSON]
+    assert persons.calls == 1 and events[1].data["pictures"] == 1
+
+
+async def test_unclear_face_once_is_a_person_not_a_stranger(tmp_path: Path) -> None:
+    """A family member seen badly once must not raise the stranger alarm."""
+    events = await _events(tmp_path, FakePersons(FACE), FakeFaces(UNCLEAR))
+    assert [e.type for e in events] == [EventType.MOTION_DETECTED, EventType.PERSON_DETECTED]
+    assert events[1].data["recognition"] == "uncertain"
+
+
+async def test_unclear_face_matching_nobody_twice_is_a_stranger(tmp_path: Path) -> None:
+    persons = FakePersons(FACE)
+    types = await _analyse(tmp_path, persons, FakeFaces(UNCLEAR), moving=True)
     assert types == [EventType.MOTION_DETECTED, EventType.UNKNOWN_PERSON]
+    assert persons.calls == 3  # decided after the last picture
+
+
+async def test_later_picture_recognises_the_person(tmp_path: Path) -> None:
+    faces = FakeFaces(Verdict.UNCERTAIN, Verdict.KNOWN)
+    events = await _events(tmp_path, FakePersons(FACE), faces, moving=True)
+    assert [e.type for e in events] == [EventType.MOTION_DETECTED, EventType.KNOWN_PERSON]
+    assert events[1].data["name"] == "Erna" and events[1].data["pictures"] == 2
+
+
+async def test_stranger_next_to_family_member_is_a_stranger(tmp_path: Path) -> None:
+    faces = FakeFaces([(Verdict.KNOWN, True), (Verdict.UNKNOWN, False)])
+    events = await _events(tmp_path, FakePersons(PersonResult(0, TWO_FACES, IMAGE)), faces)
+    assert [e.type for e in events] == [EventType.MOTION_DETECTED, EventType.UNKNOWN_PERSON]
+    assert events[1].data["known"] == ["Erna"]
 
 
 async def test_body_without_face_is_person_not_intruder(tmp_path: Path) -> None:
-    types = await _analyse(
-        tmp_path, FakePersons(PersonResult(1, None, IMAGE)), FakeFaces(Verdict.UNKNOWN)
-    )
+    persons = FakePersons(PersonResult(1, None, IMAGE))
+    types = await _analyse(tmp_path, persons, FakeFaces(STRANGER), moving=True)
     assert types == [EventType.MOTION_DETECTED, EventType.PERSON_DETECTED]
+    assert persons.calls == 3  # looked for a face in every picture
+
+
+async def test_without_recognition_a_person_is_reported_at_once(tmp_path: Path) -> None:
+    persons = FakePersons(PersonResult(1, None, IMAGE, detector="yolox", hog_bodies=0))
+    events = await _events(tmp_path, persons, None, moving=True)
+    assert [e.type for e in events] == [EventType.MOTION_DETECTED, EventType.PERSON_DETECTED]
+    assert persons.calls == 1
+    assert events[1].data == {"bodies": 1, "faces": 0, "detector": "yolox", "hog": 0,
+                              "pictures": 1}  # fmt: skip
+
+
+async def test_person_in_a_later_picture_is_found(tmp_path: Path) -> None:
+    persons = FakePersons(NOBODY, PersonResult(1, None, IMAGE))
+    types = await _analyse(tmp_path, persons, None, moving=True)
+    assert types == [EventType.MOTION_DETECTED, EventType.PERSON_DETECTED]
+
+
+async def test_nobody_in_any_picture_is_only_motion(tmp_path: Path) -> None:
+    persons = FakePersons(NOBODY)
+    types = await _analyse(tmp_path, persons, FakeFaces(STRANGER), moving=True)
+    assert types == [EventType.MOTION_DETECTED] and persons.calls == 3
 
 
 async def test_motion_only_without_person_detection(tmp_path: Path) -> None:
@@ -225,11 +306,9 @@ async def test_known_person_does_not_suppress_motion_alert(tmp_path: Path) -> No
     app = make_app(tmp_path, person_detection_enabled=True)
     fake_snapshot(app)
     app.modes.set_manual(Mode.AWAY)
-    analysis = MotionAnalysis(
-        app, FakePersons(PersonResult(0, ONE_FACE, IMAGE)), FakeFaces(Verdict.KNOWN)
-    )
+    analysis_ = MotionAnalysis(app, FakePersons(FACE), FakeFaces(Verdict.KNOWN))
     events = app.bus.subscribe("t")
-    analysis.on_change(MotionStart("living_room", 3.0))
+    analysis_.on_change(MotionStart("living_room", 3.0))
     await asyncio.sleep(0.2)
     while not events.empty():
         await app.notifier.handle(events.get_nowait())
