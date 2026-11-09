@@ -353,14 +353,15 @@ def reference_people(teacher: YOLOX, image: np.ndarray, device: str) -> list[tup
 
 
 def evaluate(
-    pictures: Path, teacher_weights: Path, models: list[Path], limit: int = 0
+    pictures: Path, teacher_weights: Path, models: list[Path], limit: int = 0, whole: bool = False
 ) -> dict[str, Any]:
-    """Each ONNX model on the checking share of `pictures`, through pi-guard's own code."""
+    """Each ONNX model on the checking share of `pictures` (all of them with `whole`), through
+    pi-guard's own code."""
     from pi_guard.detection.persons import PersonDetector
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     teacher = load("l", str(teacher_weights), device)
-    _, val_paths = split(images(pictures))
+    val_paths = images(pictures) if whole else split(images(pictures))[1]
     if limit:
         val_paths = val_paths[:limit]
     detectors = {}

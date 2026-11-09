@@ -96,8 +96,23 @@ check), the official Nano was not beaten:
 | 8 rounds, learning rate 2e-5 (now the default) | 0.582 | 0.868 | 6 |
 
 Nano learned COCO from 118,000 labelled pictures; a few thousand of the same kind make it forget more than they
-teach, and fast learning makes that worse. Whether pictures of homes help is not measured yet. So: train, then
-`evaluate` on pictures it did not learn from, and use the model only if it finds more people there.
+teach, and fast learning makes that worse.
+
+**Pictures of one home help a lot, for that home.** One camera of the owner's Pi, 7616 motion pictures of six days
+mixed with the 5000 COCO pictures, 10 rounds at the default settings (31 minutes on two GTX 1660). Checked on the
+1295 pictures of the next two days, which it never saw:
+
+| Model | people found | pictures with people where anyone was found | pictures without people where someone was found |
+|---|---|---|---|
+| official YOLOX-Nano | 0.558 | 0.608 | 5 |
+| trained on this camera | 0.821 | 0.874 | 26 |
+
+On COCO it stayed close to the official model (0.571 of the people instead of 0.602). Most of the 26 extra finds
+were wide, low boxes where YOLOX-L itself gave 0.3 to 0.5, just under its limit: probably people lying or half
+hidden, but about six were below 0.2 and likely wrong. Such a model is for the home it learned from, and it does not
+belong in a release, see *Releasing a model for everybody*.
+
+So: train, then `evaluate` on pictures it did not learn from, and use the model only if it finds more people there.
 
 With two GTX 1660 (6 GB each), one round over 2687 pictures took 43 seconds at 16 pictures per GPU, about 62 pictures
 a second. Training runs in float32: YOLOX-L overflows to NaN in float16, and a GTX 1660 was slower in it anyway. A
@@ -110,7 +125,18 @@ decision as the owner. They show the people in your home and visitors who did no
 use them only for your own model, keep them on this computer, and delete them when you are done.
 
 ```bash
-rsync -a pi:/var/lib/pi-guard/media/snapshots/ ~/pi-pictures/   # needs read access on the Pi
+mkdir -p ~/pi-pictures/learn ~/pi-pictures/check
+ssh pi 'sudo bash -c "cd /var/lib/pi-guard/media/snapshots && find . -name \"hd_*.jpg\" -print0 | tar --null -T - -cf -"' \
+  | tar -xf - -C ~/pi-pictures/learn
+```
+
+Pictures a camera takes two seconds apart look almost the same, so a random share for checking would be too
+easy. Move the last days into `check/` instead, mix the rest with public pictures so that Nano does not forget what
+it knows, and check on each folder as a whole:
+
+```bash
+.venv/bin/pgtrain persons train ~/mix --devices 2          # ~/mix: links to learn/ and to public pictures
+.venv/bin/pgtrain persons evaluate ~/pi-pictures/check --whole --model …/yolox_nano.onnx --model yolox_home.onnx
 ```
 
 ### Trying a model on the Pi

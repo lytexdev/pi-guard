@@ -61,7 +61,7 @@ All notable changes are documented here. The format follows
 - `training/` with `pgtrain`, for a computer with an NVIDIA GPU. It judges photos with the Pi's own code and models:
   is this me, similar photos in a folder, and where the face thresholds should be. It teaches YOLOX-Nano, the Pi's
   person detector, from YOLOX-L on any folder of pictures without labels, on several GPUs, and exports a file the Pi
-  loads as it is; on public COCO pictures it has not beaten the official model yet. A page on `127.0.0.1` does the face part. Pictures stay on that computer. See `docs/training.md`.
+  loads as it is. On public COCO pictures it did not beat the official model; on one home camera it found 0.82 of the people instead of 0.56, on days it had not seen. A page on `127.0.0.1` does the face part. Pictures stay on that computer. See `docs/training.md`.
 - Anonymous statistics, off by default: once an admin switches them on and a receiver is set, the Pi sends counts
   and histograms of the last week, above all how similar faces were that an admin confirmed or corrected. The
   dashboard shows the exact report first. Never pictures, face prints, names or times. `pgtrain reports receive`

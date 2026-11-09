@@ -45,8 +45,11 @@ Personen mit je zehn Fotos.
 .venv/bin/pgtrain persons evaluate ~/bilder-von-raeumen --model ~/.local/share/pi-guard-train/models/yolox_nano.onnx --model yolox_home.onnx
 ```
 
-Bisher gemessen, nur mit öffentlichen COCO-Bildern: Das offizielle Nano wurde nicht übertroffen (0,602 der Personen
-gefunden, nach 8 vorsichtigen Runden 0,582). Ob Bilder aus Wohnungen helfen, ist noch nicht gemessen. Darum nach dem
+Mit öffentlichen COCO-Bildern allein wurde das offizielle Nano nicht übertroffen (0,602 der Personen gefunden, nach
+8 vorsichtigen Runden 0,582). Mit den Bewegungsbildern einer Kamera aber sehr wohl: Auf zwei Tagen, die es nicht
+gesehen hatte, fand das trainierte Modell 0,821 statt 0,558 der Personen, und in 87 % statt 61 % der Bilder mit
+Personen überhaupt jemanden. Dafür meldete es in 26 statt 5 Bildern jemanden, wo das große Modell niemanden sah,
+meist wohl liegende oder halb verdeckte Menschen. Ein solches Modell ist nur für die Wohnung, aus der es gelernt hat. Darum nach dem
 Training immer `evaluate` laufen lassen und das Modell nur nehmen, wenn es dort mehr Personen findet.
 
 Beschriften muss man nichts: Das große Modell zeigt dem kleinen in jedem Bild, wo Personen sind. Am meisten helfen

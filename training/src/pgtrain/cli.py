@@ -170,13 +170,17 @@ def persons_evaluate(
     pictures: Path,
     model: list[Path] = typer.Option(None, help="ONNX files to compare; default: the Pi's"),
     limit: int = 0,
+    whole: bool = typer.Option(False, help="check on all of PICTURES, for a folder kept apart"),
 ) -> None:
-    """Compare ONNX models on the checking share of PICTURES, through pi-guard's own code."""
+    """Compare ONNX models on the checking share of PICTURES, through pi-guard's own code.
+
+    Pictures a camera takes seconds apart look alike. To judge on pictures of your own
+    camera, keep later days in a folder of their own and check with --whole."""
     from pgtrain.persons import evaluate
 
     folder = weights.ensure_training(home() / "models")
     models = model or [weights.ensure_faces(home() / "models") / "yolox_nano.onnx"]
-    typer.echo(json.dumps(evaluate(pictures, folder["l"], models, limit), indent=2))
+    typer.echo(json.dumps(evaluate(pictures, folder["l"], models, limit, whole), indent=2))
 
 
 @reports_app.command("receive")
