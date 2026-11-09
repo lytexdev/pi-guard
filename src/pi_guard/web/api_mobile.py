@@ -55,6 +55,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/mobile/session", device_session),
         web.get("/api/mobile/ws", device_socket),
         web.post("/api/mobile/report", report),
+        web.post("/api/mobile/action", alert_action),
         web.post("/api/mobile/emergency", emergency),
         web.post("/api/mobile/calendar", calendar),
         web.post("/api/mobile/vpn", vpn),
@@ -165,6 +166,24 @@ async def device_socket(request: web.Request) -> web.WebSocketResponse:
     finally:
         hub.detach(device["id"], socket.send_str)
     return socket
+
+
+async def alert_action(request: web.Request) -> web.Response:
+    """A button in an alert on the phone: everything is fine, or sound the alarm. Admins only."""
+    from pi_guard.notifications import actions
+
+    d = dashboard(request)
+    device = _device(request)
+    if d.auth.role_of(device["username"]) != "admin":
+        raise web.HTTPForbidden(text="auth.admin_only")
+    action = str((await read_json(request)).get("action", ""))
+    if action not in actions.ACTIONS:
+        raise web.HTTPBadRequest(text="web.unknown_action")
+    try:
+        result = actions.run(d.app, f"phone:{device['id']}", action)
+    except actions.ActionError as exc:
+        raise web.HTTPConflict(text=exc.key) from None
+    return web.json_response(result)
 
 
 async def report(request: web.Request) -> web.Response:

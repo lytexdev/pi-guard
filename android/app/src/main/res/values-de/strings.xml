@@ -91,6 +91,17 @@
     <string name="pin_set">PIN festlegen</string>
     <string name="pin_remove">PIN entfernen</string>
     <string name="pin_hint">Mindestens 4 Ziffern</string>
+    <string name="action_ack">Alles in Ordnung</string>
+    <string name="action_alarm">Alarm abspielen</string>
+    <string name="action_ack_done">Als in Ordnung markiert</string>
+    <string name="action_alarm_done">Der Alarm läuft zu Hause</string>
+    <string name="action_admin_only">Das kann nur ein Admin</string>
+    <string name="action_failed">pi-guard ist nicht erreichbar</string>
+    <string name="pin_repeat">PIN noch einmal eingeben</string>
+    <string name="pin_mismatch">Die beiden PINs sind verschieden. Bitte neu eingeben.</string>
+    <string name="pin_saved">PIN gespeichert</string>
+    <string name="pin_delete">Ziffer löschen</string>
+    <string name="pin_entered">%1$d Ziffern eingegeben</string>
     <string name="bio_use">Mit Fingerabdruck oder Gesicht entsperren</string>
     <string name="calendar_section">Kalender</string>
     <string name="calendar_use">Abwesend während Kalendereinträgen</string>

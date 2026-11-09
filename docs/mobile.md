@@ -18,7 +18,8 @@ app* and its token stops working at once.
 
 - **Dashboard** with all pages and settings, also from outside through the VPN or a public address.
 - **Alerts** arrive over the app's own encrypted connection to pi-guard, with no Google or Apple service in
-  between. A permanent notification keeps it alive, which uses some battery.
+  between. A permanent notification keeps it alive, which uses some battery. Under each alert, *All fine* acknowledges
+  all open alerts and *Sound alarm* sounds the alarm at home for 30 seconds; pi-guard does either only for an admin.
 - **VPN:** the app is a WireGuard client with its own access per phone, like a VPN app with a device list. pi-guard
   creates the access when the phone is paired, so there is no QR code to scan. Tap the shield at the top of the app,
   then *Connect VPN*. It works from anywhere, shows the device, address, data and last contact, and comes back after
@@ -49,7 +50,8 @@ app* and its token stops working at once.
   works in a normal browser. Expect a delay of a second or two.
 - **Calendar:** with *Away during calendar entries*, busy entries for the next 14 days count as away, even if
   a phone is at home. Only start and end go to pi-guard; titles stay on the phone. All-day entries are left out.
-- **App lock:** PIN and fingerprint or face, after 30 seconds in the background.
+- **App lock:** PIN and fingerprint or face, after 30 seconds in the background. The PIN is typed on a number pad that
+  shows dots, never digits, and it is set by typing it twice.
 
 On a phone the dashboard's settings are a list: tap a section to open it, and the arrow at the top leads back.
 

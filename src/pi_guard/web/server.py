@@ -45,7 +45,8 @@ COOKIE = "pg_session"
 PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.crt",
           "/api/login/telegram", "/api/login/telegram/poll", "/api/login/webauthn/begin",
           "/api/login/webauthn/finish", "/api/agent/ws", "/api/hello",
-          "/api/mobile/session", "/api/mobile/ws", "/api/mobile/report",
+          "/api/mobile/session", "/api/mobile/ws", "/api/mobile/report", "/api/mobile/action",
+          "/api/push/action",
           "/api/mobile/emergency", "/api/mobile/calendar", "/api/mobile/vpn", "/api/mobile/reach",
           "/api/mobile/vpn/pq",
           "/api/mobile/app/latest", "/api/mobile/app/apk"}  # fmt: skip

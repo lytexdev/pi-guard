@@ -103,7 +103,9 @@ are off start folded.
 ## Trusted people
 
 The form explains what makes recognition work. **Take photos or a video now** opens the camera of the
-device you are using and guides the person through front and turned views, or films 8 seconds without sound.
+device you are using and guides the person through front and turned views, or films 8 seconds without sound. A small
+head beside the text shows where to look. The picture keeps the camera's own shape and its widest zoom, so on a phone
+held upright the face is not cut off.
 Tap a picture to remove it; nothing leaves the page before **Upload**. This needs the HTTPS address and your
 permission for the camera; otherwise the page offers the phone's camera app. You can also choose existing
 files or use a camera at home.
@@ -267,7 +269,8 @@ Enable push with `PI_GUARD_WEBPUSH_ENABLED=true` (and a contact address in
 `PI_GUARD_WEBPUSH_CONTACT`), then on each device: *More → This app → Receive
 alerts on this device*. Push messages carry the alert text only, end-to-end
 encrypted, and are delivered through the browser vendor's push service
-(Google, Apple or Mozilla) — see [privacy.md](privacy.md).
+(Google, Apple or Mozilla) — see [privacy.md](privacy.md). Admins get two buttons in each notification, *All fine*
+and *Sound alarm*. The notification carries a token for one tap, valid for an hour; pi-guard keeps only its hash.
 
 ## What it offers
 

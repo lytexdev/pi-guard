@@ -105,18 +105,33 @@ class AppSettingsActivity : AppCompatActivity() {
             }.setNegativeButton(R.string.cancel, null).show()
     }
 
+    /** The same number pad as the lock screen, and the PIN typed twice. */
     private fun setPin() {
-        val input = EditText(this).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
-            typeface = android.graphics.Typeface.DEFAULT // a password field would turn monospace
-            setHint(R.string.pin_hint)
+        var first: String? = null
+        val title = android.widget.TextView(this).apply {
+            setText(R.string.pin_hint)
+            gravity = android.view.Gravity.CENTER
+            setTextColor(getColor(R.color.muted))
         }
-        val side = (24 * resources.displayMetrics.density).toInt()
-        val box = android.widget.FrameLayout(this).apply { setPadding(side, side / 3, side, 0); addView(input) }
-        MaterialAlertDialogBuilder(this).setTitle(R.string.pin_set).setView(box)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                if (input.text.length >= 4) store.setPin(input.text.toString())
-            }.setNegativeButton(R.string.cancel, null).show()
+        lateinit var dialog: androidx.appcompat.app.AlertDialog
+        val pad = PinPad(this) { pin ->
+            when {
+                pin.length < 4 -> Toast.makeText(this, R.string.pin_hint, Toast.LENGTH_SHORT).show()
+                first == null -> { first = pin; title.setText(R.string.pin_repeat) }
+                pin == first -> { store.setPin(pin); Toast.makeText(this, R.string.pin_saved, Toast.LENGTH_SHORT).show(); dialog.dismiss() }
+                else -> { first = null; title.setText(R.string.pin_mismatch) }
+            }
+        }
+        val side = (16 * resources.displayMetrics.density).toInt()
+        val box = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER_HORIZONTAL
+            setPadding(side, side, side, 0)
+            addView(title)
+            addView(pad)
+        }
+        dialog = MaterialAlertDialogBuilder(this).setTitle(R.string.pin_set).setView(box)
+            .setNegativeButton(R.string.cancel, null).show()
     }
 
     private fun update() {

@@ -32,6 +32,8 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Taking pictures on a phone held upright cut the picture to a landscape strip, so the face seemed zoomed in and hardly
+  fit the oval. The picture now keeps the camera's own shape, and the camera uses its widest zoom.
 - The alarm plays as one stream for its whole time. Starting the sound again for each round left gaps, and the USB
   speaker could mute in them, so the alarm seemed to stop after a moment. The log now says when it started and ended.
 - Signal no longer answers people who are not set up. It is often linked to the owner's own number, so friends who wrote
@@ -64,6 +66,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Alerts have buttons: *All fine* and *Sound alarm*, under each alert in the phone app and in browser push
+  notifications, for admins. A push notification carries a token for one tap that is valid for an hour.
+- The phone app asks for its PIN on a number pad with dots, and a new PIN is typed twice.
+- Taking pictures for face recognition shows a small head with where to look at each step.
 - Apps update from GitHub: `scripts/release-apps.sh` builds, signs and publishes the phone app, desktop app and agent as
   one release, and every pi-guard fetches new signed versions every 6 hours for its devices. Files whose signature,
   checksum or version do not match are refused. The keys stay on the owner's computer, so a broken-into GitHub account

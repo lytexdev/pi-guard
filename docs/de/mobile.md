@@ -51,7 +51,10 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **Kalender:** Mit *Abwesend während Kalendereinträgen* gelten belegte Termine der nächsten 14 Tage als abwesend, auch
   wenn ein Handy zu Hause ist. Nur Start und Ende gehen an pi-guard, Titel bleiben auf dem Handy. Ganztägige Termine
   zählen nicht.
-- **App-Sperre:** PIN und Fingerabdruck oder Gesicht, nach 30 Sekunden im Hintergrund.
+- **App-Sperre:** PIN und Fingerabdruck oder Gesicht, nach 30 Sekunden im Hintergrund. Die PIN tippst du auf einem
+  Ziffernblock, der nur Punkte zeigt; beim Festlegen gibst du sie zweimal ein.
+- **Knöpfe unter Meldungen:** *Alles in Ordnung* bestätigt alle offenen Meldungen, *Alarm abspielen* lässt zu Hause
+  30 Sekunden den Alarm laufen. Beides macht pi-guard nur für Admins.
 
 Auf dem Handy sind die Einstellungen des Dashboards eine Liste: Abschnitt antippen, der Pfeil oben führt zurück.
 

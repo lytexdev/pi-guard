@@ -682,3 +682,26 @@ async def test_someone_changed_to_viewer_loses_the_vpn_access(tmp_path: Path) ->
         await other.close()
         await client.close()
         app.db.close()
+
+
+async def test_an_alert_button_on_the_phone(tmp_path: Path) -> None:
+    from pi_guard.core.events import Event, EventType
+
+    client, app, _, bearer = await _paired(tmp_path)
+    try:
+        app.escalation.record(Event(EventType.MOTION_DETECTED, camera="living_room"), None)
+        app.escalation.record(Event(EventType.UNKNOWN_PERSON, camera="living_room"), None)
+        ok = await client.post("/api/mobile/action", json={"action": "ack"}, headers=bearer)
+        assert ok.status == 200 and (await ok.json())["acknowledged"] >= 1
+        assert app.escalation.open_alerts() == []
+        no_speaker = await client.post(
+            "/api/mobile/action", json={"action": "alarm"}, headers=bearer
+        )
+        assert no_speaker.status == 409
+        bad = await client.post("/api/mobile/action", json={"action": "unlock"}, headers=bearer)
+        assert bad.status == 400
+        nobody = await client.post("/api/mobile/action", json={"action": "ack"})
+        assert nobody.status == 401
+    finally:
+        await client.close()
+        app.db.close()

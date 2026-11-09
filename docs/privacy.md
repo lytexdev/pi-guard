@@ -28,7 +28,7 @@ runs with `UMask=0077`; databases are `0600`).
 | Mode, presence state, camera status, motion events (no images, no names) | your **MQTT broker** | only if MQTT is enabled |
 | A presence query per trusted device | your **router** (FRITZ!Box source) | only if configured |
 | Alert summary and up to three photos | **emergency contacts** via Telegram/Signal | only if alerts stay unconfirmed and contacts are configured |
-| Alert text (no photos, no names) | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |
+| Alert text (no photos, no names), and for admins a one-tap token for *All fine* and *Sound alarm*, valid an hour | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |
 | Live picture and sound, files you upload | your own browser, over HTTPS | only while you use the dashboard |
 | Your browser's public IP address | `api.ipify.org`, and the Pi asks `ipwho.is` about unknown addresses | when the overview is open (connection panel) |
 | Questions to the AI assistant, voice messages sent to it | the provider you chose (OpenAI, Mistral, your own) | add-on on, only what you ask |

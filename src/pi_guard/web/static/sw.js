@@ -38,12 +38,27 @@ self.addEventListener("push", (event) => {
     tag: data.tag || "pi-guard",
     renotify: true,
     requireInteraction: data.priority === "high" || data.priority === "critical",
-    data: { url: data.url || "/#/events" },
+    // Admins get two buttons. The token in this notification allows one tap, for an hour.
+    actions: data.token ? [{ action: "ack", title: data.ack_label || "OK" }, { action: "alarm", title: data.alarm_label || "Alarm" }] : [],
+    data: { url: data.url || "/#/events", token: data.token || null, labels: { ack: data.ack_label, alarm: data.alarm_label } },
   }));
 });
 
+async function act(action, data) {
+  const response = await fetch("/api/push/action", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, token: data.token }), credentials: "omit" });
+  const done = data.labels?.[action] || action;
+  await self.registration.showNotification("pi-guard", {
+    body: response.ok ? `✓ ${done}` : `✗ ${done}`, icon: "/static/img/icon-192.png", tag: "pi-guard-action",
+  });
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  if (event.action && event.notification.data?.token) {
+    event.waitUntil(act(event.action, event.notification.data));
+    return;
+  }
   const target = event.notification.data?.url || "/";
   event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
     for (const client of clients) {
