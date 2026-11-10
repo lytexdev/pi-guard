@@ -429,7 +429,27 @@ async def topology(request: web.Request) -> web.Response:
         "vpn": [{"name": p.get("name") or p["public_key"][:8], "active": p.get("active", False),
                  "address": p.get("allowed_ips", "").split("/")[0]} for p in peers],
         "lan": devices,
+        "proxy": _proxy_nodes(app),
     })  # fmt: skip
+
+
+def _proxy_nodes(app: Any) -> dict[str, Any] | None:
+    """The reverse proxy on the map: this Pi's role, and who is connected through it."""
+    proxy = getattr(app.addons, "proxy", None)
+    if proxy is None:
+        return None
+    state, status = proxy.state(), proxy.status() or {}
+    if state["role"] == "server":
+        live = {c["name"]: c for c in status.get("clients", [])}
+        return {"role": "server", "port": state["listen_port"], "peers": [
+            {"name": c["name"], "online": bool(live.get(c["name"], {}).get("connected")),
+             "ports": [p["port"] for p in c["ports"]]} for c in state["clients"]]}  # fmt: skip
+    if state["role"] == "client" and state.get("client"):
+        client = state["client"]
+        return {"role": "client", "peers": [{
+            "name": client["server"], "online": bool(status.get("connected_since")),
+            "ports": [f["remote_port"] for f in client["forwards"]]}]}  # fmt: skip
+    return None
 
 
 async def blocking(request: web.Request) -> web.Response:

@@ -8,6 +8,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Reverse proxy add-on with `pgproxy`, written in Rust: reach services behind NAT through a server you choose, like
+  frp. The server decides which ports each client may open, tokens are shown once and kept as SHA-256, clients trust
+  the server's certificate by fingerprint only, and the client alone chooses where traffic goes. The Pi can be server
+  or client, makes the configuration for other machines, starts pgproxy itself, and shows it on the network map.
+  `scripts/install-proxy.sh` installs it elsewhere as a service; app releases carry the binaries.
 - Talking to the Pi, off by default: a wake phrase ("Hallo lytex", "Hi piguard") recognised offline with Vosk, a GPIO
   button or *Talk to the Pi now*; the answer comes from the assistant and is spoken. Spoken requests never switch
   anything. `pi-guard voice download` fetches the checked speech model. The navigation shows when the Pi listens.

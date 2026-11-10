@@ -35,7 +35,7 @@ from pi_guard.web.server import current, dashboard, read_body, read_json
 log = logging.getLogger(__name__)
 
 ADDONS = ("heartbeat", "analytics", "smarthome", "remote", "assistant", "agents", "languages",
-          "medical")  # fmt: skip
+          "medical", "proxy")  # fmt: skip
 # Shown as one add-on, "Server": the agent part carries the switch, the watcher is its section.
 LISTED = tuple(a for a in ADDONS if a != "heartbeat")
 SERVER_PARTS = ("agents", "heartbeat")
@@ -44,6 +44,7 @@ ADDON_FILES = {
     "assistant": ("knowledge.db", "knowledge.db-wal", "knowledge.db-shm"),
     "languages": ("i18n",),
     "medical": ("medical.db", "medical.key"),
+    "proxy": ("proxy",),
 }
 MAX_VOICE_BYTES = 5_000_000
 HOME_IP_SECONDS = 600

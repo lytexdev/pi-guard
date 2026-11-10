@@ -58,6 +58,9 @@ versteht es ohne KI.
 
 Details: [addons.md](../addons.md).
 
+**Reverse-Proxy:** Dienste hinter NAT über einen Server deiner Wahl erreichen, wie mit frp: dieser Pi als Server oder
+Client von `pgproxy`, mit Tokens, erlaubten Ports und festem Zertifikat. Siehe [proxy.md](proxy.md).
+
 **Notfalldaten:** Medizinische Angaben der Menschen im Haus für den Notfall: Blutgruppe, Allergien, Erkrankungen,
 Medikamente und Medikamentenplan, Implantate wie ein Herzschrittmacher, Organspendeausweis, anzurufende Personen,
 Hausarzt und Krankenkasse. Bis auf den Namen ist alles freiwillig.

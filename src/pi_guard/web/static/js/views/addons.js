@@ -5,7 +5,7 @@ import { searchToggle } from "../widgets.js";
 import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
 
-export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone", agents: "device-desktop", languages: "world", medical: "user-check" };
+export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone", agents: "device-desktop", languages: "world", medical: "user-check", proxy: "network" };
 
 const slug = (text) => text.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 28) || "item";
 const uniqueId = (name, items) => {
@@ -698,7 +698,11 @@ async function medical(box) {
     h("p", { class: "muted" }, h("small", {}, t("web.md_privacy"))));
 }
 
-const DETAILS = { heartbeat, analytics, smarthome, remote, assistant, agents, languages, medical };
+async function proxy(box) {
+  await (await import("./proxy.js")).proxyPanel(box);
+}
+
+const DETAILS = { heartbeat, analytics, smarthome, remote, assistant, agents, languages, medical, proxy };
 
 export async function renderDetail(id, box, opts = {}) {
   const data = await api("/api/addons");
@@ -729,7 +733,7 @@ export async function render(main, params = []) {
     if (saved) { state.session.pinned = saved.pinned; location.reload(); }
   };
   // Cards in groups, each with its state at a glance; removing sits in a menu, not next to "Open".
-  const GROUPS = [["server", ["agents", "remote"]], ["network", ["analytics"]], ["home", ["smarthome"]],
+  const GROUPS = [["server", ["agents", "remote"]], ["network", ["analytics", "proxy"]], ["home", ["smarthome"]],
     ["health", ["medical"]], ["assistant", ["assistant", "languages"]], ["messages", ["discord", "whatsapp", "email", "mobile", "chatapps"]]];
   const MODULE_ICONS = { discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", mobile: "device-mobile", chatapps: "message" };
   const stateBadge = (on, extra) => extra

@@ -46,5 +46,6 @@ config/config.yaml
 /data/
 agent/target/
 vpn/target/
+proxy/target/
 desktop/dist-pack/
 desktop/.flatpak.*/

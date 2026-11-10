@@ -117,7 +117,9 @@ an SD card: about 250 durable single inserts per second, and 0.2 ms to read the 
 
 Rust is for small programs that run on their own: the agent on connected computers (`agent/`) has no
 runtime to install and handles untrusted network input. The same goes for the VPN service (`vpn/`), which
-runs as root, and its key exchange (`vpn/kem/`), which also gives phones the very same code.
+runs as root, and its key exchange (`vpn/kem/`), which also gives phones the very same code. The reverse
+proxy (`proxy/`, `pgproxy`) forwards every byte of its connections and faces the internet; pi-guard only writes its
+configuration and starts it.
 
 Pi-guard's own work is not limited by Python. Measured on a Raspberry Pi with one camera: FFmpeg, written
 in C, used about 130 % of a core, the Python service 3 to 8 %. Motion analysis and face models already run in

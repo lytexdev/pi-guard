@@ -188,6 +188,11 @@ use under Settings › Messenger:
 These are send-only and carry no pictures: what your cameras see does not belong in a team chat. Under Settings ›
 Notifications you choose per kind of message whether it goes there.
 
+## Reverse proxy
+
+Reach services behind NAT through a server you choose, like frp: this Pi as server or client of `pgproxy`, with
+tokens, allowed ports and a pinned certificate. See [proxy.md](proxy.md).
+
 ## Removing an add-on
 
 *Remove* on an add-on's card switches it off and deletes its settings and data, and shows how much space that frees.

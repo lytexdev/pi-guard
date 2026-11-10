@@ -107,6 +107,8 @@ export async function topologyPanel(onDevice) {
       y += r.height + 30;
     }
     const groups = [
+      ...(data.proxy?.peers || []).map((p) => ({ label: p.name, sub: `${t(data.proxy.role === "server" ? "web.px_peer_client" : "web.px_peer_server")} · ${p.ports.join(", ")}`, icon: "network",
+        state: p.online ? "ok" : "", detail: t(p.online ? "web.topo_online" : "web.topo_offline"), href: "#/addons/proxy" })),
       ...(data.agents || []).map((a) => ({ label: a.name, sub: a.os, icon: "device-desktop", state: a.online ? "ok" : "", detail: t(a.online ? "web.topo_online" : "web.topo_offline"), href: "#/addons/agents" })),
       ...data.cameras.map((c) => ({ label: c.name, icon: "camera", sub: c.room || c.source, state: c.state === "running" ? "ok" : "danger", detail: t(`camera.state.${c.state}`), href: `#/live/${c.id}` })),
       ...data.vpn.map((p) => ({ label: p.name, sub: p.address, icon: "device-mobile", cls: "vpn", state: p.active ? "ok" : "", detail: t(p.active ? "web.topo_online" : "web.topo_offline") })),

@@ -1,0 +1,29 @@
+[Unit]
+Description=pgproxy %i (reverse proxy of pi-guard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# %i is server or client. /etc/pgproxy is root:pgproxy 0750, its files 0640: they hold a key or
+# a token, and only this service may read them.
+ExecStart=/usr/local/bin/pgproxy %i /etc/pgproxy/%i.json
+User=pgproxy
+Group=pgproxy
+StateDirectory=pgproxy
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+
+[Install]
+WantedBy=multi-user.target
