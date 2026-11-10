@@ -57,6 +57,8 @@ def routes() -> list[web.RouteDef]:
         web.put("/api/settings", put_settings),
         web.get("/api/settings/history", settings_history),
         web.post("/api/settings/ask", settings_ask),
+        web.get("/api/voice", voice_status),
+        web.post("/api/voice/listen", voice_listen),
         web.post("/api/settings/history/{id:\\d+}/revert", settings_revert),
         web.get("/api/config", get_config),
         web.put("/api/config", put_config),
@@ -217,6 +219,21 @@ async def settings_ask(request: web.Request) -> web.Response:
         "answer": found.answer, "found": found.found, "proposal": found.proposal,
         "ai": found.answer is not None,
     })  # fmt: skip
+
+
+async def voice_status(request: web.Request) -> web.Response:
+    """Whether the Pi listens, so nobody is listened to without seeing it."""
+    voice = dashboard(request).app.voice
+    return web.json_response({"enabled": voice.enabled, **voice.status()})
+
+
+async def voice_listen(request: web.Request) -> web.Response:
+    """Push to talk from the dashboard: the Pi listens for one question."""
+    d = dashboard(request)
+    if not d.app.voice.request("dashboard"):
+        raise web.HTTPConflict(text="voice.not_ready")
+    d.app.db.audit(_actor(request), "voice.listen")
+    return web.json_response({"ok": True})
 
 
 async def settings_history(request: web.Request) -> web.Response:

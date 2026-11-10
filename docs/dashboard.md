@@ -211,6 +211,24 @@ WebP up to 1 MB; no SVG, because it can contain scripts) for everyone, also on t
 Theme and text size are chosen per device. No fonts are loaded from the internet: the choices use
 what the device has. The high-contrast theme keeps its own colours.
 
+## Accessibility
+
+The round button at the bottom right opens the accessibility panel on every page, for this browser only: text size,
+letter and line spacing, inverted colours, greyscale, filters for red-green and blue-yellow colour blindness, a large
+cursor, a reading ruler, a magnifier for the text under the pointer, underlined links, fewer animations, reading
+tapped text or the whole page aloud, and a guided tour.
+
+- **For deaf and hard-of-hearing people:** *Show alerts visibly* makes the page glow and the device vibrate for every
+  new alert. It pulses slowly and never flashes fast.
+- **For people who cannot speak:** *Speak* on the Live page says a typed text through the speaker at home.
+- **For blind people:** the dashboard is built for screen readers such as NVDA, JAWS, VoiceOver and TalkBack: controls
+  carry labels, changes are announced, and *Skip to content* is the first thing the keyboard reaches. It has not been
+  tested with each of these readers yet; please report what does not work. With *Read aloud*
+  on, answers of the assistant are read too.
+- **By voice or chat:** in the assistant's chat, typed or spoken: "Schrift größer", "Vorlesen an", "Lupe aus",
+  "Rot-Grün", "Sichtbare Alarme an", "zurücksetzen" (also in English). These are done in the browser and never sent
+  anywhere. Talking to the Pi itself is described in [voice.md](voice.md).
+
 ### The secret key
 
 `PI_GUARD_DASHBOARD_SECRET_KEY` (at least 32 characters) is mixed into the

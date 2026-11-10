@@ -30,6 +30,9 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 | `TIMEZONE` | `Europe/Berlin` | used for messages, quiet hours, schedules |
 | `MAP_PROVIDER` | `openstreetmap` | where a phone's place opens: `openstreetmap`, `google`, `apple`, `bing`, `here`, or `geo` for the device's map app |
 | `MOBILE_SOS_HOME_AUDIO` | `false` | after an SOS from a phone, 20 seconds from the Pi's microphone for the emergency contacts; needs microphone recording |
+| `VOICE_WAKE_ENABLED` | `false` | listen for a wake phrase, offline, see [voice.md](voice.md) |
+| `VOICE_WAKE_PHRASES` | `hallo lytex,hi piguard` | wake phrases, comma separated |
+| `VOICE_BUTTON_GPIO` | `0` | BCM line of a talk button to ground; 0 = none |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `LOG_FORMAT` | `text` | `json` for one JSON object per line |
 | `LOG_FILE` | – | optional rotating log file (journald is used anyway) |

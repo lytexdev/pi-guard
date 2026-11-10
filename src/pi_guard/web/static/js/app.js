@@ -60,7 +60,10 @@ export function navItems() {
 }
 
 function shell(route) {
-  const main = h("main", { id: "main" });
+  const main = h("main", { id: "main", tabindex: "-1" });
+  // For keyboards and screen readers: past the navigation in one step. A button, because a
+  // link to #main would change the page here.
+  const skip = h("button", { class: "skip-link", type: "button", onclick: () => main.focus() }, t("web.skip_to_content"));
   const viewer = state.session?.role === "viewer";
   const items = navItems();
   const custom = (state.session?.nav || []).length > 0;
@@ -75,13 +78,14 @@ function shell(route) {
     (state.session?.pinned || []).length ? h("h3", {}, t("web.nav_pinned")) : null,
     (state.session?.pinned || []).map((id) => link(`addons/${id}`, "cpu", `addons.${id}`, route)),
     h("div", { class: "spacer" }),
+    state.session?.voice_listening ? h("a", { href: "#/settings/audio", class: "voice-badge", title: t("web.vo_listening_tip") }, icon("microphone"), h("span", {}, t("web.vo_listening"))) : null,
     h("a", { href: "#/logout" }, icon("logout"), h("span", {}, t("web.logout"))),
     h("div", { class: "credit" }, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex")));
   const tabbar = h("nav", { class: "tabbar", "aria-label": "pi-guard" },
     viewer ? items.map(([r, i, l]) => link(r, i, l, tabs)) : [
       ...items.slice(0, 4).map(([r, i, l]) => link(r, i, l, tabs)),
       link("more", "menu-2", "web.nav_more", items.slice(0, 4).some(([r]) => r === tabs) ? tabs : "more")]);
-  return h("div", { class: "shell" }, nav, main, tabbar, scrollTopButton(), accessibilityButton(),
+  return h("div", { class: "shell" }, skip, nav, main, tabbar, scrollTopButton(), accessibilityButton(),
     state.session?.assistant ? assistantButton() : null);
 }
 

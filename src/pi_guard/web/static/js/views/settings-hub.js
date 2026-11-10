@@ -121,6 +121,30 @@ async function backupPanel(box) {
   await draw();
 }
 
+// Talking to the Pi: what it does right now, and push to talk.
+async function voicePanel(box) {
+  const panel = h("div");
+  box.append(panel);
+  const draw = async () => {
+    const v = await api("/api/voice").catch(() => null);
+    if (!panel.isConnected || !v) return;
+    const last = v.last;
+    fill(panel, h("section", { class: "panel stack" }, h("h2", {}, icon("microphone"), " ", t("web.vo_title")),
+      h("p", {}, h("span", { class: `badge ${v.state === "waiting" ? "warn" : v.state === "off" ? "" : "ok"}` }, t(`web.vo_state_${v.state}`)),
+        v.wake && v.phrases.length ? h("span", { class: "muted" }, " ", t("web.vo_phrases", { phrases: v.phrases.join(" · ") })) : null),
+      v.problem ? h("p", { class: "notice" }, t(v.problem)) : null,
+      !v.enabled ? h("p", { class: "muted" }, t("web.vo_off_hint")) : !v.model ? h("p", { class: "notice" }, t("voice.no_model")) : null,
+      h("div", { class: "row" }, h("button", { class: "primary", disabled: !v.enabled || !v.model || !["waiting", "idle"].includes(v.state), onclick: async () => {
+        if (await attempt(() => api("/api/voice/listen", { method: "POST" }), t("web.vo_speak_now"))) whileShown(panel, draw, 1000);
+      } }, icon("microphone"), t("web.vo_talk"))),
+      last ? h("div", { class: "stack tight" }, h("small", { class: "muted" }, when(new Date(last.time * 1000).toISOString())),
+        h("p", {}, h("strong", {}, t("web.vo_heard"), " "), last.question), h("p", {}, h("strong", {}, t("web.vo_said"), " "), last.answer)) : null,
+      h("p", { class: "muted" }, h("small", {}, t("web.vo_privacy")))));
+    if (v.enabled) whileShown(panel, draw, ["hearing", "thinking", "speaking"].includes(v.state) ? 1000 : 5000);
+  };
+  await draw();
+}
+
 // Anonymous statistics: off until the owner switches them on, with the exact report shown first.
 async function contributionPanel(box) {
   const draw = async () => {
@@ -286,6 +310,7 @@ export async function render(main, params = []) {
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
     if (current === "backup") await backupPanel(extra);
+    if (current === "audio") await voicePanel(extra);
     if (current === "general") {
       const { helpPanel, historyPanel } = await import("./settings-help.js");
       const help = h("div");

@@ -36,8 +36,10 @@ faces_app = typer.Typer(no_args_is_help=True, help="Enrolled people (face recogn
 dashboard_app = typer.Typer(no_args_is_help=True, help="Web dashboard access.")
 evidence_app = typer.Typer(no_args_is_help=True, help="Evidence videos.")
 backup_app = typer.Typer(no_args_is_help=True, help="Encrypted backups.")
+voice_app = typer.Typer(no_args_is_help=True, help="Talking to the Pi, offline.")
 for sub, name in (
     (backup_app, "backup"),
+    (voice_app, "voice"),
     (evidence_app, "evidence"),
     (config_app, "config"),
     (audio_app, "audio"),
@@ -525,6 +527,27 @@ def models_download(
             typer.secho(f"{model.filename}: {exc}", fg="red", err=True)
             raise typer.Exit(1) from None
         typer.echo(f"saved {path}")
+
+
+@voice_app.command("download")
+def voice_download(
+    language: Annotated[str, typer.Option(help="de or en; default: the system language")] = "",
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask")] = False,
+) -> None:
+    """Download the offline speech model for wake phrases and questions (asks first)."""
+    from pi_guard.audio.voice import SPEECH_MODELS, SpeechModelError, download_model
+
+    settings = _config().settings
+    spec = SPEECH_MODELS.get(language or settings.language) or SPEECH_MODELS["en"]
+    typer.echo(f"{spec.folder} ({spec.size_mb} MB, Apache-2.0) from {spec.url}")
+    if not yes and not typer.confirm("Download now?"):
+        raise typer.Exit(1)
+    try:
+        path = download_model(spec.language, settings.data_dir / "models")
+    except (SpeechModelError, OSError) as exc:
+        typer.secho(str(exc), fg="red", err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"saved {path}; restart pi-guard to use it")
 
 
 def _recognizer(config: Config) -> FaceRecognizer:

@@ -1,6 +1,7 @@
 // Things that float above every page: back to top, and the assistant.
 import { api, attempt, fill, h, icon, t, toast } from "./api.js";
 import { state } from "./app.js";
+import { accessibilityCommand, readsAloud, speak } from "./accessibility.js";
 
 // A small search icon beside the headline; the field only opens when it is needed.
 export function searchToggle(label, onInput) {
@@ -49,8 +50,9 @@ export const assistantIcon = () => h("img", { class: "ai-icon", src: "/static/im
 function panel() {
   const log = h("div", { class: "chat-log", "aria-live": "polite" }, h("p", { class: "muted" }, t("web.ai_hello")));
   const say = (cls, ...content) => { const el = h("div", { class: `bubble ${cls}` }, ...content); log.append(el); log.scrollTop = log.scrollHeight; return el; };
-  const show = (r) => {
+  const show = (r, spokenAnswer = false) => {
     const box = say("bot", r.reply);
+    if (spokenAnswer || readsAloud()) speak(r.reply);
     if (r.photo) box.append(h("img", { src: r.photo, alt: "" }));
     if (r.documents?.length) box.append(h("small", { class: "muted block" }, r.documents.join(", ")));
     if (!r.pending) return;
@@ -70,6 +72,8 @@ function panel() {
     if (!text) return;
     input.value = "";
     say("me", text);
+    const done = accessibilityCommand(text);
+    if (done) { say("bot", done); if (readsAloud()) speak(done); return; }
     const r = await attempt(() => api("/api/assistant/chat", { method: "POST", body: { text } }));
     if (r) show(r);
   };
@@ -88,7 +92,11 @@ function panel() {
       recorder = null;
       mic.classList.remove("active");
       const r = await attempt(() => api("/api/assistant/chat/voice", { method: "POST", body: blob }));
-      if (r) { say("me", r.question); show(r); }
+      if (!r) return;
+      say("me", r.question);
+      // Settings of this browser are done here, not by the server's answer.
+      const done = accessibilityCommand(r.question || "");
+      if (done) { say("bot", done); speak(done); } else show(r, true);
     };
     recorder.start(250);
     mic.classList.add("active");

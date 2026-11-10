@@ -156,6 +156,18 @@ function callButton(camera, listen) {
   return button;
 }
 
+// Typed words, spoken at home: for anyone who cannot or does not want to talk.
+function sayForm() {
+  const input = h("input", { class: "grow", maxlength: 500, placeholder: t("web.say_placeholder"), "aria-label": t("web.say_placeholder") });
+  const form = h("form", { class: "row" }, input, h("button", { type: "submit" }, icon("volume"), t("web.say")));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const text = input.value.trim();
+    if (text && await attempt(() => api("/api/say", { method: "POST", body: { text } }), t("web.say_done"))) input.value = "";
+  });
+  return form;
+}
+
 function talkButton(camera) {
   // Tap to start, tap again to send. Holding a button is unreliable on phones: after about
   // a second the browser takes the touch for a long-press and cancels it.
@@ -334,7 +346,7 @@ export async function render(main, params) {
       viewer ? null : h("section", { class: "panel stack" },
         h("h2", {}, t("web.talk_and_listen")),
         listen, audio,
-        features.audio_playback ? [talkButton(camera), callButton(camera, listen)] : h("p", { class: "muted" }, t("web.no_speaker")),
+        features.audio_playback ? [talkButton(camera), callButton(camera, listen), sayForm()] : h("p", { class: "muted" }, t("web.no_speaker")),
         h("p", { class: "muted" }, h("small", {}, t("web.listen_note"))))),
     result.panel);
   const sounds = viewer ? null : await soundsPanel(features);

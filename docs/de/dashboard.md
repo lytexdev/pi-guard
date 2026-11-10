@@ -195,6 +195,25 @@ Unter *Einstellungen → Erscheinungsbild* wählst du Akzentfarbe, Schriftart, A
 eigenes Logo (PNG, JPEG oder WebP bis 1 MB) für alle, auch für die Anmeldeseite. Farbschema und
 Schriftgröße gelten pro Gerät. Schriften werden nicht aus dem Internet geladen.
 
+## Barrierefreiheit
+
+Der runde Knopf unten rechts öffnet auf jeder Seite die Bedienungshilfen, nur für diesen Browser: Textgröße, Buchstaben-
+und Zeilenabstand, umgekehrte Farben, Graustufen, Filter für Rot-Grün- und Blau-Gelb-Farbenblindheit, großer Mauszeiger,
+Leselinie, eine Lupe für den Text unter dem Zeiger, unterstrichene Links, weniger Animationen, Vorlesen von angetipptem
+Text oder der ganzen Seite und eine Tour.
+
+- **Für Gehörlose und Schwerhörige:** *Alarme sichtbar machen* lässt die Seite bei jedem neuen Alarm leuchten und das
+  Gerät vibrieren. Es pulsiert langsam und blinkt nie schnell.
+- **Für Menschen, die nicht sprechen können:** *Sprechen* auf der Live-Seite sagt einen getippten Text über den
+  Lautsprecher zu Hause.
+- **Für Blinde:** Das Dashboard ist für Screenreader wie NVDA, JAWS, VoiceOver und TalkBack gebaut: Bedienelemente
+  haben Beschriftungen, Änderungen werden angesagt, und *Zum Inhalt springen* erreicht die Tastatur zuerst. Mit jedem
+  dieser Screenreader getestet ist es noch nicht; melde bitte, was nicht klappt. Mit
+  *Vorlesen* werden auch Antworten des Assistenten vorgelesen.
+- **Per Sprache oder Chat:** im Chat des Assistenten, getippt oder gesprochen: „Schrift größer“, „Vorlesen an“, „Lupe
+  aus“, „Rot-Grün“, „Sichtbare Alarme an“, „zurücksetzen“. Das passiert im Browser und wird nirgends hingeschickt. Mit
+  dem Pi selbst sprechen: [sprache.md](sprache.md).
+
 ## Zertifikat installieren (einmal pro Gerät)
 
 In den Einstellungen wechselt ein Schalter neben Überschrift und Suche zwischen **Normal** und **Experte**. Normal zeigt, was die meisten

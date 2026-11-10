@@ -110,6 +110,10 @@ class Settings(BaseSettings):
     audio_recording_enabled: bool = False
     audio_playback_enabled: bool = False
     audio_max_volume: int = Field(80, ge=0, le=100)
+    # Talking to the Pi, offline with Vosk (see docs/voice.md). Off until switched on.
+    voice_wake_enabled: bool = False
+    voice_wake_phrases: StrList = Field(default_factory=lambda: ["hallo lytex", "hi piguard"])
+    voice_button_gpio: int = Field(0, ge=0, le=27)  # BCM line of a push button; 0 = none
 
     mqtt_enabled: bool = False
     mqtt_host: str | None = None
@@ -244,6 +248,7 @@ class Settings(BaseSettings):
         "discord_viewer_user_ids",
         "email_recipients",
         "dashboard_tls_names",
+        "voice_wake_phrases",
         mode="before",
     )
     @classmethod

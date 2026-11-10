@@ -471,6 +471,9 @@ class Dashboard:
             "nav": self.app.db.get(f"web.nav.{session.username}") or [] if session else [],
             "support": (self.app.db.get("web.support") or {}) if active else {},
             "modules": self.modules() if active else {},
+            # Everyone signed in sees that the microphone listens for the wake phrase.
+            "voice_listening": bool(active and self.app.voice.enabled
+                                    and self.settings.voice_wake_enabled),
             "assistant": bool(
                 active and self.app.addons.assistant
                 and session and self.auth.role_of(session.username) == "admin"

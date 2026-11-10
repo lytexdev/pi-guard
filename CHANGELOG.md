@@ -8,6 +8,12 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Talking to the Pi, off by default: a wake phrase ("Hallo lytex", "Hi piguard") recognised offline with Vosk, a GPIO
+  button or *Talk to the Pi now*; the answer comes from the assistant and is spoken. Spoken requests never switch
+  anything. `pi-guard voice download` fetches the checked speech model. The navigation shows when the Pi listens.
+- *Speak* on the Live page says typed text through the speaker.
+- Accessibility: visible alerts (glow and vibration) for deaf people, accessibility commands by chat or voice, chat
+  answers read aloud, and a *Skip to content* button for keyboards and screen readers.
 - *Ask about settings* explains settings, by search or with the AI assistant, which may propose one change shown as
   before and after; nothing changes without a confirmation. *Recent changes* lists every settings change with an undo.
 - After an SOS the phone sends its place every minute for 30 minutes, for admins to follow in the dashboard, until
@@ -22,6 +28,7 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- List settings refuse line breaks, which could have added another line to the settings file.
 - Signal only sends alerts by default and reads no message, also not from the owner: it is often linked to a private
   number. `PI_GUARD_SIGNAL_COMMANDS=true` allows commands from its admins again.
 - *Home servers* and *Service watcher* are one add-on, *Server*. Whoever had one switched on has both.

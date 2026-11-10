@@ -103,6 +103,11 @@ minutes and is audited. Talking through the speaker is audited too.
 If a camera has a `microphone`, its audio is part of the continuous recording.
 Only do this where everyone who can be recorded knows and agrees.
 
+Talking to the Pi ([voice.md](voice.md)) is off by default. With the wake phrase on, the microphone is analysed
+continuously, but only in memory and only on the Pi: nothing is recorded or stored, and only the text of a question
+after the wake phrase goes to the assistant's provider. Every page of the dashboard shows that it listens. Tell
+everyone in the home, and guests, before switching it on.
+
 ## Face recognition
 
 Face embeddings are biometric data, a special category of personal data under

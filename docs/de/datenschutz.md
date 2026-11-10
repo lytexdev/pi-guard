@@ -45,6 +45,9 @@ Ausgeschaltete Funktionen starten keine Extra-Dienste. Details: [vpn.md](../vpn.
 ## Standardmäßig ausgeschaltet
 
 - Mikrofon / Tonaufnahme
+- Sprachsteuerung mit Weckwort: Das Mikrofon wird dann laufend ausgewertet, aber nur im Arbeitsspeicher des Pi; nichts
+  wird aufgenommen oder gespeichert, nur der Text einer Frage nach dem Weckwort geht an den Anbieter des Assistenten.
+  Jede Seite des Dashboards zeigt, dass es zuhört. Sag es allen im Haushalt und Gästen, bevor du es einschaltest.
 - Personen- und Gesichtserkennung
 - Anwesenheitserkennung
 - Steuerung über MQTT
