@@ -71,6 +71,7 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Voice control looked up words with a name the vosk package does not have, so switching on the wake phrase failed.
 - Taking pictures on a phone held upright cut the picture to a landscape strip, so the face seemed zoomed in and hardly
   fit the oval. The picture now keeps the camera's own shape, and the camera uses its widest zoom.
 - The alarm plays as one stream for its whole time. Starting the sound again for each round left gaps, and the USB
