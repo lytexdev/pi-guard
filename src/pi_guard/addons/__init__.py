@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from pi_guard.addons.commander import Commander
     from pi_guard.addons.heartbeat import HeartbeatWatcher
     from pi_guard.addons.jobs import Jobs
+    from pi_guard.addons.kids import Kids
     from pi_guard.addons.medical import MedicalRecords
     from pi_guard.addons.remote import RemoteActions
     from pi_guard.addons.smarthome import SmartHome
@@ -88,6 +89,11 @@ class Addons:
             from pi_guard.addons.medical import MedicalRecords
 
             self.medical = MedicalRecords(s.data_dir)
+        self.kids: Kids | None = None
+        if settings.kids.enabled and (app.pihole is not None or app.fritz is not None):
+            from pi_guard.addons.kids import Kids
+
+            self.kids = Kids(app.db, app.pihole, app.fritz, s.tz)
         self.jobs: Jobs | None = None
         self.commander: Commander | None = None
         if self.assistant is not None:
@@ -110,6 +116,8 @@ class Addons:
             parts["addon:jobs"] = self.jobs.run
         if self.proxy is not None:
             parts["addon:proxy"] = self.proxy.run
+        if self.kids is not None:
+            parts["addon:kids"] = self.kids.run
         for plugin in self.plugins:
             parts[f"plugin:{plugin.id}"] = plugin.run
             wanted = set(plugin.events())

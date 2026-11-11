@@ -107,7 +107,7 @@ async def overview(request: web.Request) -> web.Response:
         ],
         "last_24h": {row["type"]: row["n"] for row in counts},
         "open_alerts": len(app.escalation.open_alerts()),
-        "emergency_contacts": len(app.escalation.contacts),
+        "emergency_contacts": len(app.escalation.contacts.all()),
         "emergency_after_alerts": app.escalation.after_alerts,
         "emergency_after_minutes": int(app.escalation.after.total_seconds() // 60),
         "features": {

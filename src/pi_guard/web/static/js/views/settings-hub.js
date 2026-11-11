@@ -18,6 +18,7 @@ const TOPICS = {
   storage: ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
   data: ["web.ex_data", "web.ex_config", "web.ex_import"],
   updates: ["web.up_title"],
+  move: ["web.mv_title", "web.mv_before", "web.mv_after", "web.mv_package"],
   support: ["web.support_phone", "web.support_email", "web.support_address"],
 };
 const fold = (text) => text.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
@@ -27,7 +28,7 @@ const SECTIONS = [
   ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "discord", "email", "whatsapp", "signal", "chatapps"]],
   ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]], ["appearance", "palette", null],
   ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null],
-  ["security", "shield-check", null], ["storage", "database", null], ["backup", "upload", ["backup"]], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
+  ["security", "shield-check", null], ["storage", "database", null], ["backup", "upload", ["backup"]], ["move", "map-pin", null], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
 ];
 
 // Sections for people who know what they are looking for.
@@ -309,6 +310,11 @@ export async function render(main, params = []) {
       if (expertMode()) extra.append(await messengerTests());
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
+    if (current === "emergency") {  // the contacts first: the fields below are the old way
+      const contacts = h("div");
+      body.before(contacts);
+      await (await import("./contacts.js")).contactsPanel(contacts);
+    }
     if (current === "backup") await backupPanel(extra);
     if (current === "audio") await voicePanel(extra);
     if (current === "general") {
@@ -340,6 +346,8 @@ export async function render(main, params = []) {
     await apiSection(extra);
   } else if (current === "data") {
     dataSection(body);
+  } else if (current === "move") {
+    await (await import("./move.js")).render(body);
   } else {
     await updateSection(body);
   }

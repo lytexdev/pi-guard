@@ -321,8 +321,7 @@ class App:
             parts["voice"] = self.voice.run
         if self.presence is not None:
             parts["presence"] = self.presence.run
-        if self.escalation.enabled:
-            parts["escalation"] = self.escalation.run
+        parts["escalation"] = self.escalation.run  # contacts can be added while it runs
         if self.mqtt is not None:
             parts["mqtt"] = self.mqtt.run
         if self.dashboard is not None:

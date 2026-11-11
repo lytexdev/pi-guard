@@ -48,8 +48,10 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
   gewählten Aussehen aber unauffällig.
 - **Kalender:** Belegte Einträge des Handy-Kalenders zählen als abwesend. Andere Kalender wie Google oder Proton verbindest
   du im Dashboard unter Einstellungen › Zuhause & Abwesend, auch ohne die App.
-- **SOS:** Ein Tippen startet 10 Sekunden Countdown, nochmal tippen bricht ab. Danach bekommen alle Notfallkontakte und
-  Admins eine Nachricht mit Standort, Modus, Akku und Netz sowie ein aktuelles Bild jeder Kamera. **Das ersetzt nicht die 112.** Es braucht eine Verbindung zu
+- **SOS:** Ein Tippen startet 10 Sekunden Countdown, nochmal tippen bricht ab. Danach bekommen Admins eine Nachricht mit
+  Standort, Modus, Akku und Netz sowie ein aktuelles Bild jeder Kamera; jeder Notfallkontakt bekommt die Nachricht und, was
+  unter *Einstellungen → Notfall* für ihn gewählt ist (Standort, Bilder, Ereignisse, die Notfalldaten der Person, wenn das
+  Konto des Handys mit einem Blatt verknüpft ist). **Das ersetzt nicht die 112.** Es braucht eine Verbindung zu
   pi-guard, und pi-guard muss laufen.
   - 30 Minuten nach einem SOS schickt das Handy jede Minute seinen Standort, und Admins folgen ihm unter *Add-ons →
     Handy-App → Standorte*. *Ich bin in Sicherheit* auf dem Notfall-Bildschirm oder in der Benachrichtigung beendet das
@@ -73,7 +75,8 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
   Telefonleitung gibt es nicht.
 - **Schnellaktionen:** der Blitz in der App-Leiste, und langes Drücken auf das App-Symbol für die ersten vier: *Alles in
   Ordnung* (schließt alle offenen Alarme), *Nach Hause anrufen*, *Abwesend*, *Zuhause*, im Blitz außerdem *Alarm
-  auslösen* (fragt vorher), *Alarm stoppen* und SOS. pi-guard führt sie nur für Admins aus, wie die Knöpfe unter
+  auslösen* (fragt vorher), *Alarm stoppen*, SOS und *Tutorial*, das die Hilfe des Dashboards mit Rundgang öffnet.
+  pi-guard führt sie nur für Admins aus, wie die Knöpfe unter
   Alarmen. Mit App-Sperre fragen die Verknüpfungen am Symbol zuerst danach, außer SOS. Solange die App wie der
   Taschenrechner oder eine andere App aussieht, zeigt das Symbol keine Verknüpfungen, die sie verraten würden.
 - **Kalender:** Mit *Abwesend während Kalendereinträgen* gelten belegte Termine der nächsten 14 Tage als abwesend, auch

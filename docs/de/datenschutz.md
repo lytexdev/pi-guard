@@ -32,6 +32,10 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
   gesendet würde.
 - *Frag zu Einstellungen* mit eingeschaltetem KI-Assistenten schickt dem gewählten Anbieter Bezeichnungen, Hilfetexte
   und die Werte von Schaltern, Zahlen und Auswahlen, nie Geheimnisse, Listen oder die Zeitzone.
+- Notfalldaten gehen nur an Notfallkontakte, die dafür eingestellt sind, oder wenn ein Admin sie schickt: als
+  Rettungslink mit PIN, oder als PDF, wenn das für den Kontakt gewählt ist. Das PDF liegt dann beim Chatdienst.
+- Kid Protect schreibt die MAC-Adressen der Kindergeräte und ihre Gruppen in Ihr Pi-hole; die FRITZ!Box bekommt ihre
+  IP-Adressen, um zu den eingestellten Zeiten das Internet zu sperren.
 - Sonst nichts: keine Cloud, keine Werbung.
 
 ### Privacy-Upstream (optional)
@@ -108,8 +112,9 @@ Mehr Details (Englisch): [privacy.md](../privacy.md).
 
 Der Standort eines Handys wird in `pi-guard.db` nur gespeichert, wenn der Besitzer *Standort teilen* eingeschaltet hat, und
 jede neue Meldung ersetzt ihn. Admins können ihn sehen; frag also vorher, bevor du das für jemand anderen einschaltest. Ein
-SOS schickt den Standort an die Notfallkontakte, auch über ihre Messenger. Dazu kommt ein aktuelles Bild jeder Kamera (bis zu
-vier): Notfallkontakte sehen in diesem Moment also ins Haus. Kartenkacheln holt der Pi, wenn jemand eine Karte öffnet;
+SOS schickt jedem Notfallkontakt, was für ihn eingestellt ist: den Standort, ein aktuelles Bild jeder Kamera (bis zu vier;
+dieser Kontakt sieht in dem Moment also ins Haus), die letzten Ereignisse und die Notfalldaten der Person, auch über ihre
+Messenger. Neue Kontakte bekommen anfangs Standort und Bilder, ohne Ereignisse und Notfalldaten. Kartenkacheln holt der Pi, wenn jemand eine Karte öffnet;
 OpenStreetMap erfährt dadurch ungefähr, wo das Handy ist, aber nicht, wer schaut.
 
 Nach einem SOS und solange ein Handy als vermisst gemeldet ist, werden seine Standorte als Spur in `pi-guard.db`

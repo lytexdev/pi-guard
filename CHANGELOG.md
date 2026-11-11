@@ -8,6 +8,28 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Emergency contacts in the dashboard (*Settings → Emergency*): name, relation, phone, email, a linked account, several
+  ways to reach them (Telegram, Signal, Discord, WhatsApp, email), and for an SOS and for unanswered alarms what each
+  gets: place, photos and sound from the phone, pictures from the Pi, latest events, sound from home, emergency medical
+  data as a rescue link with PIN or as a PDF. A test message checks each contact. The old settings keep working.
+- Emergency data: medicines as lines of the federal medication plan (BMP) with doses, prescribed or self-medication
+  and regular or as needed; a section for over-the-counter products and supplements; organ donation as a choice;
+  Markdown in the text fields; phone, email and a linked dashboard account. Read a BMP text from a scanner app, give the
+  medicines back as BMP text, save the sheet as PDF or picture, and send it to an emergency contact.
+- Kid Protect add-on: filter profiles for children's devices (adult content, gambling, malware and phishing, scams,
+  drugs, piracy, social networks, TikTok) through Pi-hole groups, times without internet with templates, pause and
+  extra time, and the FRITZ!Box cutting the internet at those times if it is connected.
+- *Who is this?* on the People page: the faces of recent person events as cards to swipe, right for yes, left for no
+  or a stranger, up to skip, or a name below; with arrow and number keys. Faces swiped once do not come back.
+- *Settings → Moving* for a new home, router, internet provider or Pi: a moving file (encrypted backup to the browser),
+  the command to add the new Wi-Fi to the Pi, and afterwards checks of what changed (router, addresses, Wi-Fi) and
+  what needs a hand: network cameras, FRITZ!Box, Pi-hole as DNS server, the VPN address (taken over with one button),
+  blocks by IP address. `scripts/restore.sh` puts a backup or moving file in place on a Pi.
+- *Help & tutorial* page with every part of pi-guard and a guided tour, also in the desktop app (F1) and as a quick
+  action in the phone app. The assistant starts the tour on "Tutorial" and answers questions about pi-guard from the
+  tutorial without an AI provider; `/tutorial` sends it in chats.
+- Messages can carry a file (PDF) on Telegram, Signal, Discord, WhatsApp and email.
+
 - Quick actions in the phone app, in the app bar and on the app icon: all fine, call home, away, at home, alarm on and
   off, SOS. Admins only; the icon shortcuts ask for the app lock and are hidden while the app is disguised.
 - *Learn at the camera*: 20 seconds in front of a camera, and the Pi keeps up to eight clear, different views of an
@@ -39,6 +61,9 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- *Network › Overview* shows the state at a glance, the last 24 hours of name lookups, devices without a name, the
+  busiest devices and quick ways. *Network › VPN* has a summary on top and its parts (devices as cards, from
+  outside, privacy, quantum-safe) one at a time; adding a device opens a dialog.
 - Privacy multi-hop chain shows the Pi VPN hop and is animated; diagnostics cache the exit/public IP and explain
   missing status. The network map draws privacy exits, Tor, reverse-proxy peers and VPN traffic via the upstream.
 - A face picture nearly identical to a stored one is no longer stored, and over the limit the most similar picture is

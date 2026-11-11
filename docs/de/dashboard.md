@@ -134,6 +134,12 @@ pi-guard in dessen Bild findet, und wen es jeweils gesehen hat:
 - **Das ist nicht …** an einem erkannten Gesicht merkt es sich als jemand anderen. Danach ist ein Gesicht, das ihm
   ähnlicher ist als dieser Person, *unsicher* statt diese Person. Es wird mit der Person gelöscht.
 
+- **Wer ist das?** oben auf der Seite Personen geht die Gesichter der Personen-Ereignisse der letzten zwei Wochen wie
+  einen Kartenstapel durch: nach rechts wischen (oder →) für *ja, das ist die vorgeschlagene Person*, nach links (←) für
+  *nein* bzw. *fremd*, nach oben (↑) zum Überspringen, oder einen Namen unter dem Bild antippen (Tasten 1–9), wenn es
+  jemand anderes ist. Ja und Nein wirken wie *Das ist …* und *Das ist nicht …* oben, mit denselben Prüfungen; Gesichter,
+  die zu klein oder unscharf zum Lernen sind, fehlen. Ein weggewischtes Gesicht kommt nicht wieder. Wählbar sind nur
+  Personen, die schon eingetragen sind.
 - **Vor der Kamera lernen** auf der Karte einer Person: Die Person steht 20 Sekunden lang dort, wo man sonst
   vorbeigeht, schaut zur Kamera und dreht den Kopf etwas. Der Pi nimmt jede Sekunde ein Bild und behält bis zu acht
   deutliche Gesichter, die sich von den bekannten Ansichten unterscheiden; jedes Bild wird gelöscht, sobald sein
@@ -219,6 +225,17 @@ Der runde Knopf unten rechts öffnet auf jeder Seite die Bedienungshilfen, nur f
 und Zeilenabstand, umgekehrte Farben, Graustufen, Filter für Rot-Grün- und Blau-Gelb-Farbenblindheit, großer Mauszeiger,
 Leselinie, eine Lupe für den Text unter dem Zeiger, unterstrichene Links, weniger Animationen, Vorlesen von angetipptem
 Text oder der ganzen Seite und eine Tour.
+
+## Hilfe und Tutorial
+
+*Hilfe & Tutorial* in der Navigation erklärt jeden Teil von pi-guard in wenigen Sätzen, jeweils mit Knopf dorthin, und
+*Rundgang starten* geht sie Seite für Seite durch; Betrachter sehen nur ihre Seiten. Dasselbe Tutorial gibt es überall:
+
+- in der **Desktop-App** unter *PiGuard › Hilfe & Tutorial* (F1) und in der **Handy-App** als Schnellaktion *Tutorial*;
+  beide öffnen diese Seite mit dem Rundgang;
+- im **Assistenten**: „Tutorial“ oder „Rundgang“ im Chat des Dashboards, getippt oder gesprochen, startet den Rundgang,
+  und Fragen wie „Wie funktioniert Kid Protect?“ beantwortet er aus dem Tutorial, ohne KI-Anbieter und kostenlos;
+- in **Chats**: `/tutorial` (auch *Anleitung*, *Rundgang*) schickt die Übersicht.
 
 - **Für Gehörlose und Schwerhörige:** *Alarme sichtbar machen* lässt die Seite bei jedem neuen Alarm leuchten und das
   Gerät vibrieren. Es pulsiert langsam und blinkt nie schnell.

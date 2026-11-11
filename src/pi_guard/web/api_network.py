@@ -297,6 +297,9 @@ async def blocklists(request: web.Request) -> web.Response:
         lists = await _pihole(request).block_lists()
     except PiholeError as exc:
         raise web.HTTPBadGateway(text=str(exc)) from None
+    from pi_guard.addons.kids import COMMENT as KIDS
+
+    lists = [x for x in lists if x["comment"] != KIDS]  # Kid Protect keeps its own lists
     gravity = dashboard(request).gravity_state
     return web.json_response({"lists": lists, "presets": PRESETS, "updating": gravity})
 

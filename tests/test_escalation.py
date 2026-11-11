@@ -95,3 +95,40 @@ async def test_escalation_messages_contacts_once(app) -> None:  # type: ignore[n
 async def test_emergency_contact_gets_explanation(app) -> None:  # type: ignore[no-untyped-def]
     await app.messenger.handle(msg("/start", CONTACT))
     assert "emergency contact" in app.providers["telegram"].last().text
+
+
+async def test_each_contact_gets_what_was_chosen_for_it(app) -> None:  # type: ignore[no-untyped-def]
+    contacts = app.escalation.contacts
+    contacts.save(None, {"name": "Words", "share": {"escalation": []},
+                         "channels": [{"provider": "telegram", "address": "6006"}]})  # fmt: skip
+    contacts.save(None, {"name": "Not here", "share": {"sos": ["location"]},
+                         "channels": [{"provider": "telegram", "address": "7007"}]})  # fmt: skip
+    assert app.escalation.is_contact("telegram", "6006")
+    assert {c for _, c, _ in contacts.recipients("escalation")} == {CONTACT, "6006"}
+    for minutes in (20, 15):
+        await alert(app, minutes_ago=minutes)
+    await app.escalation.escalate(app.escalation.due())
+    old, words = sent_to(app, CONTACT), sent_to(app, "6006")
+    assert any(r.photo for r in old) and "•" in old[0].text  # the old contact: all as before
+    assert len(words) == 1 and words[0].photo is None and "•" not in words[0].text
+    assert sent_to(app, "7007") == []
+
+
+def test_contacts_are_checked() -> None:
+    from pi_guard.notifications.contacts import DEFAULT_SHARE, ContactError, clean
+
+    with pytest.raises(ContactError, match="name"):
+        clean({"channels": [{"provider": "signal", "address": "+491700000"}]})
+    with pytest.raises(ContactError, match="channel"):
+        clean({"name": "A"})
+    for provider, address in (("signal", "0170"), ("telegram", "abc"), ("email", "x@"),
+                              ("sms", "+491700000")):  # fmt: skip
+        with pytest.raises(ContactError, match="address"):
+            clean({"name": "A", "channels": [{"provider": provider, "address": address}]})
+    twice = [{"provider": "email", "address": "a@b.de"}] * 2
+    share = {"sos": ["location", "medical", "nonsense"]}
+    made = clean({"name": " A  B ", "channels": twice, "share": share, "medical_mode": "x"})
+    assert made["name"] == "A B" and made["channels"] == [["email", "a@b.de"]]
+    assert made["share"] == {"sos": ["location", "medical"]} and made["medical_mode"] == "link"
+    fresh = clean({"name": "A", "channels": [{"provider": "email", "address": "a@b.de"}]})
+    assert fresh["share"] == DEFAULT_SHARE and "medical" not in fresh["share"]["sos"]

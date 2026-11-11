@@ -68,6 +68,8 @@ certificate. Compare it if you want to be sure, then press *Trust*. After that, 
 Away from home you need the VPN, or use your public address if you set one up. See
 [ways home](network.md#ways-home-from-outside).
 
+*PiGuard › Help & tutorial* (F1) opens the dashboard's help page and starts the guided tour.
+
 ## Security
 
 - The app trusts the certificate authority of your pi-guard, which it remembers at the first start, and public

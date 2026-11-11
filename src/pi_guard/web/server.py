@@ -159,6 +159,7 @@ class Dashboard:
         self.tls_dir = s.data_dir / "tls"
         self.microphones: dict[str, Any] = {}  # device -> api_live.MicrophoneStream
         self.gravity_state = False
+        self.found_faces: dict[tuple[int, str, int], Any] = {}  # see api_manage._event_picture
         self.evidence_running: set[str] = set()
         self._tasks: set[asyncio.Task[None]] = set()
         self._ssl: ssl.SSLContext | None = None
@@ -221,13 +222,16 @@ class Dashboard:
             api_account,
             api_addons,
             api_agents,
+            api_contacts,
             api_core,
             api_export,
+            api_kids,
             api_live,
             api_login,
             api_manage,
             api_medical,
             api_mobile,
+            api_move,
             api_network,
             api_privacy,
             api_proxy,
@@ -255,10 +259,10 @@ class Dashboard:
         webapp.router.add_post("/api/login", self._login)
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
-        for module in (api_account, api_addons, api_agents, api_core, api_export, api_login,
-                       api_live, api_manage, api_medical, api_network, api_privacy,
-                       api_proxy, api_security, api_system, api_mobile, api_tools, api_updates,
-                       api_v1):  # fmt: skip
+        for module in (api_account, api_addons, api_agents, api_contacts, api_core, api_export,
+                       api_kids, api_login, api_live, api_manage, api_medical, api_move,
+                       api_network, api_privacy, api_proxy, api_security, api_system, api_mobile,
+                       api_tools, api_updates, api_v1):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
             sub = web.Application()

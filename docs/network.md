@@ -3,6 +3,18 @@
 All of this is optional. pi-guard does not install or change network services
 by itself; the installer only offers each step and asks first.
 
+## In the dashboard
+
+**Network › Overview** starts with the state at a glance: devices online, devices without a name, how much Pi-hole
+blocks, the Wi-Fi networks and connected VPN devices; each leads to its details. Below are the name lookups of the
+last 24 hours per hour (allowed and blocked, also as a table), devices without a name to give one, the busiest devices
+of the day, Pi-hole with pause buttons, the Wi-Fi networks with QR codes, and quick ways to block a site, Kid Protect,
+the guest Wi-Fi, the network map, what others can see, and moving.
+
+**Network › VPN** shows on top whether the VPN runs, how many devices are connected, the way from outside and whether
+the quantum-safe key exchange is on. Below are its parts: *Devices* (cards with state and traffic, *Access* shows the
+QR code again, *Add device* opens a short form), *From outside*, *Privacy* and *Quantum-safe*.
+
 ## Fixed IP address
 
 A device that serves DNS (Pi-hole) or VPN needs an address that does not
@@ -117,7 +129,7 @@ Freigaben › Portfreigaben › Gerät für Freigaben hinzufügen*).
 
 ### Ways home from outside
 
-Dashboard › **Network › VPN** shows four ways with their state. Which ones work depends on your
+Dashboard › **Network › VPN › From outside** shows four ways with their state. Which ones work depends on your
 internet connection, not on the router brand. Set up several: the app tries them in turn and
 remembers the one that answered.
 
@@ -169,7 +181,7 @@ devices are listed there.
 
 ### Devices
 
-Dashboard › **Network › VPN access › Add device**: enter a name ("Anna's
+Dashboard › **Network › VPN › Devices › Add device**: enter a name ("Anna's
 phone"), choose whether all internet traffic goes through home (ad blocking
 and safety in public Wi-Fi) or only the home network, and scan the QR code with
 the WireGuard app (iOS/Android). The QR code can be shown again later; laptops

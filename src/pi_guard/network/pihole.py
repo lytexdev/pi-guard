@@ -139,7 +139,7 @@ class Pihole:
         return [
             {"address": x["address"], "comment": x.get("comment") or "",
              "enabled": bool(x.get("enabled")), "domains": x.get("number", 0),
-             "updated": x.get("date_updated")}
+             "updated": x.get("date_updated"), "groups": x.get("groups", [0])}
             for x in data.get("lists", [])
         ]  # fmt: skip
 
@@ -147,9 +147,15 @@ class Pihole:
         await self.request("POST", "/api/lists", params={"type": "block"}, json={
             "address": address, "comment": comment, "groups": [0], "enabled": True})  # fmt: skip
 
-    async def set_block_list(self, address: str, enabled: bool, comment: str) -> None:
+    async def set_block_list(
+        self, address: str, enabled: bool, comment: str, groups: list[int] | None = None
+    ) -> None:
+        """Switches a list on or off; its groups stay as they are unless given."""
+        if groups is None:
+            found = next((x for x in await self.block_lists() if x["address"] == address), None)
+            groups = list(found["groups"]) if found else [0]
         await self.request("PUT", f"/api/lists/{quote(address, safe='')}", params={"type": "block"},
-                           json={"enabled": enabled, "comment": comment, "groups": [0],
+                           json={"enabled": enabled, "comment": comment, "groups": groups,
                                  "type": "block"})  # fmt: skip
 
     async def delete_block_list(self, address: str) -> None:

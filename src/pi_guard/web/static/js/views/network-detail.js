@@ -48,28 +48,27 @@ function showAccess(peer) {
   dialog.showModal();
 }
 
-function addForm(redraw) {
-  const name = h("input", { type: "text", maxlength: 32, placeholder: t("web.wg_name_placeholder"), required: true });
-  const full = h("input", { type: "checkbox", checked: true });
-  const form = h("form", { class: "stack" },
-    h("label", {}, t("web.wg_name"), name),
-    h("label", { class: "check" }, full, h("span", {}, t("web.wg_full_tunnel"), h("br"), h("small", { class: "muted" }, t("web.wg_full_tunnel_hint")))),
-    h("button", { class: "primary", type: "submit" }, icon("plus"), t("web.wg_add")));
-  form.addEventListener("submit", async (event) => {
+function addDialog(redraw) {
+  const name = h("input", { id: "wg_name", type: "text", maxlength: 32, placeholder: t("web.wg_name_placeholder"), required: true });
+  const full = h("input", { type: "checkbox", checked: true, id: "wg_full" });
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, t("web.wg_add")),
+    h("form", { class: "stack", method: "dialog" },
+      h("div", { class: "field" }, h("label", { for: "wg_name" }, t("web.wg_name")), name),
+      h("label", { class: "check", for: "wg_full" }, full, h("span", {}, t("web.wg_full_tunnel"), h("small", { class: "muted block" }, t("web.wg_full_tunnel_hint")))),
+      h("div", { class: "row end" }, h("button", { type: "button", onclick: () => dialog.close() }, t("web.cancel")),
+        h("button", { class: "primary", type: "submit" }, icon("plus"), t("web.wg_add")))));
+  dialog.querySelector("form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const peer = await attempt(() => api("/api/network/wireguard/peers", { method: "POST", body: { name: name.value, full_tunnel: full.checked } }));
     if (!peer) return;
+    dialog.close();
     showAccess(peer);
     redraw();
   });
-  return form;
-}
-
-function addBox(redraw) {
-  // The form stays out of the way until someone wants it.
-  const box = h("div", { class: "wg-add hidden" }, h("h3", {}, t("web.wg_add")), addForm(redraw));
-  const open = h("button", { class: "primary", onclick: () => { box.classList.remove("hidden"); open.classList.add("hidden"); box.querySelector("input")?.focus(); } }, icon("plus"), t("web.wg_add"));
-  return h("div", { class: "wg-actions" }, open, box);
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+  name.focus();
 }
 
 function peerDialog(p) {
@@ -87,40 +86,69 @@ function peerDialog(p) {
   dialog.showModal();
 }
 
+function peerCard(p, redraw) {
+  const state = p.pending ? t("web.wg_pending") : p.latest_handshake ? t("web.last_handshake", { time: when(p.latest_handshake) }) : t("web.never_connected");
+  return h("article", { class: `wg-card${p.active ? " on" : ""}` },
+    h("button", { class: "wg-card-main", onclick: () => peerDialog(p) },
+      h("span", { class: "wg-avatar" }, icon(/phone|handy|pixel|iphone|android/i.test(p.name || "") ? "device-mobile" : "device-desktop")),
+      h("span", { class: "grow" }, h("strong", { class: "block" }, p.name || `${p.public_key.slice(0, 10)}…`),
+        h("small", { class: "muted block" }, state),
+        h("span", { class: "row wrap" }, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline")),
+          p.id ? h("span", { class: "badge" }, t(p.full_tunnel ? "web.wg_route_full" : "web.wg_home_only")) : null,
+          p.received || p.sent ? h("small", { class: "muted" }, `↓${(p.received / 1e6).toFixed(1)} ↑${(p.sent / 1e6).toFixed(1)} MB`) : null))),
+    p.id ? h("div", { class: "wg-card-actions" },
+      h("button", { class: "small", title: t("web.wg_show"), onclick: async () => {
+        const peer = await attempt(() => api(`/api/network/wireguard/peers/${p.id}`));
+        if (peer) showAccess(peer);
+      } }, icon("qrcode"), t("web.wg_access")),
+      h("button", { class: "icon-only danger", title: t("web.wg_remove"), onclick: async () => {
+        if (!await confirmDialog(t("web.wg_remove_confirm", { name: p.name }), t("web.wg_remove"), true)) return;
+        if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "DELETE" }), t("web.saved"))) redraw();
+      } }, icon("trash"))) : null);
+}
+
 function wireguardPanel(d, redraw) {
   const wg = d.wireguard;
-  const panel = h("section", { class: "panel wg" }, h("h2", {}, icon("brand-wireguard"), " ", t("web.wg_title")));
-  if (!d.wireguard_enabled) { panel.append(h("p", { class: "muted" }, t("web.wireguard_off"))); return panel; }
-  if (!wg) { panel.append(h("p", { class: "notice" }, t("web.wireguard_no_status"))); return panel; }
-  const peers = wg.peers;
-  const outside = d.wireguard_endpoint || d.wireguard_endpoint_v6 || d.wireguard_relay;
+  const panel = h("section", { class: "panel stack wg-panel" });
+  if (!d.wireguard_enabled) { panel.append(h("h2", {}, icon("brand-wireguard"), " ", t("web.wg_title")), h("p", { class: "muted" }, t("web.wireguard_off"))); return panel; }
+  if (!wg) { panel.append(h("h2", {}, icon("brand-wireguard"), " ", t("web.wg_title")), h("p", { class: "notice" }, t("web.wireguard_no_status"))); return panel; }
+  const peers = [...wg.peers].sort((a, b) => Number(b.active) - Number(a.active) || String(a.name).localeCompare(String(b.name)));
   panel.append(
-    h("p", { class: "muted" }, t("web.wg_intro")),
-    h("p", { class: "muted" }, h("small", {}, t("web.wg_app_hint"))),
-    outside
-      ? h("p", { class: "muted" }, h("small", {}, t("web.wg_reachable", { endpoint: outside, port: wg.interface.listen_port || "51820" })))
-      : h("p", { class: "notice" }, t("web.wg_no_endpoint")),
-    h("ul", { class: "list" }, peers.length ? peers.map((p) => h("li", {},
-      h("span", { class: `dot ${p.active ? "ok" : ""}` }),
-      h("div", { class: "grow clickable", role: "button", tabindex: "0", onclick: () => peerDialog(p), onkeydown: (e) => { if (e.key === "Enter") peerDialog(p); } },
-        h("div", {}, p.name || p.public_key.slice(0, 10) + "…",
-          p.id && !p.full_tunnel ? h("span", { class: "badge" }, t("web.wg_home_only")) : null),
-        h("small", {}, p.pending ? t("web.wg_pending")
-          : p.latest_handshake ? t("web.last_handshake", { time: when(p.latest_handshake) }) : t("web.never_connected"))),
-      p.received || p.sent ? h("small", { class: "muted" }, `↓${(p.received / 1e6).toFixed(1)} ↑${(p.sent / 1e6).toFixed(1)} MB`) : null,
-      p.id ? [
-        h("button", { class: "icon-only", title: t("web.wg_show"), onclick: async () => {
-          const peer = await attempt(() => api(`/api/network/wireguard/peers/${p.id}`));
-          if (peer) showAccess(peer);
-        } }, icon("qrcode")),
-        h("button", { class: "icon-only danger", title: t("web.wg_remove"), onclick: async () => {
-          if (!await confirmDialog(t("web.wg_remove_confirm", { name: p.name }), t("web.wg_remove"), true)) return;
-          if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "DELETE" }), t("web.saved"))) redraw();
-        } }, icon("trash")),
-      ] : null))
-      : h("li", { class: "empty" }, t("web.no_peers"))),
-    addBox(redraw));
+    h("div", { class: "row between wrap" }, h("h2", {}, t("web.wg_devices")), h("button", { class: "primary", onclick: () => addDialog(redraw) }, icon("plus"), t("web.wg_add"))),
+    h("p", { class: "muted" }, t("web.wg_intro"), " ", h("small", {}, t("web.wg_app_hint"))),
+    peers.length ? h("div", { class: "wg-grid" }, peers.map((p) => peerCard(p, redraw)))
+      : h("div", { class: "wg-empty stack" }, icon("brand-wireguard", "lg"), h("p", {}, t("web.no_peers")),
+        h("ol", { class: "howto" }, h("li", {}, t("web.wg_step_app")), h("li", {}, t("web.wg_step_scan")), h("li", {}, t("web.wg_step_on"))),
+        h("div", {}, h("button", { class: "primary", onclick: () => addDialog(redraw) }, icon("plus"), t("web.wg_add")))));
   return panel;
+}
+
+const VPN_PARTS = ["devices", "reach", "privacy", "quantum"];
+
+function vpnSummary(d, part) {
+  const peers = d.wireguard?.peers || [];
+  const outside = d.wireguard_endpoint || d.wireguard_endpoint_v6 || d.wireguard_relay;
+  const way = h("small", { class: "muted" }, outside ? t("web.vpn_sum_way", { way: outside }) : t("web.vpn_sum_no_way"));
+  const pq = h("span", { class: "badge" }, "…");
+  api("/api/network/quantum").then((q) => { pq.className = `badge ${q.enabled && q.installed ? "ok" : ""}`; pq.textContent = t(q.enabled && q.installed ? "web.vpn_sum_pq_on" : "web.vpn_sum_pq_off"); }).catch(() => pq.remove());
+  const on = d.wireguard_enabled && d.wireguard;
+  return h("section", { class: `panel vpn-summary ${on ? "on" : ""}` },
+    h("div", { class: "vpn-head" }, h("span", { class: "vpn-ring" }, icon("brand-wireguard", "lg")),
+      h("div", { class: "grow" }, h("h2", {}, t(on ? "web.vpn_sum_on" : "web.vpn_sum_off")),
+        h("p", {}, on ? t("web.vpn_sum_devices", { active: peers.filter((p) => p.active).length, total: peers.length }) : t("web.wireguard_off"), " "), way),
+      pq),
+    h("nav", { class: "segmented vpn-parts", "aria-label": t("web.nm_tab_vpn") }, VPN_PARTS.map((id) =>
+      h("a", { href: `#/network/vpn/${id}`, class: id === part ? "on" : "" }, t(`web.vpn_part_${id}`)))));
+}
+
+function vpnTab(body, d, params, redraw) {
+  const part = VPN_PARTS.includes(params[1]) ? params[1] : "devices";
+  const hint = (key) => h("p", { class: "muted" }, t(key));
+  fill(body, vpnSummary(d, part),
+    part === "devices" ? wireguardPanel(d, redraw) : null,
+    part === "reach" ? [hint("web.vpn_part_reach_hint"), reachPanel()] : null,
+    part === "privacy" ? [hint("web.vpn_part_privacy_hint"), privacyPanels()] : null,
+    part === "quantum" ? [hint("web.vpn_part_quantum_hint"), quantumPanel()] : null);
 }
 
 async function internetControl(ip) {
@@ -297,23 +325,119 @@ async function exposureDialog() {
   dialog.showModal();
 }
 
-const exposurePanel = () => h("section", { class: "panel stack" }, h("h2", {}, icon("eye"), " ", t("web.ex_title")), h("p", { class: "muted" }, t("web.ex_teaser")),
-  h("button", { title: t("web.ex_tip"), onclick: exposureDialog }, icon("eye"), t("web.ex_open")));
+// --- overview: the state at a glance, what happened today, what needs a look ----------------
 
-// The state of the network at a glance; every tile leads to its details.
-function overviewTiles(d) {
+const shown = (x) => x.label || x.trusted || x.router_name || x.name;
+const online = (x) => x.online === true || (x.online == null && ["REACHABLE", "DELAY", "PROBE"].includes(x.state));
+
+function statusBanner(d) {
   const peers = d.wireguard?.peers || [];
-  const tile = (name, value, label, target, bad) => h("a", { class: `tile tile-link${bad ? " bad" : ""}`, href: target }, icon(name),
-    h("div", {}, h("div", { class: "tile-value" }, value), h("small", {}, label)));
-  return h("div", { class: "tiles" },
-    tile("router", d.devices.length, t("web.nm_tile_devices"), "#/network/devices"),
-    d.pihole && !d.pihole.error ? tile("shield-check", `${d.pihole.percent_blocked} %`, t("web.nm_tile_blocked"), "#/network/lists", !d.pihole.blocking) : null,
-    tile("wifi", d.wlans.filter((w) => w.enabled).length, t("web.nm_tile_wifi"), "#/network/overview"),
-    d.wireguard_enabled ? tile("brand-wireguard", `${peers.filter((p) => p.active).length} / ${peers.length}`, t("web.nm_tile_vpn"), "#/network/vpn") : null);
+  const unknown = d.devices.filter((x) => !shown(x)).length;
+  const pihole = d.pihole && !d.pihole.error;
+  const chip = (tone, ic, text, href) => h("a", { class: `nm-chip ${tone}`, href }, icon(ic), h("span", {}, text));
+  const problems = [!pihole && d.pihole_enabled, pihole && !d.pihole.blocking].filter(Boolean).length;
+  return h("section", { class: `nm-banner ${problems ? "warn" : "ok"}` },
+    h("div", { class: "nm-banner-head" }, icon(problems ? "alert-triangle" : "shield-check", "lg"),
+      h("div", {}, h("h2", {}, t(problems ? "web.nm_state_warn" : "web.nm_state_ok")),
+        h("p", { class: "muted" }, t("web.nm_state_line", { online: d.devices.filter(online).length, total: d.devices.length })))),
+    h("div", { class: "nm-chips" },
+      chip("", "router", t("web.nm_chip_devices", { count: d.devices.length }), "#/network/devices"),
+      unknown ? chip("warn", "user-x", t("web.nm_chip_unknown", { count: unknown }), "#/network/devices") : null,
+      d.pihole_enabled ? chip(pihole && d.pihole.blocking ? "ok" : "warn", "brand-pihole",
+        pihole ? (d.pihole.blocking ? t("web.nm_chip_pihole", { percent: d.pihole.percent_blocked }) : t("web.blocking_off")) : t("web.nm_chip_pihole_error"), "#/network/lists") : null,
+      d.wlans.length ? chip("", "wifi", t("web.nm_chip_wifi", { count: d.wlans.filter((w) => w.enabled).length }), "#/network/overview") : null,
+      d.wireguard_enabled ? chip(peers.some((x) => x.active) ? "ok" : "", "brand-wireguard", t("web.nm_chip_vpn", { active: peers.filter((x) => x.active).length, total: peers.length }), "#/network/vpn") : null));
+}
+
+// Queries per hour of the last day, allowed and blocked stacked; colours checked for colour blindness.
+function historyChart(history) {
+  const hours = new Map();
+  for (const point of history) {
+    const hour = Math.floor(point.time / 3600) * 3600;
+    const bucket = hours.get(hour) || { total: 0, blocked: 0 };
+    bucket.total += point.total;
+    bucket.blocked += point.blocked;
+    hours.set(hour, bucket);
+  }
+  const rows = [...hours.entries()].sort((a, b) => a[0] - b[0]).slice(-24);
+  if (!rows.length) return null;
+  const width = 720, height = 160, pad = 22;
+  const max = Math.max(...rows.map(([, b]) => b.total), 1);
+  const step = (width - pad) / rows.length;
+  const bar = Math.max(4, step - 4);
+  const ns = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, ...kids) => { const n = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); n.append(...kids); return n; };
+  const hourText = (ts) => new Date(ts * 1000).toLocaleTimeString(document.documentElement.lang || "de", { hour: "2-digit", minute: "2-digit" });
+  const svg = el("svg", { viewBox: `0 0 ${width} ${height + 18}`, class: "nm-chart", role: "img", "aria-label": t("web.nm_chart_label") });
+  svg.append(el("line", { x1: pad, x2: width, y1: height, y2: height, class: "axis" }));
+  svg.append(el("text", { x: 0, y: 10, class: "tick" }, max.toLocaleString()));
+  rows.forEach(([ts, b], i) => {
+    const x = pad + i * step + 2;
+    const allowed = b.total - b.blocked;
+    const hA = (allowed / max) * (height - 16);
+    const hB = (b.blocked / max) * (height - 16);
+    const g = el("g", { class: "bar" });
+    g.append(el("title", {}, `${hourText(ts)}: ${b.total.toLocaleString()} ${t("web.nm_chart_queries")}, ${b.blocked.toLocaleString()} ${t("web.nm_chart_blocked")}`));
+    g.append(el("rect", { x, y: 0, width: bar, height, class: "hit" }));
+    if (hA > 0) g.append(el("rect", { x, y: height - hA, width: bar, height: hA, rx: 2, class: "allowed" }));
+    if (hB > 1) g.append(el("rect", { x, y: height - hA - hB - (hA > 0 ? 2 : 0), width: bar, height: hB, rx: 2, class: "blocked" }));
+    svg.append(g);
+    if (i % 6 === 0) svg.append(el("text", { x, y: height + 14, class: "tick" }, hourText(ts)));
+  });
+  const total = rows.reduce((sum, [, b]) => sum + b.total, 0);
+  const blocked = rows.reduce((sum, [, b]) => sum + b.blocked, 0);
+  return h("section", { class: "panel stack" },
+    h("div", { class: "row between wrap" }, h("h2", {}, icon("chart-bar"), " ", t("web.nm_chart_title")),
+      h("div", { class: "nm-legend" }, h("span", { class: "key allowed" }, t("web.nm_chart_allowed")), h("span", { class: "key blocked" }, t("web.nm_chart_blocked")))),
+    h("p", { class: "muted" }, t("web.nm_chart_sum", { total: total.toLocaleString(), blocked: blocked.toLocaleString(), percent: total ? Math.round((blocked / total) * 100) : 0 })),
+    svg,
+    h("details", {}, h("summary", {}, t("web.nm_chart_table")), h("div", { class: "table-wrap" }, h("table", {},
+      h("thead", {}, h("tr", {}, h("th", {}, t("web.nm_chart_hour")), h("th", {}, t("web.nm_chart_queries")), h("th", {}, t("web.nm_chart_blocked")))),
+      h("tbody", {}, rows.map(([ts, b]) => h("tr", {}, h("td", {}, hourText(ts)), h("td", {}, b.total.toLocaleString()), h("td", {}, b.blocked.toLocaleString()))))))));
+}
+
+function devicesGlance(d, analytics) {
+  // Devices without a name first: an unknown device in the home network is worth a look.
+  const unknown = d.devices.filter((x) => !shown(x)).sort((a, b) => Number(online(b)) - Number(online(a))).slice(0, 6);
+  const busy = (analytics?.devices || []).slice(0, 5);
+  const most = Math.max(...busy.map((x) => x.count), 1);
+  const byIp = new Map(d.devices.flatMap((x) => x.ips.map((ip) => [ip, x])));
+  return h("div", { class: "grid wide" },
+    h("section", { class: "panel stack" }, h("div", { class: "row between" }, h("h2", {}, icon("user-x"), " ", t("web.nm_unknown_title")), h("a", { href: "#/network/devices" }, t("web.nm_all_devices"))),
+      unknown.length ? h("ul", { class: "list" }, unknown.map((x) => h("li", {}, h("span", { class: `dot ${online(x) ? "ok" : ""}` }),
+        h("div", { class: "grow" }, h("div", {}, shown(x) || x.vendor || x.ips[0] || x.mac), h("small", { class: "muted mono" }, [x.ips[0], x.vendor].filter(Boolean).join(" · "))),
+        h("button", { class: "small", onclick: () => deviceDialog(x) }, icon("pencil"), t("web.nm_name_it")))))
+        : h("p", { class: "muted" }, icon("circle-check"), " ", t("web.nm_unknown_none"))),
+    busy.length ? h("section", { class: "panel stack" }, h("h2", {}, icon("cpu"), " ", t("web.nm_busy_title")),
+      h("ul", { class: "nm-bars" }, busy.map((x) => {
+        const known = byIp.get(x.ip);
+        return h("li", {}, h("div", { class: "row between" }, h("span", { class: "clip" }, (known && shown(known)) || x.name || x.ip), h("small", { class: "muted" }, x.count.toLocaleString())),
+          h("div", { class: "nm-bar" }, h("span", { style: `width:${Math.max(3, (x.count / most) * 100)}%` })));
+      })), h("p", { class: "muted" }, h("small", {}, t("web.nm_busy_hint")))) : null);
+}
+
+function shortcuts(d) {
+  const item = (ic, label, hint, href, onclick) => h(href ? "a" : "button", { class: "nm-shortcut", href, onclick }, icon(ic), h("span", {}, h("strong", {}, label), h("small", { class: "muted block" }, hint)));
+  return h("section", { class: "panel stack" }, h("h2", {}, t("web.nm_shortcuts")),
+    h("div", { class: "nm-shortcuts" },
+      item("ban", t("web.nm_sc_block"), t("web.nm_sc_block_hint"), "#/network/blocks"),
+      item("mood-happy", t("web.nm_sc_kids"), t("web.nm_sc_kids_hint"), "#/addons/kids"),
+      item("qrcode", t("web.nm_sc_guest"), t("web.nm_sc_guest_hint"), null, () => document.querySelector(".nm-wifi")?.scrollIntoView({ behavior: "smooth" })),
+      item("network", t("web.nm_sc_map"), t("web.nm_sc_map_hint"), "#/network/map"),
+      item("eye", t("web.ex_title"), t("web.ex_teaser"), null, exposureDialog),
+      item("map-pin", t("web.nm_sc_move"), t("web.nm_sc_move_hint"), "#/settings/move")));
+}
+
+async function overviewTab(body, d, redraw) {
+  const charts = h("div", { class: "stack" });
+  fill(body, statusBanner(d), charts, h("div", { class: "grid wide" }, piholePanel(d.pihole, redraw), wifiPanel(d)), shortcuts(d));
+  // Statistics come from Pi-hole and take a moment; the rest of the page does not wait for them.
+  const analytics = d.pihole && !d.pihole.error ? await api("/api/addons/analytics/overview").catch(() => null) : null;
+  fill(charts, analytics ? historyChart(analytics.history || []) : null, devicesGlance(d, analytics));
 }
 
 function wifiPanel(d) {
-  return h("section", { class: "panel stack" }, h("h2", {}, icon("wifi"), " ", t("web.nm_wifi")),
+  return h("section", { class: "panel stack nm-wifi" }, h("h2", {}, icon("wifi"), " ", t("web.nm_wifi")),
     d.wlans.length ? h("ul", { class: "list" }, d.wlans.map((w) => h("li", {}, h("span", { class: `dot ${w.enabled ? "ok" : ""}` }),
       h("div", { class: "grow" }, h("div", {}, w.ssid || "–", w.guest ? h("span", { class: "badge accent" }, t("web.nm_guest")) : null),
         h("small", {}, `${w.enabled ? t("web.nm_on") : t("web.nm_off")} · ${t("web.nm_channel", { channel: w.channel })} · ${t("web.nm_clients", { count: w.clients })}`)),
@@ -357,11 +481,11 @@ export async function render(main, data, params = []) {
   const body = h("div", { class: "stack" });
   const redraw = () => location.reload();
   main.append(h("nav", { class: "tabs", "aria-label": t("web.nav_network") }, TABS.map((id) => h("a", { href: `#/network/${id}`, class: id === tab ? "active" : "" }, t(`web.nm_tab_${id}`)))), body);
-  if (tab === "overview") fill(body, overviewTiles(data), h("div", { class: "grid wide" }, piholePanel(data.pihole, redraw), wifiPanel(data)), exposurePanel());
+  if (tab === "overview") await overviewTab(body, data, redraw);
   if (tab === "devices") fill(body, devicesPanel(data.devices, redraw));
   if (tab === "blocks") fill(body, await blocksPanel(data));
   if (tab === "lists") fill(body, await blockPanel(data.pihole_enabled));
-  if (tab === "vpn") fill(body, privacyPanels(), reachPanel(), quantumPanel(), wireguardPanel(data, redraw));
+  if (tab === "vpn") vpnTab(body, data, params, redraw);
   if (tab === "map") fill(body, await topologyPanel(deviceDialog));
   if (tab === "analysis") {
     const view = await import("./addons.js");

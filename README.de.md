@@ -35,13 +35,14 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Mehrere Bilder werden zusammen bewertet, ein einmal schlecht gesehenes
   Familienmitglied gilt also nicht gleich als fremd. *Wer ist das?* an einem
   Ereignis bringt pi-guard ein Gesicht aus der Kamera bei, oder dass ein Gesicht
-  nicht jemand ist.
+  nicht jemand ist, auch für viele Gesichter hintereinander per Wischen.
   *Vor der Kamera lernen* nimmt 20 Sekunden verschiedene Ansichten in Blickwinkel und Licht der Kamera auf, und
   *Warum die Erkennung klappt oder nicht* zeigt in Zahlen, was sie bremst.
 - **Alarm:** Alarmton (auch einen eigenen) über einen Lautsprecher auslösen
   und wieder stoppen.
-- **Notfallkontakte:** Bleiben Meldungen unbestätigt, bekommen eingetragene
-  Ersatzkontakte eine Zusammenfassung mit Fotos.
+- **Notfallkontakte:** Nach einem SOS vom Handy oder wenn Meldungen
+  unbestätigt bleiben, bekommen Kontakte eine Nachricht und, was du für jeden
+  wählst: Standort, Fotos und Ton, Ereignisse und die Notfalldaten als Link oder PDF.
 - **Web-Dashboard (optional):** Live-Bild und -Ton, Sprechen über den
   Lautsprecher, Bildwerkzeuge, vertraute Personen, Geräteauswahl,
   Einstellungen, Statistik und Logs; als App installierbar mit
@@ -49,10 +50,12 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Zwei-Faktor-Code oder Hardware-Schlüssel; mehrere Benutzer (Admins und Betrachter);
   eigene Farben, Schrift und Logo; Wochenplan, Sicherheitscheck, Speicher-Bereinigung und
   WLAN-QR-Codes; Barrierefreiheit mit Lupe, Farbfiltern, Vorlesen, sichtbaren Alarmen für Gehörlose,
-  Text sprechen für Menschen, die nicht sprechen können, und Befehlen per Sprache oder Chat. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
+  Text sprechen für Menschen, die nicht sprechen können, und Befehlen per Sprache oder Chat; ein Tutorial mit Rundgang,
+  auch in den Apps, per Assistent und mit `/tutorial` im Chat. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
 - **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-VPN,
   optionaler Privacy-Upstream (Multi-Hop / Mullvad / Tor),
-  feste IP-Adresse. Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
+  feste IP-Adresse, Hilfe beim Umzug in ein neues Zuhause, an einen neuen Router oder
+  Pi ([Umzug](docs/de/backup.md#umzug)). Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
 - **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md), [Handy-App](docs/de/mobile.md), Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
   Home Assistant.
@@ -69,7 +72,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 | **Android-App** | Das Dashboard mit Alarmen ohne Google, ein VPN wie bei Mullvad mit Split-Tunneling und automatischem Verbinden, Schnellaktionen wie Alles in Ordnung oder Abwesend am App-Symbol, SOS mit Kamerabildern, Foto und Ton vom Handy und mitverfolgtem Standort, Handy finden und vermisste Handys verfolgen und auf Wunsch ein unauffälliges Aussehen. |
 | **Desktop-App** | Das Dashboard im eigenen Fenster für Linux, Windows und macOS, vertraut nur dem Zertifikat deines pi-guard. Unter Linux auch ein VPN mit Kill Switch, Lockdown, Split-Tunneling und quantenresistentem Tunnel. |
 | **Server** | Ein kleiner Rust-Agent verbindet PC oder NAS: Status, Sicherheitsprüfung, Updates, Docker, Compose und Git, sicheres Herunterfahren; dazu Dienste, die auf Ausfälle überwacht werden. |
-| **Add-ons** | Server, Notfalldaten mit kurzlebigem Link für Rettungskräfte, Netzwerk-Analyse, Smart Home, Fernbefehle, KI-Assistent mit Kostenanzeige, der auch Einstellungen erklärt und mit Rückgängig ändert, Sprachsteuerung offline mit Weckwort ([Sprache](docs/de/sprache.md)), ein Reverse-Proxy wie frp ([Proxy](docs/de/proxy.md)), weitere Sprachen sowie Alarme nach Slack, Matrix, Rocket.Chat und Mastodon. Jedes lässt sich ausschalten oder samt Daten entfernen. |
+| **Add-ons** | Server, Notfalldaten mit kurzlebigem Link für Rettungskräfte, PDF und Medikationsplan (BMP), Kid Protect mit Filtern und Zeiten ohne Internet für Kindergeräte, Netzwerk-Analyse, Smart Home, Fernbefehle, KI-Assistent mit Kostenanzeige, der auch Einstellungen erklärt und mit Rückgängig ändert, Sprachsteuerung offline mit Weckwort ([Sprache](docs/de/sprache.md)), ein Reverse-Proxy wie frp ([Proxy](docs/de/proxy.md)), weitere Sprachen sowie Alarme nach Slack, Matrix, Rocket.Chat und Mastodon. Jedes lässt sich ausschalten oder samt Daten entfernen. |
 | **Plugins** | Eigene Add-ons mit Befehlen, Seiten und API-Routen, als ZIP oder Git-Link, geprüft vor dem Start. |
 | **Wege von unterwegs** | IPv4, IPv6, Mietserver oder Tailscale, für jeden Internetanschluss. |
 | **Training** | `pgtrain` auf einem Computer mit NVIDIA-Grafikkarte: Bin ich das, ähnliche Fotos, Schwellen aus deinen Fotos und den anonymen Statistiken der Pis, und eine Personenerkennung, die an Bildern von Räumen lernt. Die Bilder bleiben auf diesem Computer. Siehe [Training](docs/de/training.md). |

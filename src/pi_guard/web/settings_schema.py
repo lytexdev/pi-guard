@@ -151,6 +151,7 @@ EXPERT = frozenset({
     "discord_viewer_user_ids", "email_port", "email_security", "email_from",
     "signal_admin_numbers", "signal_allowed_numbers", "signal_cli_address",
     "emergency_after_alerts", "emergency_after_minutes", "whatsapp_phone_number_id",
+    "emergency_telegram_user_ids", "emergency_signal_numbers", "emergency_discord_user_ids",
     "whatsapp_app_secret", "whatsapp_verify_token", "whatsapp_alert_template",
     "wireguard_endpoint_v6", "dashboard_auth", "dashboard_public_url",
     "dashboard_trusted_proxies", "support_url", "app_updates_from_github", "webpush_enabled",

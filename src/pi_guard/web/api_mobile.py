@@ -25,10 +25,11 @@ from pi_guard.cameras.pipeline import SnapshotUnavailableError
 from pi_guard.core.permissions import Role, User
 from pi_guard.core.schedule import CALENDAR_KEY, clean_calendar
 from pi_guard.i18n import t
-from pi_guard.messaging.base import ProviderUnavailableError, Reply
+from pi_guard.messaging.base import ProviderUnavailableError
 from pi_guard.network.reach import addresses, endpoints, tailscale
 from pi_guard.network.wgpeers import PeerError
 from pi_guard.network.wireguard import read_status, status_file
+from pi_guard.notifications import sharing
 from pi_guard.security.files import atomic_write
 from pi_guard.web.api_network import _config, _server, _store, quantum_public_key
 from pi_guard.web.server import (
@@ -237,25 +238,24 @@ async def emergency(request: web.Request) -> web.Response:
     info = hub.report(device["id"], await read_json(request))
     lang = app.settings.language
     mode = t(f"mode.{app.modes.effective.value.lower()}", lang)
-    lines = [t("mobile.emergency", lang, name=device["name"]),
-             t("mobile.emergency_mode", lang, mode=mode)]  # fmt: skip
+    head = [t("mobile.emergency", lang, name=device["name"]),
+            t("mobile.emergency_mode", lang, mode=mode)]  # fmt: skip
+    place = []
     link = map_link(info, app.settings.map_provider)
-    lines.append(t("mobile.emergency_place", lang, link=link) if link
+    place.append(t("mobile.emergency_place", lang, link=link) if link
                  else t("mobile.emergency_no_place", lang))  # fmt: skip
     if "accuracy" in info:
-        lines.append(t("mobile.accuracy", lang, meters=round(info["accuracy"])))
+        place.append(t("mobile.accuracy", lang, meters=round(info["accuracy"])))
     if "battery" in info:
-        lines.append(t("mobile.battery", lang, percent=info["battery"]))
+        head.append(t("mobile.battery", lang, percent=info["battery"]))
     details = [info.get(k) for k in ("model", "network", "ssid", "ip") if info.get(k)]
     if details:
-        lines.append(" · ".join(map(str, details)))
-    text = "\n".join(lines)
+        place.append(" · ".join(map(str, details)))
     photos = await _current_pictures(app)
-    reached = 0
-    for provider, chat in app.escalation.contacts:
-        if provider in app.providers and await _call_for_help(app, provider, chat, text, photos):
-            reached += 1
-    await app.messenger.notify_admins(text, photos, tone="alert")
+    address = f"{request.scheme}://{request.host}"
+    reached = await sharing.sos(app, device["username"], head, place, photos,
+                                f"mobile:{device['id']}", address)  # fmt: skip
+    await app.messenger.notify_admins("\n".join(head + place), photos, tone="alert")
     app.db.audit(f"mobile:{device['id']}", "mobile.emergency", str(reached))
     if app.settings.mobile_sos_home_audio:
         _background(_home_clip(d, device["name"]))
@@ -278,18 +278,10 @@ async def _tell_state(hub: MobileHub, device_id: int) -> None:
 
 
 async def _to_everyone(app: Any, text: str, photo: Path | None = None,
-                       audio: Path | None = None) -> int:  # fmt: skip
-    """Escalation contacts and admins, with the words even if the file fails."""
-    reached = 0
-    for provider, chat in app.escalation.contacts:
-        if provider not in app.providers:
-            continue
-        try:
-            reply = Reply(text, photo=photo, audio=audio, tone="alert")
-            await app.messenger.send(provider, chat, reply)
-            reached += 1
-        except (ProviderUnavailableError, RuntimeError, OSError):
-            log.warning("emergency message via %s failed", provider)
+                       audio: Path | None = None, need: str | None = None) -> int:  # fmt: skip
+    """Emergency contacts that get this kind of file, and admins, with the words even if the
+    file fails."""
+    reached = await sharing.to_contacts(app, text, need, photo=photo, audio=audio)
     await app.messenger.notify_admins(text, [photo] if photo else [], tone="alert", audio=audio)
     return reached
 
@@ -324,7 +316,8 @@ async def emergency_media(request: web.Request) -> web.Response:
         path = Path(folder) / f"sos-{device['id']}{suffix}"
         path.write_bytes(body)
         reached = await _to_everyone(d.app, text, photo=path if kind == "photo" else None,
-                                     audio=path if kind == "audio" else None)  # fmt: skip
+                                     audio=path if kind == "audio" else None,
+                                     need=f"phone_{kind}")  # fmt: skip
     d.app.db.audit(f"mobile:{device['id']}", f"mobile.sos_{kind}", str(reached))
     return web.json_response({"contacts": reached})
 
@@ -386,7 +379,7 @@ async def _home_clip(d: Any, name: str) -> None:
         path = Path(folder) / "home.mp3"
         path.write_bytes(bytes(sound))
         await _to_everyone(app, t("mobile.sos_home_audio", app.settings.language, name=name),
-                           audio=path)  # fmt: skip
+                           audio=path, need="home_audio")  # fmt: skip
 
 
 async def _current_pictures(app: Any) -> list[Path]:
@@ -401,25 +394,6 @@ async def _current_pictures(app: Any) -> list[Path]:
 
     ids = list(app.cameras)[:MAX_EMERGENCY_PHOTOS]
     return [p for p in await asyncio.gather(*map(picture, ids)) if p is not None]
-
-
-async def _call_for_help(app: Any, provider: str, chat: str, text: str, photos: list[Path]) -> bool:
-    """The words matter most: if a picture is what fails, they still go out."""
-    send = app.messenger.send
-    try:
-        await send(provider, chat, Reply(text, photo=photos[0] if photos else None, tone="alert"))
-        for photo in photos[1:]:
-            await send(provider, chat, Reply(photo.stem, photo=photo, tone="alert"))
-        return True
-    except (ProviderUnavailableError, RuntimeError, OSError):
-        log.warning("emergency message via %s failed", provider)
-    if not photos:
-        return False
-    try:
-        await send(provider, chat, Reply(text, tone="alert"))
-        return True
-    except (ProviderUnavailableError, RuntimeError, OSError):
-        return False
 
 
 async def calendar(request: web.Request) -> web.Response:

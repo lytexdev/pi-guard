@@ -2,6 +2,18 @@
 
 Alles hier ist optional. Das Installationsprogramm fragt vor jedem Schritt.
 
+## Im Dashboard
+
+**Netzwerk › Überblick** zeigt oben den Zustand auf einen Blick: Geräte online, Geräte ohne Namen, wie viel Pi-hole
+blockt, die WLANs und verbundene VPN-Geräte; alles führt zu den Details. Darunter die Namensanfragen der letzten 24
+Stunden pro Stunde (erlaubt und blockiert, auch als Tabelle), Geräte ohne Namen zum Benennen, die aktivsten Geräte des
+Tages, Pi-hole mit Pause, die WLANs mit QR-Codes und schnelle Wege zu Seite sperren, Kid Protect, Gäste-WLAN,
+Netzwerkkarte, was andere sehen, und Umzug.
+
+**Netzwerk › VPN** zeigt oben, ob das VPN läuft, wie viele Geräte verbunden sind, den Weg von unterwegs und ob der
+quantensichere Schlüsseltausch an ist. Darunter die Bereiche *Geräte* (Karten mit Zustand und Datenmenge, *Zugang* zeigt
+den QR-Code erneut, *Gerät hinzufügen* öffnet ein kurzes Formular), *Von unterwegs*, *Privatsphäre* und *Quantensicher*.
+
 ## Feste IP-Adresse
 
 Am einfachsten in der FRITZ!Box: *Heimnetz › Netzwerk › (Gerät) › Diesem
@@ -66,7 +78,7 @@ Freigaben › Portfreigaben › Gerät für Freigaben hinzufügen*).
 
 ### Wege von unterwegs
 
-Im Dashboard unter **Netzwerk › VPN** stehen vier Wege mit ihrem Zustand. Was funktioniert, hängt
+Im Dashboard unter **Netzwerk › VPN › Von unterwegs** stehen vier Wege mit ihrem Zustand. Was funktioniert, hängt
 vom Internetanschluss ab, nicht von der Router-Marke. Richten Sie gern mehrere ein: Die App probiert
 sie der Reihe nach und merkt sich den, der geantwortet hat.
 
@@ -104,7 +116,7 @@ Ihre Geräte stehen aber dort in einer Liste.
 
 Details: [network.md](../network.md#ways-home-from-outside).
 
-Dashboard › **Netzwerk › VPN-Zugang › Gerät hinzufügen**: Namen eingeben
+Dashboard › **Netzwerk › VPN › Geräte › Gerät hinzufügen**: Namen eingeben
 („Handy Anna“), wählen, ob der gesamte Internetverkehr über Zuhause läuft
 (Werbeblocker überall, sicherer in fremden WLANs) oder nur das Heimnetz, und
 den QR-Code mit der App „WireGuard“ scannen. Der QR-Code lässt sich später

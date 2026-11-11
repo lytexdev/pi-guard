@@ -19,6 +19,7 @@ const VIEWS = {
   logs: () => import("./views/logs.js"),
   login: () => import("./views/login.js"),
   setup: () => import("./views/setup.js"),
+  help: () => import("./views/help.js"),
 };
 const PRIMARY = [
   ["overview", "home", "web.nav_overview"],
@@ -31,9 +32,10 @@ const SECONDARY = [
   ["addons", "cpu", "web.nav_addons"],
   ["settings", "settings", "web.nav_settings"],
   ["logs", "list-details", "web.nav_logs"],
+  ["help", "bulb", "web.nav_help"],
 ];
 
-const VIEWER_ROUTES = ["overview", "live", "monitor", "events", "account"];
+const VIEWER_ROUTES = ["overview", "live", "monitor", "events", "account", "help"];
 
 applyAccessibility();
 installLightbox();

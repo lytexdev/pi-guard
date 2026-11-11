@@ -38,6 +38,18 @@ the dashboard password. The last result shows under *Settings → Backup*, and e
 
 ## Restoring
 
+On a Pi with pi-guard installed:
+
+```bash
+sudo ./scripts/restore.sh pi-guard-backup-20261109T030000Z.pgbk
+```
+
+It asks for the passphrase, stops pi-guard, keeps the current configuration and data next to them
+(`*.before-restore-DATE`), puts the backup's in their place and starts pi-guard. Root never writes into a folder the
+`pi-guard` user owns: the data folder is built new and handed over at the end.
+
+By hand:
+
 ```bash
 pi-guard backup restore pi-guard-backup-20261109T030000Z.pgbk --into restore
 ```
@@ -54,3 +66,32 @@ sudo systemctl start pi-guard
 ```
 
 For Borg: `borg extract REPO::pi-guard-…` with the passphrase, then the same copy steps from its `data` and `config`.
+
+## Moving
+
+*Settings → Moving* helps with a new home, a new router or internet provider, or a new Pi.
+
+**Before:**
+
+1. **Download a moving file:** an encrypted backup straight to the browser, with its own passphrase (at least 12
+   characters), with recordings if wanted. On a new Pi: install pi-guard, copy the file over,
+   `sudo ./scripts/restore.sh FILE`.
+2. **The Pi's network:** easiest, the new router gets the same Wi-Fi name and password, and the Pi, cameras and phones
+   connect by themselves. Otherwise the page builds the `nmcli` command that adds the new Wi-Fi as well; the key stays
+   in the browser, and you run the command on the Pi yourself. On a cable, plug it into the new router.
+3. **Write down what the old router does:** the Pi's fixed address, the Pi as DNS server, the forwarded VPN port,
+   the FRITZ!Box user for pi-guard.
+
+**After**, pi-guard notices another network: another router (by its hardware address, since every FRITZ!Box is
+192.168.178.1), other addresses or another Wi-Fi. The checks say what to do:
+
+- **Network cameras** whose address is not in the network any more, or that do not answer.
+- **FRITZ!Box:** whether it answers at the address set; otherwise enter address and user again.
+- **Pi-hole as DNS server:** whether other devices ask it; otherwise enter the Pi as local DNS server in the router.
+- **VPN from outside:** whether the address set is still the home's. *Use* sets the new one (with the password, after
+  the restart); the phone app fetches it itself, computers and WireGuard apps need their access again. Forward the UDP
+  port in the new router, or use the relay or Tailscale without a public IPv4 address.
+- **Blocks for single devices** that go by IP address.
+
+*This is home now* saves the new network so the next change is noticed again. pi-guard never changes the Pi's own
+network settings. Tested with stand-in networks, not yet in a real move.

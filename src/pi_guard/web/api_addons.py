@@ -35,7 +35,7 @@ from pi_guard.web.server import current, dashboard, read_body, read_json
 log = logging.getLogger(__name__)
 
 ADDONS = ("heartbeat", "analytics", "smarthome", "remote", "assistant", "agents", "languages",
-          "medical", "proxy")  # fmt: skip
+          "medical", "proxy", "kids")  # fmt: skip
 # Shown as one add-on, "Server": the agent part carries the switch, the watcher is its section.
 LISTED = tuple(a for a in ADDONS if a != "heartbeat")
 SERVER_PARTS = ("agents", "heartbeat")
@@ -108,6 +108,9 @@ async def catalog(request: web.Request) -> web.Response:
     needs = {
         "analytics": None if s.pihole_enabled else "web.addon_needs_pihole",
         "smarthome": None if s.mqtt_host else "web.addon_needs_mqtt",
+        "kids": None
+        if s.pihole_enabled or app.fritz is not None
+        else "web.addon_needs_pihole_or_router",
     }
     return web.json_response({
         "addons": [{

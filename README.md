@@ -34,21 +34,24 @@ movement, and lets you look at your home with two buttons: **View photo** and
   unknown person. A bar shows how well each person is learned and which pictures
   are missing. Unknown people are reported with a photo. Several pictures are judged together, so a family
   member seen badly once is not reported as a stranger. *Who is this?* on an event teaches pi-guard a face the
-  camera saw, or that a face is not someone. *Learn at the camera* takes 20 seconds of varied views in the camera's
+  camera saw, or that a face is not someone, also for many faces in a row by swiping cards. *Learn at the camera* takes 20 seconds of varied views in the camera's
   own angle and light, and *Why recognition works or not* shows in numbers what holds it back.
 - **Alarm.** Sound the alarm (or your own uploaded sound) on a speaker, and stop
   it, from the chat.
-- **Emergency contacts.** If alerts stay unconfirmed, backup contacts get a
-  summary with photos.
+- **Emergency contacts.** After an SOS from a phone, or if alerts stay
+  unconfirmed, contacts get a message, and what you chose for each: the place,
+  photos and sound, events, and the emergency medical data as a link or PDF.
 - **Web dashboard.** Live picture and sound, talk through the
   speaker, image tools, trusted people, device selection, settings,
   statistics and logs; installable as an app with push notifications; login
   by password or key file with optional two-factor codes, hardware keys, several users
   (admins and viewers) and your own colours, font and logo. Also a weekly plan, a security
-  scan, storage clean-up and Wi-Fi QR codes.
+  scan, storage clean-up and Wi-Fi QR codes. A tutorial with a guided tour, also in the apps,
+  through the assistant and with `/tutorial` in chats.
 - **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
   a WireGuard VPN with your own devices, optional privacy upstream (multi-hop /
-  Mullvad / Tor), a safe fixed-IP script.
+  Mullvad / Tor), a safe fixed-IP script, and help with moving to a new home,
+  router or Pi (see [backups](docs/backup.md#moving)).
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
@@ -65,7 +68,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, quick actions such as all fine or away from the app icon, SOS with camera pictures, photos and sound from the phone and a followed place, finding and tracking lost phones, and an inconspicuous look if you want one. |
 | **Desktop app** | The dashboard in its own window for Linux, Windows and macOS, trusting only your pi-guard's certificate. On Linux also a VPN with kill switch, lockdown, split tunneling and a quantum-resistant tunnel. |
 | **Server** | A small Rust agent connects a PC or NAS: status, security check, updates, Docker, Compose and Git, safe shutdown; and services watched for outages. |
-| **Add-ons** | Server, emergency medical data with a short-lived rescue link, network analysis, smart home, remote commands, AI assistant with its costs that also explains settings and changes them with an undo, offline voice control with a wake phrase, a reverse proxy like frp, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
+| **Add-ons** | Server, emergency medical data with a short-lived rescue link, PDF and medication plan (BMP), Kid Protect with filters and times without internet for children's devices, network analysis, smart home, remote commands, AI assistant with its costs that also explains settings and changes them with an undo, offline voice control with a wake phrase, a reverse proxy like frp, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
 | **Plugins** | Your own add-ons with commands, pages and API routes, from a ZIP or a Git link, checked before they run. See [plugins](docs/plugins.md). |
 | **Ways home** | IPv4, IPv6, a rented server or Tailscale, for every kind of internet connection. See [network](docs/network.md#ways-home-from-outside). |
 | **Training** | `pgtrain` on a computer with an NVIDIA GPU: is this me, similar photos, thresholds from your photos and the Pis' anonymous statistics, and a person detector trained on pictures of rooms. Pictures stay on that computer. See [training](docs/training.md). |
@@ -162,7 +165,7 @@ pi-guard logs -f
 | [Email](docs/email.md) | alerts and exports by email |
 | [Mobile app](docs/mobile.md) | Android app with VPN, alerts, finding phones and SOS |
 | [Desktop app](docs/desktop.md) | The dashboard as an app for Windows, Linux and macOS |
-| [Backups](docs/backup.md) | Encrypted backups to Nextcloud, rsync or Borg |
+| [Backups](docs/backup.md) | Encrypted backups to Nextcloud, rsync or Borg, and moving to a new home, router or Pi |
 | [Reverse proxy](docs/proxy.md) | Reach services behind NAT through your own server, like frp, in Rust |
 | [Voice](docs/voice.md) | Talk to the Pi offline: wake phrase, button, push to talk; typed speech |
 | [Updates](docs/updates.md) | How agents and apps update themselves, signed and verified |

@@ -100,10 +100,22 @@ ID; group IDs are negative).
 
 ### Emergency contacts
 
+Emergency contacts are kept in the dashboard under *Settings → Emergency*: name, relation, phone, email, optionally
+a dashboard account, one or more ways to reach them (Telegram, Signal, Discord, WhatsApp, email), and for each
+occasion what they get. Occasions are an **SOS from a phone** and **alarms nobody answered**. On top of the message
+itself a contact can get the place of the phone, photos and sound from the phone, pictures from the Pi's cameras,
+the latest events, 20 seconds from the Pi's microphone, and the emergency medical data of the person whose phone
+sent the SOS (as a rescue link with PIN, or as a PDF). *Send a test message* checks that a contact can be reached.
+
+The settings below are the older way and still work: each entry is a contact that gets what such contacts always
+got (SOS: place, phone photos and sound, Pi pictures, home sound; alarms: events and pictures). They are shown in
+expert mode only.
+
 | Name | Default | |
 |---|---|---|
 | `EMERGENCY_TELEGRAM_USER_IDS` | – | contacts that must have started the bot once |
 | `EMERGENCY_SIGNAL_NUMBERS` | – | |
+| `EMERGENCY_DISCORD_USER_IDS` | – | |
 | `EMERGENCY_AFTER_ALERTS` | `3` | open (unconfirmed) alerts needed… |
 | `EMERGENCY_AFTER_MINUTES` | `30` | …the oldest open for at least this long |
 

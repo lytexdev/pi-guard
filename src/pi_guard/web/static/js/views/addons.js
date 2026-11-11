@@ -5,7 +5,7 @@ import { searchToggle } from "../widgets.js";
 import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
 
-export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone", agents: "device-desktop", languages: "world", medical: "user-check", proxy: "network" };
+export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone", agents: "device-desktop", languages: "world", medical: "user-check", proxy: "network", kids: "mood-happy" };
 
 const slug = (text) => text.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 28) || "item";
 const uniqueId = (name, items) => {
@@ -598,111 +598,21 @@ async function languages(box) {
   await draw();
 }
 
-// --- emergency medical information ---------------------------------------------------------
-// Every look, change and link asks for the password and goes into the audit log.
-
-const MD_FIELDS = [["name", 1], ["birthday", 1, "date"], ["blood_type", 1], ["height_cm", 1], ["weight_kg", 1],
-  ["allergies", 3], ["conditions", 4], ["medications", 4], ["medication_plan", 4], ["implants", 2], ["organ_donor", 1],
-  ["contacts", 3], ["doctor", 2], ["insurance", 1], ["notes", 4]];
-
-async function password() {
-  return askDialog(t("web.md_password"), { type: "password" });
-}
-
-function medicalForm(record, onSave) {
-  const inputs = {};
-  const dialog = h("dialog", { class: "editor" }, h("h2", {}, record.name || t("web.md_new")),
-    h("p", { class: "muted" }, t("web.md_form_intro")),
-    h("div", { class: "stack" }, MD_FIELDS.map(([key, rows, type]) => {
-      inputs[key] = rows > 1 ? h("textarea", { id: `md_${key}`, rows }, record[key] || "")
-        : key === "blood_type" ? h("select", { id: `md_${key}` }, ["", "0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((v) => h("option", { value: v, selected: v === (record[key] || "") }, v || "–")))
-          : h("input", { id: `md_${key}`, type: type || "text", value: record[key] || "" });
-      return h("div", { class: "field" }, h("label", { for: `md_${key}` }, t(`web.md_f_${key}`)), inputs[key]);
-    })),
-    h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
-      h("button", { class: "primary", onclick: async () => {
-        const values = Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value]));
-        if (await onSave(values)) dialog.close();
-      } }, icon("check"), t("web.save"))));
-  dialog.addEventListener("close", () => dialog.remove());
-  document.body.append(dialog);
-  dialog.showModal();
-}
-
-function showLink(link) {
-  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, t("web.md_link_title")),
-    h("p", {}, t("web.md_link_intro", { time: when(link.expires) })),
-    h("pre", { class: "mono wrap" }, link.url),
-    link.pin ? h("p", {}, t("web.md_link_pin"), " ", h("strong", { class: "mono big-pin" }, link.pin)) : h("p", { class: "notice" }, t("web.md_link_no_pin")),
-    h("div", { class: "row end" },
-      h("button", { onclick: () => navigator.clipboard?.writeText(link.url).then(() => toast(t("web.copied"))) }, icon("copy"), t("web.copy")),
-      navigator.share ? h("button", { onclick: () => navigator.share({ url: link.url }).catch(() => {}) }, icon("upload"), t("web.share")) : null,
-      h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
-  dialog.addEventListener("close", () => dialog.remove());
-  document.body.append(dialog);
-  dialog.showModal();
-}
+// --- emergency medical information: see medical.js ----------------------------------------
 
 async function medical(box) {
-  const people = await status("/api/medical");
-  if (!people) { fill(box, h("p", { class: "notice" }, t("web.addon_restart"))); return; }
-  const links = await status("/api/medical/links") || [];
-  const redraw = () => medical(box);
-  const save = async (id, record) => {
-    const pass = await password();
-    if (!pass) return false;
-    const url = id ? `/api/medical/${id}` : "/api/medical";
-    const done = await attempt(() => api(url, { method: id ? "PUT" : "POST", body: { record, password: pass } }), t("web.saved"));
-    if (done) redraw();
-    return Boolean(done);
-  };
-  const open = async (person, then) => {
-    const pass = await password();
-    if (!pass) return;
-    const record = await attempt(() => api("/api/medical/view", { method: "POST", body: { id: person.id, password: pass } }));
-    if (record) then(record);
-  };
-  const link = async (person) => {
-    const minutes = h("select", { id: "md_min" }, [15, 30, 60].map((m) => h("option", { value: m, selected: m === 30 }, t("web.md_minutes", { minutes: m }))));
-    const pin = h("input", { type: "checkbox", id: "md_pin", checked: true });
-    const pass = h("input", { type: "password", id: "md_pass", autocomplete: "current-password" });
-    const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, t("web.md_link_for", { name: person.name })), h("p", { class: "muted" }, t("web.md_link_hint")),
-      h("div", { class: "stack" }, h("div", { class: "field" }, h("label", { for: "md_min" }, t("web.md_valid")), minutes),
-        h("label", { class: "check", for: "md_pin" }, pin, t("web.md_with_pin")),
-        h("div", { class: "field" }, h("label", { for: "md_pass" }, t("web.md_password")), pass)),
-      h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
-        h("button", { class: "primary", onclick: async () => {
-          const made = await attempt(() => api(`/api/medical/${person.id}/link`, { method: "POST", body: { minutes: Number(minutes.value), pin: pin.checked, password: pass.value } }));
-          if (made) { dialog.close(); showLink(made); redraw(); }
-        } }, icon("plus"), t("web.md_make_link"))));
-    dialog.addEventListener("close", () => dialog.remove());
-    document.body.append(dialog);
-    dialog.showModal();
-  };
-  fill(box,
-    h("section", { class: "panel stack" }, h("h2", {}, t("web.md_people")), h("p", { class: "muted" }, t("web.md_intro")),
-      h("ul", { class: "list" }, people.length ? people.map((p) => h("li", {}, icon("user"),
-        h("div", { class: "grow" }, h("div", {}, p.name), h("small", { class: "muted" }, t("web.md_updated", { time: when(p.updated) }))),
-        h("button", { onclick: () => open(p, (record) => medicalForm(record, (values) => save(p.id, values))) }, icon("eye"), t("web.md_open_edit")),
-        h("button", { class: "primary", onclick: () => link(p) }, icon("plus"), t("web.md_link_button")),
-        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
-          if (!await confirmDialog(t("web.md_delete", { name: p.name }), t("web.delete"), true)) return;
-          const pass = await password();
-          if (pass && await attempt(() => api(`/api/medical/${p.id}`, { method: "DELETE", body: { password: pass } }), t("web.deleted"))) redraw();
-        } }, icon("trash")))) : h("li", { class: "empty" }, t("web.md_none"))),
-      h("div", {}, h("button", { onclick: () => medicalForm({}, (values) => save(null, values)) }, icon("plus"), t("web.md_add")))),
-    h("section", { class: "panel stack" }, h("h2", {}, t("web.md_links")),
-      h("ul", { class: "list" }, links.length ? links.map((l) => h("li", {}, icon("clock"),
-        h("div", { class: "grow" }, h("div", {}, l.name), h("small", { class: "muted" }, t("web.md_link_state", { time: when(l.expires), opened: l.opened }), l.pin ? " · PIN" : "")),
-        h("button", { class: "danger", onclick: async () => { if (await attempt(() => api(`/api/medical/links/${l.id}`, { method: "DELETE" }), t("web.saved"))) redraw(); } }, t("web.md_end")))) : h("li", { class: "empty" }, t("web.md_no_links")))),
-    h("p", { class: "muted" }, h("small", {}, t("web.md_privacy"))));
+  await (await import("./medical.js")).medical(box, status);
+}
+
+async function kids(box) {
+  await (await import("./kids.js")).kidsPanel(box);
 }
 
 async function proxy(box) {
   await (await import("./proxy.js")).proxyPanel(box);
 }
 
-const DETAILS = { heartbeat, analytics, smarthome, remote, assistant, agents, languages, medical, proxy };
+const DETAILS = { heartbeat, analytics, smarthome, remote, assistant, agents, languages, medical, proxy, kids };
 
 export async function renderDetail(id, box, opts = {}) {
   const data = await api("/api/addons");
@@ -734,7 +644,7 @@ export async function render(main, params = []) {
   };
   // Cards in groups, each with its state at a glance; removing sits in a menu, not next to "Open".
   const GROUPS = [["server", ["agents", "remote"]], ["network", ["analytics", "proxy"]], ["home", ["smarthome"]],
-    ["health", ["medical"]], ["assistant", ["assistant", "languages"]], ["messages", ["discord", "whatsapp", "email", "mobile", "chatapps"]]];
+    ["family", ["kids"]], ["health", ["medical"]], ["assistant", ["assistant", "languages"]], ["messages", ["discord", "whatsapp", "email", "mobile", "chatapps"]]];
   const MODULE_ICONS = { discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", mobile: "device-mobile", chatapps: "message" };
   const stateBadge = (on, extra) => extra
     ? h("span", { class: "badge warn" }, extra)

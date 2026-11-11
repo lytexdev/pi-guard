@@ -26,6 +26,7 @@ object QuickActions {
         Action("alarm", R.string.qa_alarm, R.drawable.ic_bell, confirm = true),
         Action("alarm_stop", R.string.qa_alarm_stop, R.drawable.ic_bell_off),
         Action("sos", R.string.sos, R.drawable.ic_alert_triangle),
+        Action("tutorial", R.string.qa_tutorial, R.drawable.ic_search),
     )
     const val EXTRA = "de.lytex.QUICK"
     const val ROUTE = "de.lytex.ROUTE"
@@ -64,6 +65,11 @@ object QuickActions {
             // A call is the Live page's call button: the browser needs a tap there to use the microphone.
             "call" -> {
                 activity.startActivity(Intent(activity, MainActivity::class.java).putExtra(ROUTE, "#/live").addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                done()
+            }
+            // The dashboard's help page with its tour; nothing goes to the Pi.
+            "tutorial" -> {
+                activity.startActivity(Intent(activity, MainActivity::class.java).putExtra(ROUTE, "#/help/tour").addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
                 done()
             }
             else -> if (action.confirm) {

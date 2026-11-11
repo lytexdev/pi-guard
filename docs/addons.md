@@ -95,6 +95,8 @@ refused. Shutting down protects a disk only if it is encrypted and locks on shut
 The round button at the bottom right of the dashboard opens a chat with text and microphone.
 With the add-on on, anything you write that is no command is a question; voice messages
 get an extra button, and the dashboard has a text box and a microphone.
+Questions about pi-guard itself ("How does the VPN work?", "Tutorial") are answered from the built-in tutorial,
+without the provider and without cost; see [Help and tutorial](dashboard.md#help-and-tutorial).
 
 | Provider | Default model | Voice in | Voice out |
 | --- | --- | --- | --- |
@@ -188,6 +190,32 @@ use under Settings › Messenger:
 These are send-only and carry no pictures: what your cameras see does not belong in a team chat. Under Settings ›
 Notifications you choose per kind of message whether it goes there.
 
+## Kid Protect
+
+Filters for children's devices, and times without internet. Needs Pi-hole for the filters; times without internet
+also work with a FRITZ!Box alone. Open it under *Add-ons → Kid Protect*.
+
+- **Profiles:** one per child, or one for all children. A profile blocks kinds of sites: adult content (18+),
+  gambling, malware and phishing, scams, drugs, piracy and torrents, social networks, TikTok. The first five are ticked
+  for a new profile. The lists come from [The Block List Project](https://blocklistproject.github.io/Lists/) and
+  StevenBlack's social list; Pi-hole downloads them.
+- **Times without internet:** for example 21:00 to 06:30 on school nights, a weekend night or homework time, with
+  templates for these. A time past midnight belongs to the day it starts. *Pause internet* switches it off now for 15
+  minutes to two hours, *Extra time* gives internet during a time without it.
+- **Devices:** choose a profile for each child's device in the list of the home network; devices without a profile are
+  not changed. Phones with a private (changing) Wi-Fi address need it switched off for the home network, or the
+  profile does not recognise them.
+
+How it works: each profile is a Pi-hole group (`pi-guard-kids-N`), its devices are Pi-hole clients by MAC address in
+that group and in the default group, and the profile's lists are assigned to the group only, so nobody else is
+filtered by them. A list that was already there for everyone stays so. A time without internet adds one rule that
+blocks every name for the groups that are offline; with a FRITZ!Box the router also cuts these devices' internet, and
+only what Kid Protect cut is given back afterwards. The lists made by Kid Protect are not shown under *Network → Lists*.
+Every change goes to Pi-hole at once, and the add-on checks every minute.
+
+DNS filters are no lock: mobile data, a VPN or another DNS server get around them. They help younger children most,
+together with talking about it. Tested with a stand-in for Pi-hole's API, not yet against a real Pi-hole and router.
+
 ## Reverse proxy
 
 Reach services behind NAT through a server you choose, like frp: this Pi as server or client of `pgproxy`, with
@@ -207,8 +235,25 @@ this is counted by pi-guard and leaves out speech; your provider's bill is what 
 ## Emergency data
 
 Medical information of the people at home, for when help comes: blood type, allergies, illnesses and diagnoses,
-medicines and the medication plan, implants such as a pacemaker, organ donor card, people to call, doctor and health
-insurance. All but the name are optional.
+medicines and the medication plan, over-the-counter products and supplements, implants such as a pacemaker, organ
+donation, people to call, doctor and health insurance, and the person's phone and email. All but the name are optional.
+
+- **Medicines** are lines as on the German federal medication plan (*Bundeseinheitlicher Medikationsplan*, BMP):
+  name, strength, active ingredient, form, doses morning-noon-evening-night or a free schedule, unit, reason and a
+  note, regular or as needed, and whether a doctor prescribed it or the person takes it on their own. Products bought
+  without prescription (vitamins, minerals, herbal products) have a section of their own.
+- **Read medication plan (BMP):** scan the Data Matrix code of a printed plan with a scanner app and paste the text,
+  or choose the file. The medicines fill the form; nothing is saved before *Save*. *BMP* gives the medicines back as
+  such a text. Drawing the Data Matrix code itself is not done. This follows the published structure of the plan;
+  plans from a real practice or pharmacy have not been tried yet.
+- **Organ donation** is a choice (yes, no, only some organs, all but some, a person decides, not decided) with a note.
+- **Markdown** works in the text fields: `**bold**`, `*italic*`, lists with `-`, headings with `#`. *Preview* shows it;
+  the rescuer's page and the PDF show it too.
+- **Dashboard account:** a person can be linked to one account. An SOS from that account's phone then sends the
+  emergency contacts that person's data, if they are set to get them. Removing the account ends the link.
+- **PDF, picture, send:** an open sheet can be saved as a PDF (A4, to print), as a picture (PNG, drawn in the browser,
+  to share from the phone) and sent to an emergency contact. Within one open sheet the password typed to open it is
+  used for these and forgotten when the sheet closes.
 
 Health data are a special category under Art. 9 GDPR, so:
 
@@ -218,7 +263,10 @@ Health data are a special category under Art. 9 GDPR, so:
 - Only admins see, change or share them, and each time with their password. Viewers never see them.
 - Every look, change, link, opened link and wrong PIN goes into the audit log, with the record's number, never its
   content.
-- Nothing of it goes into chats, push messages or MQTT. It is part of the data export.
+- Nothing of it goes into push messages or MQTT. It reaches a chat only when an admin sends it to an emergency contact,
+  or an SOS does for a contact set to get it: as a rescue link valid an hour with its PIN in a second message, or as
+  the PDF if the owner chose that for this contact (the chat service then keeps the file). It is part of the data
+  export.
 
 **Rescue link:** *Rescue link* makes a link to one person's sheet, valid for 15, 30 or 60 minutes, read only. By
 default it also asks for a six-digit PIN: tell it by phone, not in the same message as the link. Five wrong PINs end

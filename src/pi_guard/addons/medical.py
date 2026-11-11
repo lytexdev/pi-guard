@@ -39,11 +39,25 @@ PRAGMA foreign_keys=ON;
 """
 LINK_MINUTES = (15, 30, 60)
 PIN_TRIES = 5
-TEXT_FIELDS = {"name": 80, "birthday": 10, "blood_type": 10, "height_cm": 5, "weight_kg": 5,
-               "allergies": 1000, "conditions": 1500, "medications": 2000,
-               "medication_plan": 2000, "implants": 500, "organ_donor": 40,
-               "doctor": 300, "insurance": 200, "contacts": 600, "notes": 2000}  # fmt: skip
+# One line each.
+LINE_FIELDS = {"name": 80, "birthday": 10, "blood_type": 10, "height_cm": 5, "weight_kg": 5,
+               "phone": 40, "email": 120, "account": 64, "organ_donor": 20,
+               "organ_donor_note": 300, "insurance": 200}  # fmt: skip
+# Several lines, Markdown allowed (shown as text where Markdown is not drawn).
+TEXT_FIELDS = {"allergies": 1000, "conditions": 1500, "medications": 2000,
+               "medication_plan": 2000, "implants": 500, "doctor": 300, "contacts": 600,
+               "notes": 2000}  # fmt: skip
 BLOOD_TYPES = {"", "0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"}
+ORGAN_DONOR = {"", "yes", "no", "some", "except", "person", "undecided"}
+# A medicine as a line of the German federal medication plan (BMP) has it.
+MED_FIELDS = {"name": 80, "ingredient": 80, "strength": 40, "form": 40, "morning": 8,
+              "noon": 8, "evening": 8, "night": 8, "schedule": 60, "unit": 30,
+              "reason": 120, "note": 200}  # fmt: skip
+MED_SOURCES = ("doctor", "self")  # the first is the default
+MED_KINDS = ("regular", "as_needed")
+SUPPLEMENT_FIELDS = {"name": 80, "dose": 60, "note": 200}
+MAX_ITEMS = 40
+_CONTROL = dict.fromkeys(c for c in range(32) if c not in (9, 10))
 
 
 class MedicalError(ValueError):
@@ -54,12 +68,47 @@ class MedicalError(ValueError):
         self.key = key
 
 
-def clean(data: dict[str, Any]) -> dict[str, str]:
-    values = {}
+def _line(value: object, limit: int) -> str:
+    return " ".join(str(value or "").split())[:limit]
+
+
+def _text(value: object, limit: int) -> str:
+    """Keeps line breaks and indentation for Markdown, drops control characters and runs of
+    empty lines."""
+    text = str(value or "").replace("\r\n", "\n").replace("\t", "  ").translate(_CONTROL)
+    lines, empty = [], 0
+    for line in text.split("\n"):
+        line = line.rstrip()
+        empty = empty + 1 if not line else 0
+        if empty < 2:
+            lines.append(line)
+    return "\n".join(lines).strip("\n")[:limit]
+
+
+def _items(
+    value: object, fields: dict[str, int], choices: dict[str, tuple[str, ...]] | None = None
+) -> list[dict[str, str]]:
+    """Rows without a name are dropped; a choice not offered becomes its first value."""
+    items = []
+    for raw in value if isinstance(value, list) else []:
+        if not isinstance(raw, dict):
+            continue
+        item = {k: _line(raw.get(k), n) for k, n in fields.items() if _line(raw.get(k), n)}
+        if not (item.get("name") or item.get("ingredient")):
+            continue
+        for key, allowed in (choices or {}).items():
+            item[key] = raw[key] if raw.get(key) in allowed else allowed[0]
+        items.append(item)
+    return items[:MAX_ITEMS]
+
+
+def clean(data: dict[str, Any]) -> dict[str, Any]:
+    values: dict[str, Any] = {}
+    for key, limit in LINE_FIELDS.items():
+        if value := _line(data.get(key), limit):
+            values[key] = value
     for key, limit in TEXT_FIELDS.items():
-        lines = [" ".join(line.split()) for line in str(data.get(key) or "").splitlines()]
-        value = "\n".join(line for line in lines if line)[:limit]
-        if value:
+        if value := _text(data.get(key), limit):
             values[key] = value
     if not values.get("name"):
         raise MedicalError("web.md_needs_name")
@@ -67,6 +116,17 @@ def clean(data: dict[str, Any]) -> dict[str, str]:
         raise MedicalError("web.md_bad_blood_type")
     if "blood_type" in values:
         values["blood_type"] = values["blood_type"].upper()
+    donor = str(data.get("organ_donor") or "")
+    if donor not in ORGAN_DONOR:  # free text from before the choice: keep it as the note
+        note = " ".join(filter(None, [_line(donor, 300), values.get("organ_donor_note", "")]))
+        values["organ_donor_note"] = note[:300]
+        values.pop("organ_donor", None)
+    if meds := _items(data.get("meds"), MED_FIELDS, {"source": MED_SOURCES, "kind": MED_KINDS}):
+        values["meds"] = meds
+    if supplements := _items(data.get("supplements"), SUPPLEMENT_FIELDS):
+        values["supplements"] = supplements
+    if values.get("email") and "@" not in values["email"]:
+        raise MedicalError("web.md_bad_email")
     return values
 
 
@@ -89,11 +149,11 @@ class MedicalRecords:
         secure_file(key_path)
         self._aead = AESGCM(key_path.read_bytes())
 
-    def _seal(self, record_id: int, data: dict[str, str]) -> bytes:
+    def _seal(self, record_id: int, data: dict[str, Any]) -> bytes:
         nonce = os.urandom(12)
         return nonce + self._aead.encrypt(nonce, json.dumps(data).encode(), str(record_id).encode())
 
-    def _open(self, record_id: int, blob: bytes) -> dict[str, str]:
+    def _open(self, record_id: int, blob: bytes) -> dict[str, Any]:
         plain = self._aead.decrypt(blob[:12], blob[12:], str(record_id).encode())
         return dict(json.loads(plain))
 
@@ -102,9 +162,25 @@ class MedicalRecords:
         rows = self._conn.execute("SELECT id, name, updated FROM records ORDER BY name")
         return [{"id": r[0], "name": r[1], "updated": r[2]} for r in rows]
 
-    def read(self, record_id: int) -> dict[str, str] | None:
+    def read(self, record_id: int) -> dict[str, Any] | None:
         row = self._conn.execute("SELECT data FROM records WHERE id = ?", (record_id,)).fetchone()
         return self._open(record_id, bytes(row[0])) if row else None
+
+    def for_account(self, username: str) -> tuple[int, dict[str, Any]] | None:
+        """The sheet of the person a dashboard account belongs to, for an SOS from its phone."""
+        if not username:
+            return None
+        for person in self.people():
+            sheet = self.read(person["id"]) or {}
+            if str(sheet.get("account", "")).casefold() == username.casefold():
+                return person["id"], sheet
+        return None
+
+    def forget_account(self, username: str) -> None:
+        found = self.for_account(username)
+        if found is not None:
+            record_id, sheet = found
+            self.save(record_id, {**sheet, "account": ""})
 
     def save(self, record_id: int | None, data: dict[str, Any]) -> int:
         values = clean(data)
@@ -173,7 +249,7 @@ class MedicalRecords:
             (_digest(token[:100]), utcnow().isoformat())).fetchone()  # fmt: skip
         return {"expires": row[0], "pin": bool(row[1])} if row else None
 
-    def open_link(self, token: str, pin: str) -> tuple[str, dict[str, str]] | None:
+    def open_link(self, token: str, pin: str) -> tuple[str, dict[str, Any]] | None:
         """The sheet behind a valid link and PIN, or None. Wrong PINs count; five end it."""
         digest = _digest(token[:100])
         row = self._conn.execute(
@@ -192,7 +268,7 @@ class MedicalRecords:
         sheet = self.read(record_id)
         return (str(sheet["name"]), sheet) if sheet else None
 
-    def export(self) -> list[dict[str, str]]:
+    def export(self) -> list[dict[str, Any]]:
         return [self.read(r["id"]) or {} for r in self.people()]
 
     def close(self) -> None:
