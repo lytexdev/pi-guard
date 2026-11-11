@@ -25,21 +25,35 @@ export function privacyPanels() {
       installNotice(caps),
       profilesPanel(cfg, draw),
       connectionPanel(cfg, diag, draw),
-      chainPanel(cfg, caps, draw),
+      chainPanel(cfg, caps, draw, diag),
       providersPanel(cfg, caps, draw),
       dnsPanel(cfg, caps, draw),
       killSwitchPanel(cfg, caps, draw),
       torPanel(cfg, caps, draw),
       obfuscationPanel(caps, cfg, draw),
       diagnosticsPanel(diag, draw),
-      // Existing home VPN pieces stay below privacy upstream.
       h("div", { class: "privacy-home", "data-fold-default": "open" }));
   };
-  draw();
+  draw().then(async () => {
+    // One soft public-IP probe so Diagnose is not empty on first open.
+    const first = await attempt(() => api("/api/privacy/diagnostics"));
+    if (first && !first.exit_ip) {
+      const checked = await attempt(() => api("/api/privacy/diagnostics?check=1"));
+      const box = root.querySelector("[data-diag]");
+      if (box && checked) fill(box, diagBody(checked));
+    }
+  });
   whileShown(root, async () => {
-    const diag = await attempt(() => api("/api/privacy/diagnostics"));
+    const next = await attempt(() => api("/api/privacy/diagnostics"));
     const box = root.querySelector("[data-diag]");
-    if (box && diag) fill(box, diagBody(diag));
+    if (box && next) fill(box, diagBody(next));
+    const track = root.querySelector(".chain-track");
+    if (track && next) {
+      track.classList.toggle("on", Boolean(next.enabled && (next.chain_active || next.tor?.enabled)));
+      track.querySelectorAll(".chain-link").forEach((el) => {
+        el.classList.toggle("live", Boolean(next.enabled && (next.chain_active || next.tor?.enabled)));
+      });
+    }
   }, 8000);
   return root;
 }
@@ -82,25 +96,77 @@ function connectionPanel(cfg, diag, redraw) {
     h("p", { class: "muted" }, h("small", {}, t("web.priv_recovery"))));
 }
 
-function chainPanel(cfg, caps, redraw) {
+function chainPath(cfg, diag) {
+  // Prefer the server path (includes the home VPN hop); fall back to a local build.
+  if (diag?.path?.length) return diag.path;
+  const hops = (cfg.chain?.hops || []).filter((h) => h.enabled !== false);
+  return [
+    { id: "clients", kind: "clients", label: "clients", title_key: "web.priv_hop_clients", status: "ok", fixed: true },
+    { id: "home", kind: "home_vpn", label: "Pi-Guard", title_key: "web.priv_hop_home", status: "ok", fixed: true, iface: "wg0" },
+    ...hops.map((hop) => ({
+      id: hop.id, kind: "exit", label: hop.name || hop.provider, provider: hop.provider,
+      status: cfg.chain?.active ? "pending" : "idle", fixed: false,
+    })),
+    ...(cfg.tor?.enabled ? [{ id: "tor", kind: "tor", label: "Tor", title_key: "web.priv_hop_tor", status: "pending", fixed: false }] : []),
+    { id: "internet", kind: "internet", label: "Internet", title_key: "web.priv_hop_internet", status: "ok", fixed: true },
+  ];
+}
+
+function hopIcon(kind) {
+  return ({ clients: "device-mobile", home_vpn: "shield-lock", exit: "world", tor: "network", internet: "world" })[kind] || "router";
+}
+
+function hopTitle(node) {
+  if (node.title_key) return t(node.title_key);
+  if (node.kind === "exit") return node.label || node.provider || t("web.priv_hop_exit");
+  return node.label || node.kind;
+}
+
+function chainPanel(cfg, caps, redraw, diag) {
   const hops = cfg.chain?.hops || [];
   const multi = caps.features?.multi_hop;
+  const path = chainPath(cfg, diag);
+  const active = cfg.enabled && (cfg.chain?.active || cfg.tor?.enabled);
+  const detail = h("div", { class: "chain-detail muted", "aria-live": "polite" }, t("web.priv_chain_tap"));
+  const show = (node) => {
+    const lines = [
+      hopTitle(node),
+      node.iface ? `wg0` : null,
+      node.provider || null,
+      node.endpoint || null,
+      node.detail_key ? t(node.detail_key) : null,
+      t(`web.priv_hop_status_${node.status || "idle"}`),
+    ].filter(Boolean);
+    fill(detail, h("strong", {}, hopTitle(node)), h("div", {}, ...lines.slice(1).map((x) => h("div", {}, x))),
+      !node.fixed && node.kind === "exit" ? h("button", { class: "danger", onclick: async () => {
+        if (await attempt(() => api(`/api/privacy/chain/hops/${encodeURIComponent(node.id)}`, { method: "DELETE" }))) redraw();
+      } }, icon("trash"), t("web.delete")) : null);
+  };
+  const track = h("div", {
+    class: `chain-track ${active ? "on" : ""}`,
+    role: "list",
+    "aria-label": t("web.priv_chain_title"),
+  }, path.flatMap((node, i) => {
+    const hop = h("button", {
+      type: "button",
+      role: "listitem",
+      class: `chain-hop ${node.kind} ${node.status || "idle"}`,
+      style: `--i:${i}`,
+      onclick: () => show(node),
+    }, icon(hopIcon(node.kind)), h("span", {}, hopTitle(node)),
+      node.provider ? h("small", {}, node.provider) : (node.iface ? h("small", {}, node.iface) : null));
+    if (i === 0) return [hop];
+    return [h("div", { class: `chain-link ${active ? "live" : ""}`, "aria-hidden": "true" }, h("span", {})), hop];
+  }));
   return section("web.priv_chain_title", "web.priv_chain_intro",
     !multi?.available ? h("p", { class: "notice" }, t(multi?.reason || "web.priv_need_wg_nft")) : null,
-    h("ul", { class: "list chain-hops" }, hops.length ? hops.map((hop, i) =>
-      h("li", {},
-        h("span", { class: "badge" }, String(i + 1)),
-        h("div", { class: "grow" },
-          h("strong", {}, hop.name || hop.provider),
-          h("small", { class: "muted" }, hop.provider)),
-        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
-          if (await attempt(() => api(`/api/privacy/chain/hops/${encodeURIComponent(hop.id)}`, { method: "DELETE" }))) redraw();
-        } }, icon("trash")))) : h("li", { class: "empty" }, t("web.priv_chain_empty_ui"))),
+    track, detail,
     hops.length > 1 ? h("div", { class: "row" },
       h("button", { onclick: async () => {
         const order = hops.map((x) => x.id).reverse();
         if (await attempt(() => api("/api/privacy/chain/reorder", { method: "POST", body: { order } }), t("web.saved"))) redraw();
       } }, t("web.priv_chain_reverse"))) : null,
+    !hops.length ? h("p", { class: "muted" }, h("small", {}, t("web.priv_chain_empty_ui"))) : null,
     h("p", { class: "muted" }, h("small", {}, t("web.priv_chain_limit"))));
 }
 
@@ -277,24 +343,60 @@ function obfuscationPanel(caps, cfg, redraw) {
       }, t(`web.priv_obfs_${m.id}`)))));
 }
 
+function bytes(n) {
+  if (n == null || Number.isNaN(n)) return "—";
+  if (n < 1000) return `${n} B`;
+  if (n < 1e6) return `${(n / 1000).toFixed(1)} KB`;
+  if (n < 1e9) return `${(n / 1e6).toFixed(1)} MB`;
+  return `${(n / 1e9).toFixed(2)} GB`;
+}
+
 function diagBody(diag) {
+  if (!diag) return [h("p", { class: "muted" }, t("web.priv_diag_loading"))];
+  const ipLabel = diag.exit_ip_kind === "public" ? t("web.priv_diag_public_ip") : t("web.priv_diag_exit_ip");
+  const ipValue = diag.exit_ip
+    ? `${diag.exit_ip}${diag.exit_ip_cached ? ` (${t("web.priv_diag_cached", { age: diag.exit_ip_age ?? 0 })})` : ""}`
+    : t("web.priv_diag_ip_unknown");
+  const mem = diag.resources?.memory_available != null && diag.resources?.memory_total != null
+    ? `${bytes(diag.resources.memory_available)} / ${bytes(diag.resources.memory_total)}`
+    : "—";
   return [
+    diag.notes?.length ? h("ul", { class: "list compact" }, diag.notes.map((key) => h("li", { class: "notice" }, t(key)))) : null,
+    h("div", { class: "chain-mini", "aria-hidden": "true" },
+      ...(diag.path || []).flatMap((node, i) => {
+        const chip = h("span", { class: `chain-chip ${node.status || ""}` }, hopTitle(node));
+        return i ? [h("span", { class: "chain-mini-link" }, "→"), chip] : [chip];
+      })),
     h("dl", { class: "kv" },
       h("dt", {}, t("web.priv_diag_layers")), h("dd", {}, (diag.layers || []).join(", ") || "—"),
-      h("dt", {}, t("web.priv_diag_exit")), h("dd", {}, diag.exit?.up ? t("web.priv_diag_up") : t("web.priv_diag_down")),
+      h("dt", {}, t("web.priv_diag_exit")), h("dd", {},
+        !diag.exit?.has_status && !diag.installed ? t("web.priv_diag_need_install")
+          : (diag.exit?.up ? t("web.priv_diag_up") : t("web.priv_diag_down"))),
+      h("dt", {}, t("web.priv_diag_endpoint")), h("dd", { class: "mono" }, diag.exit?.endpoint || "—"),
       h("dt", {}, t("web.priv_diag_handshake")), h("dd", {}, diag.exit?.handshake_age != null ? `${diag.exit.handshake_age}s` : "—"),
+      h("dt", {}, t("web.priv_diag_transfer")), h("dd", {}, `${bytes(diag.exit?.transfer_rx)} ↓ · ${bytes(diag.exit?.transfer_tx)} ↑`),
       h("dt", {}, t("web.priv_diag_fw")), h("dd", {}, diag.firewall?.mode || "—"),
-      h("dt", {}, t("web.priv_diag_exit_ip")), h("dd", { class: "mono" }, diag.exit_ip || "—"),
-      h("dt", {}, t("web.priv_diag_load")), h("dd", {}, diag.resources?.load1 != null ? String(diag.resources.load1) : "—")),
+      h("dt", {}, t("web.priv_diag_dns")), h("dd", {}, diag.dns?.mode || "—"),
+      h("dt", {}, t("web.priv_diag_tor")), h("dd", {}, diag.tor?.enabled
+        ? (diag.tor.running ? t("web.priv_diag_tor_up", { pct: diag.tor.bootstrap ?? "—" }) : t("web.priv_diag_tor_down"))
+        : t("web.priv_diag_tor_off")),
+      h("dt", {}, ipLabel), h("dd", { class: "mono" }, ipValue),
+      h("dt", {}, t("web.priv_diag_load")), h("dd", {}, diag.resources?.load1 != null ? String(diag.resources.load1) : "—"),
+      h("dt", {}, t("web.priv_diag_mem")), h("dd", {}, mem)),
   ];
 }
 
 function diagnosticsPanel(diag, redraw) {
   const box = h("div", { "data-diag": "1" }, ...(diag ? diagBody(diag) : []));
   return section("web.priv_diag_title", "web.priv_diag_intro", box,
-    h("button", { onclick: async () => {
-      const data = await attempt(() => api("/api/privacy/diagnostics?check=1"));
-      if (data) { fill(box, diagBody(data)); toast(t("web.priv_diag_checked")); }
-    } }, icon("refresh"), t("web.priv_diag_check")));
+    h("div", { class: "row" },
+      h("button", { class: "primary", onclick: async () => {
+        const data = await attempt(() => api("/api/privacy/diagnostics?check=1"));
+        if (data) { fill(box, diagBody(data)); toast(t("web.priv_diag_checked")); }
+      } }, icon("refresh"), t("web.priv_diag_check")),
+      h("button", { onclick: async () => {
+        const data = await attempt(() => api("/api/privacy/diagnostics"));
+        if (data) fill(box, diagBody(data));
+      } }, t("web.priv_diag_refresh"))));
 }
 

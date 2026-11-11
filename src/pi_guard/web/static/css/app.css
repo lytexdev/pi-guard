@@ -383,6 +383,37 @@ td.actions { white-space: nowrap; }
 .privacy .segmented.wrap { flex-wrap: wrap; }
 .privacy .chain-hops .badge { min-width: 1.6em; text-align: center; }
 .privacy-panel h3 { margin: 12px 0 6px; font-size: 1rem; }
+.chain-track { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin: 8px 0 4px; overflow-x: auto; padding-bottom: 4px; }
+.chain-hop { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 108px; max-width: 148px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); text-align: left; opacity: 0; transform: translateY(6px); animation: chain-in .35s ease forwards; animation-delay: calc(var(--i, 0) * 60ms); }
+.chain-hop small { color: var(--muted); font-size: .8rem; }
+.chain-hop.home_vpn { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 14%, var(--surface-2)); }
+.chain-hop.ok { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 45%, transparent); }
+.chain-hop.pending { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+.chain-hop:focus-visible, .chain-hop:hover { border-color: var(--accent); }
+.chain-link { width: 28px; min-width: 28px; align-self: center; height: 2px; position: relative; background: var(--line); margin: 0 2px; opacity: 0; animation: chain-in .35s ease forwards; animation-delay: calc(var(--i, 0) * 60ms); }
+.chain-link span, .chain-link.live { display: block; height: 2px; width: 100%; }
+.chain-link.live { background: transparent; }
+.chain-link.live span { height: 2px; background: var(--accent); background-image: linear-gradient(90deg, transparent 0 40%, var(--accent) 40% 60%, transparent 60%); background-size: 18px 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .chain-hop, .chain-link { opacity: 1; transform: none; animation: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chain-link.live span { animation: chain-flow 0.9s linear infinite; }
+  .chain-track.on .chain-hop.ok { animation: chain-pulse 2.4s ease-in-out infinite; }
+}
+@keyframes chain-in { to { opacity: 1; transform: none; } }
+@keyframes chain-flow { to { background-position: 18px 0; } }
+@keyframes chain-pulse { 50% { filter: brightness(1.06); } }
+.chain-detail { min-height: 2.6em; margin: 6px 0 2px; display: grid; gap: 4px; }
+.chain-mini { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.chain-chip { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: .85rem; background: var(--surface-2); }
+.chain-chip.ok { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.chain-mini-link { color: var(--muted); }
+.list.compact { margin: 0 0 8px; }
+.tlink.privacy { stroke: var(--accent); stroke-opacity: .95; stroke-width: 2.2; stroke-dasharray: 5 4; }
+.tnode.privacy rect, .tnode.exit rect { stroke: color-mix(in srgb, var(--accent) 60%, var(--line)); }
+.tnode.proxy rect { stroke: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.tedge { fill: var(--muted); font-size: 10px; }
 
 /* VPN */
 .panel.wg { display: grid; gap: 4px 28px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }

@@ -430,7 +430,37 @@ async def topology(request: web.Request) -> web.Response:
                  "address": p.get("allowed_ips", "").split("/")[0]} for p in peers],
         "lan": devices,
         "proxy": _proxy_nodes(app),
+        "privacy": _privacy_nodes(d),
+        "relay": bool(s.wireguard_relay),
     })  # fmt: skip
+
+
+def _privacy_nodes(d: Any) -> dict[str, Any] | None:
+    """Upstream privacy path for the network map (exit, Tor, DNS, kill switch)."""
+    privacy = getattr(d, "privacy", None)
+    if privacy is None:
+        return None
+    try:
+        snap = privacy.diagnostics()
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        log.debug("privacy topology skipped: %s", exc)
+        return None
+    path = snap.get("path") or []
+    exit_hops = [n for n in path if n.get("kind") == "exit"]
+    return {
+        "enabled": bool(snap.get("enabled")),
+        "chain_active": bool(snap.get("chain_active")),
+        "installed": bool(snap.get("installed")),
+        "kill_switch": (snap.get("firewall") or {}).get("mode") or "off",
+        "dns_mode": (snap.get("dns") or {}).get("mode") or "system",
+        "exit_up": bool((snap.get("exit") or {}).get("up")),
+        "exit_endpoint": (snap.get("exit") or {}).get("endpoint"),
+        "exit_ip": snap.get("exit_ip"),
+        "tor": snap.get("tor") or {},
+        "hops": exit_hops,
+        "path": path,
+        "layers": snap.get("layers") or [],
+    }
 
 
 def _proxy_nodes(app: Any) -> dict[str, Any] | None:

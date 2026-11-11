@@ -119,7 +119,11 @@ class PrivacyService:
         return self.diagnostics()
 
     def diagnostics(self, *, exit_ip: str | None = None) -> dict[str, Any]:
-        return snapshot(self.store, exit_ip=exit_ip)
+        return snapshot(
+            self.store,
+            exit_ip=exit_ip,
+            installed=installed_marker(self._data_dir),
+        )
 
     def _write_nft(self, *, exit_up: bool | None = None) -> None:
         data = self.store.data

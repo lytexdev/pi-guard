@@ -28,7 +28,11 @@ sudo ./scripts/privacy-server.sh install
 ```
 
 Then open **Network › VPN** in the dashboard: profiles, multi-hop chain, providers, DNS, Pi-side kill switch, Tor and
-diagnostics. Emergency unlock if the Pi firewall ever blocks you:
+diagnostics. The chain always shows the home VPN hop on the Pi first (devices → Pi-Guard → optional exits → internet).
+**Check** under Diagnostics asks for the public/exit IP once and keeps it for a few minutes. The network map shows the
+same layers when privacy or the reverse proxy is active.
+
+Emergency unlock if the Pi firewall ever blocks you:
 
 ```bash
 sudo ./scripts/privacy-server.sh unlock

@@ -65,10 +65,19 @@ async def config_get(request: web.Request) -> web.Response:
 
 
 async def diagnostics(request: web.Request) -> web.Response:
+    from pi_guard.privacy.health import remember_exit_ip
+
     svc = _svc(request)
     exit_ip = None
-    if request.query.get("check") == "1" and svc.store.data.get("enabled"):
+    if request.query.get("check") == "1":
         exit_ip = await _probe_exit_ip()
+        if exit_ip:
+            kind = (
+                "exit"
+                if svc.store.data.get("enabled") and svc.store.data["chain"].get("active")
+                else "public"
+            )
+            remember_exit_ip(exit_ip, kind=kind)
     return web.json_response(
         svc.diagnostics(exit_ip=exit_ip), headers={"Cache-Control": "no-store"}
     )
@@ -79,7 +88,7 @@ async def _probe_exit_ip() -> str | None:
     import aiohttp
 
     try:
-        timeout = aiohttp.ClientTimeout(total=5)
+        timeout = aiohttp.ClientTimeout(total=8)
         async with (
             aiohttp.ClientSession(timeout=timeout) as session,
             session.get("https://api.ipify.org") as resp,

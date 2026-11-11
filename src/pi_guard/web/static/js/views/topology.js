@@ -1,5 +1,5 @@
-// Interactive map: internet, router, this Pi with its services, and everything connected to it.
-import { api, fill, h, icon, svg, t } from "../api.js";
+// Interactive map: internet, optional privacy exit/Tor, router, this Pi, services and devices.
+import { api, fill, h, icon, svg, t, whileShown } from "../api.js";
 import { logoUrl } from "../theme.js";
 
 const NODE_W = 132, NODE_H = 46, GAP_X = 14, ROW = 112;
@@ -7,7 +7,6 @@ const MAX_LAN = 12;
 const KIND_ICONS = { phone: "device-mobile", computer: "device-desktop", printer: "printer", camera: "camera", router: "router", media: "device-tv", iot: "bulb" };
 
 function deviceIcon(d) {
-  // What the device was recognised as, otherwise a guess from its name and maker.
   if (KIND_ICONS[d.kind]) return KIND_ICONS[d.kind];
   const text = `${d.name} ${d.vendor || ""}`.toLowerCase();
   if (/iphone|ipad|galaxy|pixel|xiaomi|redmi|huawei|oneplus|android|handy|phone/.test(text)) return "device-mobile";
@@ -25,8 +24,7 @@ function node(map, item, x, y, select) {
   if (item.logo) {
     group.append(svg("image", { href: logoUrl(), x: x + 7, y: y + 9, width: 28, height: 28 }));
   } else {
-    const use = svg("use", { href: `#${item.icon || "router"}`, x: x + 10, y: y + 13, width: 20, height: 20, class: "ticon" });
-    group.append(use);
+    group.append(svg("use", { href: `#${item.icon || "router"}`, x: x + 10, y: y + 13, width: 20, height: 20, class: "ticon" }));
   }
   group.append(svg("circle", { cx: x + NODE_W - 12, cy: y + 12, r: 4, class: `tdot ${item.state || ""}` }));
   const title = svg("text", { x: x + 38, y: y + (item.sub ? 20 : 28), class: "tlabel" });
@@ -41,7 +39,7 @@ function node(map, item, x, y, select) {
   group.addEventListener("click", pick);
   group.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
   map.append(group);
-  return { x: x + NODE_W / 2, top: y, bottom: y + NODE_H };
+  return { x: x + NODE_W / 2, top: y, bottom: y + NODE_H, item };
 }
 
 function arrowHead() {
@@ -53,7 +51,6 @@ function arrowHead() {
 }
 
 function link(map, a, b, cls = "", label = "") {
-  // Arrows at both ends: data flows both ways; the moving dashes show an active connection.
   const mid = (a.bottom + b.top) / 2;
   const path = svg("path", { class: `tlink ${cls}`, d: `M${a.x} ${a.bottom} C${a.x} ${mid} ${b.x} ${mid} ${b.x} ${b.top - 2}`,
     "marker-end": "url(#tarrow)", "marker-start": "url(#tarrow)" });
@@ -77,8 +74,44 @@ function row(map, items, y, width, select) {
   return { placed, height: Math.ceil(items.length / perRow) * (NODE_H + 12) };
 }
 
+function privacyLayers(data) {
+  const p = data.privacy;
+  if (!p) return [];
+  const layers = [];
+  if (p.chain_active || (p.hops && p.hops.length)) {
+    const hop = (p.hops && p.hops[0]) || {};
+    layers.push({
+      label: hop.label || t("web.topo_exit"),
+      icon: "world",
+      sub: hop.provider || (p.exit_up ? t("web.topo_online") : t("web.topo_offline")),
+      state: p.exit_up ? "ok" : "",
+      cls: "privacy exit",
+      detail: [
+        t("web.topo_exit_text"),
+        p.exit_endpoint ? `${t("web.topo_endpoint")}: ${p.exit_endpoint}` : null,
+        p.exit_ip ? `${t("web.topo_exit_ip")}: ${p.exit_ip}` : null,
+        p.kill_switch && p.kill_switch !== "off" ? `${t("web.topo_ks")}: ${p.kill_switch}` : null,
+        p.dns_mode && p.dns_mode !== "system" ? `${t("web.topo_dns")}: ${p.dns_mode}` : null,
+      ].filter(Boolean).join(" · "),
+      href: "#/network/vpn",
+    });
+  }
+  if (p.tor?.enabled) {
+    layers.push({
+      label: "Tor",
+      icon: "network",
+      sub: p.tor.running ? t("web.topo_online") : t("web.topo_offline"),
+      state: p.tor.running ? "ok" : "",
+      cls: "privacy tor",
+      detail: t("web.topo_tor_text"),
+      href: "#/network/vpn",
+    });
+  }
+  return layers;
+}
+
 export async function topologyPanel(onDevice) {
-  const data = await api("/api/topology").catch(() => null);
+  let data = await api("/api/topology").catch(() => null);
   if (!data) return null;
   const box = h("div", { class: "topology" });
   const info = h("div", { class: "tinfo", "aria-live": "polite" }, h("small", { class: "muted" }, t("web.topo_hint")));
@@ -90,33 +123,69 @@ export async function topologyPanel(onDevice) {
   const draw = (target = box, forced = 0) => {
     const width = forced || Math.max(300, target.clientWidth || 800);
     const map = svg("svg", { class: "tmap", role: "group", "aria-label": t("web.topo_title") });
-    const internet = node(map, { label: t("web.topo_internet"), icon: "world", state: "ok", detail: t("web.topo_internet_text") }, (width - NODE_W) / 2, 6, select);
-    const router = node(map, { label: t("web.topo_router"), icon: "router", state: "ok", detail: t("web.topo_router_text") }, (width - NODE_W) / 2, 6 + ROW - 24, select);
-    link(map, internet, router, "live");
-    const pi = node(map, { label: "Pi-Guard", logo: true, cls: "hub", state: "ok", detail: t("web.topo_pi_text"), href: "#/overview" }, (width - NODE_W) / 2, 6 + 2 * ROW - 48, select);
+    let y = 6;
+    const internet = node(map, {
+      label: t("web.topo_internet"), icon: "world", state: "ok",
+      detail: data.privacy?.exit_ip
+        ? `${t("web.topo_internet_text")} · ${t("web.topo_exit_ip")}: ${data.privacy.exit_ip}`
+        : t("web.topo_internet_text"),
+    }, (width - NODE_W) / 2, y, select);
+    y += ROW - 24;
+    let above = internet;
+    const layers = privacyLayers(data);
+    for (const layer of layers) {
+      const n = node(map, layer, (width - NODE_W) / 2, y, select);
+      link(map, above, n, layer.state === "ok" ? "live privacy" : "privacy", layer.label);
+      above = n;
+      y += ROW - 24;
+    }
+    const router = node(map, { label: t("web.topo_router"), icon: "router", state: "ok", detail: t("web.topo_router_text") }, (width - NODE_W) / 2, y, select);
+    link(map, above, router, layers.length ? "thin" : "live", data.relay ? t("web.topo_relay") : "");
+    y += ROW - 24;
+    const piDetail = [
+      t("web.topo_pi_text"),
+      data.privacy?.enabled ? t("web.topo_privacy_on") : null,
+      data.privacy?.layers?.length ? data.privacy.layers.join(", ") : null,
+    ].filter(Boolean).join(" · ");
+    const pi = node(map, { label: "Pi-Guard", logo: true, cls: "hub", state: "ok", detail: piDetail, href: "#/overview" }, (width - NODE_W) / 2, y, select);
     link(map, router, pi, "live", data.services.wireguard ? "UDP 51820" : "");
-    let y = 6 + 3 * ROW - 48;
+    y += ROW - 24;
+    // When privacy exit is active, also show a direct animated path Pi → exit → internet for VPN traffic.
+    if (layers.length) {
+      const exitNode = layers[0];
+      // Visual note only via edge label on router link; VPN clients use the exit path.
+      void exitNode;
+    }
     const services = [
       data.services.pihole ? { label: "Pi-hole", icon: "brand-pihole", sub: "DNS", state: "ok", detail: t("web.topo_pihole_text"), href: "#/network" } : null,
-      data.services.wireguard ? { label: "WireGuard", icon: "brand-wireguard", sub: t("web.topo_vpn_count", { count: data.vpn.filter((p) => p.active).length }), state: "ok", detail: t("web.topo_vpn_text"), href: "#/network" } : null,
+      data.services.wireguard ? { label: "WireGuard", icon: "brand-wireguard", sub: t("web.topo_vpn_count", { count: data.vpn.filter((p) => p.active).length }), state: "ok", detail: t("web.topo_vpn_text"), href: "#/network/vpn", cls: "vpn-svc" } : null,
+      data.privacy?.enabled ? { label: t("web.topo_privacy"), icon: "shield-lock", sub: data.privacy.chain_active ? t("web.topo_multi") : t("web.priv_active"), state: "ok", detail: t("web.topo_privacy_text"), href: "#/network/vpn", cls: "privacy" } : null,
       data.services.mqtt ? { label: "MQTT", icon: "brand-mqtt", sub: "Smart Home", state: "ok", href: "#/addons/smarthome" } : null,
     ].filter(Boolean);
     if (services.length) {
       const r = row(map, services, y, width, select);
-      r.placed.forEach((p) => link(map, pi, p, "live"));
+      r.placed.forEach((p) => link(map, pi, p, p.item?.cls?.includes("privacy") ? "live privacy" : "live"));
       y += r.height + 30;
     }
     const groups = [
       ...(data.proxy?.peers || []).map((p) => ({ label: p.name, sub: `${t(data.proxy.role === "server" ? "web.px_peer_client" : "web.px_peer_server")} · ${p.ports.join(", ")}`, icon: "network",
-        state: p.online ? "ok" : "", detail: t(p.online ? "web.topo_online" : "web.topo_offline"), href: "#/addons/proxy" })),
+        state: p.online ? "ok" : "", cls: "proxy", detail: t(p.online ? "web.topo_proxy_on" : "web.topo_offline"), href: "#/addons/proxy" })),
       ...(data.agents || []).map((a) => ({ label: a.name, sub: a.os, icon: "device-desktop", state: a.online ? "ok" : "", detail: t(a.online ? "web.topo_online" : "web.topo_offline"), href: "#/addons/agents" })),
       ...data.cameras.map((c) => ({ label: c.name, icon: "camera", sub: c.room || c.source, state: c.state === "running" ? "ok" : "danger", detail: t(`camera.state.${c.state}`), href: `#/live/${c.id}` })),
-      ...data.vpn.map((p) => ({ label: p.name, sub: p.address, icon: "device-mobile", cls: "vpn", state: p.active ? "ok" : "", detail: t(p.active ? "web.topo_online" : "web.topo_offline") })),
+      ...data.vpn.map((p) => ({ label: p.name, sub: p.address, icon: "device-mobile", cls: "vpn", state: p.active ? "ok" : "",
+        detail: p.active
+          ? (data.privacy?.chain_active ? t("web.topo_vpn_via_exit") : t("web.topo_online"))
+          : t("web.topo_offline") })),
       ...data.lan.slice(0, MAX_LAN).map((d) => ({ label: d.name, sub: d.ip || d.vendor || "", icon: deviceIcon(d), state: d.active ? "ok" : "", cls: d.trusted ? "trusted" : "",
         detail: [d.vendor, d.mac, d.kind ? t(`web.dev_kind_${d.kind}`) : null].filter(Boolean).join(" · "), device: d })),
     ];
     const r = row(map, groups, y, width, select);
-    r.placed.forEach((p, i) => link(map, pi, p, groups[i].state === "ok" ? "thin live" : "thin"));
+    r.placed.forEach((p, i) => {
+      const g = groups[i];
+      const live = g.state === "ok";
+      const viaExit = g.cls === "vpn" && live && data.privacy?.chain_active;
+      link(map, pi, p, viaExit ? "thin live privacy" : (live ? "thin live" : "thin"), viaExit ? t("web.topo_via_exit") : (g.cls === "proxy" && live ? t("web.topo_proxy") : ""));
+    });
     y += r.height;
     map.prepend(arrowHead());
     map.setAttribute("viewBox", `0 0 ${width} ${y + 6}`);
@@ -124,7 +193,6 @@ export async function topologyPanel(onDevice) {
     fill(target, map);
   };
   const enlarge = () => {
-    // Like a picture: opens large, with room to zoom and scroll.
     const view = h("div", { class: "topology large" });
     let zoom = 1;
     const size = (step) => { zoom = Math.min(3, Math.max(1, zoom * step)); draw(view, Math.max(innerWidth - 80, 900) * zoom); };
@@ -145,5 +213,11 @@ export async function topologyPanel(onDevice) {
   requestAnimationFrame(() => draw());
   const observer = new ResizeObserver(() => { if (box.clientWidth && box.dataset.w !== String(box.clientWidth)) { box.dataset.w = box.clientWidth; draw(); } });
   observer.observe(box);
+  whileShown(panel, async () => {
+    const next = await api("/api/topology").catch(() => null);
+    if (!next || !panel.isConnected) return;
+    data = next;
+    draw();
+  }, 12000);
   return panel;
 }

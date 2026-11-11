@@ -60,6 +60,21 @@ def test_store_seals_and_redacts(tmp_path: Path) -> None:
     assert "secret" not in text
 
 
+def test_diagnostics_path_includes_home_vpn(privacy: PrivacyService) -> None:
+    from pi_guard.privacy.health import path_nodes, remember_exit_ip, snapshot
+
+    path = path_nodes(privacy.store, exit_st={}, tor_st={})
+    kinds = [n["kind"] for n in path]
+    assert kinds[0] == "clients"
+    assert kinds[1] == "home_vpn"
+    assert kinds[-1] == "internet"
+    remember_exit_ip("203.0.113.10", kind="public")
+    snap = snapshot(privacy.store, installed=False)
+    assert snap["exit_ip"] == "203.0.113.10"
+    assert "web.priv_diag_need_install" in snap["notes"]
+    assert snap["path"][1]["kind"] == "home_vpn"
+
+
 def test_profiles_are_starting_points(privacy: PrivacyService) -> None:
     cfg = privacy.set_profile("enhanced")
     assert cfg["profile"] == "enhanced"

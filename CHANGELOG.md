@@ -39,6 +39,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- Privacy multi-hop chain shows the Pi VPN hop and is animated; diagnostics cache the exit/public IP and explain
+  missing status. The network map draws privacy exits, Tor, reverse-proxy peers and VPN traffic via the upstream.
 - A face picture nearly identical to a stored one is no longer stored, and over the limit the most similar picture is
   dropped instead of the oldest, so a person's pictures stay varied.
 - List settings refuse line breaks, which could have added another line to the settings file.
