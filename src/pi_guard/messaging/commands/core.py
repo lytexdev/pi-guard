@@ -362,6 +362,12 @@ async def layout(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     return await settings(ctx, {})
 
 
+async def tutorial_(ctx: CommandContext, args: dict[str, Any]) -> Reply:
+    from pi_guard import tutorial
+
+    return Reply(tutorial.as_text(ctx.lang), buttons=(menu_row(ctx),))
+
+
 async def help_(ctx: CommandContext, args: dict[str, Any]) -> Reply:
     credit = f"pi-guard {__version__} · {CREDIT}"
     if ctx.simple:
@@ -505,3 +511,5 @@ def register(registry: Registry) -> None:
         )
     )
     registry.add(Command("help", help_, ("h", "hilfe", "?"), help_key="help.help"))
+    registry.add(Command("tutorial", tutorial_, ("anleitung", "rundgang", "einfuehrung"),
+                         help_key="help.tutorial"))  # fmt: skip

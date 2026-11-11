@@ -95,6 +95,8 @@ refused. Shutting down protects a disk only if it is encrypted and locks on shut
 The round button at the bottom right of the dashboard opens a chat with text and microphone.
 With the add-on on, anything you write that is no command is a question; voice messages
 get an extra button, and the dashboard has a text box and a microphone.
+Questions about pi-guard itself ("How does the VPN work?", "Tutorial") are answered from the built-in tutorial,
+without the provider and without cost; see [Help and tutorial](dashboard.md#help-and-tutorial).
 
 | Provider | Default model | Voice in | Voice out |
 | --- | --- | --- | --- |

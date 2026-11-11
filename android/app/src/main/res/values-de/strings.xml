@@ -142,6 +142,7 @@
     <string name="qa_title">Schnellaktionen</string>
     <string name="qa_ack">Alles in Ordnung</string>
     <string name="qa_call">Nach Hause anrufen</string>
+    <string name="qa_tutorial">Tutorial</string>
     <string name="qa_away">Abwesend</string>
     <string name="qa_home">Zuhause</string>
     <string name="qa_alarm">Alarm auslösen</string>

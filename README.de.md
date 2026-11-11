@@ -50,7 +50,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Zwei-Faktor-Code oder Hardware-Schlüssel; mehrere Benutzer (Admins und Betrachter);
   eigene Farben, Schrift und Logo; Wochenplan, Sicherheitscheck, Speicher-Bereinigung und
   WLAN-QR-Codes; Barrierefreiheit mit Lupe, Farbfiltern, Vorlesen, sichtbaren Alarmen für Gehörlose,
-  Text sprechen für Menschen, die nicht sprechen können, und Befehlen per Sprache oder Chat. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
+  Text sprechen für Menschen, die nicht sprechen können, und Befehlen per Sprache oder Chat; ein Tutorial mit Rundgang,
+  auch in den Apps, per Assistent und mit `/tutorial` im Chat. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
 - **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-VPN,
   optionaler Privacy-Upstream (Multi-Hop / Mullvad / Tor),
   feste IP-Adresse, Hilfe beim Umzug in ein neues Zuhause, an einen neuen Router oder

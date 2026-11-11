@@ -46,7 +46,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   statistics and logs; installable as an app with push notifications; login
   by password or key file with optional two-factor codes, hardware keys, several users
   (admins and viewers) and your own colours, font and logo. Also a weekly plan, a security
-  scan, storage clean-up and Wi-Fi QR codes.
+  scan, storage clean-up and Wi-Fi QR codes. A tutorial with a guided tour, also in the apps,
+  through the assistant and with `/tutorial` in chats.
 - **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
   a WireGuard VPN with your own devices, optional privacy upstream (multi-hop /
   Mullvad / Tor), a safe fixed-IP script, and help with moving to a new home,

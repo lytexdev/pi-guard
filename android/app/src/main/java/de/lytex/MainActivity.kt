@@ -231,6 +231,6 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val LOCK_AFTER = 30_000L
-        private val ROUTES = setOf("#/live")
+        private val ROUTES = setOf("#/live", "#/help/tour")
     }
 }

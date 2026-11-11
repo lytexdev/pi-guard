@@ -226,6 +226,17 @@ und Zeilenabstand, umgekehrte Farben, Graustufen, Filter für Rot-Grün- und Bla
 Leselinie, eine Lupe für den Text unter dem Zeiger, unterstrichene Links, weniger Animationen, Vorlesen von angetipptem
 Text oder der ganzen Seite und eine Tour.
 
+## Hilfe und Tutorial
+
+*Hilfe & Tutorial* in der Navigation erklärt jeden Teil von pi-guard in wenigen Sätzen, jeweils mit Knopf dorthin, und
+*Rundgang starten* geht sie Seite für Seite durch; Betrachter sehen nur ihre Seiten. Dasselbe Tutorial gibt es überall:
+
+- in der **Desktop-App** unter *PiGuard › Hilfe & Tutorial* (F1) und in der **Handy-App** als Schnellaktion *Tutorial*;
+  beide öffnen diese Seite mit dem Rundgang;
+- im **Assistenten**: „Tutorial“ oder „Rundgang“ im Chat des Dashboards, getippt oder gesprochen, startet den Rundgang,
+  und Fragen wie „Wie funktioniert Kid Protect?“ beantwortet er aus dem Tutorial, ohne KI-Anbieter und kostenlos;
+- in **Chats**: `/tutorial` (auch *Anleitung*, *Rundgang*) schickt die Übersicht.
+
 - **Für Gehörlose und Schwerhörige:** *Alarme sichtbar machen* lässt die Seite bei jedem neuen Alarm leuchten und das
   Gerät vibrieren. Es pulsiert langsam und blinkt nie schnell.
 - **Für Menschen, die nicht sprechen können:** *Sprechen* auf der Live-Seite sagt einen getippten Text über den

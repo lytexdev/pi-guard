@@ -282,6 +282,8 @@ function menu() {
       { label: de ? "Adresse ändern" : "Change address", click: change },
       { label: "VPN", accelerator: "CmdOrCtrl+Shift+V", click: () => window.loadFile(page("vpn.html")) },
       { label: de ? "Dashboard" : "Dashboard", click: open },
+      // The dashboard's help page with its guided tour, the same as in the browser and the phone app.
+      { label: de ? "Hilfe & Tutorial" : "Help & tutorial", accelerator: "F1", click: () => (config ? window.loadURL(new URL("/#/help/tour", config.url).href).catch(() => {}) : change()) },
       { label: de ? "Nach Updates suchen" : "Check for updates", click: () => checkForUpdate(true) },
       { type: "separator" },
       { role: "quit", label: de ? "Beenden" : "Quit" },

@@ -841,3 +841,14 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .wg-empty { text-align: center; justify-items: center; padding: 24px 0; }
 .wg-empty .howto { text-align: left; }
 .vpn-parts a + a { border-left: 1px solid var(--line); }
+
+/* Help and tutorial. */
+.help-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface) 70%); }
+.help-hero p { margin: 0; }
+.help-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); margin-top: var(--gap); }
+.help-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 14px; display: grid; gap: 8px; align-content: start; }
+.help-card h2 { margin: 0; font-size: 1.05rem; } .help-card h2 .icon { color: var(--accent); }
+.help-card p { margin: 0; } .help-card .button { justify-self: start; }
+.help-grid + .panel { margin-top: var(--gap); }
+.tour-progress { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; margin: 6px 0 2px; }
+.tour-progress span { display: block; height: 100%; background: var(--accent); transition: width .2s; }

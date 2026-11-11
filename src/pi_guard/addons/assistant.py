@@ -32,6 +32,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+from pi_guard import tutorial
 from pi_guard.addons.knowledge import Knowledge
 from pi_guard.config.files import AssistantAddon
 from pi_guard.core.timeutil import utcnow
@@ -115,7 +116,7 @@ class AssistantError(Exception):
 @dataclass(frozen=True)
 class Answer:
     text: str
-    source: str  # weather | time | translate | cache | ai | documents
+    source: str  # weather | time | translate | cache | ai | documents | support | tutorial
     tokens: int = 0
     documents: tuple[str, ...] = ()
 
@@ -238,6 +239,9 @@ class Assistant:
         support = self._support() if _SUPPORT_RE.search(lowered) else None
         if support:
             return Answer(support, "support")
+        guide = tutorial.answer(question, lang)  # how pi-guard works: from the tutorial, no AI
+        if guide:
+            return Answer(guide, "tutorial")
         if _WEATHER_RE.search(lowered):
             return await self._answer_weather(lowered, lang)
         translation = _TRANSLATE_RE.match(question)

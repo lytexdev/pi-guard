@@ -72,7 +72,8 @@ app* and its token stops working at once.
   To talk to the assistant instead, use the microphone in its chat; there is no telephone line.
 - **Quick actions:** the bolt in the app bar, and a long press on the app icon for the first four: *All fine* (closes
   all open alerts), *Call home*, *Away*, *At home*, and in the bolt also *Sound alarm* (asks first), *Stop alarm* and
-  SOS. pi-guard does them only for admins, as with the buttons under alerts. With an app lock, the shortcuts on the
+  SOS, and *Tutorial*, which opens the dashboard's help with its tour. pi-guard does them only for admins, as with
+  the buttons under alerts. With an app lock, the shortcuts on the
   icon ask for it first, except SOS. While the app looks like Calculator or another app, the icon shows no shortcuts,
   which would give it away.
 - **Calendar:** with *Away during calendar entries*, busy entries for the next 14 days count as away, even if

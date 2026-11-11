@@ -108,6 +108,7 @@ function watchAlerts(on) {
 const fold = (text) => text.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
 export function accessibilityCommand(text) {
   const s = fold(text);
+  if (/\b(tutorial|rundgang|einfuehrung|tour)\b|zeig mir (pi-?guard|alles|wie)|show me around/.test(s)) { tutorial(); return t("web.tut_started"); }
   const off = /\b(aus|ausschalten|off|stop|beenden)\b/.test(s);
   const flag = (key) => { save({ [key]: !off }); return t(off ? "web.a11y_cmd_off" : "web.a11y_cmd_on", { what: t(`web.a11y_${key}`) }); };
   if (/(schrift|text|font|zoom).*(groesser|bigger|larger|in\b)|(groesser|bigger|larger).*(schrift|text|font)|vergroesser/.test(s)) { save({ scale: Math.min(180, state.scale + 20) }); return t("web.a11y_cmd_scale", { value: state.scale }); }
@@ -137,23 +138,8 @@ function save(change) {
   applyAccessibility();
 }
 
-const TOUR = ["overview", "live", "monitor", "events", "people", "network", "addons", "settings"];
-
-function tutorial(step = 0) {
-  const dialog = h("dialog", { class: "tour" },
-    h("small", { class: "muted" }, t("web.tour_step", { n: step + 1, total: TOUR.length })),
-    h("h2", {}, t(`web.nav_${TOUR[step]}`)), h("p", {}, t(`web.tour_${TOUR[step]}`)),
-    h("div", { class: "row end" },
-      h("button", { onclick: () => dialog.close() }, t("web.tour_end")),
-      h("button", { class: "primary", onclick: () => {
-        dialog.close();
-        if (step + 1 < TOUR.length) tutorial(step + 1); else location.hash = "#/overview";
-      } }, step + 1 < TOUR.length ? t("web.next") : t("web.done"))));
-  location.hash = `#/${TOUR[step]}`;
-  dialog.addEventListener("close", () => dialog.remove());
-  document.body.append(dialog);
-  dialog.showModal();
-}
+// The guided tour lives with the help page (views/help.js), which the apps open as well.
+const tutorial = () => import("./views/help.js").then((m) => m.startTour());
 
 function slider(key, label, min, max, step, unit) {
   const value = h("output", {}, `${state[key]}${unit}`);

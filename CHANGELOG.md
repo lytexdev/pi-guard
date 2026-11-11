@@ -25,6 +25,9 @@ All notable changes are documented here. The format follows
   the command to add the new Wi-Fi to the Pi, and afterwards checks of what changed (router, addresses, Wi-Fi) and
   what needs a hand: network cameras, FRITZ!Box, Pi-hole as DNS server, the VPN address (taken over with one button),
   blocks by IP address. `scripts/restore.sh` puts a backup or moving file in place on a Pi.
+- *Help & tutorial* page with every part of pi-guard and a guided tour, also in the desktop app (F1) and as a quick
+  action in the phone app. The assistant starts the tour on "Tutorial" and answers questions about pi-guard from the
+  tutorial without an AI provider; `/tutorial` sends it in chats.
 - Messages can carry a file (PDF) on Telegram, Signal, Discord, WhatsApp and email.
 
 - Quick actions in the phone app, in the app bar and on the app icon: all fine, call home, away, at home, alarm on and

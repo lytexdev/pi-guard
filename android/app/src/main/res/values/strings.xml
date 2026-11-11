@@ -142,6 +142,7 @@
     <string name="qa_title">Quick actions</string>
     <string name="qa_ack">All fine</string>
     <string name="qa_call">Call home</string>
+    <string name="qa_tutorial">Tutorial</string>
     <string name="qa_away">Away</string>
     <string name="qa_home">At home</string>
     <string name="qa_alarm">Sound alarm</string>

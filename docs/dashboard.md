@@ -239,6 +239,17 @@ letter and line spacing, inverted colours, greyscale, filters for red-green and 
 cursor, a reading ruler, a magnifier for the text under the pointer, underlined links, fewer animations, reading
 tapped text or the whole page aloud, and a guided tour.
 
+## Help and tutorial
+
+*Help & tutorial* in the navigation explains every part of pi-guard in a few sentences, each with a button to it, and
+*Start the tour* walks through them one page at a time; viewers see only their pages. The same tutorial is everywhere:
+
+- in the **desktop app** under *PiGuard › Help & tutorial* (F1), and in the **phone app** as the *Tutorial* quick
+  action; both open this page with the tour;
+- in the **assistant**: typing or saying "Tutorial" or "Rundgang" in the dashboard's chat starts the tour, and questions
+  such as "How does Kid Protect work?" are answered from the tutorial, without an AI provider and without cost;
+- in **chats**: `/tutorial` (also *Anleitung*, *Rundgang*) sends the overview.
+
 - **For deaf and hard-of-hearing people:** *Show alerts visibly* makes the page glow and the device vibrate for every
   new alert. It pulses slowly and never flashes fast.
 - **For people who cannot speak:** *Speak* on the Live page says a typed text through the speaker at home.

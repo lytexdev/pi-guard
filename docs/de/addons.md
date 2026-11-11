@@ -33,7 +33,8 @@ Minute. Den Schlüssel von pi-guard tragen Sie auf dem anderen Computer in
 nur, wenn sie verschlüsselt ist.
 
 **KI-Assistent:** Alles, was kein Befehl ist, gilt als Frage. Wetter, Uhrzeit und Datum
-kosten keine Tokens, gleiche Fragen kommen eine Stunde lang aus dem Zwischenspeicher, und
+kosten keine Tokens, ebenso Fragen zu pi-guard selbst („Wie funktioniert das VPN?“, „Tutorial“), die aus dem
+eingebauten Tutorial kommen; gleiche Fragen kommen eine Stunde lang aus dem Zwischenspeicher, und
 ein Tageslimit begrenzt die Kosten. Fragen gehen an den gewählten Anbieter. Der Assistent
 bekommt keine Bilder, Namen oder Daten aus Ihrem Zuhause und kann nichts schalten.
 Einstellungen erklärt und ändert er unter *Einstellungen → Allgemein → Frag zu Einstellungen*, immer mit Bestätigung und
