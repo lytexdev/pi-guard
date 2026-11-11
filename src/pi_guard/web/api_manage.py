@@ -75,6 +75,9 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/people-test", test_recognition),
         web.get("/api/events/{id:\\d+}/faces", event_faces),
         web.post("/api/events/{id:\\d+}/faces/{index:\\d+}", learn_from_event),
+        web.get("/api/events/{id:\\d+}/faces/{index:\\d+}/crop", face_crop),
+        web.get("/api/faces/review", review_queue),
+        web.post("/api/faces/review/{id:\\d+}/{index:\\d+}", review_done),
         web.get("/api/evidence", evidence_list),
         web.post("/api/evidence", evidence_start),
         web.get("/api/people/{name}", person_details),
@@ -591,6 +594,22 @@ async def test_recognition(request: web.Request) -> web.Response:
 
 
 PERSON_EVENTS = {"person_detected", "unknown_person", "known_person"}
+REVIEWED_KEY = "faces.reviewed"
+MAX_REVIEWED = 2000
+REVIEW_DAYS = 14
+ALL_FACES = 999  # "index" that marks a whole picture as gone through
+FOUND_KEEP = 12  # pictures whose faces are kept for a moment, so a card finds them once
+
+
+def _reviewed(app: Any) -> list[str]:
+    return list(app.db.get(REVIEWED_KEY) or [])
+
+
+def mark_reviewed(app: Any, event_id: int, index: int) -> None:
+    done = _reviewed(app)
+    key = f"{event_id}:{index}"
+    if key not in done:
+        app.db.set(REVIEWED_KEY, [*done, key][-MAX_REVIEWED:])
 
 
 async def _event_picture(request: web.Request) -> tuple[FaceRecognizer, Any]:
@@ -609,7 +628,69 @@ async def _event_picture(request: web.Request) -> tuple[FaceRecognizer, Any]:
     path = root / name
     if not name or "/" in name or not is_within(path, root) or not path.is_file():
         raise web.HTTPGone(text="web.lf_picture_gone")
-    return faces, await asyncio.to_thread(persons.detect, path)
+    found: dict[tuple[int, str, int], Any] = dashboard(request).found_faces
+    key = (int(request.match_info["id"]), name, path.stat().st_mtime_ns)
+    if key not in found:
+        found[key] = await asyncio.to_thread(persons.detect, path)
+        while len(found) > FOUND_KEEP:
+            found.pop(next(iter(found)))
+    return faces, found[key]
+
+
+async def face_crop(request: web.Request) -> web.Response:
+    """One face of an event picture with a little room around it, for the swipe cards."""
+    import cv2
+
+    _, result = await _event_picture(request)
+    index = int(request.match_info["index"])
+    if result.faces is None or result.image is None or index >= len(result.faces):
+        raise web.HTTPNotFound()
+    x, y, w, h = (int(v) for v in result.faces[index][:4])
+    height, width = result.image.shape[:2]
+    pad = int(max(w, h) * 0.6)
+    crop = result.image[max(0, y - pad) : min(height, y + h + pad),
+                        max(0, x - pad) : min(width, x + w + pad)]  # fmt: skip
+    ok, jpeg = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 88])
+    if not ok:
+        raise web.HTTPInternalServerError()
+    return web.Response(body=jpeg.tobytes(), content_type="image/jpeg",
+                        headers={"Cache-Control": "private, max-age=300"})  # fmt: skip
+
+
+async def review_queue(request: web.Request) -> web.Response:
+    """Person events of the last two weeks with a picture whose faces nobody has gone
+    through yet, newest first. Finding the faces happens per card, not here."""
+    _faces(request)
+    app = dashboard(request).app
+    since = (utcnow() - timedelta(days=REVIEW_DAYS)).isoformat()
+    marks = _reviewed(app)
+    rows = app.db.execute(
+        "SELECT id, ts, type, camera, data FROM events WHERE ts >= ? AND type IN (?, ?, ?) "
+        "ORDER BY ts DESC LIMIT 300", (since, *sorted(PERSON_EVENTS))).fetchall()  # fmt: skip
+    root = app.media_dir / "snapshots"
+    queue = []
+    for row in rows:
+        snapshot = str(json.loads(row["data"]).get("snapshot") or "")
+        if not snapshot or "/" in snapshot or not (root / snapshot).is_file():
+            continue
+        seen = [int(m.split(":")[1]) for m in marks if m.startswith(f"{row['id']}:")]
+        if ALL_FACES in seen:
+            continue
+        queue.append({"id": row["id"], "ts": row["ts"], "type": row["type"],
+                      "camera": row["camera"], "seen": seen})  # fmt: skip
+        if len(queue) >= 40:
+            break
+    people = [n for n, _, _ in _faces(request).store.people()]
+    return web.json_response({"events": queue, "people": people})
+
+
+async def review_done(request: web.Request) -> web.Response:
+    """A face swiped away without learning (a stranger, or skipped); index 999 marks the
+    whole picture as gone through."""
+    _faces(request)
+    app = dashboard(request).app
+    mark_reviewed(app, int(request.match_info["id"]), int(request.match_info["index"]))
+    return web.json_response({"ok": True})
 
 
 async def event_faces(request: web.Request) -> web.Response:
@@ -649,6 +730,7 @@ async def learn_from_event(request: web.Request) -> web.Response:
     app = dashboard(request).app
     action = "faces.learn" if is_person else "faces.reject"
     app.db.audit(actor, action, f"event={request.match_info['id']}")
+    mark_reviewed(app, int(request.match_info["id"]), index)
     record_correction(app, is_person, score)  # only the score's bin, for the statistics
     if not is_person:
         return web.json_response({"ok": True})

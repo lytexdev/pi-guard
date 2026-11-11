@@ -35,7 +35,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Mehrere Bilder werden zusammen bewertet, ein einmal schlecht gesehenes
   Familienmitglied gilt also nicht gleich als fremd. *Wer ist das?* an einem
   Ereignis bringt pi-guard ein Gesicht aus der Kamera bei, oder dass ein Gesicht
-  nicht jemand ist.
+  nicht jemand ist, auch für viele Gesichter hintereinander per Wischen.
   *Vor der Kamera lernen* nimmt 20 Sekunden verschiedene Ansichten in Blickwinkel und Licht der Kamera auf, und
   *Warum die Erkennung klappt oder nicht* zeigt in Zahlen, was sie bremst.
 - **Alarm:** Alarmton (auch einen eigenen) über einen Lautsprecher auslösen

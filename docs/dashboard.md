@@ -145,6 +145,11 @@ whom it saw in each:
 - **This is not …** on a recognised face notes it as somebody else. From then on, a face more similar to it than to
   that person is *uncertain*, not that person. It is deleted with the person.
 
+- **Who is this?** at the top of the People page goes through the faces of the last two weeks' person events like a
+  deck of cards: swipe right (or →) for *yes, it is the suggested person*, left (←) for *no* or *a stranger*, up (↑)
+  to skip, or tap a name below the picture (keys 1–9) to say who it is instead. Yes and no work like *This is …* and
+  *This is not …* above, with the same checks; faces too small or blurred to learn are left out. A face once swiped
+  does not come back. Only people already enrolled can be chosen.
 - **Learn at the camera** on a person's card: the person stands where people usually pass, looks at the camera and
   turns the head a little, for 20 seconds. The Pi takes one picture a second and keeps up to eight clear faces that
   differ from the views it already knows; each picture is deleted as soon as its face is measured. Faces that do not

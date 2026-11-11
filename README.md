@@ -34,7 +34,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
   unknown person. A bar shows how well each person is learned and which pictures
   are missing. Unknown people are reported with a photo. Several pictures are judged together, so a family
   member seen badly once is not reported as a stranger. *Who is this?* on an event teaches pi-guard a face the
-  camera saw, or that a face is not someone. *Learn at the camera* takes 20 seconds of varied views in the camera's
+  camera saw, or that a face is not someone, also for many faces in a row by swiping cards. *Learn at the camera* takes 20 seconds of varied views in the camera's
   own angle and light, and *Why recognition works or not* shows in numbers what holds it back.
 - **Alarm.** Sound the alarm (or your own uploaded sound) on a speaker, and stop
   it, from the chat.

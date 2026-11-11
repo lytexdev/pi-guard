@@ -159,6 +159,7 @@ class Dashboard:
         self.tls_dir = s.data_dir / "tls"
         self.microphones: dict[str, Any] = {}  # device -> api_live.MicrophoneStream
         self.gravity_state = False
+        self.found_faces: dict[tuple[int, str, int], Any] = {}  # see api_manage._event_picture
         self.evidence_running: set[str] = set()
         self._tasks: set[asyncio.Task[None]] = set()
         self._ssl: ssl.SSLContext | None = None

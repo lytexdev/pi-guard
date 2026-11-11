@@ -971,3 +971,59 @@ async def test_the_picture_limit_is_saved_and_used_at_once(web) -> None:  # type
     assert ok.status == 200 and faces.settings.max_samples_per_person == 40
     saved = yaml.safe_load((app.settings.data_dir / "dashboard.yaml").read_text())
     assert saved["faces"]["max_samples_per_person"] == 40
+
+
+async def test_faces_are_gone_through_like_a_deck(web) -> None:  # type: ignore[no-untyped-def]
+    from pi_guard.core.timeutil import utcnow
+    from pi_guard.detection.faces import Identification, Verdict
+    from pi_guard.detection.persons import PersonResult
+
+    client, app = web
+    headers = {"X-CSRF-Token": await _login(client)}
+    faces = np.array([[100, 50, 60, 60, *([0] * 10), 0.9], [400, 80, 50, 50, *([0] * 10), 0.8]],
+                     np.float32)  # fmt: skip
+    looked = []
+
+    class Faces:
+        store = SimpleNamespace(people=lambda: [("Lena", 10, "")], exists=lambda n: "Lena")
+
+        def identify(self, image: Any, face: Any) -> Identification:
+            return Identification(Verdict.UNKNOWN, None, 0.2)
+
+        def learn_problem(self, image: Any, face: Any) -> tuple[str | None, Any]:
+            return None, image
+
+        def learn(self, name: str, image: Any, face: Any, actor: str) -> tuple[int, float]:
+            return 11, 0.33
+
+        def quality(self, name: str) -> dict[str, Any]:
+            return {"score": 50}
+
+    class Persons:
+        def detect(self, path: Path) -> PersonResult:
+            looked.append(path.name)
+            return PersonResult(2, faces, np.full((720, 1280, 3), 128, np.uint8))
+
+    app.analysis = SimpleNamespace(faces=Faces(), persons=Persons())
+    shots = app.media_dir / "snapshots"
+    shots.mkdir(parents=True, exist_ok=True)
+    (shots / "person_1.jpg").write_bytes(b"jpeg")
+    app.db.add_event(utcnow(), "unknown_person", "living_room", {"snapshot": "person_1.jpg"})
+    app.db.add_event(utcnow(), "unknown_person", "living_room", {"snapshot": "gone.jpg"})
+    app.db.add_event(utcnow(), "motion_detected", "living_room", {"snapshot": "person_1.jpg"})
+
+    queue = await (await client.get("/api/faces/review")).json()
+    assert [e["id"] for e in queue["events"]] == [1] and queue["people"] == ["Lena"]
+    await client.get("/api/events/1/faces")
+    crop = await client.get("/api/events/1/faces/1/crop")
+    assert crop.content_type == "image/jpeg" and (await crop.read())[:2] == b"\xff\xd8"
+    assert looked == ["person_1.jpg"]  # found once, for the list and the picture
+    assert (await client.get("/api/events/1/faces/7/crop")).status == 404
+    learned = await client.post("/api/events/1/faces/0", json={"name": "Lena", "is": True},
+                                headers=headers)  # fmt: skip
+    assert learned.status == 200
+    assert (await client.post("/api/faces/review/1/1", headers=headers)).status == 200
+    queue = await (await client.get("/api/faces/review")).json()
+    assert queue["events"][0]["seen"] == [0, 1]
+    await client.post("/api/faces/review/1/999", headers=headers)
+    assert (await (await client.get("/api/faces/review")).json())["events"] == []

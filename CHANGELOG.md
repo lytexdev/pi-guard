@@ -19,6 +19,8 @@ All notable changes are documented here. The format follows
 - Kid Protect add-on: filter profiles for children's devices (adult content, gambling, malware and phishing, scams,
   drugs, piracy, social networks, TikTok) through Pi-hole groups, times without internet with templates, pause and
   extra time, and the FRITZ!Box cutting the internet at those times if it is connected.
+- *Who is this?* on the People page: the faces of recent person events as cards to swipe, right for yes, left for no
+  or a stranger, up to skip, or a name below; with arrow and number keys. Faces swiped once do not come back.
 - Messages can carry a file (PDF) on Telegram, Signal, Discord, WhatsApp and email.
 
 - Quick actions in the phone app, in the app bar and on the app icon: all fine, call home, away, at home, alarm on and

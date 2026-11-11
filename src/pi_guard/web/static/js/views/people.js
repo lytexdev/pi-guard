@@ -84,7 +84,11 @@ export async function render(main, params = [], opts = {}) {
   formPanel.classList.add("hidden");
   await drawList();
   const diagnosis = h("section", { class: "panel stack" });
-  main.append(summary, listPanel, formPanel, diagnosis, testPanel());
+  // Going through faces of recent events, one card at a time, swiped like a deck.
+  const swipePanel = h("section", { class: "panel sw-teaser" }, h("div", { class: "row between wrap" },
+    h("div", { class: "grow" }, h("h2", {}, icon("users"), " ", t("web.sw_title")), h("p", { class: "muted" }, t("web.sw_teaser"))),
+    h("button", { class: "primary big", onclick: async () => (await import("./swipe.js")).openSwipe(drawList) }, icon("photo"), t("web.sw_start"))));
+  main.append(summary, swipePanel, listPanel, formPanel, diagnosis, testPanel());
   diagnosisPanel(diagnosis);
 }
 
