@@ -53,7 +53,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Text sprechen für Menschen, die nicht sprechen können, und Befehlen per Sprache oder Chat. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
 - **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-VPN,
   optionaler Privacy-Upstream (Multi-Hop / Mullvad / Tor),
-  feste IP-Adresse. Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
+  feste IP-Adresse, Hilfe beim Umzug in ein neues Zuhause, an einen neuen Router oder
+  Pi ([Umzug](docs/de/backup.md#umzug)). Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
 - **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md), [Handy-App](docs/de/mobile.md), Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
   Home Assistant.

@@ -49,7 +49,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   scan, storage clean-up and Wi-Fi QR codes.
 - **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
   a WireGuard VPN with your own devices, optional privacy upstream (multi-hop /
-  Mullvad / Tor), a safe fixed-IP script.
+  Mullvad / Tor), a safe fixed-IP script, and help with moving to a new home,
+  router or Pi (see [backups](docs/backup.md#moving)).
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
@@ -163,7 +164,7 @@ pi-guard logs -f
 | [Email](docs/email.md) | alerts and exports by email |
 | [Mobile app](docs/mobile.md) | Android app with VPN, alerts, finding phones and SOS |
 | [Desktop app](docs/desktop.md) | The dashboard as an app for Windows, Linux and macOS |
-| [Backups](docs/backup.md) | Encrypted backups to Nextcloud, rsync or Borg |
+| [Backups](docs/backup.md) | Encrypted backups to Nextcloud, rsync or Borg, and moving to a new home, router or Pi |
 | [Reverse proxy](docs/proxy.md) | Reach services behind NAT through your own server, like frp, in Rust |
 | [Voice](docs/voice.md) | Talk to the Pi offline: wake phrase, button, push to talk; typed speech |
 | [Updates](docs/updates.md) | How agents and apps update themselves, signed and verified |

@@ -231,6 +231,7 @@ class Dashboard:
             api_manage,
             api_medical,
             api_mobile,
+            api_move,
             api_network,
             api_privacy,
             api_proxy,
@@ -259,9 +260,9 @@ class Dashboard:
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
         for module in (api_account, api_addons, api_agents, api_contacts, api_core, api_export,
-                       api_kids, api_login, api_live, api_manage, api_medical, api_network,
-                       api_privacy, api_proxy, api_security, api_system, api_mobile, api_tools,
-                       api_updates, api_v1):  # fmt: skip
+                       api_kids, api_login, api_live, api_manage, api_medical, api_move,
+                       api_network, api_privacy, api_proxy, api_security, api_system, api_mobile,
+                       api_tools, api_updates, api_v1):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
             sub = web.Application()

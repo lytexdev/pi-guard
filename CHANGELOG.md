@@ -21,6 +21,10 @@ All notable changes are documented here. The format follows
   extra time, and the FRITZ!Box cutting the internet at those times if it is connected.
 - *Who is this?* on the People page: the faces of recent person events as cards to swipe, right for yes, left for no
   or a stranger, up to skip, or a name below; with arrow and number keys. Faces swiped once do not come back.
+- *Settings → Moving* for a new home, router, internet provider or Pi: a moving file (encrypted backup to the browser),
+  the command to add the new Wi-Fi to the Pi, and afterwards checks of what changed (router, addresses, Wi-Fi) and
+  what needs a hand: network cameras, FRITZ!Box, Pi-hole as DNS server, the VPN address (taken over with one button),
+  blocks by IP address. `scripts/restore.sh` puts a backup or moving file in place on a Pi.
 - Messages can carry a file (PDF) on Telegram, Signal, Discord, WhatsApp and email.
 
 - Quick actions in the phone app, in the app bar and on the app icon: all fine, call home, away, at home, alarm on and
