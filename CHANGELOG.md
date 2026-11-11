@@ -13,7 +13,7 @@ All notable changes are documented here. The format follows
 - *Learn at the camera*: 20 seconds in front of a camera, and the Pi keeps up to eight clear, different views of an
   enrolled person in that camera's angle and light.
 - *Why recognition works or not* on the People page: faces seen, their size, the best similarity and the variety of
-  each person's pictures over 30 days, with what would help most.
+  each person's pictures over 30 days, with what would help most, and the number of pictures per person to set there.
 - Reverse proxy add-on with `pgproxy`, written in Rust: reach services behind NAT through a server you choose, like
   frp. The server decides which ports each client may open, tokens are shown once and kept as SHA-256, clients trust
   the server's certificate by fingerprint only, and the client alone chooses where traffic goes. The Pi can be server

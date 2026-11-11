@@ -2594,7 +2594,9 @@
   "web.dg_tip_no_face": "Only {percent} % of the moments show a face at all: most people pass with their back or side to the camera. A camera that looks at people coming towards it, for example at a door, sees faces far more often. No training can recognise a face that is not in the picture.",
   "web.dg_tip_small": "{percent} % of the faces are smaller than {px} pixels. A higher resolution or a camera closer to where people pass helps.",
   "web.dg_tip_far": "Faces came at best to {best}, {needed} is needed: the stored pictures look too different from this camera. Use Learn at the camera.",
-  "web.dg_tip_full": "{name} has the most pictures allowed ({max}); new ones now replace the most similar. faces.max_samples_per_person in the configuration (default 40, up to 80) leaves room for more views.",
+  "web.dg_tip_full": "{name} has the most pictures allowed ({max}); new ones now replace the most similar. A higher number below (40 is recommended, up to 80) leaves room for more views.",
   "web.dg_tip_copies": "{name} has {count} pairs of nearly identical pictures. They count twice without teaching anything; they are dropped first when new ones come.",
-  "web.dg_tip_camera": "{name} has few pictures from a camera here. Learn at the camera, at different times of day."
+  "web.dg_tip_camera": "{name} has few pictures from a camera here. Learn at the camera, at different times of day.",
+  "web.dg_limit": "Pictures per person (1–80, recommended 40)",
+  "web.dg_limit_bad": "A whole number from 1 to 80"
 }

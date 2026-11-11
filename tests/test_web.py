@@ -951,3 +951,23 @@ async def test_learning_at_the_camera_keeps_no_picture(web, monkeypatch, tmp_pat
     assert taken and not any(p.exists() for p in taken)  # every picture is gone
     diagnosis = await (await client.get("/api/people-diagnosis", headers=headers)).json()
     assert diagnosis["people"][0]["name"] == "Lena" and diagnosis["people"][0]["from_camera"] == 3
+
+
+async def test_the_picture_limit_is_saved_and_used_at_once(web) -> None:  # type: ignore[no-untyped-def]
+    from types import SimpleNamespace
+
+    import yaml
+
+    from pi_guard.config.files import FaceSettings
+
+    client, app = web
+    headers = {"X-CSRF-Token": await _login(client)}
+    faces = SimpleNamespace(settings=FaceSettings(max_samples_per_person=10))
+    app.analysis = SimpleNamespace(faces=faces, persons=None)  # type: ignore[assignment]
+    for bad in (0, 81, "40", 12.5, True):
+        response = await client.put("/api/people-limit", json={"max_samples": bad}, headers=headers)
+        assert response.status == 400, bad
+    ok = await client.put("/api/people-limit", json={"max_samples": 40}, headers=headers)
+    assert ok.status == 200 and faces.settings.max_samples_per_person == 40
+    saved = yaml.safe_load((app.settings.data_dir / "dashboard.yaml").read_text())
+    assert saved["faces"]["max_samples_per_person"] == 40

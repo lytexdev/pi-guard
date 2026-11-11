@@ -2594,7 +2594,9 @@
   "web.dg_tip_no_face": "Nur {percent} % der Momente zeigen überhaupt ein Gesicht: Meist geht man mit Rücken oder Seite zur Kamera vorbei. Eine Kamera, die auf Kommende schaut, etwa an einer Tür, sieht Gesichter viel öfter. Kein Training erkennt ein Gesicht, das nicht im Bild ist.",
   "web.dg_tip_small": "{percent} % der Gesichter sind kleiner als {px} Pixel. Eine höhere Auflösung oder eine Kamera näher am Weg hilft.",
   "web.dg_tip_far": "Gesichter kamen höchstens auf {best}, nötig ist {needed}: Die gespeicherten Bilder sehen dieser Kamera zu unähnlich. Nutze Vor der Kamera lernen.",
-  "web.dg_tip_full": "{name} hat so viele Bilder wie erlaubt ({max}); neue ersetzen jetzt die ähnlichsten. faces.max_samples_per_person in der Konfiguration (Standard 40, bis 80) lässt Platz für mehr Ansichten.",
+  "web.dg_tip_full": "{name} hat so viele Bilder wie erlaubt ({max}); neue ersetzen jetzt die ähnlichsten. Eine höhere Zahl unten (empfohlen 40, bis 80) lässt Platz für mehr Ansichten.",
   "web.dg_tip_copies": "{name} hat {count} Paare fast gleicher Bilder. Sie zählen doppelt, ohne etwas beizubringen; sie fallen zuerst weg, wenn neue kommen.",
-  "web.dg_tip_camera": "{name} hat wenige Bilder von einer Kamera hier. Vor der Kamera lernen, zu verschiedenen Tageszeiten."
+  "web.dg_tip_camera": "{name} hat wenige Bilder von einer Kamera hier. Vor der Kamera lernen, zu verschiedenen Tageszeiten.",
+  "web.dg_limit": "Bilder pro Person (1–80, empfohlen 40)",
+  "web.dg_limit_bad": "Eine ganze Zahl von 1 bis 80"
 }

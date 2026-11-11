@@ -151,7 +151,8 @@ whom it saw in each:
   match each other or the person are left out, so somebody else walking by is not learned. Repeat it in other light,
   for example in the evening. Only for people already enrolled, with their consent.
 
-A person keeps up to `faces.max_samples_per_person` pictures (default 40). A picture nearly identical to one already
+A person keeps up to `faces.max_samples_per_person` pictures (default 40, set below the numbers on the People page,
+used at once). A picture nearly identical to one already
 stored is left out, and when the limit is reached the most similar one goes, not the oldest: varied views are what
 recognises someone in another angle and light.
 

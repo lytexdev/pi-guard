@@ -71,6 +71,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/people/{name}/camera", add_from_camera),
         web.post("/api/people/{name}/camera/learn", learn_from_camera),
         web.get("/api/people-diagnosis", recognition_diagnosis),
+        web.put("/api/people-limit", people_limit),
         web.post("/api/people-test", test_recognition),
         web.get("/api/events/{id:\\d+}/faces", event_faces),
         web.post("/api/events/{id:\\d+}/faces/{index:\\d+}", learn_from_event),
@@ -780,6 +781,26 @@ async def recognition_diagnosis(request: web.Request) -> web.Response:
         "max_samples": s.max_samples_per_person,
         "people": people,
     })  # fmt: skip
+
+
+async def people_limit(request: web.Request) -> web.Response:
+    """How many pictures each person keeps. Saved for the next start and used at once; a lower
+    limit trims a person's pictures the next time one is added, the most similar first."""
+    d = dashboard(request)
+    faces = _faces(request)
+    value = (await read_json(request)).get("max_samples")
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise web.HTTPBadRequest(text="web.dg_limit_bad")
+    config = saved_config(d)
+    config.setdefault("faces", {})["max_samples_per_person"] = value
+    try:
+        validated = FileConfig.model_validate(config)
+    except ValidationError:
+        raise web.HTTPBadRequest(text="web.dg_limit_bad") from None
+    await write_config(d, validated)
+    faces.settings = faces.settings.model_copy(update={"max_samples_per_person": value})
+    d.app.db.audit(_actor(request), "faces.limit", str(value))
+    return web.json_response({"max_samples": value})
 
 
 def _people_variety(faces: FaceRecognizer) -> list[dict[str, Any]]:

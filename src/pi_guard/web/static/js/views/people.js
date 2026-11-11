@@ -150,7 +150,18 @@ async function diagnosisPanel(box) {
       row(t("web.dg_known"), d.known),
       row(t("web.dg_face_size"), d.face_px.median != null ? `${Math.round(d.face_px.median)} px` : "—"),
       row(t("web.dg_best"), d.best_score.max != null ? `${d.best_score.max.toFixed(2)} / ${d.threshold.toFixed(2)}` : "—")),
-    tips.length ? h("div", { class: "stack tight" }, h("h3", {}, t("web.dg_what_helps")), h("ul", { class: "quality-tips" }, tips.map((tip) => h("li", {}, tip)))) : h("p", {}, t("web.dg_fine")));
+    tips.length ? h("div", { class: "stack tight" }, h("h3", {}, t("web.dg_what_helps")), h("ul", { class: "quality-tips" }, tips.map((tip) => h("li", {}, tip)))) : h("p", {}, t("web.dg_fine")),
+    limitForm(d.max_samples, () => diagnosisPanel(box)));
+}
+
+// More pictures per person leave room for more views; fewer keep only the most different ones.
+function limitForm(current, redraw) {
+  const input = h("input", { type: "number", min: 1, max: 80, value: current, "aria-label": t("web.dg_limit") });
+  return h("div", { class: "row" }, h("label", { class: "grow" }, t("web.dg_limit")), input,
+    h("button", { onclick: async () => {
+      const value = Number(input.value);
+      if (Number.isInteger(value) && await attempt(() => api("/api/people-limit", { method: "PUT", body: { max_samples: value } }), t("web.saved"))) redraw();
+    } }, icon("check"), t("web.save")));
 }
 
 function personCard(p, redraw, openForm, cameras = []) {

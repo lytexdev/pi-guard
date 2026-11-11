@@ -141,7 +141,8 @@ pi-guard in dessen Bild findet, und wen es jeweils gesehen hat:
   der zufällig vorbeiläuft. Bei anderem Licht wiederholen, etwa abends. Nur für bereits eingetragene Personen, mit
   ihrer Zustimmung.
 
-Eine Person behält bis zu `faces.max_samples_per_person` Bilder (Standard 40). Ein Bild, das einem gespeicherten fast
+Eine Person behält bis zu `faces.max_samples_per_person` Bilder (Standard 40, einstellbar unter den Zahlen auf der Seite
+Personen, gilt sofort). Ein Bild, das einem gespeicherten fast
 gleicht, wird weggelassen, und ist die Grenze erreicht, fällt das ähnlichste weg statt des ältesten: Verschiedene
 Ansichten erkennen jemanden auch in anderem Blickwinkel und Licht.
 
