@@ -61,6 +61,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- `scripts/build-desktop.sh` leaves out `.rpm` or `.pacman` when `rpmbuild` or `bsdtar` is missing instead of failing
+  the release, and puts `desktop/package.json` back after the build, so `release-apps.sh` finds a clean tree.
 - *Network › Overview* shows the state at a glance, the last 24 hours of name lookups, devices without a name, the
   busiest devices and quick ways. *Network › VPN* has a summary on top and its parts (devices as cards, from
   outside, privacy, quantum-safe) one at a time; adding a device opens a dialog.

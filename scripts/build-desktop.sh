@@ -15,9 +15,22 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../desktop"
 mkdir -p build
 cp ../src/pi_guard/web/static/img/icon-512.png build/icon.png
 npm ci --no-audit --no-fund 2>/dev/null || npm install --no-audit --no-fund
+# The version goes into package.json for the build only, so the tree stays clean for release-apps.sh.
+KEEP="$(mktemp -d)"
+cp package.json package-lock.json "$KEEP/"
+trap 'cp "$KEEP/package.json" "$KEEP/package-lock.json" . && rm -rf "$KEEP"' EXIT
 npm version "$VERSION" --no-git-tag-version --allow-same-version >/dev/null
 node --test
 flags=()
-for target in "$@"; do flags+=("--$target"); done
+for target in "$@"; do
+    flags+=("--$target")
+    if [[ "$target" == linux ]]; then
+        # .rpm and .pacman need tools many systems lack; leave them out rather than fail the release.
+        packages=(tar.gz AppImage deb)
+        if command -v rpmbuild >/dev/null; then packages+=(rpm); else echo "no rpmbuild: the .rpm is left out" >&2; fi
+        if command -v bsdtar >/dev/null; then packages+=(pacman); else echo "no bsdtar: the .pacman is left out" >&2; fi
+        flags+=("${packages[@]}")
+    fi
+done
 npx electron-builder "${flags[@]}" --publish never
 ls -la dist | grep -E 'AppImage|deb|exe|zip' || true
