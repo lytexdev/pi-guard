@@ -701,6 +701,13 @@ async def test_an_alert_button_on_the_phone(tmp_path: Path) -> None:
         assert no_speaker.status == 409
         bad = await client.post("/api/mobile/action", json={"action": "unlock"}, headers=bearer)
         assert bad.status == 400
+        away = await client.post("/api/mobile/action", json={"action": "away"}, headers=bearer)
+        assert (await away.json())["mode"] == "AWAY" and app.modes.effective.value == "AWAY"
+        await client.post("/api/mobile/action", json={"action": "home"}, headers=bearer)
+        assert app.modes.effective.value == "HOME"
+        quiet = await client.post("/api/mobile/action", json={"action": "alarm_stop"},
+                                  headers=bearer)  # fmt: skip
+        assert quiet.status == 200 and (await quiet.json())["stopped"] is False
         nobody = await client.post("/api/mobile/action", json={"action": "ack"})
         assert nobody.status == 401
     finally:

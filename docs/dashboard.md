@@ -145,7 +145,22 @@ whom it saw in each:
 - **This is not …** on a recognised face notes it as somebody else. From then on, a face more similar to it than to
   that person is *uncertain*, not that person. It is deleted with the person.
 
-Only the numbers of a face are stored, as with any enrollment. Viewers do not see the button.
+- **Learn at the camera** on a person's card: the person stands where people usually pass, looks at the camera and
+  turns the head a little, for 20 seconds. The Pi takes one picture a second and keeps up to eight clear faces that
+  differ from the views it already knows; each picture is deleted as soon as its face is measured. Faces that do not
+  match each other or the person are left out, so somebody else walking by is not learned. Repeat it in other light,
+  for example in the evening. Only for people already enrolled, with their consent.
+
+A person keeps up to `faces.max_samples_per_person` pictures (default 40). A picture nearly identical to one already
+stored is left out, and when the limit is reached the most similar one goes, not the oldest: varied views are what
+recognises someone in another angle and light.
+
+**Why recognition works or not** on the People page shows the last 30 days in numbers: moments with a person, how many
+showed a face at all, how large faces were, how close the best one came to the threshold, and per person how many
+pictures come from a camera and how many are near copies. It says what would help most. Often it is the camera:
+recognition needs a face in the picture, roughly facing the camera and at least 36 pixels wide, 56 to learn from it.
+
+Only the numbers of a face are stored, as with any enrollment. Viewers do not see the buttons.
 
 ## Helping the project
 

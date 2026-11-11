@@ -202,7 +202,8 @@ async def crash_report(request: web.Request) -> web.Response:
 
 
 async def alert_action(request: web.Request) -> web.Response:
-    """A button in an alert on the phone: everything is fine, or sound the alarm. Admins only."""
+    """A button in an alert or a quick action of the app: everything is fine, the alarm on or
+    off, home or away. Admins only."""
     from pi_guard.notifications import actions
 
     d = dashboard(request)
@@ -210,10 +211,10 @@ async def alert_action(request: web.Request) -> web.Response:
     if d.auth.role_of(device["username"]) != "admin":
         raise web.HTTPForbidden(text="auth.admin_only")
     action = str((await read_json(request)).get("action", ""))
-    if action not in actions.ACTIONS:
+    if action not in actions.QUICK:
         raise web.HTTPBadRequest(text="web.unknown_action")
     try:
-        result = actions.run(d.app, f"phone:{device['id']}", action)
+        result = await actions.quick(d.app, f"phone:{device['id']}", action)
     except actions.ActionError as exc:
         raise web.HTTPConflict(text=exc.key) from None
     return web.json_response(result)

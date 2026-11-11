@@ -191,3 +191,33 @@ async def test_video_frames_and_video_enrollment(app, tmp_path: Path) -> None:  
     await app.messenger.handle(incoming)
     assert "picture(s) taken from the video" in last(app).text
     assert all(not p.exists() for p in app.faces.prepared)  # frames removed
+
+
+def _unit(seed: int, base: Any = None, noise: float = 1.0) -> Any:
+    rng = np.random.default_rng(seed)
+    vector = rng.normal(size=128).astype(np.float32) * noise
+    if base is not None:
+        vector = vector + base
+    return vector / np.linalg.norm(vector)
+
+
+def test_near_copies_are_left_out_and_dropped_first(tmp_path: Path) -> None:
+    from pi_guard.detection.faces import REDUNDANT, diverse
+
+    person = _unit(1) * 4
+    views = [_unit(10 + i, person, 0.6) for i in range(6)]
+    copy = views[0] + _unit(99) * 0.01
+    copy = copy / np.linalg.norm(copy)
+    chosen = diverse([views[0], copy, *views[1:]], [], limit=10)
+    assert len(chosen) == 6  # the copy adds nothing
+    similar = [float(np.dot(a, b)) for i, a in enumerate(chosen) for b in chosen[i + 1 :]]
+    assert max(similar) < REDUNDANT
+
+    store = BiometricStore(tmp_path / "bio.db")
+    for sample in [views[0], copy, *views[1:4]]:
+        store.add("Lena", sample, "admin", max_samples=4)
+    kept = [s for _, s in store.samples()]
+    # Over the limit, one of the two near copies went, not the oldest distinct view.
+    pairs = [float(np.dot(a, b)) for i, a in enumerate(kept) for b in kept[i + 1 :]]
+    assert len(kept) == 4 and max(pairs) < REDUNDANT
+    store.close()

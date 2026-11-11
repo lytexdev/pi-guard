@@ -71,6 +71,7 @@ class AppSettingsActivity : AppCompatActivity() {
             thread { runCatching { Vpn.down(this, store) } }
             CookieManager.getInstance().removeAllCookies(null)
             store.clear()
+            QuickActions.publish(this)
             startActivity(Intent(this, SetupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     }
@@ -91,6 +92,7 @@ class AppSettingsActivity : AppCompatActivity() {
         val now = Disguise.looks.indexOf(Disguise.current(this))
         MaterialAlertDialogBuilder(this).setTitle(R.string.look_choose).setSingleChoiceItems(names, now) { dialog, chosen ->
             Disguise.apply(this, Disguise.looks[chosen])
+            QuickActions.publish(this) // a disguised app shows no "Alarm" on its icon
             dialog.dismiss()
             Toast.makeText(this, R.string.look_done, Toast.LENGTH_LONG).show()
         }.setNegativeButton(R.string.cancel, null).show()

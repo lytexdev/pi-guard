@@ -1,5 +1,5 @@
 // Trusted people: add, add more pictures, rename, delete.
-import { askDialog, api, attempt, confirmDialog, h, icon, t, toast, when, fill } from "../api.js";
+import { askDialog, api, attempt, confirmDialog, h, icon, t, toast, when, fill, whileShown } from "../api.js";
 import { captureDialog } from "./capture.js";
 
 // What makes recognition work, in the order it matters when adding someone.
@@ -76,17 +76,84 @@ export async function render(main, params = [], opts = {}) {
       stat("photo", people.reduce((sum, p) => sum + p.samples, 0), t("web.pp_pictures")));
     fill(listPanel, h("div", { class: "row between" }, h("h2", {}, t("faces.list_button")),
       h("button", { class: "primary", onclick: () => openForm() }, icon("user-plus"), t("faces.add_button"))),
-      people.length ? h("div", { class: "people-grid" }, people.map((p) => personCard(p, drawList, openForm)))
+      people.length ? h("div", { class: "people-grid" }, people.map((p) => personCard(p, drawList, openForm, overview.cameras)))
         : h("div", { class: "empty-state" }, icon("users", "lg"), h("p", {}, t("faces.none")), h("p", { class: "muted" }, t("web.pp_empty"))),
       h("p", { class: "muted" }, h("small", {}, t("web.faces_privacy"))));
   };
   enrollForm();
   formPanel.classList.add("hidden");
   await drawList();
-  main.append(summary, listPanel, formPanel, testPanel());
+  const diagnosis = h("section", { class: "panel stack" });
+  main.append(summary, listPanel, formPanel, diagnosis, testPanel());
+  diagnosisPanel(diagnosis);
 }
 
-function personCard(p, redraw, openForm) {
+// Standing in front of the camera for some seconds: the Pi keeps the views it did not know yet,
+// in that camera's angle and light. Only for people already enrolled, with their consent.
+function learnDialog(p, cameras, redraw) {
+  const camera = h("select", { "aria-label": t("web.camera") }, cameras.map((c) => h("option", { value: c.id }, c.name)));
+  const consent = h("input", { type: "checkbox" });
+  const status = h("div", { class: "stack tight", "aria-live": "polite" });
+  const start = h("button", { class: "primary", type: "button" }, icon("video"), t("web.fl_start"));
+  const dialog = h("dialog", { class: "stack" },
+    h("h2", {}, t("web.fl_title", { name: p.name })),
+    h("p", {}, t("web.fl_hint")),
+    h("ol", { class: "quality-tips" }, ["web.fl_step_close", "web.fl_step_turn", "web.fl_step_far", "web.fl_step_light"].map((k) => h("li", {}, t(k)))),
+    cameras.length > 1 ? h("label", { class: "field" }, h("span", {}, t("web.camera")), camera) : null,
+    h("label", { class: "check" }, consent, t("web.fl_consent", { name: p.name })),
+    status,
+    h("div", { class: "row end" }, h("button", { type: "button", onclick: () => dialog.close() }, t("web.close")), start));
+  start.addEventListener("click", async () => {
+    if (!consent.checked) { toast(t("web.consent_required"), true); return; }
+    const seconds = 20;
+    start.disabled = true;
+    let left = seconds;
+    const tick = () => { if (left > 0 && start.disabled) { fill(status, h("p", {}, t("web.fl_running", { seconds: left }))); left -= 1; whileShown(status, tick, 1000); } };
+    tick();
+    const result = await attempt(() => api(`/api/people/${encodeURIComponent(p.name)}/camera/learn`, { method: "POST", body: { camera: camera.value || cameras[0]?.id, consent: true, seconds } }));
+    start.disabled = false;
+    if (!result) { fill(status); return; }
+    const r = result.result;
+    const problems = Object.entries(result.problems || {}).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    fill(status,
+      h("p", {}, r ? t("web.fl_done", { stored: r.stored, seen: r.seen, similar: r.similar, total: r.total }) : t("web.fl_none")),
+      r && r.stored === 0 ? h("p", { class: "muted" }, t("web.fl_nothing_new")) : null,
+      problems.length ? h("small", { class: "muted" }, t("web.fl_problems"), " ", problems.map(([k, n]) => `${t(k)} (${n}×)`).join(" · ")) : null,
+      qualityView(result.quality));
+    redraw();
+  });
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+// Why recognition does or does not work here, in numbers of the last 30 days.
+async function diagnosisPanel(box) {
+  const d = await api("/api/people-diagnosis").catch(() => null);
+  if (!d || !box.isConnected) { box.remove(); return; }
+  const tips = [];
+  const facePart = d.person_events ? d.with_face / d.person_events : 0;
+  if (d.person_events && facePart < 0.3) tips.push(t("web.dg_tip_no_face", { percent: Math.round(facePart * 100) }));
+  if (d.face_px.below_learn > 0.4) tips.push(t("web.dg_tip_small", { percent: Math.round(d.face_px.below_learn * 100), px: d.face_px.learn_from }));
+  if (d.best_score.max != null && d.best_score.max < d.threshold) tips.push(t("web.dg_tip_far", { best: d.best_score.max.toFixed(2), needed: d.threshold.toFixed(2) }));
+  d.people.forEach((p) => {
+    if (p.full) tips.push(t("web.dg_tip_full", { name: p.name, max: d.max_samples }));
+    if (p.near_copies >= 2) tips.push(t("web.dg_tip_copies", { name: p.name, count: p.near_copies }));
+    if (p.from_camera < 4) tips.push(t("web.dg_tip_camera", { name: p.name }));
+  });
+  const row = (label, value) => h("li", { class: "row between" }, h("span", {}, label), h("strong", {}, value));
+  fill(box, h("h2", {}, icon("chart-bar"), " ", t("web.dg_title")),
+    h("p", { class: "muted" }, t("web.dg_hint", { days: d.days })),
+    h("ul", { class: "list" },
+      row(t("web.dg_events"), d.person_events),
+      row(t("web.dg_with_face"), `${d.with_face} (${Math.round(facePart * 100)} %)`),
+      row(t("web.dg_known"), d.known),
+      row(t("web.dg_face_size"), d.face_px.median != null ? `${Math.round(d.face_px.median)} px` : "—"),
+      row(t("web.dg_best"), d.best_score.max != null ? `${d.best_score.max.toFixed(2)} / ${d.threshold.toFixed(2)}` : "—")),
+    tips.length ? h("div", { class: "stack tight" }, h("h3", {}, t("web.dg_what_helps")), h("ul", { class: "quality-tips" }, tips.map((tip) => h("li", {}, tip)))) : h("p", {}, t("web.dg_fine")));
+}
+
+function personCard(p, redraw, openForm, cameras = []) {
   const url = `/api/people/${encodeURIComponent(p.name)}`;
   const picture = p.profile?.picture ? h("img", { class: "avatar big", src: `${url}/picture?${Date.now()}`, alt: "" })
     : h("span", { class: "avatar big empty" }, p.name.trim().slice(0, 1).toUpperCase());
@@ -108,6 +175,7 @@ function personCard(p, redraw, openForm) {
     qualityView(p.quality),
     h("div", { class: "row" },
       h("button", { onclick: () => openForm(p.name) }, icon("plus"), t("web.pp_more_pictures")),
+      cameras.length ? h("button", { title: t("web.fl_tip"), onclick: () => learnDialog(p, cameras, redraw) }, icon("video"), t("web.fl_button")) : null,
       h("button", { onclick: () => profileDialog(p, redraw) }, icon("user"), t("web.pp_profile"))));
 }
 

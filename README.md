@@ -34,7 +34,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   unknown person. A bar shows how well each person is learned and which pictures
   are missing. Unknown people are reported with a photo. Several pictures are judged together, so a family
   member seen badly once is not reported as a stranger. *Who is this?* on an event teaches pi-guard a face the
-  camera saw, or that a face is not someone.
+  camera saw, or that a face is not someone. *Learn at the camera* takes 20 seconds of varied views in the camera's
+  own angle and light, and *Why recognition works or not* shows in numbers what holds it back.
 - **Alarm.** Sound the alarm (or your own uploaded sound) on a speaker, and stop
   it, from the chat.
 - **Emergency contacts.** If alerts stay unconfirmed, backup contacts get a
@@ -61,7 +62,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | --- | --- |
 | **Web dashboard** | Live picture and sound, people, events, weekly plan with calendars, network, settings in a normal and an expert view. On by default at `https://<pi>:8443`. |
 | **Accessibility** | Text size, magnifier, colour-blind filters, reading aloud, visible alerts for deaf people, typed speech for people who cannot talk, screen-reader labels, and commands by voice or chat. See [dashboard](docs/dashboard.md#accessibility). |
-| **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, SOS with camera pictures, photos and sound from the phone and a followed place, finding and tracking lost phones, and an inconspicuous look if you want one. |
+| **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, quick actions such as all fine or away from the app icon, SOS with camera pictures, photos and sound from the phone and a followed place, finding and tracking lost phones, and an inconspicuous look if you want one. |
 | **Desktop app** | The dashboard in its own window for Linux, Windows and macOS, trusting only your pi-guard's certificate. On Linux also a VPN with kill switch, lockdown, split tunneling and a quantum-resistant tunnel. |
 | **Server** | A small Rust agent connects a PC or NAS: status, security check, updates, Docker, Compose and Git, safe shutdown; and services watched for outages. |
 | **Add-ons** | Server, emergency medical data with a short-lived rescue link, network analysis, smart home, remote commands, AI assistant with its costs that also explains settings and changes them with an undo, offline voice control with a wake phrase, a reverse proxy like frp, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |

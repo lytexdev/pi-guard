@@ -66,7 +66,13 @@ app* and its token stops working at once.
   places come only if *Share location* is on, so switch it on before a phone goes missing. Places are kept for at
   most 7 days.
 - **Call:** on the Live page, *Call* streams your microphone to the speaker while you hear the camera. It also
-  works in a normal browser. Expect a delay of a second or two.
+  works in a normal browser. Expect a delay of a second or two. *Call home* among the quick actions opens that page.
+  To talk to the assistant instead, use the microphone in its chat; there is no telephone line.
+- **Quick actions:** the bolt in the app bar, and a long press on the app icon for the first four: *All fine* (closes
+  all open alerts), *Call home*, *Away*, *At home*, and in the bolt also *Sound alarm* (asks first), *Stop alarm* and
+  SOS. pi-guard does them only for admins, as with the buttons under alerts. With an app lock, the shortcuts on the
+  icon ask for it first, except SOS. While the app looks like Calculator or another app, the icon shows no shortcuts,
+  which would give it away.
 - **Calendar:** with *Away during calendar entries*, busy entries for the next 14 days count as away, even if
   a phone is at home. Only start and end go to pi-guard; titles stay on the phone. All-day entries are left out.
 - **App lock:** PIN and fingerprint or face, after 30 seconds in the background. The PIN is typed on a number pad that

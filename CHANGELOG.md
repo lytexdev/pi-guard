@@ -8,6 +8,12 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Quick actions in the phone app, in the app bar and on the app icon: all fine, call home, away, at home, alarm on and
+  off, SOS. Admins only; the icon shortcuts ask for the app lock and are hidden while the app is disguised.
+- *Learn at the camera*: 20 seconds in front of a camera, and the Pi keeps up to eight clear, different views of an
+  enrolled person in that camera's angle and light.
+- *Why recognition works or not* on the People page: faces seen, their size, the best similarity and the variety of
+  each person's pictures over 30 days, with what would help most.
 - Reverse proxy add-on with `pgproxy`, written in Rust: reach services behind NAT through a server you choose, like
   frp. The server decides which ports each client may open, tokens are shown once and kept as SHA-256, clients trust
   the server's certificate by fingerprint only, and the client alone chooses where traffic goes. The Pi can be server
@@ -33,6 +39,8 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- A face picture nearly identical to a stored one is no longer stored, and over the limit the most similar picture is
+  dropped instead of the oldest, so a person's pictures stay varied.
 - List settings refuse line breaks, which could have added another line to the settings file.
 - Signal only sends alerts by default and reads no message, also not from the owner: it is often linked to a private
   number. `PI_GUARD_SIGNAL_COMMANDS=true` allows commands from its admins again.

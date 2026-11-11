@@ -39,6 +39,7 @@
         <activity-alias android:name=".LookMusic" android:targetActivity=".MainActivity" android:exported="true" android:enabled="false" android:label="@string/look_music" android:icon="@mipmap/ic_look_music"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
         <activity android:name=".SetupActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".LockActivity" android:exported="false" />
+        <activity android:name=".QuickActionActivity" android:exported="false" android:theme="@style/Theme.PiGuard.Invisible" android:excludeFromRecents="true" android:taskAffinity="" android:noHistory="false" />
         <activity android:name=".EmergencyActivity" android:exported="false" android:showWhenLocked="true" android:turnScreenOn="true" />
         <activity android:name=".VpnActivity" android:exported="false" />
         <activity android:name=".AppSettingsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />

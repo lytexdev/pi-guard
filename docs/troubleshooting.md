@@ -75,6 +75,10 @@ sudo journalctl -u pi-guard -n 100
 
 ## Faces are never recognized, the picture looks soft
 
+Start with *People → Why recognition works or not*: it shows whether faces are in the pictures at all, how large they
+are and how close they come. If they come close but not over the threshold, use *Learn at the camera* on the person's
+card. If few moments show a face, the camera sees people from the side or behind, and no training helps there.
+
 - Many cheap USB cameras squeeze their own H.264 hard after the first seconds, and offer no setting for it. A keyframe
   of a few KB at 720p is the sign: `ffprobe -select_streams v -show_entries frame=pict_type,pkt_size <segment>`.
   Recognition reads the same picture, so it loses the detail too.

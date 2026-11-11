@@ -134,7 +134,24 @@ pi-guard in dessen Bild findet, und wen es jeweils gesehen hat:
 - **Das ist nicht …** an einem erkannten Gesicht merkt es sich als jemand anderen. Danach ist ein Gesicht, das ihm
   ähnlicher ist als dieser Person, *unsicher* statt diese Person. Es wird mit der Person gelöscht.
 
-Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer sehen den Knopf nicht.
+- **Vor der Kamera lernen** auf der Karte einer Person: Die Person steht 20 Sekunden lang dort, wo man sonst
+  vorbeigeht, schaut zur Kamera und dreht den Kopf etwas. Der Pi nimmt jede Sekunde ein Bild und behält bis zu acht
+  deutliche Gesichter, die sich von den bekannten Ansichten unterscheiden; jedes Bild wird gelöscht, sobald sein
+  Gesicht vermessen ist. Gesichter, die nicht zueinander oder zur Person passen, fallen weg, so wird niemand gelernt,
+  der zufällig vorbeiläuft. Bei anderem Licht wiederholen, etwa abends. Nur für bereits eingetragene Personen, mit
+  ihrer Zustimmung.
+
+Eine Person behält bis zu `faces.max_samples_per_person` Bilder (Standard 40). Ein Bild, das einem gespeicherten fast
+gleicht, wird weggelassen, und ist die Grenze erreicht, fällt das ähnlichste weg statt des ältesten: Verschiedene
+Ansichten erkennen jemanden auch in anderem Blickwinkel und Licht.
+
+**Warum die Erkennung klappt oder nicht** auf der Seite Personen zeigt die letzten 30 Tage in Zahlen: Momente mit einer
+Person, wie viele davon überhaupt ein Gesicht zeigten, wie groß Gesichter waren, wie nah das beste an die Schwelle kam,
+und je Person, wie viele Bilder von einer Kamera stammen und wie viele fast gleich sind. Sie sagt, was am meisten hilft.
+Oft ist es die Kamera: Die Erkennung braucht ein Gesicht im Bild, etwa zur Kamera gewandt und mindestens 36 Pixel breit,
+zum Lernen 56.
+
+Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer sehen die Knöpfe nicht.
 
 ## Das Projekt unterstützen
 

@@ -36,6 +36,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Familienmitglied gilt also nicht gleich als fremd. *Wer ist das?* an einem
   Ereignis bringt pi-guard ein Gesicht aus der Kamera bei, oder dass ein Gesicht
   nicht jemand ist.
+  *Vor der Kamera lernen* nimmt 20 Sekunden verschiedene Ansichten in Blickwinkel und Licht der Kamera auf, und
+  *Warum die Erkennung klappt oder nicht* zeigt in Zahlen, was sie bremst.
 - **Alarm:** Alarmton (auch einen eigenen) über einen Lautsprecher auslösen
   und wieder stoppen.
 - **Notfallkontakte:** Bleiben Meldungen unbestätigt, bekommen eingetragene
@@ -64,7 +66,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 | | |
 | --- | --- |
 | **Web-Dashboard** | Livebild und Ton, Personen, Ereignisse, Wochenplan mit Kalendern, Netzwerk, Einstellungen in einer Normal- und einer Experten-Ansicht. Standardmäßig an unter `https://<pi>:8443`. |
-| **Android-App** | Das Dashboard mit Alarmen ohne Google, ein VPN wie bei Mullvad mit Split-Tunneling und automatischem Verbinden, SOS mit Kamerabildern, Foto und Ton vom Handy und mitverfolgtem Standort, Handy finden und vermisste Handys verfolgen und auf Wunsch ein unauffälliges Aussehen. |
+| **Android-App** | Das Dashboard mit Alarmen ohne Google, ein VPN wie bei Mullvad mit Split-Tunneling und automatischem Verbinden, Schnellaktionen wie Alles in Ordnung oder Abwesend am App-Symbol, SOS mit Kamerabildern, Foto und Ton vom Handy und mitverfolgtem Standort, Handy finden und vermisste Handys verfolgen und auf Wunsch ein unauffälliges Aussehen. |
 | **Desktop-App** | Das Dashboard im eigenen Fenster für Linux, Windows und macOS, vertraut nur dem Zertifikat deines pi-guard. Unter Linux auch ein VPN mit Kill Switch, Lockdown, Split-Tunneling und quantenresistentem Tunnel. |
 | **Server** | Ein kleiner Rust-Agent verbindet PC oder NAS: Status, Sicherheitsprüfung, Updates, Docker, Compose und Git, sicheres Herunterfahren; dazu Dienste, die auf Ausfälle überwacht werden. |
 | **Add-ons** | Server, Notfalldaten mit kurzlebigem Link für Rettungskräfte, Netzwerk-Analyse, Smart Home, Fernbefehle, KI-Assistent mit Kostenanzeige, der auch Einstellungen erklärt und mit Rückgängig ändert, Sprachsteuerung offline mit Weckwort ([Sprache](docs/de/sprache.md)), ein Reverse-Proxy wie frp ([Proxy](docs/de/proxy.md)), weitere Sprachen sowie Alarme nach Slack, Matrix, Rocket.Chat und Mastodon. Jedes lässt sich ausschalten oder samt Daten entfernen. |

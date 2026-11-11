@@ -68,7 +68,14 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
   Wer es in der Hand hält, ist vielleicht nicht der Besitzer. Standorte kommen nur, wenn *Standort teilen* an ist;
   schalte es also ein, bevor ein Handy verloren geht. Standorte bleiben höchstens 7 Tage.
 - **Anrufen:** Auf der Live-Seite schickt *Anrufen* dein Mikrofon an den Lautsprecher, während du die Kamera hörst. Das
-  geht auch im normalen Browser. Rechne mit ein bis zwei Sekunden Verzögerung.
+  geht auch im normalen Browser. Rechne mit ein bis zwei Sekunden Verzögerung. *Nach Hause anrufen* bei den
+  Schnellaktionen öffnet diese Seite. Mit dem Assistenten sprichst du über das Mikrofon in seinem Chat; eine
+  Telefonleitung gibt es nicht.
+- **Schnellaktionen:** der Blitz in der App-Leiste, und langes Drücken auf das App-Symbol für die ersten vier: *Alles in
+  Ordnung* (schließt alle offenen Alarme), *Nach Hause anrufen*, *Abwesend*, *Zuhause*, im Blitz außerdem *Alarm
+  auslösen* (fragt vorher), *Alarm stoppen* und SOS. pi-guard führt sie nur für Admins aus, wie die Knöpfe unter
+  Alarmen. Mit App-Sperre fragen die Verknüpfungen am Symbol zuerst danach, außer SOS. Solange die App wie der
+  Taschenrechner oder eine andere App aussieht, zeigt das Symbol keine Verknüpfungen, die sie verraten würden.
 - **Kalender:** Mit *Abwesend während Kalendereinträgen* gelten belegte Termine der nächsten 14 Tage als abwesend, auch
   wenn ein Handy zu Hause ist. Nur Start und Ende gehen an pi-guard, Titel bleiben auf dem Handy. Ganztägige Termine
   zählen nicht.

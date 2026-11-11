@@ -10,7 +10,7 @@ import re
 import shutil
 import tempfile
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, get_args
 
@@ -69,6 +69,8 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/people", people),
         web.post("/api/people/{name}/samples", add_samples),
         web.post("/api/people/{name}/camera", add_from_camera),
+        web.post("/api/people/{name}/camera/learn", learn_from_camera),
+        web.get("/api/people-diagnosis", recognition_diagnosis),
         web.post("/api/people-test", test_recognition),
         web.get("/api/events/{id:\\d+}/faces", event_faces),
         web.post("/api/events/{id:\\d+}/faces/{index:\\d+}", learn_from_event),
@@ -677,6 +679,125 @@ async def add_from_camera(request: web.Request) -> web.Response:
     app.db.audit(_actor(request), "faces.enroll", f"samples={count}")
     quality = await asyncio.to_thread(faces.quality, name)
     return web.json_response({"stored": 1, "total": count, "quality": quality})
+
+
+LEARN_SECONDS = (5, 30)
+DIAGNOSIS_DAYS = 30
+
+
+async def learn_from_camera(request: web.Request) -> web.Response:
+    """The person stands in front of a camera for some seconds; the Pi keeps the views that
+    differ from what it already knows. Only for people already enrolled, with their consent.
+    Each picture is deleted as soon as its face is measured."""
+    faces = _faces(request)
+    name = _name(request)
+    data = await read_json(request)
+    if data.get("consent") is not True:
+        raise web.HTTPBadRequest(text="consent required")
+    if faces.store.exists(name) is None:
+        raise web.HTTPNotFound(text="faces.learn_not_enrolled")
+    app = dashboard(request).app
+    camera_id = str(data.get("camera") or next(iter(app.cameras), ""))
+    if camera_id not in app.cameras:
+        raise web.HTTPBadRequest(text="unknown camera")
+    try:
+        seconds = min(max(int(data.get("seconds") or 20), LEARN_SECONDS[0]), LEARN_SECONDS[1])
+    except (TypeError, ValueError):
+        raise web.HTTPBadRequest(text="seconds") from None
+    interval = max(1.0, float(app.cameras[camera_id].camera.snapshot_interval_seconds))
+    candidates = []
+    problems: dict[str, int] = {}
+    loop = asyncio.get_running_loop()
+    end = loop.time() + seconds
+    while loop.time() < end:
+        try:
+            photo = await app.take_photo(camera_id, prefix="learn")
+        except SnapshotUnavailableError:
+            raise web.HTTPServiceUnavailable(text="no picture from the camera") from None
+        try:
+            sample, problem = await asyncio.to_thread(faces.camera_sample_from, photo)
+        finally:
+            photo.unlink(missing_ok=True)
+        if sample is not None:
+            candidates.append(sample)
+        elif problem:
+            problems[problem] = problems.get(problem, 0) + 1
+        await asyncio.sleep(interval)
+    try:
+        result = faces.learn_many(name, candidates, _actor(request)) if candidates else None
+    except EnrollmentError as exc:
+        raise web.HTTPUnprocessableEntity(text=exc.key) from None
+    app.db.audit(_actor(request), "faces.learn_camera", f"stored={(result or {}).get('stored', 0)}")
+    quality = await asyncio.to_thread(faces.quality, name)
+    return web.json_response({"result": result, "problems": problems, "seconds": seconds,
+                              "quality": quality})  # fmt: skip
+
+
+async def recognition_diagnosis(request: web.Request) -> web.Response:
+    """Why people are or are not recognised, in numbers: how often a face was seen at all,
+    how large faces are, how close they came to the threshold, and how varied each person's
+    pictures are. No pictures and no names of events."""
+    import json as json_
+
+    d = dashboard(request)
+    faces = _faces(request)
+    since = (utcnow() - timedelta(days=DIAGNOSIS_DAYS)).isoformat()
+    rows = d.app.db.execute(
+        "SELECT type, data FROM events WHERE ts >= ? AND type IN "
+        "('person_detected', 'unknown_person', 'known_person')", (since,)).fetchall()  # fmt: skip
+    sizes: list[float] = []
+    best: list[float] = []
+    with_face = 0
+    known = 0
+    for kind, raw in rows:
+        data = json_.loads(raw or "{}")
+        found = [float(v) for v in data.get("face_px", [])]
+        sizes += found
+        with_face += bool(found)
+        known += kind == "known_person"
+        scores = [float(v) for v in data.get("scores", [])]
+        if scores:
+            best.append(max(scores))
+    sizes.sort()
+
+    def share(values: list[float], below: float) -> float:
+        return round(sum(v < below for v in values) / len(values), 2) if values else 0.0
+
+    from pi_guard.detection.faces import CLEAR_FACE_PX, MIN_FACE_PX
+
+    people = await asyncio.to_thread(_people_variety, faces)
+    s = faces.settings
+    return web.json_response({
+        "days": DIAGNOSIS_DAYS, "person_events": len(rows), "with_face": with_face,
+        "known": known,
+        "face_px": {"median": sizes[len(sizes) // 2] if sizes else None,
+                    "below_recognise": share(sizes, MIN_FACE_PX[1]),
+                    "below_learn": share(sizes, CLEAR_FACE_PX),
+                    "recognise_from": MIN_FACE_PX[1], "learn_from": CLEAR_FACE_PX},
+        "best_score": {"median": sorted(best)[len(best) // 2] if best else None,
+                       "max": max(best) if best else None},
+        "threshold": s.match_threshold + s.uncertain_margin,
+        "max_samples": s.max_samples_per_person,
+        "people": people,
+    })  # fmt: skip
+
+
+def _people_variety(faces: FaceRecognizer) -> list[dict[str, Any]]:
+    from pi_guard.detection.faces import REDUNDANT
+
+    by_person: dict[str, list[Any]] = {}
+    for name, sample in faces._samples():
+        by_person.setdefault(name, []).append(sample)
+    result = []
+    for name, count, _ in faces.store.people():
+        samples = by_person.get(name, [])
+        pairs = sum(float(np.dot(a, b)) >= REDUNDANT
+                    for i, a in enumerate(samples) for b in samples[i + 1:])  # fmt: skip
+        sources = [r.get("source") for r in faces.store.details(name)]
+        result.append({"name": name, "samples": count, "near_copies": int(pairs),
+                       "from_camera": sources.count("camera"),
+                       "full": count >= faces.settings.max_samples_per_person})  # fmt: skip
+    return result
 
 
 async def evidence_list(request: web.Request) -> web.Response:
