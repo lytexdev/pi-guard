@@ -41,7 +41,7 @@ QUESTION_SECONDS = 10
 MIN_PRESS_GAP = 2.0
 # Made-up words are not in the model's vocabulary; these sound alike and are.
 SOUNDS_LIKE = {
-    "lytex": ("lei tex", "lai tex", "light tex", "lytex"),
+    "lytex": ("lei tex", "lite tex", "light tex", "lytex"),
     "piguard": ("pi guard", "pie guard", "piguard"),
     "pi-guard": ("pi guard", "pie guard"),
 }
@@ -142,6 +142,13 @@ async def spoken(app: Any, text: str, lang: str) -> AsyncIterator[Path | None]:
         yield wav if wav.is_file() else None
 
 
+def knows(model: Any, word: str) -> bool:
+    """Whether the speech model has this word. The Python package calls it
+    `vosk_model_find_word` (0.3.45); a later one may call it `find_word`."""
+    find = getattr(model, "vosk_model_find_word", None) or getattr(model, "find_word", None)
+    return find is not None and int(find(word)) >= 0
+
+
 def wake_phrases(configured: list[str], known: Any) -> list[str]:
     """Every spelling of the configured phrases whose words the model knows."""
     found: list[str] = []
@@ -213,7 +220,7 @@ class Voice:
         self._model = await asyncio.to_thread(Model, str(folder))
         self._recognizer = KaldiRecognizer
         self._phrases = wake_phrases(self.settings.voice_wake_phrases,
-                                     lambda w: self._model.find_word(w) >= 0)  # fmt: skip
+                                     lambda w: knows(self._model, w))  # fmt: skip
         if self.settings.voice_wake_enabled and not self._phrases:
             self.problem = "voice.no_phrase"
         tasks = [asyncio.create_task(self._loop())]

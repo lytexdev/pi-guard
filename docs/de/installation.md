@@ -139,6 +139,19 @@ Foto. Bitte lesen Sie vorher [Datenschutz](datenschutz.md).
 
 3. In Telegram: *Weitere Funktionen → Vertraute Personen → Person hinzufügen*,
    siehe [Bedienung](bedienung.md).
+4. Danach im Dashboard unter *Personen* *Vor der Kamera lernen* nutzen, damit die Ansichten der eigenen Kamera
+   gelernt werden. *Warum die Erkennung klappt oder nicht* zeigt, was noch fehlt.
+
+## Mit dem Pi sprechen (optional)
+
+Sprachsteuerung mit Weckwort, offline auf dem Pi. Sie ist aus, bis du sie einschaltest:
+
+```bash
+sudo -u pi-guard pi-guard voice download     # etwa 46 MB, es wird vorher gefragt
+```
+
+Dann im Dashboard unter *Einstellungen → Ton* *Auf ein Weckwort hören* einschalten und neu starten. Mehr dazu in
+[Sprache](sprache.md).
 
 ## Einstellungen ändern
 

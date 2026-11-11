@@ -24,6 +24,17 @@ def test_made_up_words_become_words_the_model_knows() -> None:
     assert found == ["hallo lei tex", "hi pi guard"]
 
 
+def test_words_are_looked_up_with_the_name_vosk_uses() -> None:
+    # vosk 0.3.45 on the Pi has vosk_model_find_word, not find_word.
+    class Model:
+        def vosk_model_find_word(self, word: str) -> int:
+            return 7 if word in {"hallo", "lei", "tex", "light"} else -1
+
+    found = voice.wake_phrases(["hallo lytex"], lambda w: voice.knows(Model(), w))
+    assert found == ["hallo lei tex", "hallo light tex"]
+    assert not voice.knows(object(), "hallo")
+
+
 def _zip(entries: dict[str, bytes]) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
