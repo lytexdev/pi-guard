@@ -29,6 +29,7 @@ runs with `UMask=0077`; databases are `0600`).
 | The same | **Signal** (end-to-end encrypted) | only if Signal is enabled |
 | Mode, presence state, camera status, motion events (no images, no names) | your **MQTT broker** | only if MQTT is enabled |
 | A presence query per trusted device | your **router** (FRITZ!Box source) | only if configured |
+| MAC addresses of children's devices in a Kid Protect profile, and their groups | your **Pi-hole**; the router gets their IP addresses to cut the internet at set times | only with Kid Protect on |
 | Alert summary, and the events and up to three photos if chosen for the contact | **emergency contacts** via their messenger or email | only if alerts stay unconfirmed and contacts are set up for it |
 | A rescue link and its PIN, or the emergency medical sheet as PDF | **emergency contacts** set to get medical data | only after an SOS from a linked person's phone, or when an admin sends it |
 | Alert text (no photos, no names), and for admins a one-tap token for *All fine* and *Sound alarm*, valid an hour | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |

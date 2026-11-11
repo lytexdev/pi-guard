@@ -746,3 +746,23 @@ html.a11y-alert body { animation: a11y-glow 1.4s ease-in-out 3; }
 button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .share-matrix th, .share-matrix td { text-align: center; } .share-matrix td:first-child, .share-matrix th:first-child { text-align: left; }
 .share-matrix input[type="checkbox"] { width: 22px; height: 22px; }
+
+/* Kid Protect: profile cards, categories to tick, times without internet. */
+.kp-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); }
+.kp-card { border: 1px solid var(--line); border-left: 5px solid var(--ok); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; background: var(--surface); }
+.kp-card.danger { border-left-color: var(--danger); }
+.kp-card h3 { margin: 0; font-size: 1.05rem; }
+.kp-card p { margin: 0; }
+.kp-actions { align-items: center; }
+.kp-menu { position: relative; }
+.kp-menu > summary { list-style: none; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.kp-menu > summary::-webkit-details-marker { display: none; }
+.kp-menu[open] > div { margin-top: 6px; }
+.kp-categories { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); }
+.kp-category { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; }
+.kp-category:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.window-row { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; display: grid; gap: 8px; }
+.window-row input[type="time"] { width: auto; }
+.day-chip { display: inline-flex; gap: 4px; align-items: center; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-size: .9rem; }
+.day-chip:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.day-chip input { width: 16px; height: 16px; margin: 0; }

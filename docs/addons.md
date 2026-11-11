@@ -188,6 +188,32 @@ use under Settings › Messenger:
 These are send-only and carry no pictures: what your cameras see does not belong in a team chat. Under Settings ›
 Notifications you choose per kind of message whether it goes there.
 
+## Kid Protect
+
+Filters for children's devices, and times without internet. Needs Pi-hole for the filters; times without internet
+also work with a FRITZ!Box alone. Open it under *Add-ons → Kid Protect*.
+
+- **Profiles:** one per child, or one for all children. A profile blocks kinds of sites: adult content (18+),
+  gambling, malware and phishing, scams, drugs, piracy and torrents, social networks, TikTok. The first five are ticked
+  for a new profile. The lists come from [The Block List Project](https://blocklistproject.github.io/Lists/) and
+  StevenBlack's social list; Pi-hole downloads them.
+- **Times without internet:** for example 21:00 to 06:30 on school nights, a weekend night or homework time, with
+  templates for these. A time past midnight belongs to the day it starts. *Pause internet* switches it off now for 15
+  minutes to two hours, *Extra time* gives internet during a time without it.
+- **Devices:** choose a profile for each child's device in the list of the home network; devices without a profile are
+  not changed. Phones with a private (changing) Wi-Fi address need it switched off for the home network, or the
+  profile does not recognise them.
+
+How it works: each profile is a Pi-hole group (`pi-guard-kids-N`), its devices are Pi-hole clients by MAC address in
+that group and in the default group, and the profile's lists are assigned to the group only, so nobody else is
+filtered by them. A list that was already there for everyone stays so. A time without internet adds one rule that
+blocks every name for the groups that are offline; with a FRITZ!Box the router also cuts these devices' internet, and
+only what Kid Protect cut is given back afterwards. The lists made by Kid Protect are not shown under *Network → Lists*.
+Every change goes to Pi-hole at once, and the add-on checks every minute.
+
+DNS filters are no lock: mobile data, a VPN or another DNS server get around them. They help younger children most,
+together with talking about it. Tested with a stand-in for Pi-hole's API, not yet against a real Pi-hole and router.
+
 ## Reverse proxy
 
 Reach services behind NAT through a server you choose, like frp: this Pi as server or client of `pgproxy`, with

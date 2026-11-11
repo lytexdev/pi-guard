@@ -16,6 +16,9 @@ All notable changes are documented here. The format follows
   and regular or as needed; a section for over-the-counter products and supplements; organ donation as a choice;
   Markdown in the text fields; phone, email and a linked dashboard account. Read a BMP text from a scanner app, give the
   medicines back as BMP text, save the sheet as PDF or picture, and send it to an emergency contact.
+- Kid Protect add-on: filter profiles for children's devices (adult content, gambling, malware and phishing, scams,
+  drugs, piracy, social networks, TikTok) through Pi-hole groups, times without internet with templates, pause and
+  extra time, and the FRITZ!Box cutting the internet at those times if it is connected.
 - Messages can carry a file (PDF) on Telegram, Signal, Discord, WhatsApp and email.
 
 - Quick actions in the phone app, in the app bar and on the app icon: all fine, call home, away, at home, alarm on and

@@ -32,6 +32,10 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
   gesendet würde.
 - *Frag zu Einstellungen* mit eingeschaltetem KI-Assistenten schickt dem gewählten Anbieter Bezeichnungen, Hilfetexte
   und die Werte von Schaltern, Zahlen und Auswahlen, nie Geheimnisse, Listen oder die Zeitzone.
+- Notfalldaten gehen nur an Notfallkontakte, die dafür eingestellt sind, oder wenn ein Admin sie schickt: als
+  Rettungslink mit PIN, oder als PDF, wenn das für den Kontakt gewählt ist. Das PDF liegt dann beim Chatdienst.
+- Kid Protect schreibt die MAC-Adressen der Kindergeräte und ihre Gruppen in Ihr Pi-hole; die FRITZ!Box bekommt ihre
+  IP-Adressen, um zu den eingestellten Zeiten das Internet zu sperren.
 - Sonst nichts: keine Cloud, keine Werbung.
 
 ### Privacy-Upstream (optional)
