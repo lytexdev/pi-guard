@@ -47,8 +47,10 @@ app* and its token stops working at once.
   since Android 10 every app with permissions shows up in the app list. Under the chosen look it does so inconspicuously.
 - **Calendar:** busy entries of the phone's calendar count as away. Other calendars such as Google or Proton are
   connected in the dashboard under Settings › At home & away, also without the app.
-- **SOS:** one tap starts a 10-second countdown; tapping again cancels. Then all emergency contacts and admins
-  get a message with location, mode, battery and network, and a current picture of each camera. **This does not replace 112.** It needs a connection
+- **SOS:** one tap starts a 10-second countdown; tapping again cancels. Then admins get a message with location,
+  mode, battery and network, and a current picture of each camera; each emergency contact gets the message and what
+  is chosen for it under *Settings → Emergency* (place, pictures, events, the person's emergency data if the phone's
+  account is linked to a sheet). **This does not replace 112.** It needs a connection
   to pi-guard, and pi-guard must be running.
   - For 30 minutes after an SOS the phone sends its place every minute, and admins follow it under *Add-ons → Mobile app
     → Places*. *I am safe*, on the emergency screen or in the notification, ends it and tells everyone; the places are

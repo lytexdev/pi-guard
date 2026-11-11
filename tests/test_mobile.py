@@ -142,16 +142,29 @@ async def test_emergency_goes_to_contacts_and_admins(tmp_path: Path, monkeypatch
         sent.append(("admins", "", text))
 
     app.providers["signal"] = SimpleNamespace(supports_buttons=False)
-    app.escalation.contacts = [("signal", "+49170"), ("discord", "1")]  # discord is not running
+    contacts = app.escalation.contacts
+    signal = [{"provider": "signal", "address": "+4917000001"}]
+    discord = [{"provider": "discord", "address": "12345"}]  # discord is not running
+    contacts.save(None, {"name": "Oma", "channels": signal + discord})
+    neighbour = [{"provider": "signal", "address": "+4917000002"}]  # only the words, not the place
+    contacts.save(None, {"name": "Nachbar", "channels": neighbour, "share": {"sos": []}})
+    alarms = [{"provider": "signal", "address": "+4917000003"}]
+    contacts.save(None, {"name": "Alarm only", "channels": alarms, "share": {"escalation": []}})
     monkeypatch.setattr(app.messenger, "send", send)
     monkeypatch.setattr(app.messenger, "notify_admins", admins)
     try:
         body = {"latitude": 52.5, "longitude": 13.4, "accuracy": 8.0, "battery": 40}
         response = await client.post("/api/mobile/emergency", json=body, headers=bearer)
-        assert (await response.json())["contacts"] == 1
-        assert [s[0] for s in sent] == ["signal", "admins"]
+        assert (await response.json())["contacts"] == 2
+        assert [s[:2] for s in sent] == [
+            ("signal", "+4917000001"),
+            ("signal", "+4917000002"),
+            ("admins", ""),
+        ]
         assert "Handy Lena" in sent[0][2] and "openstreetmap.org" in sent[0][2]
         assert "40" in sent[0][2]
+        assert "Handy Lena" in sent[1][2] and "openstreetmap.org" not in sent[1][2]
+        assert "openstreetmap.org" in sent[2][2]  # admins get everything
     finally:
         await client.close()
         app.db.close()
@@ -399,7 +412,9 @@ async def _sos(tmp_path: Path, monkeypatch: Any, take: Any, send: Any) -> tuple[
         return None
 
     monkeypatch.setattr(app.messenger, "notify_admins", nobody)
-    monkeypatch.setattr(app.escalation, "contacts", [("signal", "+49")], raising=False)
+    app.escalation.contacts.save(
+        None, {"name": "Oma", "channels": [{"provider": "signal", "address": "+4917000001"}]}
+    )
     monkeypatch.setattr(app, "take_photo", take)
     monkeypatch.setattr(app.messenger, "send", send)
     response = await client.post("/api/mobile/emergency", json={}, headers=bearer)
@@ -761,7 +776,9 @@ async def _sos_files(tmp_path: Path, monkeypatch: Any) -> tuple[Any, Any, Any, l
 
     app.providers["signal"] = object()
     app.cameras.clear()
-    monkeypatch.setattr(app.escalation, "contacts", [("signal", "+49")], raising=False)
+    app.escalation.contacts.save(
+        None, {"name": "Oma", "channels": [{"provider": "signal", "address": "+4917000001"}]}
+    )
     monkeypatch.setattr(app.messenger, "send", send)
     monkeypatch.setattr(app.messenger, "notify_admins", admins)
     return client, app, (headers, bearer), sent
@@ -881,7 +898,10 @@ async def test_the_home_microphone_records_a_clip_after_an_sos(
 
     sent: list[tuple[str, bytes]] = []
 
-    async def everyone(_: Any, text: str, photo: Any = None, audio: Any = None) -> int:
+    async def everyone(
+        _: Any, text: str, photo: Any = None, audio: Any = None, need: Any = None
+    ) -> int:
+        assert need == "home_audio"
         sent.append((text, audio.read_bytes()))
         return 1
 

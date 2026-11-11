@@ -29,7 +29,8 @@ runs with `UMask=0077`; databases are `0600`).
 | The same | **Signal** (end-to-end encrypted) | only if Signal is enabled |
 | Mode, presence state, camera status, motion events (no images, no names) | your **MQTT broker** | only if MQTT is enabled |
 | A presence query per trusted device | your **router** (FRITZ!Box source) | only if configured |
-| Alert summary and up to three photos | **emergency contacts** via Telegram/Signal | only if alerts stay unconfirmed and contacts are configured |
+| Alert summary, and the events and up to three photos if chosen for the contact | **emergency contacts** via their messenger or email | only if alerts stay unconfirmed and contacts are set up for it |
+| A rescue link and its PIN, or the emergency medical sheet as PDF | **emergency contacts** set to get medical data | only after an SOS from a linked person's phone, or when an admin sends it |
 | Alert text (no photos, no names), and for admins a one-tap token for *All fine* and *Sound alarm*, valid an hour | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |
 | Live picture and sound, files you upload | your own browser, over HTTPS | only while you use the dashboard |
 | Your browser's public IP address | `api.ipify.org`, and the Pi asks `ipwho.is` about unknown addresses | when the overview is open (connection panel) |
@@ -206,9 +207,10 @@ listed with `pi-guard faces list`; users with `/users`.
 ## Phones with the app
 
 The location of a phone is stored in `pi-guard.db` only if its owner switched on *Share location*, and it is
-replaced by each new report. Admins can see it, so ask before switching it on for someone else. An SOS sends the
-location to the emergency contacts, also through their messengers. It also sends a current picture of each camera (up
-to four) to them, so whoever is an emergency contact can see inside the home in that moment. Map tiles are fetched by
+replaced by each new report. Admins can see it, so ask before switching it on for someone else. An SOS sends each
+emergency contact what was chosen for it: the location, a current picture of each camera (up to four, so that contact
+can see inside the home in that moment), the latest events, and the emergency medical data of the person, also
+through their messengers. New contacts start with location and pictures, without events and medical data. Map tiles are fetched by
 the Pi when someone opens a map, which tells OpenStreetMap roughly where the phone is, but not who is looking.
 
 After an SOS, and while a phone is reported lost, its places are kept as a track in `pi-guard.db`: for 30 minutes

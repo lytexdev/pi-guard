@@ -38,8 +38,9 @@ movement, and lets you look at your home with two buttons: **View photo** and
   own angle and light, and *Why recognition works or not* shows in numbers what holds it back.
 - **Alarm.** Sound the alarm (or your own uploaded sound) on a speaker, and stop
   it, from the chat.
-- **Emergency contacts.** If alerts stay unconfirmed, backup contacts get a
-  summary with photos.
+- **Emergency contacts.** After an SOS from a phone, or if alerts stay
+  unconfirmed, contacts get a message, and what you chose for each: the place,
+  photos and sound, events, and the emergency medical data as a link or PDF.
 - **Web dashboard.** Live picture and sound, talk through the
   speaker, image tools, trusted people, device selection, settings,
   statistics and logs; installable as an app with push notifications; login

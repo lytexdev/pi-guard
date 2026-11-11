@@ -18,3 +18,11 @@ input { font: inherit; font-size: 1.6rem; letter-spacing: .3em; width: 9ch; padd
 button { font: inherit; padding: 8px 18px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
 footer { margin-top: 24px; font-size: .85rem; }
 @media print { button, form, footer .noprint { display: none; } body { font-size: 12pt; } }
+.md p, .md ul, .md ol, .md blockquote { margin: 0 0 6px; } .md ul, .md ol { padding-left: 1.3em; }
+.md h3, .md h4, .md h5, .md h6 { font-size: 1rem; margin: 8px 0 2px; }
+.md blockquote { border-left: 3px solid var(--line); padding-left: 10px; color: var(--muted); }
+.md code { font-family: ui-monospace, monospace; font-size: .9em; }
+.alert .md p { white-space: normal; }
+.meds { list-style: none; padding: 0; margin: 0; } .meds li { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.meds li:last-child { border-bottom: 0; } .meds .dose { font-family: ui-monospace, monospace; font-weight: 700; }
+.meds small { color: var(--muted); }

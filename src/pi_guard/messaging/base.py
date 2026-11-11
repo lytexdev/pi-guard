@@ -24,6 +24,7 @@ class Reply:
     photo: Path | None = None
     video: Path | None = None
     audio: Path | None = None
+    document: Path | None = None  # a file such as a PDF, sent as it is
     buttons: tuple[tuple[Button, ...], ...] = ()
     # The user's next plain-text answer is handed to this command, e.g. a name
     # after "What is the person's name?".
@@ -33,7 +34,7 @@ class Reply:
 
     @property
     def media(self) -> Path | None:
-        return self.photo or self.video or self.audio
+        return self.photo or self.video or self.audio or self.document
 
 
 AttachmentKind = Literal["audio", "photo", "video"]

@@ -8,6 +8,16 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Emergency contacts in the dashboard (*Settings → Emergency*): name, relation, phone, email, a linked account, several
+  ways to reach them (Telegram, Signal, Discord, WhatsApp, email), and for an SOS and for unanswered alarms what each
+  gets: place, photos and sound from the phone, pictures from the Pi, latest events, sound from home, emergency medical
+  data as a rescue link with PIN or as a PDF. A test message checks each contact. The old settings keep working.
+- Emergency data: medicines as lines of the federal medication plan (BMP) with doses, prescribed or self-medication
+  and regular or as needed; a section for over-the-counter products and supplements; organ donation as a choice;
+  Markdown in the text fields; phone, email and a linked dashboard account. Read a BMP text from a scanner app, give the
+  medicines back as BMP text, save the sheet as PDF or picture, and send it to an emergency contact.
+- Messages can carry a file (PDF) on Telegram, Signal, Discord, WhatsApp and email.
+
 - Quick actions in the phone app, in the app bar and on the app icon: all fine, call home, away, at home, alarm on and
   off, SOS. Admins only; the icon shortcuts ask for the app lock and are hidden while the app is disguised.
 - *Learn at the camera*: 20 seconds in front of a camera, and the Pi keeps up to eight clear, different views of an

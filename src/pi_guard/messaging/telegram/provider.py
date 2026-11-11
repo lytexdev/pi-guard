@@ -277,6 +277,11 @@ class TelegramProvider:
                     await bot.send_audio(
                         chat, fh, caption=caption, reply_markup=markup, write_timeout=UPLOAD_TIMEOUT
                     )
+            elif reply.document:
+                with reply.document.open("rb") as fh:
+                    await bot.send_document(chat, fh, caption=caption, reply_markup=markup,
+                                            filename=reply.document.name,
+                                            write_timeout=UPLOAD_TIMEOUT)  # fmt: skip
             else:
                 await bot.send_message(chat, text, reply_markup=markup)
         except Forbidden as exc:

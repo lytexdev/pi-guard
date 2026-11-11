@@ -207,8 +207,25 @@ this is counted by pi-guard and leaves out speech; your provider's bill is what 
 ## Emergency data
 
 Medical information of the people at home, for when help comes: blood type, allergies, illnesses and diagnoses,
-medicines and the medication plan, implants such as a pacemaker, organ donor card, people to call, doctor and health
-insurance. All but the name are optional.
+medicines and the medication plan, over-the-counter products and supplements, implants such as a pacemaker, organ
+donation, people to call, doctor and health insurance, and the person's phone and email. All but the name are optional.
+
+- **Medicines** are lines as on the German federal medication plan (*Bundeseinheitlicher Medikationsplan*, BMP):
+  name, strength, active ingredient, form, doses morning-noon-evening-night or a free schedule, unit, reason and a
+  note, regular or as needed, and whether a doctor prescribed it or the person takes it on their own. Products bought
+  without prescription (vitamins, minerals, herbal products) have a section of their own.
+- **Read medication plan (BMP):** scan the Data Matrix code of a printed plan with a scanner app and paste the text,
+  or choose the file. The medicines fill the form; nothing is saved before *Save*. *BMP* gives the medicines back as
+  such a text. Drawing the Data Matrix code itself is not done. This follows the published structure of the plan;
+  plans from a real practice or pharmacy have not been tried yet.
+- **Organ donation** is a choice (yes, no, only some organs, all but some, a person decides, not decided) with a note.
+- **Markdown** works in the text fields: `**bold**`, `*italic*`, lists with `-`, headings with `#`. *Preview* shows it;
+  the rescuer's page and the PDF show it too.
+- **Dashboard account:** a person can be linked to one account. An SOS from that account's phone then sends the
+  emergency contacts that person's data, if they are set to get them. Removing the account ends the link.
+- **PDF, picture, send:** an open sheet can be saved as a PDF (A4, to print), as a picture (PNG, drawn in the browser,
+  to share from the phone) and sent to an emergency contact. Within one open sheet the password typed to open it is
+  used for these and forgotten when the sheet closes.
 
 Health data are a special category under Art. 9 GDPR, so:
 
@@ -218,7 +235,10 @@ Health data are a special category under Art. 9 GDPR, so:
 - Only admins see, change or share them, and each time with their password. Viewers never see them.
 - Every look, change, link, opened link and wrong PIN goes into the audit log, with the record's number, never its
   content.
-- Nothing of it goes into chats, push messages or MQTT. It is part of the data export.
+- Nothing of it goes into push messages or MQTT. It reaches a chat only when an admin sends it to an emergency contact,
+  or an SOS does for a contact set to get it: as a rescue link valid an hour with its PIN in a second message, or as
+  the PDF if the owner chose that for this contact (the chat service then keeps the file). It is part of the data
+  export.
 
 **Rescue link:** *Rescue link* makes a link to one person's sheet, valid for 15, 30 or 60 minutes, read only. By
 default it also asks for a six-digit PIN: tell it by phone, not in the same message as the link. Five wrong PINs end

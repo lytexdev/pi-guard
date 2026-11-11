@@ -309,6 +309,11 @@ export async function render(main, params = []) {
       if (expertMode()) extra.append(await messengerTests());
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
+    if (current === "emergency") {  // the contacts first: the fields below are the old way
+      const contacts = h("div");
+      body.before(contacts);
+      await (await import("./contacts.js")).contactsPanel(contacts);
+    }
     if (current === "backup") await backupPanel(extra);
     if (current === "audio") await voicePanel(extra);
     if (current === "general") {

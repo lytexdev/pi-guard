@@ -40,8 +40,9 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   *Warum die Erkennung klappt oder nicht* zeigt in Zahlen, was sie bremst.
 - **Alarm:** Alarmton (auch einen eigenen) über einen Lautsprecher auslösen
   und wieder stoppen.
-- **Notfallkontakte:** Bleiben Meldungen unbestätigt, bekommen eingetragene
-  Ersatzkontakte eine Zusammenfassung mit Fotos.
+- **Notfallkontakte:** Nach einem SOS vom Handy oder wenn Meldungen
+  unbestätigt bleiben, bekommen Kontakte eine Nachricht und, was du für jeden
+  wählst: Standort, Fotos und Ton, Ereignisse und die Notfalldaten als Link oder PDF.
 - **Web-Dashboard (optional):** Live-Bild und -Ton, Sprechen über den
   Lautsprecher, Bildwerkzeuge, vertraute Personen, Geräteauswahl,
   Einstellungen, Statistik und Logs; als App installierbar mit

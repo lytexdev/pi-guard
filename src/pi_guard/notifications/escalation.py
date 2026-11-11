@@ -4,7 +4,8 @@ Every alert about movement or people that was actually sent is "open" until a
 user acknowledges it ("Everything is fine", "I am at home", or the dashboard).
 When at least `emergency_after_alerts` alerts are open and the oldest has been
 open for `emergency_after_minutes`, the emergency contacts get one message with
-a summary and the latest photos, and the owners are told that this happened.
+a summary, and the latest events and photos if they are set to get them (see
+notifications/contacts.py), and the owners are told that this happened.
 Further open alerts are added to the same escalation instead of repeating it.
 """
 
@@ -22,6 +23,7 @@ from pi_guard.core.permissions import Role
 from pi_guard.core.timeutil import utcnow
 from pi_guard.i18n import format_time, t
 from pi_guard.messaging.base import Reply
+from pi_guard.notifications.contacts import Contacts
 
 if TYPE_CHECKING:
     from pi_guard.app import App
@@ -56,20 +58,16 @@ class Escalation:
         self._db = app.db
         self._db.executescript(_SCHEMA)
         s = app.settings
-        self.contacts = (
-            [("telegram", str(uid)) for uid in s.emergency_telegram_user_ids]
-            + [("signal", number) for number in s.emergency_signal_numbers]
-            + [("discord", uid) for uid in s.emergency_discord_user_ids]
-        )
+        self.contacts = Contacts(app.db, s)
         self.after_alerts = s.emergency_after_alerts
         self.after = timedelta(minutes=s.emergency_after_minutes)
 
     @property
     def enabled(self) -> bool:
-        return bool(self.contacts)
+        return bool(self.contacts.recipients("escalation"))
 
     def is_contact(self, provider: str, user_id: str) -> bool:
-        return (provider, user_id) in self.contacts
+        return (provider, user_id) in self.contacts.channels()
 
     def record(self, event: Event, snapshot: Path | None) -> None:
         if event.type not in ALERT_TYPES:
@@ -120,7 +118,7 @@ class Escalation:
         app = self._app
         lang = app.settings.language
         names = {cid: p.camera.name for cid, p in app.cameras.items()}
-        lines = [
+        head = [
             t("emergency.title", lang),
             "",
             t(
@@ -130,24 +128,29 @@ class Escalation:
                 since=format_time(alerts[0].ts, app.settings.tz, lang, with_date=True),
             ),
         ]
+        events = []
         for alert in alerts[-10:]:
             where = names.get(alert.camera or "", alert.camera or "")
-            lines.append(f"• {format_time(alert.ts, app.settings.tz, lang)} "
-                         f"{t(f'event.{alert.type}', lang)} – {where}")  # fmt: skip
-        lines += ["", t("emergency.what_to_do", lang)]
-        text = "\n".join(lines)
+            events.append(f"• {format_time(alert.ts, app.settings.tz, lang)} "
+                          f"{t(f'event.{alert.type}', lang)} – {where}")  # fmt: skip
+        tail = ["", t("emergency.what_to_do", lang)]
         photos = [app.media_dir / "snapshots" / a.snapshot for a in alerts if a.snapshot]
         photos = [p for p in photos if p.is_file()][-PHOTOS:]
         sent = 0
-        for provider, chat in self.contacts:
+        reached: set[int] = set()
+        for provider, chat, contact in self.contacts.recipients("escalation"):
             if provider not in app.providers:
                 continue
+            lines = head + (events if contact.gets("escalation", "events") else []) + tail
             try:
-                await app.messenger.send(provider, chat, Reply(text))
-                for photo in photos:
-                    caption = t("emergency.photo", lang)
-                    await app.messenger.send(provider, chat, Reply(caption, photo=photo))
-                sent += 1
+                await app.messenger.send(provider, chat, Reply("\n".join(lines)))
+                if contact.gets("escalation", "pi_photo"):
+                    for photo in photos:
+                        caption = t("emergency.photo", lang)
+                        await app.messenger.send(provider, chat, Reply(caption, photo=photo))
+                if contact.id not in reached:
+                    reached.add(contact.id)
+                    sent += 1
             except Exception as exc:
                 log.warning("emergency contact via %s unreachable: %s", provider, exc)
         ids = ",".join(str(a.id) for a in alerts)

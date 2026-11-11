@@ -108,10 +108,13 @@ class WhatsAppProvider:
         text = render(reply)[:TEXT_LIMIT]
         async with httpx.AsyncClient(timeout=TIMEOUT) as client:
             if reply.media is not None:
-                kind = "image" if reply.photo else "video" if reply.video else "audio"
+                kind = ("image" if reply.photo else "video" if reply.video
+                        else "audio" if reply.audio else "document")  # fmt: skip
                 media: dict[str, Any] = {"id": await self._upload(client, reply)}
                 if kind != "audio":
                     media["caption"] = text[:1000]
+                if kind == "document":
+                    media["filename"] = reply.media.name
                 response = await self._post(client, {"to": chat_id, "type": kind, kind: media})
                 if kind != "audio" or not text:
                     self._check(response)
