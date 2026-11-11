@@ -530,6 +530,10 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .phone-map .pin { position: absolute; width: 14px; height: 14px; margin: -7px; border-radius: 50%; background: var(--danger); border: 2px solid #fff; }
 .phone-map small { position: absolute; right: 4px; bottom: 2px; background: rgba(255, 255, 255, .8); color: #111; padding: 0 4px; }
 .phone-card { flex-wrap: wrap; }
+.phone-card > .grow { flex: 1 1 14rem; min-width: 12rem; }
+.phone-card > .phone-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.phone-card > .phone-place { flex-basis: 100%; }
+.phone-card > .phone-place:empty { display: none; }
 
 /* Tables turn into stacked rows on a phone: nothing to scroll sideways. */
 @media (max-width: 600px) {
@@ -672,3 +676,12 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 .addon-why .icon { flex: none; width: 16px; height: 16px; margin-top: 2px; }
 .addon-head > .grow { flex: 1; min-width: 0; }
 .big-pin { font-size: 1.6rem; letter-spacing: .25em; }
+.pre-line { white-space: pre-line; }
+.list > li.history-row { display: flex; flex-direction: column; align-items: stretch; gap: .25rem; }
+.history-row > small { display: block; }
+.nav .voice-badge { color: var(--warn); }
+.skip-link { position: fixed; left: 8px; top: -60px; z-index: 100; }
+.skip-link:focus { top: 8px; }
+main:focus { outline: none; }
+@keyframes a11y-glow { 0%, 100% { box-shadow: inset 0 0 0 0 transparent; } 50% { box-shadow: inset 0 0 0 12px var(--danger); } }
+html.a11y-alert body { animation: a11y-glow 1.4s ease-in-out 3; }

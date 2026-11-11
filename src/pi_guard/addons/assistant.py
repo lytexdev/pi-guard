@@ -317,6 +317,14 @@ class Assistant:
         self._count(read, wrote)
         return text, used
 
+    async def complete_checked(self, system: str, question: str) -> tuple[str, int]:
+        """One answer for another part of pi-guard, inside the same key and daily limit."""
+        if not self.ready:
+            raise AssistantError("assistant.no_key")
+        if self.tokens_today >= self.settings.daily_token_limit:
+            raise AssistantError("assistant.limit_reached")
+        return await self._complete(system, [{"role": "user", "content": question}])
+
     def _local(self, lowered: str, lang: str) -> Answer | None:
         now = utcnow().astimezone(self._tz)
         if _TIME_RE.match(lowered):

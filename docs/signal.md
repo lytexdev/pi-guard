@@ -63,6 +63,12 @@ While signal-cli is not running, pi-guard logs this once and keeps trying.
 
 ## Configure pi-guard
 
+**Alerts only, by default.** With `PI_GUARD_SIGNAL_COMMANDS=false` (the default; *Accept commands over Signal* in the
+settings) pi-guard only sends alerts over Signal and reads no message at all: nobody gets an answer, also not you, and
+nothing is processed or logged. That is right when Signal is linked to your own, private number. Switch it on only for
+a number that belongs to pi-guard alone; then the admins in `PI_GUARD_SIGNAL_ADMIN_NUMBERS` can send commands, and
+people who are not set up still get no answer.
+
 ```dotenv
 PI_GUARD_SIGNAL_ENABLED=true
 PI_GUARD_SIGNAL_PHONE_NUMBER=+4915100000000

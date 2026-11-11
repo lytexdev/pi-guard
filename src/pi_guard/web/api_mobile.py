@@ -20,7 +20,7 @@ import httpx
 from aiohttp import WSMsgType, web
 
 from pi_guard import __version__
-from pi_guard.addons.mobile import MobileHub, map_link
+from pi_guard.addons.mobile import EMERGENCY_MINUTES, LOST_EVERY, MobileHub, map_link
 from pi_guard.cameras.pipeline import SnapshotUnavailableError
 from pi_guard.core.permissions import Role, User
 from pi_guard.core.schedule import CALENDAR_KEY, clean_calendar
@@ -31,7 +31,14 @@ from pi_guard.network.wgpeers import PeerError
 from pi_guard.network.wireguard import read_status, status_file
 from pi_guard.security.files import atomic_write
 from pi_guard.web.api_network import _config, _server, _store, quantum_public_key
-from pi_guard.web.server import COOKIE, current, dashboard, read_body, read_json
+from pi_guard.web.server import (
+    COOKIE,
+    confirm_password,
+    current,
+    dashboard,
+    read_body,
+    read_json,
+)
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +51,10 @@ USER_AGENT = f"pi-guard/{__version__} (+https://github.com/lytexdev/pi-guard)"
 EMERGENCY_PHOTO_SECONDS = 4
 MAX_EMERGENCY_PHOTOS = 4
 MAX_APK = 200_000_000
+MAX_SOS_MEDIA = 8_000_000  # a photo or a minute of sound from the phone
+MAX_SOS_FILES = 6  # per emergency, so the endpoint cannot become a free upload
+HOME_CLIP_SECONDS = 20
+_tasks: set[asyncio.Task[None]] = set()
 APP_DIR = "apps/android"
 _tiles: dict[tuple[int, int, int], bytes] = {}
 
@@ -58,6 +69,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/mobile/action", alert_action),
         web.post("/api/mobile/crash", crash_report),
         web.post("/api/mobile/emergency", emergency),
+        web.post("/api/mobile/emergency/media", emergency_media),
+        web.post("/api/mobile/emergency/end", emergency_end),
         web.post("/api/mobile/calendar", calendar),
         web.post("/api/mobile/vpn", vpn),
         web.post("/api/mobile/vpn/pq", vpn_quantum),
@@ -71,6 +84,9 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/mobile/devices/{id:\\d+}/find", device_find),
         web.post("/api/mobile/devices/{id:\\d+}/stop", device_stop),
         web.post("/api/mobile/devices/{id:\\d+}/locate", device_locate),
+        web.post("/api/mobile/devices/{id:\\d+}/lost", device_lost),
+        web.post("/api/mobile/devices/{id:\\d+}/found", device_found),
+        web.get("/api/mobile/devices/{id:\\d+}/track", device_track),
     ]
 
 
@@ -157,6 +173,8 @@ async def device_socket(request: web.Request) -> web.WebSocketResponse:
     socket = web.WebSocketResponse(heartbeat=45, max_msg_size=MAX_MESSAGE)
     await socket.prepare(request)
     hub.attach(device["id"], socket.send_str)
+    with contextlib.suppress(ProviderUnavailableError, ConnectionResetError):
+        await _tell_state(hub, device["id"])
     try:
         async for message in socket:
             if message.type is not WSMsgType.TEXT:
@@ -184,7 +202,8 @@ async def crash_report(request: web.Request) -> web.Response:
 
 
 async def alert_action(request: web.Request) -> web.Response:
-    """A button in an alert on the phone: everything is fine, or sound the alarm. Admins only."""
+    """A button in an alert or a quick action of the app: everything is fine, the alarm on or
+    off, home or away. Admins only."""
     from pi_guard.notifications import actions
 
     d = dashboard(request)
@@ -192,10 +211,10 @@ async def alert_action(request: web.Request) -> web.Response:
     if d.auth.role_of(device["username"]) != "admin":
         raise web.HTTPForbidden(text="auth.admin_only")
     action = str((await read_json(request)).get("action", ""))
-    if action not in actions.ACTIONS:
+    if action not in actions.QUICK:
         raise web.HTTPBadRequest(text="web.unknown_action")
     try:
-        result = actions.run(d.app, f"phone:{device['id']}", action)
+        result = await actions.quick(d.app, f"phone:{device['id']}", action)
     except actions.ActionError as exc:
         raise web.HTTPConflict(text=exc.key) from None
     return web.json_response(result)
@@ -213,6 +232,8 @@ async def emergency(request: web.Request) -> web.Response:
     app = d.app
     device = _device(request)
     hub = _hub(request)
+    if not hub.lost(device["id"]):
+        hub.start(device["id"], "emergency")  # first, so the place of the SOS is in its track
     info = hub.report(device["id"], await read_json(request))
     lang = app.settings.language
     mode = t(f"mode.{app.modes.effective.value.lower()}", lang)
@@ -236,7 +257,136 @@ async def emergency(request: web.Request) -> web.Response:
             reached += 1
     await app.messenger.notify_admins(text, photos, tone="alert")
     app.db.audit(f"mobile:{device['id']}", "mobile.emergency", str(reached))
+    if app.settings.mobile_sos_home_audio:
+        _background(_home_clip(d, device["name"]))
+    return web.json_response({"contacts": reached, "track_minutes": EMERGENCY_MINUTES})
+
+
+def _background(job: Any) -> None:
+    task = asyncio.create_task(job)
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
+
+
+async def _tell_state(hub: MobileHub, device_id: int) -> None:
+    """A phone that comes online learns that it is lost, or still in an emergency."""
+    lost = hub.lost(device_id)
+    if lost:
+        await hub.send(device_id, type="lost", message=lost.get("message", ""), every=LOST_EVERY)
+    elif hub.tracking(device_id):
+        await hub.send(device_id, type="emergency", every=LOST_EVERY)
+
+
+async def _to_everyone(app: Any, text: str, photo: Path | None = None,
+                       audio: Path | None = None) -> int:  # fmt: skip
+    """Escalation contacts and admins, with the words even if the file fails."""
+    reached = 0
+    for provider, chat in app.escalation.contacts:
+        if provider not in app.providers:
+            continue
+        try:
+            reply = Reply(text, photo=photo, audio=audio, tone="alert")
+            await app.messenger.send(provider, chat, reply)
+            reached += 1
+        except (ProviderUnavailableError, RuntimeError, OSError):
+            log.warning("emergency message via %s failed", provider)
+    await app.messenger.notify_admins(text, [photo] if photo else [], tone="alert", audio=audio)
+    return reached
+
+
+def _sniff_media(kind: str, body: bytes) -> str | None:
+    """The suffix, if the bytes are what the phone says they are."""
+    if kind == "photo" and body[:3] == b"\xff\xd8\xff":
+        return ".jpg"
+    if kind == "audio" and body[4:8] == b"ftyp":
+        return ".m4a"
+    return None
+
+
+async def emergency_media(request: web.Request) -> web.Response:
+    """A photo or sound clip taken by the phone after its SOS. Only during an emergency or
+    while the phone is lost, and only a few, so it cannot become a free upload."""
+    d = dashboard(request)
+    device = _device(request)
+    hub = _hub(request)
+    if not hub.tracking(device["id"]):
+        raise web.HTTPConflict(text="web.mobile_no_emergency")
+    if not hub.count_file(device["id"], MAX_SOS_FILES):
+        raise web.HTTPTooManyRequests(text="web.mobile_too_many_files")
+    kind = request.query.get("kind", "")
+    body = await read_body(request, MAX_SOS_MEDIA)
+    suffix = _sniff_media(kind, body)
+    if suffix is None:
+        raise web.HTTPBadRequest(text="web.mobile_bad_media")
+    lang = d.app.settings.language
+    text = t(f"mobile.sos_{kind}", lang, name=device["name"])
+    with tempfile.TemporaryDirectory(prefix="pg-sos-") as folder:
+        path = Path(folder) / f"sos-{device['id']}{suffix}"
+        path.write_bytes(body)
+        reached = await _to_everyone(d.app, text, photo=path if kind == "photo" else None,
+                                     audio=path if kind == "audio" else None)  # fmt: skip
+    d.app.db.audit(f"mobile:{device['id']}", f"mobile.sos_{kind}", str(reached))
     return web.json_response({"contacts": reached})
+
+
+async def emergency_end(request: web.Request) -> web.Response:
+    """The person is safe. Ends the emergency, not a lost phone: a thief could do that."""
+    d = dashboard(request)
+    device = _device(request)
+    hub = _hub(request)
+    if hub.lost(device["id"]) or not hub.tracking(device["id"]):
+        raise web.HTTPConflict(text="web.mobile_no_emergency")
+    hub.stop(device["id"])
+    await _to_everyone(d.app, t("mobile.sos_ended", d.app.settings.language, name=device["name"]))
+    d.app.db.audit(f"mobile:{device['id']}", "mobile.sos_ended")
+    return web.json_response({"ok": True})
+
+
+async def _home_clip(d: Any, name: str) -> None:
+    """What the Pi's microphone hears, for the contacts. Off unless the owner switched it on,
+    and with the same chime as listening live, so nobody at home is recorded unknowingly."""
+    from pi_guard.audio.service import AudioError
+    from pi_guard.web.api_live import MicrophoneStream
+
+    app = d.app
+    audio = app.audio
+    if audio is None or not audio.recording_enabled:
+        return
+    pipeline = next((p for p in app.cameras.values()
+                     if p.microphone and p.segment_dir and p.live_fps > 0), None)  # fmt: skip
+    standalone: MicrophoneStream | None = None
+    if pipeline is not None:
+        queue = pipeline.live_audio.subscribe()
+    elif audio.settings.microphone:
+        device = audio.settings.microphone
+        standalone = d.microphones.setdefault(device, MicrophoneStream(device))
+        queue = await standalone.subscribe()
+    else:
+        return
+    chime = audio.sounds.path("chime")
+    if audio.playback_enabled and chime:
+        with contextlib.suppress(AudioError):
+            await audio.play(chime, ignore_quiet_hours=True)
+    sound = bytearray()
+    try:
+        async with asyncio.timeout(HOME_CLIP_SECONDS):
+            while True:
+                sound += await queue.get()
+    except TimeoutError:
+        pass
+    finally:
+        if standalone is not None:
+            await standalone.unsubscribe(queue)
+        elif pipeline is not None:
+            pipeline.live_audio.unsubscribe(queue)
+    if not sound:
+        return
+    app.db.audit("mobile", "mobile.sos_home_audio")
+    with tempfile.TemporaryDirectory(prefix="pg-sos-") as folder:
+        path = Path(folder) / "home.mp3"
+        path.write_bytes(bytes(sound))
+        await _to_everyone(app, t("mobile.sos_home_audio", app.settings.language, name=name),
+                           audio=path)  # fmt: skip
 
 
 async def _current_pictures(app: Any) -> list[Path]:
@@ -447,7 +597,9 @@ async def app_upload(request: web.Request) -> web.Response:
 async def devices(request: web.Request) -> web.Response:
     hub = _hub(request)
     provider = dashboard(request).settings.map_provider
-    rows = [{**d, "map": map_link(d["info"], provider)} for d in hub.list()]
+    states = hub.states()
+    rows = [{**d, "map": map_link(d["info"], provider), "tracking": states.get(str(d["id"]))}
+            for d in hub.list()]  # fmt: skip
     meta = _apk_dir(request) / "latest.json"
     latest = json.loads(meta.read_text()) if meta.is_file() else None
     return web.json_response({"devices": rows, "app": latest})
@@ -520,6 +672,49 @@ async def device_locate(request: web.Request) -> web.Response:
         raise web.HTTPConflict(text="web.mobile_offline") from None
     d.app.db.audit(f"web:{current(request).username}", "mobile.locate", str(device_id))
     return web.json_response({"ok": True})
+
+
+def _known(request: web.Request) -> int:
+    device_id = int(request.match_info["id"])
+    if _hub(request).get(device_id) is None:
+        raise web.HTTPNotFound()
+    return device_id
+
+
+async def device_lost(request: web.Request) -> web.Response:
+    """The phone reports its place every minute until it is found. The phone says so on its
+    screen. Needs the password: the track outlives the session."""
+    d = dashboard(request)
+    device_id = _known(request)
+    data = await read_json(request)
+    confirm_password(request, str(data.get("password", "")))
+    message = " ".join(str(data.get("message", "")).split())[:200]
+    hub = _hub(request)
+    hub.start(device_id, "lost", message, current(request).username)
+    with contextlib.suppress(ProviderUnavailableError):
+        await _tell_state(hub, device_id)
+    d.app.db.audit(f"web:{current(request).username}", "mobile.lost", str(device_id))
+    return web.json_response({"ok": True})
+
+
+async def device_found(request: web.Request) -> web.Response:
+    """Ends a lost phone or an emergency, and deletes its track."""
+    d = dashboard(request)
+    device_id = _known(request)
+    hub = _hub(request)
+    hub.stop(device_id)
+    with contextlib.suppress(ProviderUnavailableError):
+        await hub.send(device_id, type="found")
+    d.app.db.audit(f"web:{current(request).username}", "mobile.found", str(device_id))
+    return web.json_response({"ok": True})
+
+
+async def device_track(request: web.Request) -> web.Response:
+    device_id = _known(request)
+    hub = _hub(request)
+    provider = dashboard(request).settings.map_provider
+    track = [{**p, "map": map_link(p, provider)} for p in hub.track(device_id)]
+    return web.json_response({"state": hub.states().get(str(device_id)), "track": track})
 
 
 async def device_stop(request: web.Request) -> web.Response:

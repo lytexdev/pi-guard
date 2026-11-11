@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from pi_guard.app import App
 
 ACTIONS = ("ack", "alarm")
+# Quick actions of the phone app: more than a notification button may do, so not for push.
+QUICK = (*ACTIONS, "alarm_stop", "home", "away")
 ALARM_SECONDS = 30  # as the alarm button in the dashboard
 
 
@@ -37,4 +39,20 @@ def run(app: App, actor: str, action: str) -> dict[str, int | bool]:
             raise ActionError(exc.key) from None
         app.db.audit(actor, "alarm.start")
         return {"alarm": True}
+    raise ActionError("web.unknown_action")
+
+
+async def quick(app: App, actor: str, action: str) -> dict[str, int | bool | str]:
+    """A quick action from the phone app, by an admin."""
+    from pi_guard.core.modes import Mode
+
+    if action in ACTIONS:
+        return dict(run(app, actor, action))
+    if action == "alarm_stop":
+        stopped = await app.audio.stop_alarm() if app.audio is not None else False
+        app.db.audit(actor, "alarm.stop")
+        return {"stopped": stopped}
+    if action in ("home", "away"):
+        app.modes.set_manual(Mode(action.upper()), actor=actor)
+        return {"mode": action.upper()}
     raise ActionError("web.unknown_action")

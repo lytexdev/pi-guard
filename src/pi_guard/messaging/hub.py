@@ -69,6 +69,9 @@ class Messenger:
     async def _handle(self, msg: Incoming) -> None:
         app = self._app
         sender = f"{msg.provider}:{msg.sender_id}"
+        if msg.provider == "signal" and not app.settings.signal_commands:
+            # Alerts only: often the owner's own number, so whatever people write stays unread.
+            return
         if msg.is_group and not self._group_allowed(msg):
             return
         user = app.users.get(msg.provider, msg.sender_id)
@@ -289,15 +292,15 @@ class Messenger:
         return False
 
     async def notify_admins(
-        self, text: str, photos: Sequence[Path] = (), tone: str = "info"
+        self, text: str, photos: Sequence[Path] = (), tone: str = "info", audio: Path | None = None
     ) -> None:
         for user in self._app.users.all():
             if user.role is not Role.ADMIN or user.provider not in self._app.providers:
                 continue
             first = photos[0] if photos else None
-            reply = Reply(text, photo=first, tone=tone)
+            reply = Reply(text, photo=first, audio=None if first else audio, tone=tone)
             sent = await self._send_safely(user.provider, user.user_id, reply)
-            if not sent and first is not None:  # the words must arrive even if the picture fails
+            if not sent and (first or audio):  # the words must arrive even if the file fails
                 await self._send_safely(user.provider, user.user_id, Reply(text, tone=tone))
             for photo in photos[1:] if sent else ():
                 await self._send_safely(

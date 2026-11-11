@@ -10,7 +10,7 @@ import re
 import shutil
 import tempfile
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, get_args
 
@@ -28,6 +28,7 @@ from pi_guard.config import OVERRIDE_ENV, OVERRIDE_YAML, read_overrides
 from pi_guard.config.files import EventName, FileConfig
 from pi_guard.config.settings import Settings
 from pi_guard.core.permissions import Role
+from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.enrollment import EnrollmentSession, video_frames
 from pi_guard.detection.faces import EnrollmentError, FaceRecognizer
 from pi_guard.diagnostics.contribution import record_correction
@@ -54,6 +55,11 @@ def routes() -> list[web.RouteDef]:
     return [
         web.get("/api/settings", get_settings),
         web.put("/api/settings", put_settings),
+        web.get("/api/settings/history", settings_history),
+        web.post("/api/settings/ask", settings_ask),
+        web.get("/api/voice", voice_status),
+        web.post("/api/voice/listen", voice_listen),
+        web.post("/api/settings/history/{id:\\d+}/revert", settings_revert),
         web.get("/api/config", get_config),
         web.put("/api/config", put_config),
         web.get("/api/notifications", notification_rules),
@@ -63,6 +69,9 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/people", people),
         web.post("/api/people/{name}/samples", add_samples),
         web.post("/api/people/{name}/camera", add_from_camera),
+        web.post("/api/people/{name}/camera/learn", learn_from_camera),
+        web.get("/api/people-diagnosis", recognition_diagnosis),
+        web.put("/api/people-limit", people_limit),
         web.post("/api/people-test", test_recognition),
         web.get("/api/events/{id:\\d+}/faces", event_faces),
         web.post("/api/events/{id:\\d+}/faces/{index:\\d+}", learn_from_event),
@@ -130,17 +139,22 @@ def _plain(value: Any) -> Any:
     return value.value if hasattr(value, "value") else value
 
 
+SOURCES = ("dashboard", "assistant")
+
+
 async def put_settings(request: web.Request) -> web.Response:
     d = dashboard(request)
     data = await read_json(request)
-    await apply_settings(d, data, _actor(request))
+    source = request.query.get("source", "dashboard")
+    await apply_settings(d, data, _actor(request), source if source in SOURCES else "dashboard")
     return web.json_response({"ok": True, "restart_required": True})
 
 
-async def apply_settings(d: Any, data: dict[str, Any], actor: str) -> None:
+async def apply_settings(
+    d: Any, data: dict[str, Any], actor: str, source: str = "dashboard"
+) -> None:
     """Check and write changes; they take effect at the next start."""
-    current_overrides = read_overrides(d.settings.data_dir)
-    rendered = dict(current_overrides)
+    rendered = dict(read_overrides(d.settings.data_dir))
     try:
         for key, value in data.items():
             field_ = BY_KEY.get(key)
@@ -149,20 +163,117 @@ async def apply_settings(d: Any, data: dict[str, Any], actor: str) -> None:
             if field_.kind == "secret" and not str(value).strip():
                 continue  # empty means: keep the current secret
             rendered[key] = to_env(field_, value)
-        # Validate the complete result before anything is written.
+    except ValueError as exc:
+        raise web.HTTPBadRequest(text=str(exc)[:500]) from None
+    await _write_overrides(d, rendered, actor, source)
+
+
+HISTORY_SCHEMA = """CREATE TABLE IF NOT EXISTS settings_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, actor TEXT NOT NULL,
+    source TEXT NOT NULL, changes TEXT NOT NULL)"""
+HISTORY_KEEP = 200
+
+
+async def _write_overrides(d: Any, rendered: dict[str, str], actor: str, source: str) -> None:
+    """Validate the whole result, write it, and keep what it replaced so it can be undone."""
+    before = read_overrides(d.settings.data_dir)
+    try:
         Settings(**{**_base_values(d.settings), **rendered})
     except ValidationError as exc:
         # Only messages: the input (possibly a token) is never echoed back.
         text = "; ".join(f"{'.'.join(map(str, e['loc'])) or 'settings'}: {e['msg']}"
                          for e in exc.errors())  # fmt: skip
         raise web.HTTPBadRequest(text=text[:500]) from None
-    except ValueError as exc:
-        raise web.HTTPBadRequest(text=str(exc)[:500]) from None
     lines = ["# Written by the pi-guard dashboard; takes precedence over pi-guard.env."]
     lines += [f"PI_GUARD_{key.upper()}={value}" for key, value in sorted(rendered.items())]
     path = d.settings.data_dir / OVERRIDE_ENV
     await asyncio.to_thread(atomic_write, path, ("\n".join(lines) + "\n").encode())
-    d.app.db.audit(actor, "settings", ",".join(sorted(data)))
+    changed = sorted(k for k in set(before) | set(rendered) if before.get(k) != rendered.get(k))
+    d.app.db.audit(actor, "settings", ",".join(changed))
+    if changed:
+        # Secrets are never kept, not even here: such a change cannot be undone.
+        changes = {k: None if k in SECRETS else [before.get(k), rendered.get(k)] for k in changed}
+        db = d.app.db
+        db.execute(HISTORY_SCHEMA)
+        db.execute("INSERT INTO settings_history (ts, actor, source, changes) VALUES (?, ?, ?, ?)",
+                   (utcnow().isoformat(), actor, source, json.dumps(changes)))  # fmt: skip
+        db.execute(
+            "DELETE FROM settings_history WHERE id <= (SELECT MAX(id) FROM settings_history) - ?",
+            (HISTORY_KEEP,),
+        )
+
+
+async def settings_ask(request: web.Request) -> web.Response:
+    """Explains settings, with the assistant if it runs, and may propose one change."""
+    from pi_guard.addons import settings_help
+    from pi_guard.addons.assistant import AssistantError
+
+    d = dashboard(request)
+    question = str((await read_json(request)).get("question", ""))
+    addons = getattr(d.app, "addons", None)
+    assistant = getattr(addons, "assistant", None)
+    try:
+        found = await settings_help.ask(assistant, d.settings, question, d.settings.language)
+    except AssistantError as exc:
+        raise web.HTTPConflict(text=exc.key) from None
+    if found.proposal:
+        d.app.db.audit(_actor(request), "settings.proposed", found.proposal["key"])
+    return web.json_response({
+        "answer": found.answer, "found": found.found, "proposal": found.proposal,
+        "ai": found.answer is not None,
+    })  # fmt: skip
+
+
+async def voice_status(request: web.Request) -> web.Response:
+    """Whether the Pi listens, so nobody is listened to without seeing it."""
+    voice = dashboard(request).app.voice
+    return web.json_response({"enabled": voice.enabled, **voice.status()})
+
+
+async def voice_listen(request: web.Request) -> web.Response:
+    """Push to talk from the dashboard: the Pi listens for one question."""
+    d = dashboard(request)
+    if not d.app.voice.request("dashboard"):
+        raise web.HTTPConflict(text="voice.not_ready")
+    d.app.db.audit(_actor(request), "voice.listen")
+    return web.json_response({"ok": True})
+
+
+async def settings_history(request: web.Request) -> web.Response:
+    """The last changes, with the value before and after, so one can be undone."""
+    db = dashboard(request).app.db
+    db.execute(HISTORY_SCHEMA)
+    rows = db.execute("SELECT id, ts, actor, source, changes FROM settings_history "
+                      "ORDER BY id DESC LIMIT 50").fetchall()  # fmt: skip
+    return web.json_response([{"id": r[0], "time": r[1], "actor": r[2], "source": r[3],
+                               "changes": json.loads(r[4])} for r in rows])  # fmt: skip
+
+
+async def settings_revert(request: web.Request) -> web.Response:
+    """Puts back what one change replaced. A value missing before is removed again, so the
+    setting from pi-guard.env counts. Secrets stay as they are."""
+    d = dashboard(request)
+    db = d.app.db
+    db.execute(HISTORY_SCHEMA)
+    row = db.execute("SELECT changes FROM settings_history WHERE id = ?",
+                     (int(request.match_info["id"]),)).fetchone()  # fmt: skip
+    if row is None:
+        raise web.HTTPNotFound()
+    rendered = dict(read_overrides(d.settings.data_dir))
+    reverted = 0
+    for key, change in json.loads(row[0]).items():
+        if change is None or key not in BY_KEY:
+            continue
+        old = change[0]
+        if old is None:
+            rendered.pop(key, None)
+        else:
+            rendered[key] = old
+        reverted += 1
+    if not reverted:
+        raise web.HTTPConflict(text="web.set_cannot_undo")
+    await _write_overrides(d, rendered, _actor(request), "revert")
+    return web.json_response({"ok": True, "restart_required": True})
 
 
 def _base_values(settings: Settings) -> dict[str, Any]:
@@ -569,6 +680,145 @@ async def add_from_camera(request: web.Request) -> web.Response:
     app.db.audit(_actor(request), "faces.enroll", f"samples={count}")
     quality = await asyncio.to_thread(faces.quality, name)
     return web.json_response({"stored": 1, "total": count, "quality": quality})
+
+
+LEARN_SECONDS = (5, 30)
+DIAGNOSIS_DAYS = 30
+
+
+async def learn_from_camera(request: web.Request) -> web.Response:
+    """The person stands in front of a camera for some seconds; the Pi keeps the views that
+    differ from what it already knows. Only for people already enrolled, with their consent.
+    Each picture is deleted as soon as its face is measured."""
+    faces = _faces(request)
+    name = _name(request)
+    data = await read_json(request)
+    if data.get("consent") is not True:
+        raise web.HTTPBadRequest(text="consent required")
+    if faces.store.exists(name) is None:
+        raise web.HTTPNotFound(text="faces.learn_not_enrolled")
+    app = dashboard(request).app
+    camera_id = str(data.get("camera") or next(iter(app.cameras), ""))
+    if camera_id not in app.cameras:
+        raise web.HTTPBadRequest(text="unknown camera")
+    try:
+        seconds = min(max(int(data.get("seconds") or 20), LEARN_SECONDS[0]), LEARN_SECONDS[1])
+    except (TypeError, ValueError):
+        raise web.HTTPBadRequest(text="seconds") from None
+    interval = max(1.0, float(app.cameras[camera_id].camera.snapshot_interval_seconds))
+    candidates = []
+    problems: dict[str, int] = {}
+    loop = asyncio.get_running_loop()
+    end = loop.time() + seconds
+    while loop.time() < end:
+        try:
+            photo = await app.take_photo(camera_id, prefix="learn")
+        except SnapshotUnavailableError:
+            raise web.HTTPServiceUnavailable(text="no picture from the camera") from None
+        try:
+            sample, problem = await asyncio.to_thread(faces.camera_sample_from, photo)
+        finally:
+            photo.unlink(missing_ok=True)
+        if sample is not None:
+            candidates.append(sample)
+        elif problem:
+            problems[problem] = problems.get(problem, 0) + 1
+        await asyncio.sleep(interval)
+    try:
+        result = faces.learn_many(name, candidates, _actor(request)) if candidates else None
+    except EnrollmentError as exc:
+        raise web.HTTPUnprocessableEntity(text=exc.key) from None
+    app.db.audit(_actor(request), "faces.learn_camera", f"stored={(result or {}).get('stored', 0)}")
+    quality = await asyncio.to_thread(faces.quality, name)
+    return web.json_response({"result": result, "problems": problems, "seconds": seconds,
+                              "quality": quality})  # fmt: skip
+
+
+async def recognition_diagnosis(request: web.Request) -> web.Response:
+    """Why people are or are not recognised, in numbers: how often a face was seen at all,
+    how large faces are, how close they came to the threshold, and how varied each person's
+    pictures are. No pictures and no names of events."""
+    import json as json_
+
+    d = dashboard(request)
+    faces = _faces(request)
+    since = (utcnow() - timedelta(days=DIAGNOSIS_DAYS)).isoformat()
+    rows = d.app.db.execute(
+        "SELECT type, data FROM events WHERE ts >= ? AND type IN "
+        "('person_detected', 'unknown_person', 'known_person')", (since,)).fetchall()  # fmt: skip
+    sizes: list[float] = []
+    best: list[float] = []
+    with_face = 0
+    known = 0
+    for kind, raw in rows:
+        data = json_.loads(raw or "{}")
+        found = [float(v) for v in data.get("face_px", [])]
+        sizes += found
+        with_face += bool(found)
+        known += kind == "known_person"
+        scores = [float(v) for v in data.get("scores", [])]
+        if scores:
+            best.append(max(scores))
+    sizes.sort()
+
+    def share(values: list[float], below: float) -> float:
+        return round(sum(v < below for v in values) / len(values), 2) if values else 0.0
+
+    from pi_guard.detection.faces import CLEAR_FACE_PX, MIN_FACE_PX
+
+    people = await asyncio.to_thread(_people_variety, faces)
+    s = faces.settings
+    return web.json_response({
+        "days": DIAGNOSIS_DAYS, "person_events": len(rows), "with_face": with_face,
+        "known": known,
+        "face_px": {"median": sizes[len(sizes) // 2] if sizes else None,
+                    "below_recognise": share(sizes, MIN_FACE_PX[1]),
+                    "below_learn": share(sizes, CLEAR_FACE_PX),
+                    "recognise_from": MIN_FACE_PX[1], "learn_from": CLEAR_FACE_PX},
+        "best_score": {"median": sorted(best)[len(best) // 2] if best else None,
+                       "max": max(best) if best else None},
+        "threshold": s.match_threshold + s.uncertain_margin,
+        "max_samples": s.max_samples_per_person,
+        "people": people,
+    })  # fmt: skip
+
+
+async def people_limit(request: web.Request) -> web.Response:
+    """How many pictures each person keeps. Saved for the next start and used at once; a lower
+    limit trims a person's pictures the next time one is added, the most similar first."""
+    d = dashboard(request)
+    faces = _faces(request)
+    value = (await read_json(request)).get("max_samples")
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise web.HTTPBadRequest(text="web.dg_limit_bad")
+    config = saved_config(d)
+    config.setdefault("faces", {})["max_samples_per_person"] = value
+    try:
+        validated = FileConfig.model_validate(config)
+    except ValidationError:
+        raise web.HTTPBadRequest(text="web.dg_limit_bad") from None
+    await write_config(d, validated)
+    faces.settings = faces.settings.model_copy(update={"max_samples_per_person": value})
+    d.app.db.audit(_actor(request), "faces.limit", str(value))
+    return web.json_response({"max_samples": value})
+
+
+def _people_variety(faces: FaceRecognizer) -> list[dict[str, Any]]:
+    from pi_guard.detection.faces import REDUNDANT
+
+    by_person: dict[str, list[Any]] = {}
+    for name, sample in faces._samples():
+        by_person.setdefault(name, []).append(sample)
+    result = []
+    for name, count, _ in faces.store.people():
+        samples = by_person.get(name, [])
+        pairs = sum(float(np.dot(a, b)) >= REDUNDANT
+                    for i, a in enumerate(samples) for b in samples[i + 1:])  # fmt: skip
+        sources = [r.get("source") for r in faces.store.details(name)]
+        result.append({"name": name, "samples": count, "near_copies": int(pairs),
+                       "from_camera": sources.count("camera"),
+                       "full": count >= faces.settings.max_samples_per_person})  # fmt: skip
+    return result
 
 
 async def evidence_list(request: web.Request) -> web.Response:

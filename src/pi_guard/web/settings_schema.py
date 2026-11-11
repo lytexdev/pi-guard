@@ -50,6 +50,9 @@ FIELDS = (
     Field("audio_recording_enabled", "audio", "bool"),
     Field("audio_playback_enabled", "audio", "bool"),
     Field("audio_max_volume", "audio", "int", 0, 100),
+    Field("voice_wake_enabled", "audio", "bool"),
+    Field("voice_wake_phrases", "audio", "list"),
+    Field("voice_button_gpio", "audio", "int", 0, 27),
     Field("telegram_enabled", "messaging", "bool"),
     # Write-only: the dashboard never shows it again; empty keeps the current token.
     Field("telegram_bot_token", "messaging", "secret"),
@@ -61,6 +64,7 @@ FIELDS = (
     Field("discord_admin_user_ids", "discord", "list"),
     Field("discord_viewer_user_ids", "discord", "list"),
     Field("mobile_enabled", "mobile", "bool"),
+    Field("mobile_sos_home_audio", "mobile", "bool"),
     Field("email_enabled", "email", "bool"),
     Field("email_host", "email", "text"),
     Field("email_port", "email", "int", 1, 65535),
@@ -79,6 +83,7 @@ FIELDS = (
     Field("mastodon_instance", "chatapps", "text"),
     Field("mastodon_token", "chatapps", "secret"),
     Field("signal_enabled", "signal", "bool"),
+    Field("signal_commands", "signal", "bool"),
     Field("signal_phone_number", "signal", "text"),
     Field("signal_admin_numbers", "signal", "list"),
     Field("signal_allowed_numbers", "signal", "list"),
@@ -149,7 +154,7 @@ EXPERT = frozenset({
     "whatsapp_app_secret", "whatsapp_verify_token", "whatsapp_alert_template",
     "wireguard_endpoint_v6", "dashboard_auth", "dashboard_public_url",
     "dashboard_trusted_proxies", "support_url", "app_updates_from_github", "webpush_enabled",
-    "dashboard_honeypot",
+    "dashboard_honeypot", "voice_button_gpio",
     "dashboard_ban_minutes",
     "dashboard_rate_limit_per_minute", "pihole_url", "mqtt_host", "mqtt_port",
 })  # fmt: skip
@@ -196,7 +201,11 @@ def to_env(field_: Field, value: Any) -> str:
         return text
     if field_.kind == "list":
         items = value if isinstance(value, list) else str(value).split(",")
-        return ",".join(str(i).strip() for i in items if str(i).strip())
+        rendered = ",".join(str(i).strip() for i in items if str(i).strip())
+        # A line break would start another line in the env file, that is another setting.
+        if any(ord(c) < 32 for c in rendered) or len(rendered) > 2000:
+            raise ValueError(f"{field_.key}: invalid list")
+        return rendered
     text = str(value).strip()
     if "\n" in text or len(text) > 300:
         raise ValueError(f"{field_.key}: invalid text")

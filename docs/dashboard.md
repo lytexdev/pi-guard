@@ -145,7 +145,23 @@ whom it saw in each:
 - **This is not …** on a recognised face notes it as somebody else. From then on, a face more similar to it than to
   that person is *uncertain*, not that person. It is deleted with the person.
 
-Only the numbers of a face are stored, as with any enrollment. Viewers do not see the button.
+- **Learn at the camera** on a person's card: the person stands where people usually pass, looks at the camera and
+  turns the head a little, for 20 seconds. The Pi takes one picture a second and keeps up to eight clear faces that
+  differ from the views it already knows; each picture is deleted as soon as its face is measured. Faces that do not
+  match each other or the person are left out, so somebody else walking by is not learned. Repeat it in other light,
+  for example in the evening. Only for people already enrolled, with their consent.
+
+A person keeps up to `faces.max_samples_per_person` pictures (default 40, set below the numbers on the People page,
+used at once). A picture nearly identical to one already
+stored is left out, and when the limit is reached the most similar one goes, not the oldest: varied views are what
+recognises someone in another angle and light.
+
+**Why recognition works or not** on the People page shows the last 30 days in numbers: moments with a person, how many
+showed a face at all, how large faces were, how close the best one came to the threshold, and per person how many
+pictures come from a camera and how many are near copies. It says what would help most. Often it is the camera:
+recognition needs a face in the picture, roughly facing the camera and at least 36 pixels wide, 56 to learn from it.
+
+Only the numbers of a face are stored, as with any enrollment. Viewers do not see the buttons.
 
 ## Helping the project
 
@@ -211,6 +227,24 @@ WebP up to 1 MB; no SVG, because it can contain scripts) for everyone, also on t
 Theme and text size are chosen per device. No fonts are loaded from the internet: the choices use
 what the device has. The high-contrast theme keeps its own colours.
 
+## Accessibility
+
+The round button at the bottom right opens the accessibility panel on every page, for this browser only: text size,
+letter and line spacing, inverted colours, greyscale, filters for red-green and blue-yellow colour blindness, a large
+cursor, a reading ruler, a magnifier for the text under the pointer, underlined links, fewer animations, reading
+tapped text or the whole page aloud, and a guided tour.
+
+- **For deaf and hard-of-hearing people:** *Show alerts visibly* makes the page glow and the device vibrate for every
+  new alert. It pulses slowly and never flashes fast.
+- **For people who cannot speak:** *Speak* on the Live page says a typed text through the speaker at home.
+- **For blind people:** the dashboard is built for screen readers such as NVDA, JAWS, VoiceOver and TalkBack: controls
+  carry labels, changes are announced, and *Skip to content* is the first thing the keyboard reaches. It has not been
+  tested with each of these readers yet; please report what does not work. With *Read aloud*
+  on, answers of the assistant are read too.
+- **By voice or chat:** in the assistant's chat, typed or spoken: "Schrift größer", "Vorlesen an", "Lupe aus",
+  "Rot-Grün", "Sichtbare Alarme an", "zurücksetzen" (also in English). These are done in the browser and never sent
+  anywhere. Talking to the Pi itself is described in [voice.md](voice.md).
+
 ### The secret key
 
 `PI_GUARD_DASHBOARD_SECRET_KEY` (at least 32 characters) is mixed into the
@@ -267,6 +301,22 @@ in the phone app. Nothing is lost by switching: hidden settings keep their value
 In the expert view, *Messengers* ends with *Test messages*: one test message through each messenger that is set up,
 to every admin there or into the channel of Slack, Matrix, Rocket.Chat or Mastodon. Add-ons that are part of
 pi-guard carry a check mark; hovering, focusing or tapping it says *Verified*.
+
+## Asking about settings, and undoing changes
+
+*Settings → General* starts with *Ask about settings*: "What does motion sensitivity do?" or "Keep recordings for 14
+days". Without the AI assistant it lists the settings that match your words, with their help text and value. With the
+assistant it also explains them and may propose one change, shown as *before → after*. Nothing changes until you tap
+*Change* and confirm.
+
+What the AI gets: labels, help texts and the values of switches, numbers and choices. Never secrets, lists such as
+chat IDs, addresses, or the time zone. Settings about login, dashboard access, VPN, updates and the assistant itself
+are explained but never proposed. A proposal passes the same checks as the form.
+
+*Recent changes* lists every change, from the form, the assistant or an undo, with who made it and the value before and
+after. *Undo* puts the earlier values back; a value that was not set before is removed again, so `pi-guard.env` counts.
+Changed secrets are marked but never kept, so they cannot be undone. The last 200 changes are kept. Like every
+setting, a change takes effect after a restart.
 
 ## Where notifications go
 

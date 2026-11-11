@@ -896,3 +896,78 @@ async def test_the_live_marks_need_yolox_and_are_cached(web, monkeypatch) -> Non
     monkeypatch.setattr(app, "person_locator", lambda: None)
     api_live._overlay.clear()
     assert (await client.get("/api/live/living_room/overlay?objects=1")).status == 409
+
+
+async def test_learning_at_the_camera_keeps_no_picture(web, monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from types import SimpleNamespace
+
+    from pi_guard.web import api_manage
+
+    client, app = web
+    headers = {"X-CSRF-Token": await _login(client)}
+    taken: list[Path] = []
+    learned: list[int] = []
+
+    class Faces:
+        settings = SimpleNamespace(max_samples_per_person=40, match_threshold=0.4,
+                                   uncertain_margin=0.06)  # fmt: skip
+        store = SimpleNamespace(exists=lambda name: "Lena" if name.casefold() == "lena" else None,
+                                people=lambda: [("Lena", 3, "2026-11-01")],
+                                details=lambda name: [{"source": "camera"}] * 3)  # fmt: skip
+
+        def camera_sample_from(self, photo: Path) -> tuple[Any, Any]:
+            assert photo.exists()
+            return ("sample", None)
+
+        def learn_many(self, name: str, candidates: list[Any], actor: str) -> dict[str, Any]:
+            learned.append(len(candidates))
+            return {"seen": len(candidates), "stored": 1, "total": 4, "similar": 0}
+
+        def quality(self, name: str) -> dict[str, Any]:
+            return {"score": 60, "level": "ok", "views": {}, "tips": []}
+
+        def _samples(self) -> list[Any]:
+            return []
+
+    async def photo(camera: str, prefix: str = "") -> Path:
+        path = tmp_path / f"{prefix}-{len(taken)}.jpg"
+        path.write_bytes(b"jpeg")
+        taken.append(path)
+        return path
+
+    app.analysis = SimpleNamespace(faces=Faces(), persons=None)  # type: ignore[assignment]
+    app.cameras = {"flur": SimpleNamespace(camera=SimpleNamespace(snapshot_interval_seconds=1.0))}
+    monkeypatch.setattr(app, "take_photo", photo)
+    monkeypatch.setattr(api_manage, "LEARN_SECONDS", (1, 1))
+    url = "/api/people/Lena/camera/learn"
+    no = await client.post(url, json={"camera": "flur"}, headers=headers)
+    assert no.status == 400  # consent first
+    unknown = await client.post("/api/people/Ben/camera/learn", json={"consent": True},
+                                headers=headers)  # fmt: skip
+    assert unknown.status == 404
+    ok = await client.post(url, json={"camera": "flur", "consent": True}, headers=headers)
+    body = await ok.json()
+    assert ok.status == 200 and body["result"]["stored"] == 1 and learned == [len(taken)]
+    assert taken and not any(p.exists() for p in taken)  # every picture is gone
+    diagnosis = await (await client.get("/api/people-diagnosis", headers=headers)).json()
+    assert diagnosis["people"][0]["name"] == "Lena" and diagnosis["people"][0]["from_camera"] == 3
+
+
+async def test_the_picture_limit_is_saved_and_used_at_once(web) -> None:  # type: ignore[no-untyped-def]
+    from types import SimpleNamespace
+
+    import yaml
+
+    from pi_guard.config.files import FaceSettings
+
+    client, app = web
+    headers = {"X-CSRF-Token": await _login(client)}
+    faces = SimpleNamespace(settings=FaceSettings(max_samples_per_person=10))
+    app.analysis = SimpleNamespace(faces=faces, persons=None)  # type: ignore[assignment]
+    for bad in (0, 81, "40", 12.5, True):
+        response = await client.put("/api/people-limit", json={"max_samples": bad}, headers=headers)
+        assert response.status == 400, bad
+    ok = await client.put("/api/people-limit", json={"max_samples": 40}, headers=headers)
+    assert ok.status == 200 and faces.settings.max_samples_per_person == 40
+    saved = yaml.safe_load((app.settings.data_dir / "dashboard.yaml").read_text())
+    assert saved["faces"]["max_samples_per_person"] == 40

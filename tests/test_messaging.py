@@ -270,6 +270,7 @@ async def test_numbered_menu_for_signal(tmp_path: Path) -> None:
         signal_enabled=True,
         signal_phone_number="+491510000000",
         signal_admin_numbers=["+491511111111"],
+        signal_commands=True,
     )
     fake_snapshot(app)
     await app.messenger.handle(msg("menu", "+491511111111", provider="signal"))
@@ -296,7 +297,8 @@ async def test_strangers_get_an_answer_right_after_a_restart(app, monkeypatch) -
 async def test_strangers_hear_back_on_telegram_but_not_on_signal(tmp_path: Path) -> None:
     signal = FakeProvider("signal", buttons=False)
     signal.answers_strangers = False  # type: ignore[attr-defined]
-    app = make_app(tmp_path, providers={"telegram": FakeProvider(), "signal": signal})
+    app = make_app(tmp_path, providers={"telegram": FakeProvider(), "signal": signal},
+                   signal_commands=True)  # fmt: skip
     await app.messenger.handle(msg("hallo", STRANGER))
     assert "ID" in app.providers["telegram"].last().text
     await app.messenger.handle(msg("hallo", "+491701234567", provider="signal"))
@@ -309,3 +311,19 @@ def test_the_signal_provider_stays_quiet_to_strangers() -> None:
     from pi_guard.messaging.signal.provider import SignalProvider
 
     assert SignalProvider.answers_strangers is False
+
+
+async def test_signal_only_sends_alerts_unless_commands_are_allowed(tmp_path: Path) -> None:
+    signal = FakeProvider("signal", buttons=False)
+    app = make_app(tmp_path, providers={"telegram": FakeProvider(), "signal": signal},
+                   signal_admin_numbers=["+491701234567"])  # fmt: skip
+    await app.messenger.handle(msg("/status", "+491701234567", provider="signal"))
+    await app.messenger.handle(msg("hallo", "+491709999999", provider="signal"))
+    assert signal.sent == []  # read nothing, answered nothing, not even the admin
+    assert app.db.execute("SELECT COUNT(*) FROM audit WHERE action = 'rejected'").fetchone()[0] == 0
+    app.db.close()
+    talking = make_app(tmp_path / "on", providers={"telegram": FakeProvider(), "signal": signal},
+                       signal_admin_numbers=["+491701234567"], signal_commands=True)  # fmt: skip
+    await talking.messenger.handle(msg("/status", "+491701234567", provider="signal"))
+    assert signal.sent  # with the switch on, the admin is answered
+    talking.db.close()

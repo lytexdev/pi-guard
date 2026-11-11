@@ -31,6 +31,8 @@ dependencies = [
 # OpenCV is optional so 32-bit boards can use the distribution's python3-opencv.
 vision = ["opencv-python-headless>=4.9,<5"]
 mqtt = ["aiomqtt>=2.0"]
+# Talking to the Pi offline; wheels exist for 64-bit and 32-bit ARM and x86.
+voice = ["vosk>=0.3.45,<0.4"]
 discord = ["aiohttp>=3.13"]
 web = ["aiohttp>=3.13", "cryptography>=42", "pywebpush>=2.0", "qrcode>=7.4", "webauthn>=2.5", "pypdf>=5", "icalendar>=6", "recurring-ical-events>=3"]
 all = ["pi-guard[vision,mqtt,web]"]
@@ -84,7 +86,7 @@ mypy_path = "src"
 packages = ["pi_guard"]
 
 [[tool.mypy.overrides]]
-module = ["cv2", "cv2.*", "aiomqtt", "telegram.*", "qrcode", "qrcode.*", "pywebpush", "py_vapid"]
+module = ["cv2", "cv2.*", "aiomqtt", "telegram.*", "qrcode", "qrcode.*", "pywebpush", "py_vapid", "vosk"]
 ignore_missing_imports = true
 
 # OpenCV's bundled stubs differ between 4.x releases; treat it as untyped.

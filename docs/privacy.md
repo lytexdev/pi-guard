@@ -35,6 +35,7 @@ runs with `UMask=0077`; databases are `0600`).
 | Your browser's public IP address | `api.ipify.org`, and the Pi asks `ipwho.is` about unknown addresses | when the overview is open (connection panel) |
 | Questions to the AI assistant, voice messages sent to it | the provider you chose (OpenAI, Mistral, your own) | add-on on, only what you ask |
 | Excerpts from your files, Paperless-ngx and Nextcloud | the AI provider | only if you allow it; never with Ollama |
+| Labels, help texts and switch, number and choice values of settings (never secrets, lists or the time zone) | the AI provider | only when you use *Ask about settings* with the assistant on |
 | Names of devices and cameras | the AI provider | only if "AI may plan actions" is ticked |
 | A camera picture | the AI provider | only if allowed, and after you confirm each time |
 | Town for the weather | Open-Meteo | add-on on, when you ask for the weather |
@@ -101,6 +102,11 @@ minutes and is audited. Talking through the speaker is audited too.
 
 If a camera has a `microphone`, its audio is part of the continuous recording.
 Only do this where everyone who can be recorded knows and agrees.
+
+Talking to the Pi ([voice.md](voice.md)) is off by default. With the wake phrase on, the microphone is analysed
+continuously, but only in memory and only on the Pi: nothing is recorded or stored, and only the text of a question
+after the wake phrase goes to the assistant's provider. Every page of the dashboard shows that it listens. Tell
+everyone in the home, and guests, before switching it on.
 
 ## Face recognition
 
@@ -204,6 +210,12 @@ replaced by each new report. Admins can see it, so ask before switching it on fo
 location to the emergency contacts, also through their messengers. It also sends a current picture of each camera (up
 to four) to them, so whoever is an emergency contact can see inside the home in that moment. Map tiles are fetched by
 the Pi when someone opens a map, which tells OpenStreetMap roughly where the phone is, but not who is looking.
+
+After an SOS, and while a phone is reported lost, its places are kept as a track in `pi-guard.db`: for 30 minutes
+after an SOS, until *Found* for a lost phone, and never longer than 7 days. *I am safe*, *Found* and removing the
+phone delete the track. Reporting a phone lost needs the admin's password, is written to the audit log, and the
+phone shows it on its screen. Photos and sound after an SOS are opt-in on the phone, and sound from the Pi's
+microphone is opt-in in the dashboard; both are passed on to the emergency contacts and admins and not stored.
 
 ## Calendars
 

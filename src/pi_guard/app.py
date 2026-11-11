@@ -147,6 +147,9 @@ class App:
         self.contribution = Contribution(self)
         self.app_updates = AppUpdates(self)
         self.backups = Backups(self)
+        from pi_guard.audio.voice import Voice
+
+        self.voice = Voice(self)
         self.pihole: Pihole | None = None
         if s.pihole_enabled:
             password = s.pihole_password.get_secret_value() if s.pihole_password else None
@@ -314,6 +317,8 @@ class App:
             "app-updates": self.app_updates.run,
             "backup": self.backups.run,
         }
+        if self.voice.enabled:
+            parts["voice"] = self.voice.run
         if self.presence is not None:
             parts["presence"] = self.presence.run
         if self.escalation.enabled:

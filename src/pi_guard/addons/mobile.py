@@ -8,11 +8,13 @@ what the app needs; it is stored as a hash and can be revoked here.
 from __future__ import annotations
 
 import base64
+import builtins
 import hashlib
 import json
 import logging
 import secrets
 from collections.abc import Awaitable, Callable
+from datetime import datetime, timedelta
 from typing import Any
 
 from pi_guard.core.timeutil import utcnow
@@ -27,7 +29,15 @@ CREATE TABLE IF NOT EXISTS mobile_devices (
     username TEXT NOT NULL,
     token TEXT NOT NULL UNIQUE, created TEXT NOT NULL, last_seen TEXT, info TEXT,
     vpn_peer INTEGER);
+CREATE TABLE IF NOT EXISTS mobile_track (
+    device_id INTEGER NOT NULL, ts TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL,
+    accuracy REAL);
+CREATE INDEX IF NOT EXISTS mobile_track_device ON mobile_track (device_id, ts);
 """
+# While a phone is lost or after its SOS, its places are kept as a track, for this long at most.
+TRACK_DAYS = 7
+EMERGENCY_MINUTES = 30
+LOST_EVERY = 60  # seconds between places of a lost phone
 MAX_NAME = 40
 MAX_PHOTO = 700_000  # a photo has to fit into one message
 PLATFORMS = ("android", "ios", "linux", "windows", "macos")
@@ -104,6 +114,7 @@ class MobileHub:
 
     def delete(self, device_id: int) -> bool:
         self._sockets.pop(device_id, None)
+        self.stop(device_id)
         return self._db.execute("DELETE FROM mobile_devices WHERE id = ?",
                                 (device_id,)).rowcount > 0  # fmt: skip
 
@@ -142,10 +153,68 @@ class MobileHub:
 
     def report(self, device_id: int, raw: Any) -> dict[str, Any]:
         device = self.get(device_id) or {"info": {}}
-        info = {**device["info"], **clean_report(raw)}
+        fresh = clean_report(raw)
+        info = {**device["info"], **fresh}
         self._db.execute("UPDATE mobile_devices SET info = ?, last_seen = ? WHERE id = ?",
                          (json.dumps(info), utcnow().isoformat(), device_id))  # fmt: skip
+        if "latitude" in fresh and "longitude" in fresh and self.tracking(device_id):
+            # The Pi's own time: the phone's clock and text are not trusted for the order.
+            self._db.execute("INSERT INTO mobile_track VALUES (?, ?, ?, ?, ?)",
+                             (device_id, utcnow().isoformat(), fresh["latitude"],
+                              fresh["longitude"], fresh.get("accuracy")))  # fmt: skip
         return info
+
+    # --- lost phones and emergencies: a track of places, and nothing longer than needed ---
+
+    def _state(self) -> dict[str, Any]:
+        return dict(self._db.get("mobile.tracking") or {})
+
+    def lost(self, device_id: int) -> dict[str, Any] | None:
+        entry = self._state().get(str(device_id))
+        return entry if entry and entry.get("kind") == "lost" else None
+
+    def tracking(self, device_id: int) -> bool:
+        entry = self._state().get(str(device_id))
+        if not entry:
+            return False
+        if entry.get("kind") == "emergency":
+            started = datetime.fromisoformat(entry["since"])
+            return utcnow() - started < timedelta(minutes=EMERGENCY_MINUTES)
+        return True
+
+    def start(self, device_id: int, kind: str, message: str = "", by: str = "") -> None:
+        state = self._state()
+        state[str(device_id)] = {"kind": kind, "since": utcnow().isoformat(),
+                                 "message": message[:200], "by": by, "files": 0}  # fmt: skip
+        self._db.set("mobile.tracking", state)
+
+    def count_file(self, device_id: int, limit: int) -> bool:
+        """One more file from the phone for this emergency, if it has not sent `limit` yet."""
+        state = self._state()
+        entry = state.get(str(device_id))
+        if not entry or entry.get("files", 0) >= limit:
+            return False
+        entry["files"] = entry.get("files", 0) + 1
+        self._db.set("mobile.tracking", state)
+        return True
+
+    def stop(self, device_id: int) -> None:
+        """Found, or the emergency is over: the track is deleted with it."""
+        state = self._state()
+        state.pop(str(device_id), None)
+        self._db.set("mobile.tracking", state)
+        self._db.execute("DELETE FROM mobile_track WHERE device_id = ?", (device_id,))
+
+    def track(self, device_id: int, limit: int = 500) -> builtins.list[dict[str, Any]]:
+        cutoff = (utcnow() - timedelta(days=TRACK_DAYS)).isoformat()
+        self._db.execute("DELETE FROM mobile_track WHERE ts < ?", (cutoff,))
+        rows = self._db.execute(
+            "SELECT ts, latitude, longitude, accuracy FROM mobile_track WHERE device_id = ? "
+            "ORDER BY ts DESC LIMIT ?", (device_id, limit)).fetchall()  # fmt: skip
+        return [{"time": r[0], "latitude": r[1], "longitude": r[2], "accuracy": r[3]} for r in rows]
+
+    def states(self) -> dict[str, Any]:
+        return {k: v for k, v in self._state().items() if self.tracking(int(k))}
 
     def set_vpn_peer(self, device_id: int, peer_id: int) -> None:
         self._db.execute("UPDATE mobile_devices SET vpn_peer = ? WHERE id = ?",

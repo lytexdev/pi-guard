@@ -134,7 +134,25 @@ pi-guard in dessen Bild findet, und wen es jeweils gesehen hat:
 - **Das ist nicht …** an einem erkannten Gesicht merkt es sich als jemand anderen. Danach ist ein Gesicht, das ihm
   ähnlicher ist als dieser Person, *unsicher* statt diese Person. Es wird mit der Person gelöscht.
 
-Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer sehen den Knopf nicht.
+- **Vor der Kamera lernen** auf der Karte einer Person: Die Person steht 20 Sekunden lang dort, wo man sonst
+  vorbeigeht, schaut zur Kamera und dreht den Kopf etwas. Der Pi nimmt jede Sekunde ein Bild und behält bis zu acht
+  deutliche Gesichter, die sich von den bekannten Ansichten unterscheiden; jedes Bild wird gelöscht, sobald sein
+  Gesicht vermessen ist. Gesichter, die nicht zueinander oder zur Person passen, fallen weg, so wird niemand gelernt,
+  der zufällig vorbeiläuft. Bei anderem Licht wiederholen, etwa abends. Nur für bereits eingetragene Personen, mit
+  ihrer Zustimmung.
+
+Eine Person behält bis zu `faces.max_samples_per_person` Bilder (Standard 40, einstellbar unter den Zahlen auf der Seite
+Personen, gilt sofort). Ein Bild, das einem gespeicherten fast
+gleicht, wird weggelassen, und ist die Grenze erreicht, fällt das ähnlichste weg statt des ältesten: Verschiedene
+Ansichten erkennen jemanden auch in anderem Blickwinkel und Licht.
+
+**Warum die Erkennung klappt oder nicht** auf der Seite Personen zeigt die letzten 30 Tage in Zahlen: Momente mit einer
+Person, wie viele davon überhaupt ein Gesicht zeigten, wie groß Gesichter waren, wie nah das beste an die Schwelle kam,
+und je Person, wie viele Bilder von einer Kamera stammen und wie viele fast gleich sind. Sie sagt, was am meisten hilft.
+Oft ist es die Kamera: Die Erkennung braucht ein Gesicht im Bild, etwa zur Kamera gewandt und mindestens 36 Pixel breit,
+zum Lernen 56.
+
+Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer sehen die Knöpfe nicht.
 
 ## Das Projekt unterstützen
 
@@ -195,6 +213,25 @@ Unter *Einstellungen → Erscheinungsbild* wählst du Akzentfarbe, Schriftart, A
 eigenes Logo (PNG, JPEG oder WebP bis 1 MB) für alle, auch für die Anmeldeseite. Farbschema und
 Schriftgröße gelten pro Gerät. Schriften werden nicht aus dem Internet geladen.
 
+## Barrierefreiheit
+
+Der runde Knopf unten rechts öffnet auf jeder Seite die Bedienungshilfen, nur für diesen Browser: Textgröße, Buchstaben-
+und Zeilenabstand, umgekehrte Farben, Graustufen, Filter für Rot-Grün- und Blau-Gelb-Farbenblindheit, großer Mauszeiger,
+Leselinie, eine Lupe für den Text unter dem Zeiger, unterstrichene Links, weniger Animationen, Vorlesen von angetipptem
+Text oder der ganzen Seite und eine Tour.
+
+- **Für Gehörlose und Schwerhörige:** *Alarme sichtbar machen* lässt die Seite bei jedem neuen Alarm leuchten und das
+  Gerät vibrieren. Es pulsiert langsam und blinkt nie schnell.
+- **Für Menschen, die nicht sprechen können:** *Sprechen* auf der Live-Seite sagt einen getippten Text über den
+  Lautsprecher zu Hause.
+- **Für Blinde:** Das Dashboard ist für Screenreader wie NVDA, JAWS, VoiceOver und TalkBack gebaut: Bedienelemente
+  haben Beschriftungen, Änderungen werden angesagt, und *Zum Inhalt springen* erreicht die Tastatur zuerst. Mit jedem
+  dieser Screenreader getestet ist es noch nicht; melde bitte, was nicht klappt. Mit
+  *Vorlesen* werden auch Antworten des Assistenten vorgelesen.
+- **Per Sprache oder Chat:** im Chat des Assistenten, getippt oder gesprochen: „Schrift größer“, „Vorlesen an“, „Lupe
+  aus“, „Rot-Grün“, „Sichtbare Alarme an“, „zurücksetzen“. Das passiert im Browser und wird nirgends hingeschickt. Mit
+  dem Pi selbst sprechen: [sprache.md](sprache.md).
+
 ## Zertifikat installieren (einmal pro Gerät)
 
 In den Einstellungen wechselt ein Schalter neben Überschrift und Suche zwischen **Normal** und **Experte**. Normal zeigt, was die meisten
@@ -203,6 +240,23 @@ brauchen, Experte alles. Das gilt pro Gerät, auch in der Handy-App, und verstec
 Im Expertenmodus endet *Messenger* mit *Testnachrichten*: eine Testnachricht über jeden eingerichteten Messenger, an
 jeden Admin dort oder in den Kanal von Slack, Matrix, Rocket.Chat oder Mastodon. Add-ons, die zu pi-guard gehören,
 tragen ein Häkchen; Darüberfahren, Fokus oder Antippen zeigt *Verifiziert*.
+
+## Fragen zu Einstellungen und Änderungen rückgängig machen
+
+*Einstellungen → Allgemein* beginnt mit *Frag zu Einstellungen*: „Was macht die Bewegungsempfindlichkeit?“ oder
+„Aufnahmen 14 Tage behalten“. Ohne KI-Assistent zeigt es die Einstellungen, die zu deinen Worten passen, mit Hilfetext und
+Wert. Mit Assistent erklärt es sie auch und kann eine Änderung vorschlagen, angezeigt als *vorher → nachher*. Es ändert
+sich nichts, bis du *Ändern* tippst und bestätigst.
+
+Was die KI bekommt: Bezeichnungen, Hilfetexte und die Werte von Schaltern, Zahlen und Auswahlen. Nie Geheimnisse, Listen
+wie Chat-IDs, Adressen oder die Zeitzone. Einstellungen zu Anmeldung, Dashboard-Zugang, VPN, Updates und dem Assistenten
+selbst werden erklärt, aber nie vorgeschlagen. Ein Vorschlag durchläuft dieselben Prüfungen wie das Formular.
+
+*Letzte Änderungen* zeigt jede Änderung, aus dem Formular, vom Assistenten oder durch Rückgängig, mit wer sie gemacht hat
+und dem Wert vorher und nachher. *Rückgängig* stellt die früheren Werte wieder her; ein Wert, der vorher nicht gesetzt war,
+wird wieder entfernt, sodass `pi-guard.env` gilt. Geänderte Geheimnisse werden vermerkt, aber nie gespeichert, und lassen
+sich daher nicht rückgängig machen. Die letzten 200 Änderungen bleiben. Wie jede Einstellung wirkt eine Änderung nach einem
+Neustart.
 
 Unter Einstellungen › Benachrichtigungen legst du bei jeder Nachricht fest, **wohin** sie geht: unter *Alle Wege*
 kannst du zum Beispiel nur Signal wählen, oder Telegram und die PiGuard-App. Das wirkt sofort.

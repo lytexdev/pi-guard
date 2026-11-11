@@ -43,6 +43,18 @@ class GuardService : Service() {
     private lateinit var store: Store
 
     private val reconnect = Runnable { connect() }
+    // A lost phone, or after an SOS: the place every minute, until found or the time is up.
+    private var trackUntil = 0L
+    private var lost = false
+    private var trackEvery = TRACK_EVERY
+    private val tracking = object : Runnable {
+        override fun run() {
+            if (System.currentTimeMillis() > trackUntil) return stopTracking()
+            // After an SOS the person asked for it; a lost phone only if sharing is on.
+            work.execute { runCatching { send(Locator.report(this@GuardService, !lost || store.shareLocation)) } }
+            main.postDelayed(this, trackEvery)
+        }
+    }
     private val periodic = object : Runnable {
         override fun run() {
             work.execute {
@@ -83,6 +95,12 @@ class GuardService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
+            // A lost phone stays lost: only the dashboard ends that, whoever holds the phone.
+            ACTION_TRACK -> if (!lost) startTracking(System.currentTimeMillis() + EMERGENCY_FOR, false, TRACK_EVERY, getString(R.string.sos_tracking))
+            ACTION_SAFE -> if (!lost) {
+                main.post(::stopTracking)
+                work.execute { runCatching { Net.post(store, "/api/mobile/emergency/end", JSONObject()).close() } }
+            }
             ACTION_STOP_RING -> stopRing()
             ACTION_ALERT_ACK -> act("ack", intent.getIntExtra(EXTRA_ALERT, 0))
             ACTION_ALERT_ALARM -> act("alarm", intent.getIntExtra(EXTRA_ALERT, 0))
@@ -159,9 +177,38 @@ class GuardService : Service() {
         socket?.send(report.put("type", "report").toString())
     }
 
+    private fun startTracking(until: Long, isLost: Boolean, every: Long, text: String) {
+        main.post {
+            lost = isLost
+            trackUntil = until
+            trackEvery = every.coerceIn(30_000L, 600_000L)
+            main.removeCallbacks(tracking)
+            main.post(tracking)
+            val builder = NotificationCompat.Builder(this, CHANNEL_EMERGENCY).setSmallIcon(R.drawable.ic_map_pin)
+                .setContentTitle(getString(if (isLost) R.string.lost_title else R.string.sos_tracking_title))
+                .setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .setOngoing(true).setPriority(NotificationCompat.PRIORITY_HIGH).setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            if (!isLost) builder.addAction(0, getString(R.string.sos_safe), PendingIntent.getService(this, 5,
+                Intent(this, GuardService::class.java).setAction(ACTION_SAFE), PendingIntent.FLAG_IMMUTABLE))
+            getSystemService(NotificationManager::class.java).notify(TRACK_ID, builder.build())
+        }
+    }
+
+    private fun stopTracking() {
+        main.removeCallbacks(tracking)
+        trackUntil = 0L
+        lost = false
+        getSystemService(NotificationManager::class.java).cancel(TRACK_ID)
+    }
+
     private fun received(message: JSONObject) {
+        val every = message.optLong("every", 60) * 1000
         when (message.optString("type")) {
             "alert" -> showAlert(message)
+            "lost" -> startTracking(Long.MAX_VALUE, true, every,
+                listOf(message.optString("message"), getString(R.string.lost_text)).filter { it.isNotBlank() }.joinToString("\n"))
+            "emergency" -> if (trackUntil == 0L) startTracking(System.currentTimeMillis() + EMERGENCY_FOR, false, every, getString(R.string.sos_tracking))
+            "found" -> main.post(::stopTracking)
             // A fresh place for a map link, without ringing; only if this phone shares it.
             "locate" -> work.execute { runCatching { send(Locator.report(this, store.shareLocation)) } }
             "find" -> if (message.optBoolean("ring")) {
@@ -237,6 +284,12 @@ class GuardService : Service() {
         const val CHANNEL_ALERTS = "alerts"
         const val CHANNEL_SERVICE = "service"
         const val CHANNEL_FIND = "find"
+        const val CHANNEL_EMERGENCY = "emergency"
+        const val ACTION_TRACK = "de.lytex.TRACK"
+        const val ACTION_SAFE = "de.lytex.SAFE"
+        private const val TRACK_ID = 5
+        private const val TRACK_EVERY = 60_000L
+        private const val EMERGENCY_FOR = 30 * 60_000L
         private const val SERVICE_ID = 1
         private const val FIND_ID = 2
         const val UPDATE_ID = 3
@@ -265,6 +318,7 @@ class GuardService : Service() {
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel(CHANNEL_ALERTS, context.getString(R.string.channel_alerts), NotificationManager.IMPORTANCE_HIGH))
             manager.createNotificationChannel(NotificationChannel(CHANNEL_SERVICE, context.getString(R.string.channel_service), NotificationManager.IMPORTANCE_MIN))
+            manager.createNotificationChannel(NotificationChannel(CHANNEL_EMERGENCY, context.getString(R.string.channel_emergency), NotificationManager.IMPORTANCE_HIGH).apply { lockscreenVisibility = Notification.VISIBILITY_PUBLIC })
             manager.createNotificationChannel(NotificationChannel(CHANNEL_FIND, context.getString(R.string.channel_find), NotificationManager.IMPORTANCE_HIGH).apply { lockscreenVisibility = Notification.VISIBILITY_PUBLIC })
         }
     }

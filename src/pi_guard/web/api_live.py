@@ -41,6 +41,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/live/{camera}/snapshot", snapshot),
         web.get("/api/live/{camera}/call", call),
         web.post("/api/talk", talk),
+        web.post("/api/say", say),
         web.post("/api/image/sharper", sharper),
         web.post("/api/image/zoom", zoom),
         web.post("/api/image/brighter", brighter),
@@ -260,6 +261,28 @@ async def talk(request: web.Request) -> web.Response:
     finally:
         path.unlink(missing_ok=True)
     app.db.audit(f"web:{current(request).username}", "audio.talk")
+    return web.json_response({"ok": True})
+
+
+async def say(request: web.Request) -> web.Response:
+    """Typed words spoken through the speaker, for anyone who cannot or does not want to talk."""
+    from pi_guard.audio.voice import spoken
+
+    d = dashboard(request)
+    audio = d.app.audio
+    if audio is None or not audio.playback_enabled:
+        raise web.HTTPServiceUnavailable(text="no speaker configured")
+    text = " ".join(str((await read_json(request)).get("text", "")).split())[:500]
+    if not text:
+        raise web.HTTPBadRequest(text="web.error")
+    async with spoken(d.app, text, d.settings.language) as path:
+        if path is None:
+            raise web.HTTPConflict(text="web.say_no_voice")
+        try:
+            await audio.play(path, ignore_quiet_hours=True, speech=True)
+        except AudioError as exc:
+            raise web.HTTPConflict(text=exc.key) from None
+    d.app.db.audit(f"web:{current(request).username}", "audio.say")
     return web.json_response({"ok": True})
 
 

@@ -34,7 +34,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   unknown person. A bar shows how well each person is learned and which pictures
   are missing. Unknown people are reported with a photo. Several pictures are judged together, so a family
   member seen badly once is not reported as a stranger. *Who is this?* on an event teaches pi-guard a face the
-  camera saw, or that a face is not someone.
+  camera saw, or that a face is not someone. *Learn at the camera* takes 20 seconds of varied views in the camera's
+  own angle and light, and *Why recognition works or not* shows in numbers what holds it back.
 - **Alarm.** Sound the alarm (or your own uploaded sound) on a speaker, and stop
   it, from the chat.
 - **Emergency contacts.** If alerts stay unconfirmed, backup contacts get a
@@ -60,10 +61,11 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | | |
 | --- | --- |
 | **Web dashboard** | Live picture and sound, people, events, weekly plan with calendars, network, settings in a normal and an expert view. On by default at `https://<pi>:8443`. |
-| **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, SOS with camera pictures, finding phones, and an inconspicuous look if you want one. |
+| **Accessibility** | Text size, magnifier, colour-blind filters, reading aloud, visible alerts for deaf people, typed speech for people who cannot talk, screen-reader labels, and commands by voice or chat. See [dashboard](docs/dashboard.md#accessibility). |
+| **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, quick actions such as all fine or away from the app icon, SOS with camera pictures, photos and sound from the phone and a followed place, finding and tracking lost phones, and an inconspicuous look if you want one. |
 | **Desktop app** | The dashboard in its own window for Linux, Windows and macOS, trusting only your pi-guard's certificate. On Linux also a VPN with kill switch, lockdown, split tunneling and a quantum-resistant tunnel. |
 | **Server** | A small Rust agent connects a PC or NAS: status, security check, updates, Docker, Compose and Git, safe shutdown; and services watched for outages. |
-| **Add-ons** | Server, emergency medical data with a short-lived rescue link, network analysis, smart home, remote commands, AI assistant with its costs, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
+| **Add-ons** | Server, emergency medical data with a short-lived rescue link, network analysis, smart home, remote commands, AI assistant with its costs that also explains settings and changes them with an undo, offline voice control with a wake phrase, a reverse proxy like frp, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
 | **Plugins** | Your own add-ons with commands, pages and API routes, from a ZIP or a Git link, checked before they run. See [plugins](docs/plugins.md). |
 | **Ways home** | IPv4, IPv6, a rented server or Tailscale, for every kind of internet connection. See [network](docs/network.md#ways-home-from-outside). |
 | **Training** | `pgtrain` on a computer with an NVIDIA GPU: is this me, similar photos, thresholds from your photos and the Pis' anonymous statistics, and a person detector trained on pictures of rooms. Pictures stay on that computer. See [training](docs/training.md). |
@@ -161,6 +163,8 @@ pi-guard logs -f
 | [Mobile app](docs/mobile.md) | Android app with VPN, alerts, finding phones and SOS |
 | [Desktop app](docs/desktop.md) | The dashboard as an app for Windows, Linux and macOS |
 | [Backups](docs/backup.md) | Encrypted backups to Nextcloud, rsync or Borg |
+| [Reverse proxy](docs/proxy.md) | Reach services behind NAT through your own server, like frp, in Rust |
+| [Voice](docs/voice.md) | Talk to the Pi offline: wake phrase, button, push to talk; typed speech |
 | [Updates](docs/updates.md) | How agents and apps update themselves, signed and verified |
 | [VPN](docs/vpn.md) | Kill switch, lockdown, split tunneling, quantum-resistant tunnel, privacy upstream |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |

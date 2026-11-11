@@ -95,6 +95,8 @@ VENV_ARGS=()
 EXTRAS="vision,mqtt,web"
 (( SYSTEM_OPENCV )) && EXTRAS="mqtt,web"
 "$PREFIX/venv/bin/pip" install --quiet "$REPO[$EXTRAS]"
+# Optional: talking to the Pi. Without a wheel for this board, everything else still works.
+"$PREFIX/venv/bin/pip" install --quiet "$REPO[voice]" || echo "vosk not installed: voice control stays off"
 ln -sf "$PREFIX/venv/bin/pi-guard" /usr/local/bin/pi-guard
 
 install -d -m 0750 -o root -g "$USER_NAME" "$CONF"

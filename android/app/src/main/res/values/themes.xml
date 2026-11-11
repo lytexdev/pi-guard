@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The dashboard's colours, so the native screens and the dashboard read as one app. -->
+    <!-- Quick actions from the app icon: no window of their own, only a dialog or a toast. -->
+    <style name="Theme.PiGuard.Invisible" parent="Theme.PiGuard">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
     <style name="Theme.PiGuard" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
         <item name="colorOnPrimary">@color/accent_ink</item>

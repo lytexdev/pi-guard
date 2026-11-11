@@ -30,6 +30,10 @@ class AppSettingsActivity : AppCompatActivity() {
         if (store.shareLocation) askBackground.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
     }
     private val askBackground = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    private val askSosMedia = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        store.sosMedia = it.values.any { granted -> granted }
+        findViewById<CompoundButton>(R.id.sos_media).isChecked = store.sosMedia
+    }
     private var shortcutPicture: android.net.Uri? = null
     private val pickPicture = registerForActivityResult(ActivityResultContracts.GetContent()) { shortcutPicture = it }
 
@@ -46,6 +50,9 @@ class AppSettingsActivity : AppCompatActivity() {
         check(R.id.share_usage, store.shareUsage) { store.shareUsage = it }
         check(R.id.location, store.shareLocation) {
             if (it) askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) else store.shareLocation = false
+        }
+        check(R.id.sos_media, store.sosMedia) {
+            if (it) askSosMedia.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) else store.sosMedia = false
         }
         check(R.id.calendar, store.useCalendar) {
             if (it) askCalendar.launch(Manifest.permission.READ_CALENDAR) else store.useCalendar = false
@@ -64,6 +71,7 @@ class AppSettingsActivity : AppCompatActivity() {
             thread { runCatching { Vpn.down(this, store) } }
             CookieManager.getInstance().removeAllCookies(null)
             store.clear()
+            QuickActions.publish(this)
             startActivity(Intent(this, SetupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     }
@@ -84,6 +92,7 @@ class AppSettingsActivity : AppCompatActivity() {
         val now = Disguise.looks.indexOf(Disguise.current(this))
         MaterialAlertDialogBuilder(this).setTitle(R.string.look_choose).setSingleChoiceItems(names, now) { dialog, chosen ->
             Disguise.apply(this, Disguise.looks[chosen])
+            QuickActions.publish(this) // a disguised app shows no "Alarm" on its icon
             dialog.dismiss()
             Toast.makeText(this, R.string.look_done, Toast.LENGTH_LONG).show()
         }.setNegativeButton(R.string.cancel, null).show()

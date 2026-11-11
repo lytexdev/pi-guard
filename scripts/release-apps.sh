@@ -14,7 +14,7 @@
 # (see docs/mobile.md), the GitHub CLI logged in (`gh auth login`), and the build tools of each part.
 set -euo pipefail
 
-VERSION="${1:?usage: $0 VERSION [android] [desktop] [agent] [--no-upload]}"
+VERSION="${1:?usage: $0 VERSION [android] [desktop] [agent] [proxy] [--no-upload]}"
 shift
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must look like 1.2.3" >&2; exit 1; }
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,11 +23,11 @@ PARTS=()
 for arg in "$@"; do
     case "$arg" in
         --no-upload) UPLOAD=false ;;
-        android|desktop|agent) PARTS+=("$arg") ;;
+        android|desktop|agent|proxy) PARTS+=("$arg") ;;
         *) echo "unknown: $arg" >&2; exit 1 ;;
     esac
 done
-[[ ${#PARTS[@]} -gt 0 ]] || PARTS=(android desktop agent)
+[[ ${#PARTS[@]} -gt 0 ]] || PARTS=(android desktop agent proxy)
 has() { [[ " ${PARTS[*]} " == *" $1 "* ]]; }
 
 KEY="${PI_GUARD_UPDATE_KEY:-$HOME/.config/pi-guard/update-ed25519.pem}"
@@ -69,6 +69,20 @@ if has agent; then
     sign agent "linux-$arch" "$VERSION" "$OUT/pi-guard-agent-linux-$arch"
 fi
 
+if has proxy; then
+    # pgproxy is installed by hand (scripts/install-proxy.sh), checked against SHA256SUMS.
+    cargo build --quiet --release --manifest-path "$REPO/proxy/Cargo.toml"
+    cp "$REPO/proxy/target/release/pgproxy" "$OUT/pgproxy-linux-$(uname -m)"
+    if command -v aarch64-linux-gnu-gcc >/dev/null && rustup target list --installed 2>/dev/null | grep -q aarch64-unknown-linux-gnu; then
+        CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc \
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+            cargo build --quiet --release --target aarch64-unknown-linux-gnu --manifest-path "$REPO/proxy/Cargo.toml"
+        cp "$REPO/proxy/target/aarch64-unknown-linux-gnu/release/pgproxy" "$OUT/pgproxy-linux-aarch64"
+    else
+        echo "no aarch64 cross compiler: the Pi build of pgproxy is left out (see docs/vpn.md)" >&2
+    fi
+fi
+
 (cd "$OUT" && sha256sum -- * > SHA256SUMS)
 echo "release files in $OUT:"
 ls -1 "$OUT"
@@ -77,7 +91,7 @@ if $UPLOAD; then
     git -C "$REPO" tag -a "apps-$VERSION" -m "Apps $VERSION"
     git -C "$REPO" push origin "apps-$VERSION"
     gh release create "apps-$VERSION" "$OUT"/* --title "Apps $VERSION" --notes \
-"Phone app, desktop app and agent $VERSION, signed. Every pi-guard fetches these by itself and hands them to its
+"Phone app, desktop app, agent and pgproxy $VERSION; the apps and the agent are signed. Every pi-guard fetches these by itself and hands them to its
 devices; each file is checked against the update key first. To download by hand, check the file against SHA256SUMS."
     echo "published apps-$VERSION"
 fi

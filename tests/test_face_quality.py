@@ -331,3 +331,24 @@ def test_a_picture_loses_its_hidden_data_and_gets_small() -> None:
     assert b"GPSDATA" not in small
     image = cv2.imdecode(np.frombuffer(small, np.uint8), cv2.IMREAD_COLOR)
     assert image.shape[:2] == (PICTURE_SIZE, PICTURE_SIZE)
+
+
+def test_a_session_at_the_camera_keeps_new_views_and_refuses_someone_else(
+    recognizer: Any,
+) -> None:
+    lena = identity()
+    recognizer.enroll_many("Lena", views(lena, 5, 0.5), "test")
+    # The camera's angle and light: a shift every picture of it shares.
+    room = unit(RNG.normal(size=128))
+    shifted = blend(lena, room, 0.35)
+    at_camera = [unit(shifted + 0.25 * unit(RNG.normal(size=128))) for _ in range(20)]
+    repeats = [at_camera[0]] * 5  # standing still: the same view again and again
+    result = recognizer.learn_many("lena", at_camera + repeats, "web:admin")
+    assert 1 <= result["stored"] <= 8 and result["similar"] >= 5
+    assert result["total"] == 5 + result["stored"]
+    again = recognizer.learn_many("Lena", at_camera, "web:admin")
+    assert again["stored"] < result["stored"]  # mostly known now
+    with pytest.raises(Exception, match="learn_too_different"):
+        recognizer.learn_many("Lena", views(identity(), 10, 0.3), "web:admin")
+    with pytest.raises(Exception, match="learn_not_enrolled"):
+        recognizer.learn_many("Fremder", at_camera, "web:admin")

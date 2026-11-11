@@ -140,6 +140,9 @@ planning. It cannot invent commands.
 Device state only exists if the device reports it over MQTT, so the dishwasher question needs a
 dishwasher that does.
 
+Settings are explained and changed under *Settings → General → Ask about settings*, always with a confirmation and an
+undo, see [the dashboard page](dashboard.md#asking-about-settings-and-undoing-changes).
+
 ### Looking at cameras
 
 With "The AI may look at camera pictures" ticked, "Was siehst du im Wohnzimmer?" sends one
@@ -184,6 +187,11 @@ use under Settings › Messenger:
 
 These are send-only and carry no pictures: what your cameras see does not belong in a team chat. Under Settings ›
 Notifications you choose per kind of message whether it goes there.
+
+## Reverse proxy
+
+Reach services behind NAT through a server you choose, like frp: this Pi as server or client of `pgproxy`, with
+tokens, allowed ports and a pinned certificate. See [proxy.md](proxy.md).
 
 ## Removing an add-on
 

@@ -66,6 +66,8 @@ class MainActivity : AppCompatActivity() {
         offline = findViewById(R.id.offline)
         findViewById<Button>(R.id.sos).setOnClickListener { startActivity(Intent(this, EmergencyActivity::class.java)) }
         findViewById<ImageButton>(R.id.settings).setOnClickListener { startActivity(Intent(this, AppSettingsActivity::class.java)) }
+        findViewById<ImageButton>(R.id.quick).setOnClickListener { QuickActions.sheet(this) }
+        QuickActions.publish(this)
         findViewById<Button>(R.id.retry).setOnClickListener { open() }
         findViewById<Button>(R.id.vpn).setOnClickListener { openVpn() }
         findViewById<ImageButton>(R.id.vpn_open).setOnClickListener { openVpn() }
@@ -139,6 +141,7 @@ class MainActivity : AppCompatActivity() {
     private fun open() {
         offline.visibility = View.GONE
         if (store.token == null) return web.loadUrl(store.url!!)
+        val page = store.url!! + route()
         thread {
             runCatching { Net.pick(store) }
             val cookie = runCatching {
@@ -154,7 +157,7 @@ class MainActivity : AppCompatActivity() {
             }.getOrNull()
             runOnUiThread {
                 if (cookie != null) CookieManager.getInstance().setCookie(store.url, cookie)
-                web.loadUrl(store.url!!)
+                web.loadUrl(page)
             }
             if (cookie != null) Vpn.sync(store) // the access is ready before the phone leaves home
         }
@@ -187,6 +190,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** A dashboard page asked for by a quick action, such as #/live for a call. Only those. */
+    private fun route(): String {
+        val wanted = intent?.getStringExtra(QuickActions.ROUTE)
+        intent?.removeExtra(QuickActions.ROUTE)
+        return if (wanted in ROUTES) wanted!! else ""
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val wanted = intent.getStringExtra(QuickActions.ROUTE)
+        if (wanted in ROUTES && ::web.isInitialized && store.url != null) {
+            intent.removeExtra(QuickActions.ROUTE)
+            web.loadUrl(store.url!! + wanted)
+        }
+    }
+
     private fun openVpn() = startActivity(Intent(this, VpnActivity::class.java))
 
     override fun onResume() {
@@ -209,7 +229,8 @@ class MainActivity : AppCompatActivity() {
         if (::web.isInitialized && web.canGoBack()) web.goBack() else super.onBackPressed()
     }
 
-    private companion object {
+    companion object {
         const val LOCK_AFTER = 30_000L
+        private val ROUTES = setOf("#/live")
     }
 }

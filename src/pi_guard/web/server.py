@@ -51,7 +51,8 @@ PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.c
           "/api/mobile/session", "/api/mobile/ws", "/api/mobile/report", "/api/mobile/action",
           "/api/mobile/crash",
           "/api/push/action",
-          "/api/mobile/emergency", "/api/mobile/calendar", "/api/mobile/vpn", "/api/mobile/reach",
+          "/api/mobile/emergency", "/api/mobile/emergency/media", "/api/mobile/emergency/end",
+          "/api/mobile/calendar", "/api/mobile/vpn", "/api/mobile/reach",
           "/api/mobile/vpn/pq",
           "/api/mobile/app/latest", "/api/mobile/app/apk"}  # fmt: skip
 # Reachable while the default password has not been changed yet.
@@ -229,6 +230,7 @@ class Dashboard:
             api_mobile,
             api_network,
             api_privacy,
+            api_proxy,
             api_security,
             api_system,
             api_tools,
@@ -255,7 +257,7 @@ class Dashboard:
         webapp.router.add_post("/api/logout", self._logout)
         for module in (api_account, api_addons, api_agents, api_core, api_export, api_login,
                        api_live, api_manage, api_medical, api_network, api_privacy,
-                       api_security, api_system, api_mobile, api_tools, api_updates,
+                       api_proxy, api_security, api_system, api_mobile, api_tools, api_updates,
                        api_v1):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
@@ -470,6 +472,9 @@ class Dashboard:
             "nav": self.app.db.get(f"web.nav.{session.username}") or [] if session else [],
             "support": (self.app.db.get("web.support") or {}) if active else {},
             "modules": self.modules() if active else {},
+            # Everyone signed in sees that the microphone listens for the wake phrase.
+            "voice_listening": bool(active and self.app.voice.enabled
+                                    and self.settings.voice_wake_enabled),
             "assistant": bool(
                 active and self.app.addons.assistant
                 and session and self.auth.role_of(session.username) == "admin"

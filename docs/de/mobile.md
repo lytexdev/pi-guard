@@ -51,8 +51,31 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
 - **SOS:** Ein Tippen startet 10 Sekunden Countdown, nochmal tippen bricht ab. Danach bekommen alle Notfallkontakte und
   Admins eine Nachricht mit Standort, Modus, Akku und Netz sowie ein aktuelles Bild jeder Kamera. **Das ersetzt nicht die 112.** Es braucht eine Verbindung zu
   pi-guard, und pi-guard muss laufen.
+  - 30 Minuten nach einem SOS schickt das Handy jede Minute seinen Standort, und Admins folgen ihm unter *Add-ons →
+    Handy-App → Standorte*. *Ich bin in Sicherheit* auf dem Notfall-Bildschirm oder in der Benachrichtigung beendet das
+    und sagt allen Bescheid; die Standorte werden dann gelöscht.
+  - Mit *App-Einstellungen → Fotos und Ton nach einem SOS* (aus, bis du es einschaltest) machen beide Kameras ein Foto
+    und das Mikrofon nimmt 20 Sekunden auf, solange der Notfall-Bildschirm offen ist. Beides geht an Notfallkontakte
+    und Admins und bleibt weder auf dem Handy noch auf dem Pi. Ton kommt über Telegram und WhatsApp an, andere
+    Messenger bekommen nur den Text. Android erlaubt Kamera und Mikrofon nur einer App im Vordergrund, im Hintergrund
+    wird also nichts aufgenommen.
+  - *Nach einem SOS das Mikrofon zu Hause aufnehmen* in den Handy-Einstellungen des Dashboards (aus, bis du es
+    einschaltest) fügt 20 Sekunden vom Mikrofon des Pi hinzu. Das braucht die Mikrofonaufnahme und spielt denselben
+    Ton wie beim Live-Hören.
+- **Vermisstes Handy:** *Als vermisst melden* auf der Karte des Handys fragt nach deinem Passwort und einem freiwilligen
+  Text für seinen Bildschirm. Das Handy zeigt dann an, dass es als vermisst gemeldet ist, und schickt jede Minute seinen
+  Standort, bis jemand *Gefunden* tippt; das löscht die Standorte. Beenden kann das nur das Dashboard, nicht das Handy:
+  Wer es in der Hand hält, ist vielleicht nicht der Besitzer. Standorte kommen nur, wenn *Standort teilen* an ist;
+  schalte es also ein, bevor ein Handy verloren geht. Standorte bleiben höchstens 7 Tage.
 - **Anrufen:** Auf der Live-Seite schickt *Anrufen* dein Mikrofon an den Lautsprecher, während du die Kamera hörst. Das
-  geht auch im normalen Browser. Rechne mit ein bis zwei Sekunden Verzögerung.
+  geht auch im normalen Browser. Rechne mit ein bis zwei Sekunden Verzögerung. *Nach Hause anrufen* bei den
+  Schnellaktionen öffnet diese Seite. Mit dem Assistenten sprichst du über das Mikrofon in seinem Chat; eine
+  Telefonleitung gibt es nicht.
+- **Schnellaktionen:** der Blitz in der App-Leiste, und langes Drücken auf das App-Symbol für die ersten vier: *Alles in
+  Ordnung* (schließt alle offenen Alarme), *Nach Hause anrufen*, *Abwesend*, *Zuhause*, im Blitz außerdem *Alarm
+  auslösen* (fragt vorher), *Alarm stoppen* und SOS. pi-guard führt sie nur für Admins aus, wie die Knöpfe unter
+  Alarmen. Mit App-Sperre fragen die Verknüpfungen am Symbol zuerst danach, außer SOS. Solange die App wie der
+  Taschenrechner oder eine andere App aussieht, zeigt das Symbol keine Verknüpfungen, die sie verraten würden.
 - **Kalender:** Mit *Abwesend während Kalendereinträgen* gelten belegte Termine der nächsten 14 Tage als abwesend, auch
   wenn ein Handy zu Hause ist. Nur Start und Ende gehen an pi-guard, Titel bleiben auf dem Handy. Ganztägige Termine
   zählen nicht.

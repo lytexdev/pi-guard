@@ -30,6 +30,8 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
   Ähnlichkeit von Gesichtern, die ein Admin mit *Wer ist das?* bestätigt oder korrigiert hat. Nie Bilder,
   Gesichtsabdrücke, Namen, Uhrzeiten, Adressen oder eine Kennung des Haushalts. Die Seite zeigt vorher genau, was
   gesendet würde.
+- *Frag zu Einstellungen* mit eingeschaltetem KI-Assistenten schickt dem gewählten Anbieter Bezeichnungen, Hilfetexte
+  und die Werte von Schaltern, Zahlen und Auswahlen, nie Geheimnisse, Listen oder die Zeitzone.
 - Sonst nichts: keine Cloud, keine Werbung.
 
 ### Privacy-Upstream (optional)
@@ -43,6 +45,9 @@ Ausgeschaltete Funktionen starten keine Extra-Dienste. Details: [vpn.md](../vpn.
 ## Standardmäßig ausgeschaltet
 
 - Mikrofon / Tonaufnahme
+- Sprachsteuerung mit Weckwort: Das Mikrofon wird dann laufend ausgewertet, aber nur im Arbeitsspeicher des Pi; nichts
+  wird aufgenommen oder gespeichert, nur der Text einer Frage nach dem Weckwort geht an den Anbieter des Assistenten.
+  Jede Seite des Dashboards zeigt, dass es zuhört. Sag es allen im Haushalt und Gästen, bevor du es einschaltest.
 - Personen- und Gesichtserkennung
 - Anwesenheitserkennung
 - Steuerung über MQTT
@@ -106,6 +111,13 @@ jede neue Meldung ersetzt ihn. Admins können ihn sehen; frag also vorher, bevor
 SOS schickt den Standort an die Notfallkontakte, auch über ihre Messenger. Dazu kommt ein aktuelles Bild jeder Kamera (bis zu
 vier): Notfallkontakte sehen in diesem Moment also ins Haus. Kartenkacheln holt der Pi, wenn jemand eine Karte öffnet;
 OpenStreetMap erfährt dadurch ungefähr, wo das Handy ist, aber nicht, wer schaut.
+
+Nach einem SOS und solange ein Handy als vermisst gemeldet ist, werden seine Standorte als Spur in `pi-guard.db`
+gespeichert: 30 Minuten nach einem SOS, bei einem vermissten Handy bis *Gefunden*, und nie länger als 7 Tage. *Ich bin in
+Sicherheit*, *Gefunden* und das Entfernen des Handys löschen die Spur. Ein Handy als vermisst zu melden braucht das
+Passwort des Admins, steht im Audit-Log, und das Handy zeigt es auf seinem Bildschirm an. Fotos und Ton nach einem SOS
+schaltet man auf dem Handy ein, Ton vom Mikrofon des Pi im Dashboard; beides geht an Notfallkontakte und Admins und wird
+nicht gespeichert.
 
 ## Vertraute Personen
 

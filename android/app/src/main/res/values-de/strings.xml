@@ -130,4 +130,24 @@
     <string name="find_stop">Stoppen</string>
     <string name="alert_title">pi-guard-Alarm</string>
     <string name="back">Zurück</string>
+    <string name="sos_media">Fotos und Ton nach einem SOS</string>
+    <string name="sos_media_hint">Solange der Notfall-Bildschirm offen ist, machen beide Kameras ein Foto und das Mikrofon nimmt 20 Sekunden auf. Beides geht an deine Notfallkontakte und die Admins, auf dem Handy bleibt nichts.</string>
+    <string name="sos_taking">Fotos und Tonaufnahme laufen… %d s</string>
+    <string name="sos_safe">Ich bin in Sicherheit</string>
+    <string name="sos_tracking">30 Minuten lang schickt dieses Handy jede Minute seinen Standort an pi-guard, damit die Admins folgen können.</string>
+    <string name="sos_tracking_title">Notfall: dein Standort wird geteilt</string>
+    <string name="lost_title">Dieses Handy ist als vermisst gemeldet</string>
+    <string name="lost_text">Sein Standort geht jede Minute an pi-guard, bis es gefunden ist.</string>
+    <string name="channel_emergency">Notfall und vermisstes Handy</string>
+    <string name="qa_title">Schnellaktionen</string>
+    <string name="qa_ack">Alles in Ordnung</string>
+    <string name="qa_call">Nach Hause anrufen</string>
+    <string name="qa_away">Abwesend</string>
+    <string name="qa_home">Zuhause</string>
+    <string name="qa_alarm">Alarm auslösen</string>
+    <string name="qa_alarm_stop">Alarm stoppen</string>
+    <string name="qa_alarm_confirm">Den Alarm zu Hause 30 Sekunden lang auslösen?</string>
+    <string name="qa_done">Erledigt</string>
+    <string name="qa_done_ack">Alles in Ordnung: %d Alarme geschlossen</string>
+    <string name="qa_done_mode">Modus: %s</string>
 </resources>

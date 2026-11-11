@@ -78,6 +78,11 @@ class Addons:
 
             self.agents = AgentHub(app.db)
         self.languages = settings.languages.enabled
+        self.proxy: Any = None
+        if settings.proxy.enabled:
+            from pi_guard.addons.proxy import Proxy
+
+            self.proxy = Proxy(s.data_dir, app.db)
         self.medical: MedicalRecords | None = None
         if settings.medical.enabled:
             from pi_guard.addons.medical import MedicalRecords
@@ -103,6 +108,8 @@ class Addons:
             parts["addon:blocks"] = self.blocks.run
         if self.jobs is not None:
             parts["addon:jobs"] = self.jobs.run
+        if self.proxy is not None:
+            parts["addon:proxy"] = self.proxy.run
         for plugin in self.plugins:
             parts[f"plugin:{plugin.id}"] = plugin.run
             wanted = set(plugin.events())

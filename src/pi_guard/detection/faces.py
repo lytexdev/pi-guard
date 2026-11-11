@@ -94,6 +94,9 @@ DOMINANT_FACE = 2.5  # a face this many times bigger than the others is the subj
 # of one person from a phone and a distant camera are often far apart, so this only catches
 # a wrong click: unrelated people are usually around 0.1.
 LEARN_MIN_MATCH = 0.2
+# Two samples this similar teach nothing new; one of them is left out or dropped first.
+REDUNDANT = 0.93
+LIVE_MAX_NEW = 8  # samples kept from one session in front of the camera
 
 
 # How well a person is learned: an estimate from what was stored, for advice to the user.
@@ -179,6 +182,24 @@ class EnrollReport:
     total: int = 0
     outliers: int = 0
     conflicts: dict[str, int] = field(default_factory=dict)
+    duplicates: int = 0
+
+
+def diverse(candidates: list[Embedding], known: list[Embedding], limit: int) -> list[Embedding]:
+    """Up to `limit` candidates, each as different as possible from what is already there.
+    Near copies of a kept or known sample are left out: they only add weight to one view."""
+    chosen: list[Embedding] = []
+    pool = list(candidates)
+    while pool and len(chosen) < limit:
+        reference = known + chosen
+        nearest = [max((float(np.dot(c, r)) for r in reference), default=-1.0) for c in pool]
+        at = int(np.argmin(nearest))
+        best = pool[at]
+        if nearest[at] >= REDUNDANT:
+            break
+        chosen.append(best)
+        pool = [c for c in pool if c is not best]
+    return chosen
 
 
 def person_scores(probe: Embedding, samples: list[tuple[str, Embedding]]) -> dict[str, float]:
@@ -287,15 +308,34 @@ class BiometricStore:
                 getattr(embedding, "source", None),
             ),
         )
-        self._conn.execute(
-            "DELETE FROM samples WHERE person_id = ? AND id NOT IN "
-            "(SELECT id FROM samples WHERE person_id = ? ORDER BY id DESC LIMIT ?)",
-            (person_id, person_id, max_samples),
-        )
+        self._prune(person_id, max_samples)
         count: int = self._conn.execute(
             "SELECT COUNT(*) FROM samples WHERE person_id = ?", (person_id,)
         ).fetchone()[0]
         return count
+
+    def _prune(self, person_id: int, max_samples: int) -> None:
+        """Over the limit, drop the sample most like another one, not simply the oldest:
+        the views that differ are what recognises a person in other light and angles."""
+        rows = self._conn.execute(
+            "SELECT id, embedding FROM samples WHERE person_id = ? ORDER BY id", (person_id,)
+        ).fetchall()
+        ids = [int(r[0]) for r in rows]
+        if len(ids) <= max_samples:
+            return
+        vectors = np.stack([np.frombuffer(r[1], dtype=np.float32) for r in rows])
+        vectors = vectors / np.maximum(np.linalg.norm(vectors, axis=1, keepdims=True), 1e-9)
+        drop: list[int] = []
+        alive = list(range(len(ids)))
+        while len(alive) > max_samples:
+            sub = vectors[alive] @ vectors[alive].T
+            np.fill_diagonal(sub, -2.0)
+            # Of the most similar pair, the older one goes; the newest view stays.
+            row = int(np.argmax(sub)) // len(alive)
+            index = alive[min(row, int(np.argmax(sub[row])))]
+            drop.append(ids[index])
+            alive.remove(index)
+        self._conn.executemany("DELETE FROM samples WHERE id = ?", [(i,) for i in drop])
 
     def exists(self, name: str) -> str | None:
         """The stored spelling of this name, or None."""
@@ -512,6 +552,9 @@ class FaceRecognizer:
                 if score >= known_at and score >= mine - PERSON_MARGIN:
                     report.conflicts[other] = report.conflicts.get(other, 0) + 1
                     continue
+            if any(float(np.dot(sample, s)) >= REDUNDANT for _, s in own):
+                report.duplicates += 1  # the same view again: it would only push others out
+                continue
             report.total = self.store.add(name, sample, actor, self.settings.max_samples_per_person)
             report.stored += 1
             own.append((name, sample))
@@ -539,6 +582,40 @@ class FaceRecognizer:
         light = float(self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY).mean())
         sample = with_context(embedding, pose_of(face), light, "camera")
         return self.enroll(stored, sample, actor), score
+
+    def camera_sample(self, image: Image) -> tuple[Embedding | None, str | None]:
+        """The largest face of a camera picture as a sample, or why it cannot be one."""
+        faces = self._detector.faces_full(image, FULL_WIDTH)
+        if faces is None or len(faces) == 0:
+            return None, "faces.no_face"
+        face = max(faces, key=lambda f: float(f[2] * f[3]))
+        problem, aligned = self.learn_problem(image, face)
+        if problem:
+            return None, problem
+        light = float(self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY).mean())
+        return with_context(self._embed(aligned), pose_of(face), light, "camera"), None
+
+    def camera_sample_from(self, photo: Path) -> tuple[Embedding | None, str | None]:
+        return self.camera_sample(self._detector.load(photo, FULL_WIDTH))
+
+    def learn_many(self, name: str, candidates: list[Embedding], actor: str) -> dict[str, Any]:
+        """Samples from a session in front of a camera, for a person already enrolled. Only
+        faces that agree with each other and with the person are kept, and only new views."""
+        stored = self.store.exists(name)
+        if stored is None:
+            raise EnrollmentError("faces.learn_not_enrolled")
+        kept, outliers = consistent(candidates)
+        if not kept:
+            raise EnrollmentError("faces.learn_no_face")
+        before = float(np.median([self._score(c, stored) for c in kept]))
+        if before < LEARN_MIN_MATCH:
+            raise EnrollmentError("faces.learn_too_different")
+        own = [s for n, s in self._samples() if n == stored]
+        chosen = diverse(kept, own, LIVE_MAX_NEW)
+        report = self.enroll_many(stored, chosen, actor)
+        return {"seen": len(candidates), "stored": report.stored, "total": report.total,
+                "outliers": outliers, "similar": len(kept) - len(chosen) + report.duplicates,
+                "conflicts": report.conflicts, "before": round(before, 3)}  # fmt: skip
 
     def _score(self, embedding: Embedding, name: str) -> float:
         own = [(n, s) for n, s in self._samples() if n == name]
