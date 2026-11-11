@@ -58,6 +58,9 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- *Network › Overview* shows the state at a glance, the last 24 hours of name lookups, devices without a name, the
+  busiest devices and quick ways. *Network › VPN* has a summary on top and its parts (devices as cards, from
+  outside, privacy, quantum-safe) one at a time; adding a device opens a dialog.
 - Privacy multi-hop chain shows the Pi VPN hop and is animated; diagnostics cache the exit/public IP and explain
   missing status. The network map draws privacy exits, Tor, reverse-proxy peers and VPN traffic via the upstream.
 - A face picture nearly identical to a stored one is no longer stored, and over the limit the most similar picture is

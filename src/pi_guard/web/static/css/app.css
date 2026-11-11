@@ -416,12 +416,6 @@ td.actions { white-space: nowrap; }
 .tedge { fill: var(--muted); font-size: 10px; }
 
 /* VPN */
-.panel.wg { display: grid; gap: 4px 28px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
-.panel.wg > h2, .panel.wg > p { grid-column: 1 / -1; }
-.panel.wg > .list { grid-column: 1; }
-.panel.wg > .wg-add { grid-column: 2; padding: 14px; background: var(--surface-2); border-radius: var(--radius); }
-.panel.wg > .wg-add h3 { margin-top: 0; }
-@media (max-width: 760px) { .panel.wg { grid-template-columns: minmax(0, 1fr); } .panel.wg > .list, .panel.wg > .wg-add { grid-column: 1; } }
 /* Camera room */
 .monitor { display: grid; gap: 8px; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
 .monitor[data-columns="1"] { --cols: 1; } .monitor[data-columns="2"] { --cols: 2; } .monitor[data-columns="3"] { --cols: 3; } .monitor[data-columns="4"] { --cols: 4; }
@@ -465,10 +459,6 @@ img.thumb, .result img, .bubble img { cursor: zoom-in; }
 .tnode image { pointer-events: none; }
 .clickable { cursor: pointer; }
 .clickable:hover > div:first-child { color: var(--accent); }
-.wg-actions { grid-column: 2; }
-.panel.wg > .wg-actions > .wg-add { padding: 14px; background: var(--surface-2); border-radius: var(--radius); }
-.wg-add h3 { margin-top: 0; }
-@media (max-width: 760px) { .wg-actions { grid-column: 1; } }
 .agent { flex-wrap: wrap; }
 pre.log { max-height: 50dvh; overflow-y: auto; }
 
@@ -798,3 +788,56 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .mv-banner p { margin: 2px 0; }
 .mv-checks > li { align-items: flex-start; }
 .mv-checks p { margin: 0; }
+
+/* Network overview: a banner with the state, the day in a chart, devices worth a look. */
+:root { --chart-a: #3d8fd9; --chart-b: #d4752a; }
+:root[data-theme="light"] { --chart-a: #1f6fc0; --chart-b: #c4601a; }
+.nm-banner { border-radius: var(--radius); padding: 16px; border: 1px solid var(--line); display: grid; gap: 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ok) 12%, var(--surface)), var(--surface) 70%); }
+.nm-banner.warn { background: linear-gradient(135deg, color-mix(in srgb, var(--warn) 16%, var(--surface)), var(--surface) 70%); }
+.nm-banner-head { display: flex; gap: 14px; align-items: center; }
+.nm-banner-head .icon { color: var(--ok); } .nm-banner.warn .nm-banner-head .icon { color: var(--warn); }
+.nm-banner h2 { margin: 0; } .nm-banner p { margin: 2px 0 0; }
+.nm-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.nm-chip { display: inline-flex; gap: 6px; align-items: center; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); color: inherit; text-decoration: none; font-size: .92rem; }
+.nm-chip:hover { border-color: var(--accent); text-decoration: none; }
+.nm-chip.ok .icon { color: var(--ok); } .nm-chip.warn { border-color: var(--warn); } .nm-chip.warn .icon { color: var(--warn); }
+.nm-chart { width: 100%; height: auto; display: block; }
+.nm-chart .axis { stroke: var(--line); stroke-width: 1; }
+.nm-chart .tick { fill: var(--muted); font-size: 11px; }
+.nm-chart .allowed { fill: var(--chart-a); } .nm-chart .blocked { fill: var(--chart-b); }
+.nm-chart .hit { fill: transparent; } .nm-chart .bar:hover .hit { fill: color-mix(in srgb, var(--text) 6%, transparent); }
+.nm-legend { display: flex; gap: 14px; font-size: .9rem; color: var(--muted); }
+.nm-legend .key::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.nm-legend .allowed::before { background: var(--chart-a); } .nm-legend .blocked::before { background: var(--chart-b); }
+.nm-bars { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.nm-bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 4px; }
+.nm-bar span { display: block; height: 100%; border-radius: 3px; background: var(--chart-a); }
+.nm-shortcuts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+.nm-shortcut { display: flex; justify-content: flex-start; gap: 12px; align-items: flex-start; text-align: left; font-weight: 400; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: inherit; text-decoration: none; font: inherit; cursor: pointer; min-height: var(--tap); }
+.nm-shortcut:hover { border-color: var(--accent); text-decoration: none; }
+.nm-shortcut .icon { color: var(--accent); flex: none; margin-top: 2px; }
+
+/* VPN: a summary with its parts, devices as cards. */
+.vpn-summary { display: grid; gap: 14px; }
+.vpn-head { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.vpn-head h2 { margin: 0; } .vpn-head > .badge { margin-left: auto; } .vpn-head p { margin: 2px 0; }
+.vpn-ring { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; border: 3px solid var(--line); color: var(--muted); flex: none; }
+.vpn-summary.on .vpn-ring { border-color: var(--ok); color: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 18%, transparent); }
+.vpn-parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.vpn-parts a { flex: 1 1 auto; text-align: center; text-decoration: none; color: inherit; padding: 8px 12px; }
+.vpn-parts a.on { background: var(--accent); color: var(--accent-ink); }
+.wg-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
+.wg-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); display: grid; }
+.wg-card.on { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); }
+.wg-card-main { display: flex; justify-content: flex-start; width: 100%; min-height: 0; gap: 12px; align-items: flex-start; text-align: left; font-weight: 400; border: 0; background: none; color: inherit; padding: 12px; font: inherit; cursor: pointer; border-radius: var(--radius) var(--radius) 0 0; }
+.wg-card-main:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.wg-card-main .row { margin-top: 6px; gap: 6px; }
+.wg-avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); flex: none; }
+.wg-card.on .wg-avatar { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.wg-card-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 8px 12px; border-top: 1px solid var(--line); }
+.wg-empty { text-align: center; justify-items: center; padding: 24px 0; }
+.wg-empty .howto { text-align: left; }
+.vpn-parts a + a { border-left: 1px solid var(--line); }
