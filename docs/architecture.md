@@ -9,12 +9,14 @@ pi-guard is one Python process (asyncio) plus one FFmpeg process per camera. Aro
 | `src/pi_guard/privacy/` | optional Pi-side privacy upstream: multi-hop exit, Mullvad/custom providers, DNS, Tor, profiles |
 | `deploy/privacy/` | root jobs for the upstream WireGuard exit, nftables plan and Tor control |
 | `agent/` | small Rust program on connected computers |
+| `proxy/` | `pgproxy`, the optional reverse proxy in Rust, see [proxy.md](proxy.md) |
 | `desktop/` | Electron app: shows the dashboard, drives the VPN service |
 | `android/` | phone app: shows the dashboard, has its own WireGuard client |
 | `training/` | `pgtrain` for a computer with a GPU: faces, thresholds, training the person detector, receiving statistics, see [training.md](training.md) |
 
 Settings changed in the dashboard live in `DATA_DIR/dashboard.env` and `DATA_DIR/dashboard.yaml`, and win over
-`.env` and `config.yaml`.
+`.env` and `config.yaml`. Every change of `dashboard.env` is kept in the `settings_history` table, without secret
+values, so it can be undone.
 
 ```
                        ┌────────────── FFmpeg (per camera) ──────────────┐
@@ -46,10 +48,12 @@ Settings changed in the dashboard live in `DATA_DIR/dashboard.env` and `DATA_DIR
 | `recording` | segment index and clip cutting, retention and disk-pressure handling |
 | `detection` | motion, zones, person detection, face recognition, model downloads |
 | `presence` | neighbour-table and FRITZ!Box sources, the HOME/AWAY/UNKNOWN resolver |
-| `audio` | ALSA discovery, playback, bounded capture, built-in sounds |
+| `audio` | ALSA discovery, playback, bounded capture, built-in sounds; `voice.py` talks to the Pi offline (Vosk) |
 | `messaging` | provider-neutral replies, the command registry and handlers, Telegram and Signal |
 | `notifications` | alert rules and delivery with retries |
 | `integrations/mqtt` | optional MQTT bridge |
+| `addons` | optional parts: server agents, analytics, smart home, remote commands, AI assistant and commander, settings help, phones (SOS, lost phones), emergency data, reverse proxy, plugins |
+| `backup.py` | encrypted backups to Nextcloud, rsync or Borg |
 | `storage` | SQLite state |
 | `security` | file permissions, redaction, rate limiting |
 | `diagnostics` | `pi-guard doctor`, host metrics, the optional anonymous statistics |

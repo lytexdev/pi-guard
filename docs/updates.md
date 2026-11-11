@@ -32,7 +32,8 @@ The desktop app only updates itself in the Linux install from `scripts/install-d
 
 ## Releases on GitHub
 
-One command builds, signs and publishes the phone app, the desktop app and the agent:
+One command builds, signs and publishes the phone app, the desktop app, the agent and `pgproxy` (the proxy binaries
+are not signed for updates; they are checked against `SHA256SUMS`):
 
 ```bash
 ./scripts/release-apps.sh 1.4.0                   # everything this computer can build

@@ -89,6 +89,7 @@ and the last few minutes last.
 | Microphone | `PI_GUARD_AUDIO_RECORDING_ENABLED=true` | `audio.microphone` or a camera's `microphone`; read [privacy.md](privacy.md) |
 | Signal | `PI_GUARD_SIGNAL_ENABLED=true` | signal-cli, see [signal.md](signal.md) |
 | MQTT | `PI_GUARD_MQTT_ENABLED=true` | a broker; `pip install` is already done by the installer |
+| Talking to the Pi | `PI_GUARD_VOICE_WAKE_ENABLED=true` or `PI_GUARD_VOICE_BUTTON_GPIO` | `pi-guard voice download`, a microphone and a speaker; see [voice.md](voice.md) |
 
 Models are downloaded only when you run `pi-guard models download`, which shows
 the files, their size and source and asks before downloading.
