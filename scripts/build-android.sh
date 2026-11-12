@@ -16,6 +16,11 @@ VERSION="${1:?usage: $0 VERSION [--publish SSH_HOST]}"
 CODE="$(git -C "$REPO" rev-list --count HEAD)"
 [[ "$VERSION" =~ ^[0-9A-Za-z.+-]+$ ]] || { echo "not a version: $VERSION" >&2; exit 1; }
 
+# Gradle 8 cannot read newer Java versions ("25.0.5.0.3" was its whole error), so take Java 17 unless told otherwise.
+if [[ -z "${JAVA_HOME:-}" && -d /usr/lib/jvm/java-17-openjdk ]]; then export JAVA_HOME=/usr/lib/jvm/java-17-openjdk; fi
+java_major="$("${JAVA_HOME:+$JAVA_HOME/bin/}java" -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -1)"
+[[ "$java_major" =~ ^(17|21)$ ]] || { echo "needs Java 17 or 21, found ${java_major:-none}: set JAVA_HOME, for example JAVA_HOME=/usr/lib/jvm/java-17-openjdk" >&2; exit 1; }
+
 # Before anything else, so a run on the wrong machine (the Pi) leaves no signing key behind.
 SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
 NDK="$(ls -d "$SDK"/ndk/* 2>/dev/null | sort -V | tail -1 || true)"

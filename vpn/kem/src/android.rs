@@ -22,7 +22,7 @@ fn exchange(start: &[u8; KEY_SIZE]) -> Option<crate::Key> {
 /// `de.lytex.Kem.exchange(startingKey)`: the new key, or null if there is none.
 #[no_mangle]
 pub extern "system" fn Java_de_lytex_Kem_exchange<'local>(
-    mut env: JNIEnv<'local>,
+    env: JNIEnv<'local>,
     _class: JClass<'local>,
     start: JByteArray<'local>,
 ) -> jbyteArray {
