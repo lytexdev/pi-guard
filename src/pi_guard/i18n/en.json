@@ -3237,5 +3237,8 @@
   "web.member_forbidden": "You lack the permission for this. An admin can grant it under Settings › Access.",
   "web.theme_auto": "As the system",
   "web.mob_off": "The phone app is switched off. Switch it on above and restart pi-guard; the paired phones then appear here.",
-  "web.group_mobile": "Phone app"
+  "web.group_mobile": "Phone app",
+  "web.dev_searching": "Looking for cameras, microphones and speakers …",
+  "web.setting_mobile_enabled": "Allow the phone app",
+  "web.tip_mobile_enabled": "Phones with the PiGuard app can connect: alerts, VPN, finding the phone and the emergency button. Takes effect after a restart"
 }

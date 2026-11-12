@@ -3237,5 +3237,8 @@
   "web.member_forbidden": "Dafür fehlt dir das Recht. Ein Admin kann es unter Einstellungen › Zugang vergeben.",
   "web.theme_auto": "Wie System",
   "web.mob_off": "Die Handy-App ist ausgeschaltet. Schalte sie oben ein und starte pi-guard neu, dann erscheinen hier die verbundenen Handys.",
-  "web.group_mobile": "Handy-App"
+  "web.group_mobile": "Handy-App",
+  "web.dev_searching": "Kameras, Mikrofone und Lautsprecher werden gesucht …",
+  "web.setting_mobile_enabled": "Handy-App erlauben",
+  "web.tip_mobile_enabled": "Handys mit der PiGuard-App können sich verbinden: Alarme, VPN, Handy finden und Notfallknopf. Wirkt nach einem Neustart"
 }

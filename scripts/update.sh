@@ -34,6 +34,20 @@ report() {  # report STATE MESSAGE
 }
 git_as_owner() { runuser -u "$OWNER" -- git -C "$REPO" "$@"; }
 
+# Root helpers of optional parts, installed by their own scripts: kept current with each update,
+# never added by it (that stays the owner's step, e.g. privacy-server.sh install).
+refresh_helpers() {
+    local pair source target
+    for pair in deploy/privacy/pi-guard-exit-apply:pi-guard-exit-apply \
+                deploy/privacy/pi-guard-privacy-nft:pi-guard-privacy-nft \
+                deploy/amneziawg/pi-guard-awg-sync:pi-guard-awg-sync; do
+        source="$REPO/${pair%%:*}" target="/usr/local/sbin/${pair##*:}"
+        [[ -f "$target" && -f "$source" ]] && install -m 0755 "$source" "$target"
+    done
+    systemctl try-restart pi-guard-awg-sync 2>/dev/null || true
+    return 0
+}
+
 install_code() {
     "$PREFIX/venv/bin/pip" install --quiet "$REPO[vision,mqtt,web]" \
         && install -m 0644 "$REPO/deploy/systemd/pi-guard.service" /etc/systemd/system/pi-guard.service \
@@ -42,6 +56,7 @@ install_code() {
              || install -m 0755 "$REPO/deploy/maint/pi-guard-maint" /usr/local/sbin/pi-guard-maint; } \
         && { [[ ! -e "$REPO/deploy/update/pi-guard-release-check" ]] \
              || install -m 0755 "$REPO/deploy/update/pi-guard-release-check" "$CHECK"; } \
+        && refresh_helpers \
         && git_as_owner rev-parse HEAD > "$PREFIX/commit" \
         && systemctl daemon-reload \
         && systemctl restart pi-guard

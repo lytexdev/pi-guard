@@ -21,8 +21,11 @@ HOME_IFACE="${PI_GUARD_HOME_IFACE:-wg0}"
 HIDDEN_IFACE="${PI_GUARD_HIDDEN_IFACE:-awg0}" # AmneziaWG, the same devices disguised
 # Traffic from the home VPN: first the main table without its default route (LAN, the VPN
 # itself), then the exit. The kill switch in nft.plan drops what would still leave another way.
+# wg0 takes 10900/10901, awg0 10902/10903: each its own, so one can be set without the other.
 RULE_MAIN=10900
 RULE_EXIT=10901
+rule_main() { [[ "$1" == "$HOME_IFACE" ]] && echo "$RULE_MAIN" || echo $((RULE_MAIN + 2)); }
+rule_exit() { [[ "$1" == "$HOME_IFACE" ]] && echo "$RULE_EXIT" || echo $((RULE_EXIT + 2)); }
 
 umask 077
 mkdir -p "$STATUS_DIR"
@@ -75,12 +78,12 @@ trap 'rm -f "$TMP"' EXIT
         "${address%/*}" "$TABLE_ID" "${address%/*}" "$TABLE_ID"
     for home in "$HOME_IFACE" "$HIDDEN_IFACE"; do
         printf 'PostUp = ip rule add iif %s lookup main suppress_prefixlength 0 priority %s; ip rule add iif %s table %s priority %s\n' \
-            "$home" "$RULE_MAIN" "$home" "$TABLE_ID" "$RULE_EXIT"
+            "$home" "$(rule_main "$home")" "$home" "$TABLE_ID" "$(rule_exit "$home")"
     done
     printf 'PostDown = ip rule del from %s table %s; ip rule del to %s table %s\n' \
         "${address%/*}" "$TABLE_ID" "${address%/*}" "$TABLE_ID"
     printf 'PostDown = ip rule del priority %s; ip rule del priority %s; ip rule del priority %s; ip rule del priority %s\n' \
-        "$RULE_MAIN" "$RULE_EXIT" "$RULE_MAIN" "$RULE_EXIT"
+        "$RULE_MAIN" "$RULE_EXIT" "$((RULE_MAIN + 2))" "$((RULE_EXIT + 2))"
     printf '\n[Peer]\nPublicKey = %s\n' "$pub"
     if [[ "$psk" != AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= ]]; then
         printf 'PresharedKey = %s\n' "$psk"
@@ -106,6 +109,24 @@ fi
 # Policy routing: send traffic from the home VPN subnet out via the exit table when marked
 # by the privacy nft/nat rules. Basic default route in the exit table:
 ip route replace default dev "$IFACE" table "$TABLE_ID" 2>/dev/null || true
+
+# The rules for the VPN interfaces, every time: PostUp runs only when the exit comes up, and
+# an interface added later (AmneziaWG) would otherwise never get its rules.
+for home in "$HOME_IFACE" "$HIDDEN_IFACE"; do
+    main="$(rule_main "$home")" exit_rule="$(rule_exit "$home")"
+    while ip rule del priority "$main" 2>/dev/null; do :; done
+    while ip rule del priority "$exit_rule" 2>/dev/null; do :; done
+    ip rule add iif "$home" lookup main suppress_prefixlength 0 priority "$main"
+    ip rule add iif "$home" table "$TABLE_ID" priority "$exit_rule"
+done
+
+# ufw drops forwarded traffic it was not told about: let the VPN devices out through the exit,
+# as wireguard.sh lets them out through the LAN. The privacy nft table still decides the rest.
+if command -v ufw >/dev/null && ufw status | grep -q '^Status: active'; then
+    for home in "$HOME_IFACE" "$HIDDEN_IFACE"; do
+        ufw route allow in on "$home" out "$IFACE" comment 'VPN through the privacy exit' >/dev/null || true
+    done
+fi
 
 HANDSHAKE="$(wg show "$IFACE" latest-handshakes 2>/dev/null | awk 'NR==1 {print $2}')"
 NOW="$(date +%s)"

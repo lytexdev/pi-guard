@@ -102,3 +102,16 @@ def test_every_step_of_a_page_change_checks_that_it_is_still_the_newest() -> Non
         for part in body.split(wait)[1:]:
             assert part.lstrip().startswith("if (turn !== showing) return;"), wait
     assert "cleanup = await" not in body
+
+
+def test_every_setting_and_group_has_its_words() -> None:
+    import json
+
+    from pi_guard.web.settings_schema import FIELDS
+
+    root = Path(__file__).resolve().parents[1] / "src/pi_guard/i18n"
+    for language in ("de", "en"):
+        texts = json.loads((root / f"{language}.json").read_text())
+        missing = [f.key for f in FIELDS if f"web.setting_{f.key}" not in texts]
+        missing += [f"group {f.group}" for f in FIELDS if f"web.group_{f.group}" not in texts]
+        assert not missing, (language, sorted(set(missing)))

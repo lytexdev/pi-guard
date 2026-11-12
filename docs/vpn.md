@@ -62,7 +62,13 @@ and ports come from Mullvad's relay list on the Pi, never from the browser.
 `pi-guard-exit-apply` brings up `pgexit` and routes the home VPN (`wg0`) into it: the main table without its default
 route first (home network, the VPN itself), then the exit. The privacy table masquerades what leaves through
 `pgexit`, and with the kill switch it drops VPN traffic that would leave another way; other forwarding, such as
-containers, is not touched. After an update of these scripts run `sudo ./scripts/privacy-server.sh install` again.
+containers, is not touched. With ufw active it also allows `wg0`/`awg0` → `pgexit` (`ufw route`), and it sets the ip
+rules of both VPN interfaces on every run (wg0 10900/10901, awg0 10902/10903). Updates from the dashboard keep the
+installed scripts current; `sudo ./scripts/privacy-server.sh install` installs them and applies the exit at once.
+
+On 2026-11-12, with the Mullvad exit up, ufw dropped everything from the VPN devices to `pgexit` (`[UFW BLOCK]
+IN=wg0 OUT=pgexit`): the phone's tunnel stood, but it had no internet and could not reach pi-guard by its public name,
+so the app tried its other ways. AmneziaWG got no ip rules at all, because it came after the exit was up.
 
 Until 2026-11-12 every exit was refused (`invalid exit.peer`): a bracket in the endpoint check of
 `pi-guard-exit-apply` was written so that no address matched. With the kill switch on, VPN devices then had no

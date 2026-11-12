@@ -162,6 +162,12 @@ All notable changes are documented here. The format follows
 - Bars and progress set through style attributes had no width, because the Content Security Policy drops them.
 - Updates from the dashboard now also install the root job for the security check and storage, so new fixes arrive
   without running `install.sh`.
+- VPN devices had no internet once the Mullvad exit was up: ufw dropped wg0 → pgexit. The exit now allows wg0 and awg0
+  into it, and sets the ip rules for both VPN interfaces on every run (AmneziaWG got none when added later). Updates
+  keep the installed privacy and AmneziaWG helpers current.
+- Settings › Messenger did not load (`messengerTests is not defined`, lost with the statistics panel).
+- Settings › Apps showed `web.setting_mobile_enabled`; a test now checks every setting has its words.
+- Settings sections show a loading state; *Devices & cameras* says it is looking for cameras.
 - `build-android.sh` (and so `release-apps.sh`) takes Java 17 when `JAVA_HOME` is not set and refuses other
   versions: under Java 25 the Gradle of AmneziaWG's tunnel library failed with only `25.0.5.0.3` as its error.
 - `build-android.sh` stops before creating a signing key when there is no Android NDK, so a run on the Pi leaves no

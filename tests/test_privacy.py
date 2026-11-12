@@ -318,9 +318,14 @@ def test_exit_apply_takes_real_endpoints(tmp_path: Path, endpoint: str) -> None:
     text = conf.read_text()
     assert f"Endpoint = {endpoint}" in text and "PresharedKey" not in text
     # VPN clients go out through the exit; the LAN and the VPN itself stay in the main table.
-    for home in ("wg0", "awg0"):  # AmneziaWG devices must not pass the exit either
-        assert f"iif {home} lookup main suppress_prefixlength 0" in text
-        assert f"iif {home} table 51821" in text
+    for home, main, out in (("wg0", 10900, 10901), ("awg0", 10902, 10903)):
+        # AmneziaWG devices must not pass the exit either, each with rules of its own
+        assert f"iif {home} lookup main suppress_prefixlength 0 priority {main}" in text
+        assert f"iif {home} table 51821 priority {out}" in text
+    script = EXIT_APPLY.read_text()
+    # Set on every run, not only when the exit comes up; and ufw must let them through.
+    assert 'for home in "$HOME_IFACE" "$HIDDEN_IFACE"; do\n    main=' in script
+    assert 'ufw route allow in on "$home" out "$IFACE"' in script
 
 
 def test_firewall_sends_vpn_clients_through_the_exit() -> None:

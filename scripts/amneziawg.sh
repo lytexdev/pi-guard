@@ -162,7 +162,8 @@ install_all() {
     systemctl enable --quiet "awg-quick@$IFACE" pi-guard-awg-sync
     systemctl restart "awg-quick@$IFACE"
     systemctl restart pi-guard-awg-sync # a running one would keep the old program
-    # The privacy exit and its firewall know awg0 from their own update.
+    # A running privacy exit sets its rules for awg0 now (pi-guard-exit-apply sets them every run).
+    systemctl start pi-guard-exit-apply.service 2>/dev/null || true
     say "running on UDP $port. Forward UDP $port on your router to this Pi; nothing else is needed there."
     say "pi-guard offers it to the apps after its next restart (Dashboard > Network > VPN)."
 }

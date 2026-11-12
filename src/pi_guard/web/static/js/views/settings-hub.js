@@ -2,7 +2,7 @@
 import { askDialog, api, attempt, fill, h, icon, infoTip, t, toast, when, whileShown, expertMode, setExpertMode } from "../api.js";
 import { state } from "../app.js";
 import { installFolds, unfold } from "../folds.js";
-import { searchToggle, supportNote } from "../widgets.js";
+import { searchToggle, skeleton, supportNote } from "../widgets.js";
 import { restartPrompt } from "./settings.js";
 
 // Moved into other tabs; old links keep working.
@@ -172,6 +172,23 @@ async function voicePanel(box) {
 }
 
 // Anonymous statistics: off until the owner switches them on, with the exact report shown first.
+const MESSENGER_NAMES = { telegram: "Telegram", signal: "Signal", discord: "Discord", whatsapp: "WhatsApp", email: "E-Mail",
+  slack: "Slack", rocketchat: "Rocket.Chat", matrix: "Matrix", mastodon: "Mastodon", mobile: "App" };
+
+async function messengerTests() {
+  const list = await api("/api/messengers").catch(() => []);
+  return h("section", { class: "panel stack" }, h("h2", {}, icon("message"), " ", t("web.messengers_title")),
+    h("p", { class: "muted" }, t("web.messengers_intro")),
+    list.length ? h("ul", { class: "list" }, list.map((m) => h("li", {},
+      h("span", { class: `dot ${m.connected ? "ok" : "danger"}` }),
+      h("div", { class: "grow" }, h("div", {}, MESSENGER_NAMES[m.name] || m.name),
+        m.admins ? null : h("small", { class: "muted" }, t("web.messenger_no_admin"))),
+      h("button", { onclick: async () => {
+        const r = await attempt(() => api(`/api/messengers/${encodeURIComponent(m.name)}/test`, { method: "POST" }));
+        if (r) toast(t("web.messenger_test_sent", { count: r.sent }));
+      } }, icon("bell"), t("web.test"))))) : h("p", { class: "empty" }, t("web.nothing")));
+}
+
 async function updateSection(root) {
   const box = h("div");
   const apps = h("div");
@@ -327,6 +344,11 @@ export async function render(main, params = []) {
     fill(saveBar, h("span", { class: "grow" }, t("web.set_unsaved")), h("button", { class: "primary", onclick: () => save?.() }, icon("check"), t("web.save")));
     saveBar.classList.remove("hidden");
   };
+  // Something to look at while a section loads; finding cameras and sound devices takes seconds.
+  const waiting = h("div", { class: "hub-loading" },
+    current === "devices" ? h("p", { class: "muted", role: "status" }, h("span", { class: "spinner", "aria-hidden": "true" }), " ", t("web.dev_searching")) : null,
+    skeleton(current === "devices" ? 2 : 1));
+  body.append(waiting);
   const section = SECTIONS.find(([id]) => id === current);
   if (current === "data" && tab !== "backup") {
     if (tab === "storage") await (await import("./storage.js")).render(body);
@@ -392,6 +414,7 @@ export async function render(main, params = []) {
   } else {
     await updateSection(body);
   }
+  waiting.remove();
   if (target) jumpTo(target);
   return stop;
 }

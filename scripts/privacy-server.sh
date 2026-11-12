@@ -47,6 +47,8 @@ install_all() {
     systemctl enable --now pi-guard-exit-apply.path pi-guard-privacy-nft.path \
         pi-guard-tor-ctl.path pi-guard-privacy-status.timer
     systemctl restart pi-guard-privacy-status.timer
+    # An exit already in use takes the new rules now, not only at its next change.
+    systemctl start pi-guard-exit-apply.service || true
     echo "privacy upstream ready. Configure it under Network > VPN in the dashboard."
     echo "Tor, AmneziaWG, Shadowsocks and Xray are not installed automatically."
 }
