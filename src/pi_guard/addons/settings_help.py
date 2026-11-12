@@ -19,7 +19,7 @@ from pi_guard.i18n import t
 from pi_guard.web.settings_schema import EXPERT, FIELDS, Field, to_env
 
 # Explained, never changed by a proposal: these decide who gets in and what runs.
-LOCKED_PREFIXES = ("dashboard_", "wireguard_", "assistant_", "app_updates_", "webpush_")
+LOCKED_PREFIXES = ("dashboard_", "wireguard_", "assistant_", "app_updates_", "update_", "webpush_")
 LOCKED = frozenset({"log_level", "mobile_enabled"})
 VALUE_KINDS = ("bool", "int", "choice", "language")
 PRIVATE_VALUES = frozenset({"timezone"})  # tells roughly where a home is

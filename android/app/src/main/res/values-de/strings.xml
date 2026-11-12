@@ -118,6 +118,8 @@
     <string name="update_check">Nach Updates suchen</string>
     <string name="update_none">Du hast die neueste Version.</string>
     <string name="update_found">Version %s verfügbar</string>
+    <string name="update_installing">Wird jetzt installiert.</string>
+    <string name="update_offer">Tippen zum Installieren.</string>
     <string name="update_install">Installieren</string>
     <string name="update_failed">Die Datei passt nicht zur Prüfsumme. Es wurde nichts installiert.</string>
     <string name="address_section">Adresse</string>

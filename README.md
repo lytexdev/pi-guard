@@ -72,7 +72,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | **Plugins** | Your own add-ons with commands, pages and API routes, from a ZIP or a Git link, checked before they run. See [plugins](docs/plugins.md). |
 | **Ways home** | IPv4, IPv6, a rented server or Tailscale, for every kind of internet connection. See [network](docs/network.md#ways-home-from-outside). |
 | **Training** | `pgtrain` on a computer with an NVIDIA GPU: is this me, similar photos, thresholds from your photos and the Pis' anonymous statistics, and a person detector trained on pictures of rooms. Pictures stay on that computer. See [training](docs/training.md). |
-| **Updates** | Agents and apps update themselves with signed releases, which a compromised Pi cannot fake. The Pi installs only signed releases too, so a hacked GitHub account cannot reach it. See [updates](docs/updates.md). |
+| **Updates** | Agents and apps update themselves with signed releases, which a compromised Pi cannot fake. The Pi installs only signed releases too, so a hacked GitHub account cannot reach it. One command, `scripts/ship.sh`, releases everything; new minor and major versions install themselves, patches are offered. See [updates](docs/updates.md). |
 
 ### Getting the apps
 

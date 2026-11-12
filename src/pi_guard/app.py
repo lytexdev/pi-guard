@@ -32,6 +32,7 @@ from pi_guard.core.lifecycle import ComponentState, supervise
 from pi_guard.core.modes import Mode, mode_controller
 from pi_guard.core.permissions import Role, UserStore
 from pi_guard.core.schedule import ScheduleRunner
+from pi_guard.core.self_update import SelfUpdate
 from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.analysis import MotionAnalysis
 from pi_guard.detection.enrollment import EnrollmentSession
@@ -146,6 +147,7 @@ class App:
         self.notifier = Notifier(self)
         self.contribution = Contribution(self)
         self.app_updates = AppUpdates(self)
+        self.self_update = SelfUpdate(self)
         self.backups = Backups(self)
         from pi_guard.audio.voice import Voice
 
@@ -315,6 +317,7 @@ class App:
             "notifier": self.notifier.run,
             "contribution": self.contribution.run,
             "app-updates": self.app_updates.run,
+            "self-update": self.self_update.run,
             "backup": self.backups.run,
         }
         if self.voice.enabled:

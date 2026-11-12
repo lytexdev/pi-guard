@@ -118,6 +118,8 @@
     <string name="update_check">Check for updates</string>
     <string name="update_none">You have the latest version.</string>
     <string name="update_found">Version %s available</string>
+    <string name="update_installing">Installing it now.</string>
+    <string name="update_offer">Tap to install.</string>
     <string name="update_install">Install</string>
     <string name="update_failed">The file did not match its checksum. Nothing was installed.</string>
     <string name="address_section">Address</string>

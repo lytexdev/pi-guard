@@ -14,7 +14,6 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-import httpx
 from aiohttp import web
 
 from pi_guard import __version__
@@ -28,18 +27,17 @@ from pi_guard.addons.plugin import (
 )
 from pi_guard.addons.plugin_updates import PluginGitError
 from pi_guard.config.files import FileConfig
+from pi_guard.core import self_update
+from pi_guard.core.app_updates import step
 from pi_guard.diagnostics.contribution import ENABLED_KEY, build_report
 from pi_guard.web.api_manage import saved_config, write_config
 from pi_guard.web.server import current, dashboard, read_json
 
 UPDATE_REPORT = Path("/var/lib/pi-guard-scan/update.json")  # root writes it, pi-guard reads
-REPOSITORY = "lytexdev/pi-guard"
-CHECK_SECONDS = 3600
 MAX_ZIP = 2_000_000
 MAX_FILES = 100
 MAX_SOURCE = 200_000
 _ID_RE = re.compile(r"^[a-z0-9_]{2,32}$")
-_latest: tuple[float, dict[str, Any]] = (0.0, {})
 
 
 def routes() -> list[web.RouteDef]:
@@ -145,28 +143,15 @@ def _update_dir(request: web.Request) -> Path:
 
 
 async def _remote() -> dict[str, Any]:
-    global _latest
-    if time.monotonic() - _latest[0] < CHECK_SECONDS and _latest[1]:
-        return _latest[1]
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            headers = {"Accept": "application/vnd.github+json"}
-            base = f"https://api.github.com/repos/{REPOSITORY}"
-            tags = await client.get(f"{base}/tags?per_page=100", headers=headers)
-            tags.raise_for_status()
-            # Only to show. What counts is the signature, which update.sh checks itself.
-            names = [t["name"] for t in tags.json() if t["name"].startswith("release-")]
-            if not names:
-                return {}
-            response = await client.get(f"{base}/commits/{max(names)}", headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        info = {"commit": data["sha"][:10], "date": data["commit"]["committer"]["date"],
-                "message": data["commit"]["message"].split("\n")[0][:120]}  # fmt: skip
-    except (httpx.HTTPError, KeyError, ValueError):
-        return _latest[1]
-    _latest = (time.monotonic(), info)
-    return info
+    # Only to show. What counts is the signature, which update.sh checks itself.
+    return await self_update.remote()
+
+
+def _available(commit: str | None, remote: dict[str, Any]) -> bool:
+    """A newer version than this one; without versions (older releases), another commit."""
+    if isinstance(remote.get("version"), str) and step(remote["version"], __version__) is None:
+        return False
+    return bool(commit and remote.get("commit") and commit != remote["commit"])
 
 
 async def update_status(request: web.Request) -> web.Response:
@@ -183,7 +168,7 @@ async def update_status(request: web.Request) -> web.Response:
     remote = await _remote()
     return web.json_response({
         "version": __version__, "commit": commit, "remote": remote, "state": state,
-        "available": bool(commit and remote.get("commit") and commit != remote["commit"]),
+        "available": _available(commit, remote),
         "installed_by_script": commit_file.exists(),
         "pending": (directory / "request").exists(),
     })  # fmt: skip

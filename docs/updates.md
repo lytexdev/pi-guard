@@ -3,6 +3,31 @@
 Agents, desktop apps and the phone app update themselves from your pi-guard, and every pi-guard fetches new versions of
 them from GitHub by itself. The Pi itself installs signed releases, see [below](#updating-the-pi).
 
+## One release of everything
+
+```bash
+./scripts/ship.sh            # on main, with everything pushed
+```
+
+This is the whole release: the Pi with its dashboard, the phone app, the desktop app and the agent get one version
+number. It follows from the commits since the last release: `feat: ...` makes a minor version (1.9.0), `fix!: ...` or a
+`BREAKING CHANGE` line a major one (2.0.0), anything else a patch (1.8.1). `./scripts/ship.sh minor` chooses it,
+`--next` only shows it. The script writes the version into `pyproject.toml` and `src/pi_guard/__init__.py`, commits it
+as `release: X.Y.Z`, runs `release-apps.sh` and `release.sh tag` (which asks for your release key's passphrase), and
+pushes. If a step fails, run it again: it goes on where it stopped.
+
+What happens then:
+
+| | New minor or major (1.9.0, 2.0.0) | New patch (1.8.1) |
+| --- | --- | --- |
+| Pi and dashboard | installs itself within an hour and tells you (`update_auto`, *Install new versions by itself*) | tells you; *System › Update* installs it |
+| Phone app | notification, installs by itself on Wi-Fi (on mobile data a tap does it) | notification, a tap installs it |
+| Desktop app | installs by itself | notification, a click installs it |
+| Agent | installs by itself | installs by itself |
+
+Each pi-guard looks for new releases every hour. *Check for updates* in the phone or desktop app makes it look on GitHub
+at once (at most every 5 minutes, since anyone in the home network may ask).
+
 ## Why this is safe
 
 A pi-guard hands updates out, but it cannot make them. Every release is signed with an Ed25519 key that stays on the
@@ -22,10 +47,10 @@ The phone app relies on Android, which installs an update only if it carries the
 | | Checks | Installs | Runs |
 | --- | --- | --- | --- |
 | Agent | every 6 hours | by itself; a new version must start on that machine first, or the old one stays | restarts itself |
-| Desktop app (Linux) | every 6 hours | by itself, the running version stays untouched | at the next start, or on a click |
-| Desktop app (Windows) | every 6 hours | by itself after the check, then it closes | at the next start |
-| Desktop app (macOS) | every 6 hours | shows the checked file, it must be replaced by hand | |
-| Phone app | once a day, on Wi-Fi | the first time after a tap, then by itself on Android 12 and newer | after the update |
+| Desktop app (Linux) | every 3 hours | by itself, the running version stays untouched | at the next start, or on a click |
+| Desktop app (Windows) | every 3 hours | by itself after the check, then it closes | at the next start |
+| Desktop app (macOS) | every 3 hours | shows the checked file, it must be replaced by hand | |
+| Phone app | every 3 hours | a new minor or major version on Wi-Fi: the first time after a tap, then by itself on Android 12 and newer; a patch after a tap on its notification | after the update |
 
 The desktop app only updates itself in the Linux install from `scripts/install-desktop.sh`, not as AppImage or `.deb`.
 `AUTO_UPDATE=false` in `/etc/pi-guard-agent/agent.conf` switches it off for an agent.
@@ -46,7 +71,7 @@ It makes the GitHub release `apps-1.4.0` with all files to download (APK, AppIma
 devices update from, such as `android-apk.json` or `desktop-linux-x64.json`. It needs the update key, the app's
 keystore, and the GitHub CLI logged in (`gh auth login`).
 
-Every pi-guard looks at the newest `apps-*` release every 6 hours and takes a file only if its manifest is signed with
+Every pi-guard looks at the newest `apps-*` release every hour and takes a file only if its manifest is signed with
 the update key and the file matches the signed checksum, size and version. Its devices then fetch it from the Pi and
 check the same signature again. So people with their own pi-guard get updates as well, without you sending them
 anything. `PI_GUARD_APP_UPDATES_FROM_GITHUB=false` (*Fetch app updates from GitHub* in the expert settings) switches
@@ -97,6 +122,11 @@ update button reports that there is no release key, and installing by hand still
 ```bash
 ./scripts/release.sh tag
 ```
+
+`scripts/ship.sh` does this as its last step. A pi-guard installed with `install.sh` installs a new minor or major
+release by itself within an hour (`PI_GUARD_UPDATE_AUTO=false` turns that off) and only announces a patch; either way
+it tells the admins in the chat. It leaves the same note as the update button, so the signature check above still
+decides. A Pi on an older release cannot do this yet, so it takes the first new release with the update button.
 
 An update never changes `/opt/pi-guard/release-signers`, or stolen access could replace it. To change the key, for
 example because it was lost, make a new one and put it there by hand on each Pi:

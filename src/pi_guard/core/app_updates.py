@@ -9,6 +9,9 @@ broken-into GitHub account cannot hand anything to a device: it can only hold up
 `scripts/release-apps.sh` makes such a release. Each file comes with PRODUCT-PLATFORM.json:
 version, sha256, size, signature and the asset name. The phone app's version also carries its
 Android version code, as "1.4.0+812", so the code is signed as well.
+
+The step between two versions decides what devices do: a new major or minor version (2.0.0,
+1.9.0) installs by itself, a new patch (1.8.1) is only offered. `step` says which it is.
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ import json
 import logging
 import re
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -37,7 +41,11 @@ RELEASES = f"https://api.github.com/repos/{REPOSITORY}/releases?per_page=10"
 # The same key as in agent/src/update.rs and desktop/updates.js. Its private half never leaves
 # the computer that builds releases. A fork puts its own here.
 UPDATE_KEY = bytes.fromhex("7cdf1b203f7747803d04eaf7cdc52350c684f6e5b3b0ea64cd1636b593b8b716")
-EVERY_SECONDS = 6 * 3600
+EVERY_SECONDS = 3600
+# "Check for updates" on a device asks GitHub at once, but not more often than this: anyone in the
+# home network may ask, and GitHub allows a device 60 questions an hour.
+ASK_SECONDS = 300
+ASK_WAIT = 90
 MAX_MANIFEST = 4096
 MAX_FILE = 400 * 1024 * 1024
 MANIFEST = re.compile(r"^(agent|desktop|android)-([a-z0-9_-]{1,32})\.json$")
@@ -72,6 +80,23 @@ class Manifest:
     @property
     def code(self) -> int:
         return self.parts[3]
+
+
+def step(candidate: str, present: str | None) -> str | None:
+    """ "major", "minor" or "patch" when `candidate` is newer than `present`, else None.
+
+    A build number after "+" (Android's version code) alone is a patch. Unreadable means None.
+    """
+    new, old = VERSION.match(candidate), VERSION.match(present or "")
+    if new is None or old is None:
+        return None
+    a = tuple(int(p) for p in new.groups(default="0"))
+    b = tuple(int(p) for p in old.groups(default="0"))
+    if a <= b:
+        return None
+    if a[0] != b[0]:
+        return "major"
+    return "minor" if a[1] != b[1] else "patch"
 
 
 def message(product: str, platform: str, version: str, sha256: str) -> bytes:
@@ -171,6 +196,8 @@ class AppUpdates:
     def __init__(self, app: App) -> None:
         self._app = app
         self.last: dict[str, str] = {}  # product-platform -> what happened, for the dashboard
+        self._lock = asyncio.Lock()
+        self._asked = float("-inf")  # monotonic; "never" must not mean "just now" after a boot
 
     @property
     def enabled(self) -> bool:
@@ -181,10 +208,32 @@ class AppUpdates:
         while True:
             if self.enabled:
                 try:
-                    await self.check()
+                    async with self._lock:
+                        await self.check()
                 except (httpx.HTTPError, OSError, ValueError) as exc:
                     log.warning("app releases not checked: %s", type(exc).__name__)
             await asyncio.sleep(EVERY_SECONDS)
+
+    async def ask(self) -> None:
+        """A device's "check for updates": look on GitHub now, at most every ASK_SECONDS.
+
+        Waits at most ASK_WAIT seconds; a slow download goes on and is there next time.
+        """
+        if not self.enabled or time.monotonic() - self._asked < ASK_SECONDS:
+            return
+        self._asked = time.monotonic()
+
+        async def locked() -> None:
+            async with self._lock:
+                await self.check()
+
+        task = asyncio.ensure_future(locked())
+        try:
+            await asyncio.wait_for(asyncio.shield(task), ASK_WAIT)
+        except TimeoutError:
+            pass
+        except (httpx.HTTPError, OSError, ValueError) as exc:
+            log.warning("app releases not checked: %s", type(exc).__name__)
 
     async def check(self) -> list[str]:
         """Fetch what is new. Returns product-platform names that were updated."""

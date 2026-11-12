@@ -67,6 +67,10 @@ class Store(context: Context) {
     var vpnHidden: String?
         get() = prefs.getString("vpn_hidden", null)
         set(value) = prefs.edit().putString("vpn_hidden", value).apply()
+    /** The newest app version code the user was told about, so each update is announced once. */
+    var updateTold: Long
+        get() = prefs.getLong("update_told", 0)
+        set(value) = prefs.edit().putLong("update_told", value).apply()
     /** The way that answered last, tried first. */
     var vpnEndpoint: String?
         get() = prefs.getString("vpn_endpoint", null)

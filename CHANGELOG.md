@@ -8,6 +8,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- One release of everything: `scripts/ship.sh` gives the Pi, dashboard, phone app, desktop app and agent one version,
+  chosen from the commit prefixes (`feat` minor, `!` or `BREAKING CHANGE` major, otherwise patch), then builds, signs
+  and publishes. A new minor or major version installs by itself on the Pi (`update_auto`), the phone (on Wi-Fi) and the
+  desktop; a patch is announced and installed with a tap. Pis look for releases every hour instead of every 6, and
+  *Check for updates* in the apps makes the Pi look on GitHub at once. The dashboard shows the release's version.
 - A disguised way home with AmneziaWG for networks that block WireGuard: `scripts/amneziawg.sh` builds the kernel
   module (DKMS) and tools from fixed, checksum-verified releases and sets up `awg0` next to `wg0` with the same key,
   devices and addresses; `pi-guard-awg-sync` mirrors devices and routes each through the interface it greeted

@@ -215,6 +215,9 @@ class Settings(BaseSettings):
     backup_borg_repo: str | None = None
     # Fetch signed releases of the agent, desktop and phone app from GitHub (core/app_updates.py).
     app_updates_from_github: bool = True
+    # Install a new major or minor pi-guard release by itself; a patch is only announced
+    # (core/self_update.py). The update still takes only releases signed with the owner's key.
+    update_auto: bool = True
     # Where anonymous statistics go when the owner switches them on (diagnostics/contribution.py).
     support_url: str | None = None
     dashboard_allow_unauthenticated: bool = False

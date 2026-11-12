@@ -19,6 +19,14 @@ function newer(candidate, current) {
   return index >= 0 && a[index] > b[index];
 }
 
+// "major", "minor" or "patch" for a newer version, as on the Pi (core/app_updates.py): a new
+// major or minor version installs by itself, a patch is only offered.
+function step(candidate, current) {
+  if (!newer(candidate, current)) return null;
+  const [a, b] = [parts(candidate), parts(current)];
+  return a[0] !== b[0] ? "major" : a[1] !== b[1] ? "minor" : "patch";
+}
+
 function signed(manifest, platform, key = publicKey()) {
   try {
     const message = `pi-guard-update|desktop|${platform}|${manifest.version}|${manifest.sha256}`;
@@ -32,4 +40,4 @@ function platformName(platform = process.platform, arch = process.arch) {
   return `${{ linux: "linux", win32: "win", darwin: "mac" }[platform]}-${arch}`;
 }
 
-module.exports = { newer, platformName, publicKey, signed };
+module.exports = { newer, platformName, publicKey, signed, step };
