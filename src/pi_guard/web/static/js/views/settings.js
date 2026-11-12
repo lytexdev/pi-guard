@@ -52,7 +52,7 @@ function control(field, value) {
   const id = `s_${field.key}`;
   if (field.kind === "list") return listEditor(field, value, id);
   if (field.kind === "multi") return multiChoice(field, value || [], id);
-  if (field.kind === "bool") return h("input", { id, type: "checkbox", checked: Boolean(value) });
+  if (field.kind === "bool") return h("input", { id, type: "checkbox", class: "toggle", role: "switch", checked: Boolean(value) });
   if (field.kind === "secret") {
     return h("input", { id, type: "password", autocomplete: "off", placeholder: t("web.secret_placeholder") });
   }
@@ -98,8 +98,13 @@ export async function render(main, params = [], opts = {}) {
       fields.filter((f) => f.group === group).map((field) => {
         const el = control(field, data.values[field.key]);
         inputs.set(field.key, el);
-        return h("div", { class: "switch-row" },
-          h("label", { for: el.id, title: tip(`web.tip_${field.key}`) }, fieldIcon(field.key) ? [icon(fieldIcon(field.key)), " "] : null, t(`web.setting_${field.key}`)), h("div", { class: "control" }, el));
+        // The explanation stands under the name, where it is read, not only in a tooltip.
+        const hint = tip(`web.tip_${field.key}`);
+        if (hint) el.setAttribute("aria-describedby", `${el.id}_hint`);
+        return h("div", { class: `switch-row${field.kind === "bool" ? " is-bool" : ""}` },
+          h("div", { class: "switch-label" }, h("label", { for: el.id }, fieldIcon(field.key) ? [icon(fieldIcon(field.key)), " "] : null, t(`web.setting_${field.key}`)),
+            hint ? h("small", { class: "muted", id: `${el.id}_hint` }, hint) : null),
+          h("div", { class: "control" }, el));
       })))),
     opts.embedded ? null : h("section", { class: "panel" }, h("h2", {}, t("web.secrets")),
       h("p", { class: "muted" }, t("web.secrets_note")),

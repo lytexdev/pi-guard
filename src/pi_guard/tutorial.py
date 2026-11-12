@@ -24,7 +24,7 @@ CHAPTERS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
      ("notfalldaten", "medikament", "medical", "bmp", "organspende")),
     ("apps", "#/addons/mobile", ("app", "handy", "android", "desktop", "phone")),
     ("assistant", "#/addons/assistant", ("assistent", "assistant", "ki ", "sprachsteuerung")),
-    ("move", "#/settings/move", ("umzug", "umziehen", "moving", "neuer router", "new router")),
+    ("move", "#/settings/data/move", ("umzug", "umziehen", "moving", "neuer router", "new router")),
     ("settings", "#/settings", ("einstellung", "setting", "backup", "barrierefrei", "accessib")),
 )  # fmt: skip
 _ASK = re.compile(

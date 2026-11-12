@@ -68,7 +68,7 @@ function checkItem(c, redraw) {
   const body = [];
   if (c.id === "backup") {
     body.push(h("p", { class: "muted" }, c.last ? t("web.mv_backup_last", { time: when(c.last) }) : t("web.mv_backup_never")),
-      h("a", { class: "button small", href: "#/settings/backup" }, t("web.mv_to_backup")));
+      h("a", { class: "button small", href: "#/settings/data/backup" }, t("web.mv_to_backup")));
   } else if (c.id === "wifi") {
     body.push(h("p", { class: "muted" }, c.ssid ? t("web.mv_wifi_now", { ssid: c.ssid }) : t("web.mv_wifi_cable")));
   } else if (c.id === "cameras") {
@@ -122,7 +122,7 @@ export async function render(box) {
   };
   const wifiBox = h("div");
   fill(box,
-    h("section", { class: "panel stack" }, h("h2", {}, icon("map-pin"), " ", t("web.mv_title")), h("p", { class: "muted" }, t("web.mv_intro"))),
+    h("p", { class: "muted" }, t("web.mv_intro")),  // the page heading is the Data & backup tab
     h("section", { class: "panel stack" }, h("h2", {}, t("web.mv_before")),
       h("ol", { class: "mv-steps" },
         step(1, t("web.mv_step_package"), h("p", { class: "muted" }, t("web.mv_step_package_hint")), packageForm()),

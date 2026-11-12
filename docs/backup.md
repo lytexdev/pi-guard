@@ -1,7 +1,7 @@
 # Backups
 
 pi-guard can back up its configuration and data by itself: to a Nextcloud, over rsync to a server, or into a Borg
-repository. Set it up under *Settings → Backup*, or with the `PI_GUARD_BACKUP_*` settings.
+repository. Set it up under *Settings → Data & backup → Backup*, or with the `PI_GUARD_BACKUP_*` settings.
 
 ## What is in a backup
 
@@ -30,11 +30,11 @@ you.** Keep it apart from the Pi, for example in a password manager.
 | Target | Settings | Notes |
 |---|---|---|
 | Nextcloud | address (`https://…`), user, app password, folder | Use an app password (Nextcloud → Settings → Security), not your own. Uploaded over WebDAV; the oldest beyond *Backups to keep* are deleted. |
-| rsync | `user@host:folder` | Over SSH with the Pi's own key, shown under *Settings → Backup* (*Make the key*): add it to `~/.ssh/authorized_keys` of that user. The server's key is remembered on first contact. |
+| rsync | `user@host:folder` | Over SSH with the Pi's own key, shown under *Settings → Data & backup → Backup* (*Make the key*): add it to `~/.ssh/authorized_keys` of that user. The server's key is remembered on first contact. |
 | Borg | `ssh://user@host/folder` or a folder on the Pi | Needs `borg` on the Pi (`sudo apt install borgbackup`) and on the server. The repository is made on the first backup. |
 
 Backups run daily or weekly at the chosen hour; a failed one is tried again after three hours. *Back up now* asks for
-the dashboard password. The last result shows under *Settings → Backup*, and every backup goes into the audit log.
+the dashboard password. The last result shows under *Settings → Data & backup → Backup*, and every backup goes into the audit log.
 
 ## Restoring
 
@@ -69,7 +69,7 @@ For Borg: `borg extract REPO::pi-guard-…` with the passphrase, then the same c
 
 ## Moving
 
-*Settings → Moving* helps with a new home, a new router or internet provider, or a new Pi.
+*Settings → Data & backup → Moving* helps with a new home, a new router or internet provider, or a new Pi.
 
 **Before:**
 

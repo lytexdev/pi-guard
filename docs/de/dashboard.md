@@ -204,7 +204,7 @@ Programme in temporären Ordnern und Konten. Er ändert nichts und kann eine Zus
 Admins schicken (im Chat auch `/sicherheitscheck`). Ein Rootkit-Scan läuft, wenn `rkhunter` oder `chkrootkit`
 installiert ist. Ein gutes Ergebnis ist keine Garantie, dass ein System sauber ist.
 
-*Einstellungen → Speicher* zeigt, was den Platz belegt, und kann alte Aufnahmen, Fotos und Clips löschen, die
+*Einstellungen → Daten & Sicherung → Speicher* zeigt, was den Platz belegt, und kann alte Aufnahmen, Fotos und Clips löschen, die
 Datenbank verdichten sowie alte Systemprotokolle und den Paket-Cache leeren (im Chat auch `/speicher`).
 Beweisvideos und Gesichtsdaten werden dort nicht bereinigt.
 
@@ -257,6 +257,21 @@ brauchen, Experte alles. Das gilt pro Gerät, auch in der Handy-App, und verstec
 Im Expertenmodus endet *Messenger* mit *Testnachrichten*: eine Testnachricht über jeden eingerichteten Messenger, an
 jeden Admin dort oder in den Kanal von Slack, Matrix, Rocket.Chat oder Mastodon. Add-ons, die zu pi-guard gehören,
 tragen ein Häkchen; Darüberfahren, Fokus oder Antippen zeigt *Verifiziert*.
+
+## Aufbau der Einstellungen
+
+Die Einstellungen sind in Grundlagen, Benachrichtigen, Geräte & Zugang und System gruppiert. Jeder Bereich beginnt
+mit einer Zeile, was er enthält, und jede Einstellung zeigt ihre Erklärung direkt unter dem Namen. Ein/Aus ist ein
+Schalter. *Daten & Sicherung* hat vier Tabs: *Backup*, *Speicher*, *Umzug* und in der Expertenansicht *Export*; alte
+Links (`#/settings/backup`, `/storage`, `/move`, `/data`) öffnen den passenden Tab.
+
+## Der Chat des Assistenten
+
+Mit eingeschaltetem KI-Assistenten öffnet der runde Knopf unten rechts seinen Chat: am Computer als Fenster neben
+der Seite, am Handy über den ganzen Bildschirm. Er beginnt mit drei Beispielen zum Antippen, zeigt Punkte, solange
+der Pi nachdenkt, stellt Listen und Fettschrift in Antworten dar, fragt vor jeder Aktion *Ja* oder *Nein* und zeigt
+Fehler im Chat selbst. *Neues Gespräch* leert ihn; das Mikrofon nimmt eine gesprochene Frage auf, wo der Browser es
+erlaubt.
 
 ## Fragen zu Einstellungen und Änderungen rückgängig machen
 

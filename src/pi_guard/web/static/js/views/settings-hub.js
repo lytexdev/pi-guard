@@ -7,6 +7,9 @@ import { restartPrompt } from "./settings.js";
 
 // Moved into other tabs; old links keep working.
 const MOVED = { plan: "modes", api: "access" };
+// Data & backup holds what used to be four tabs; their old links open the right part.
+const DATA_TABS = [["backup", "upload"], ["storage", "database"], ["move", "map-pin"], ["export", "download"]];
+const dataTabs = () => DATA_TABS.filter(([id]) => id !== "export" || expertMode());
 // What is on the pages without settings fields, so the search finds it too.
 const TOPICS = {
   modes: ["web.set_plan"],
@@ -15,25 +18,31 @@ const TOPICS = {
   access: ["web.users_title", "web.webauthn_title", "web.recovery_title", "web.codeword", "web.login_security", "web.account", "web.api_tokens", "web.api_docs"],
   messaging: ["web.discord_status", "web.signal_status"],
   security: ["web.scan_firewall", "web.scan_updates", "web.scan_rootkits", "web.scan_ports", "web.scan_ssh"],
-  storage: ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
-  data: ["web.ex_data", "web.ex_config", "web.ex_import"],
+  "data/storage": ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
+  "data/export": ["web.ex_data", "web.ex_config", "web.ex_import"],
+  "data/backup": ["web.bk_title", "web.bk_ssh_title"],
   updates: ["web.up_title"],
-  move: ["web.mv_title", "web.mv_before", "web.mv_after", "web.mv_package"],
+  "data/move": ["web.mv_title", "web.mv_before", "web.mv_after", "web.mv_package"],
   support: ["web.support_phone", "web.support_email", "web.support_address"],
 };
 const fold = (text) => text.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
 
+// [id, icon, settings groups, nav group]. Data & backup shows the backup group only on its backup tab.
 const SECTIONS = [
-  ["general", "settings", ["general"]], ["recording", "video", ["recording"]], ["detection", "users", ["detection"]],
-  ["modes", "home", ["modes"]], ["audio", "volume", ["audio"]], ["messaging", "device-mobile", ["messaging", "discord", "email", "whatsapp", "signal", "chatapps"]],
-  ["emergency", "alert-triangle", ["emergency"]], ["integrations", "router", ["integrations", "network"]], ["dashboard", "world", ["dashboard"]], ["appearance", "palette", null],
-  ["devices", "camera", null], ["notifications", "bell-ringing", null], ["access", "shield-lock", null],
-  ["security", "shield-check", null], ["storage", "database", null], ["backup", "upload", ["backup"]], ["move", "map-pin", null], ["data", "download", null], ["updates", "refresh", null], ["support", "headset", null],
+  ["general", "settings", ["general"], "basics"], ["recording", "video", ["recording"], "basics"], ["detection", "users", ["detection"], "basics"],
+  ["modes", "home", ["modes"], "basics"], ["audio", "volume", ["audio"], "basics"],
+  ["messaging", "device-mobile", ["messaging", "discord", "email", "whatsapp", "signal", "chatapps"], "alerts"], ["notifications", "bell-ringing", null, "alerts"],
+  ["emergency", "alert-triangle", ["emergency"], "alerts"],
+  ["devices", "camera", null, "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
+  ["data", "database", ["backup"], "system"], ["security", "shield-check", null, "system"], ["integrations", "router", ["integrations", "network"], "system"],
+  ["dashboard", "world", ["dashboard"], "system"], ["updates", "refresh", null, "system"], ["support", "headset", null, "system"],
 ];
+const NAV_GROUPS = ["basics", "alerts", "home", "system"];
 
 // Sections for people who know what they are looking for.
-const EXPERT_SECTIONS = ["integrations", "dashboard", "security", "data"];
+const EXPERT_SECTIONS = ["integrations", "dashboard", "security"];
 const shown = () => SECTIONS.filter(([id]) => expertMode() || !EXPERT_SECTIONS.includes(id));
+const sectionIcon = (id) => SECTIONS.find(([section]) => section === id)?.[1] || "settings";
 
 function modeSwitch(redraw) {
   return h("div", { class: "segmented mode-switch", role: "group", "aria-label": t("web.mode_view") }, [[false, "web.mode_normal"], [true, "web.mode_expert"]].map(([on, label]) =>
@@ -103,7 +112,14 @@ async function backupPanel(box) {
     const b = await api("/api/backup");
     const last = b.last || {};
     const panel = h("section", { class: "panel stack" }, h("h2", {}, icon("upload"), " ", t("web.bk_title")),
-      b.passphrase ? null : h("p", { class: "notice" }, t("web.bk_no_passphrase")),
+      b.passphrase ? null : h("div", { class: "notice stack" }, h("span", {}, t("web.bk_no_passphrase")), h("div", {}, h("button", { class: "small", onclick: () => {
+        // The settings are below, folded while backups are off.
+        const field = document.getElementById("s_backup_passphrase") || document.getElementById("s_backup_enabled");
+        if (!field) return;
+        unfold(field);
+        field.scrollIntoView({ block: "center", behavior: "smooth" });
+        field.focus();
+      } }, icon("settings"), t("web.bk_set_up")))),
       h("p", {}, last.time ? h("span", { class: `badge ${last.ok ? "ok" : "danger"}` }, last.ok ? t("web.bk_ok") : t("web.bk_failed")) : null, " ",
         last.time ? t("web.bk_last", { time: when(last.time), target: last.target }) : t("web.bk_never")),
       last.ok === false ? h("p", { class: "notice danger mono wrap" }, last.error) : null,
@@ -237,13 +253,16 @@ async function donationPanel() {
 }
 
 function searchIndex(fields) {
-  const section = (group) => SECTIONS.find(([, , groups]) => groups?.includes(group))?.[0];
-  const entry = (id, target, label, extra = "") => ({ id, target, label, text: fold(`${label} ${extra}`), name: fold(label) });
+  // path is where the result opens: a section, or a section and its tab (data/move).
+  const section = (group) => (group === "backup" ? "data/backup" : SECTIONS.find(([, , groups]) => groups?.includes(group))?.[0]);
+  const allowed = (path) => shown().some(([id]) => id === path.split("/")[0]) && (!path.startsWith("data/export") || expertMode());
+  const entry = (path, target, label, extra = "") => ({ id: path.split("/")[0], path, target, label, text: fold(`${label} ${extra}`), name: fold(label) });
   return [
-    ...shown().map(([id]) => entry(id, "", t(`web.set_${id}`))),
+    ...shown().map(([id]) => entry(id, "", t(`web.set_${id}`), t(`web.set_${id}_hint`))),
+    ...dataTabs().map(([id]) => entry(`data/${id}`, "", t(`web.set_${id}`), t("web.set_data"))),
     ...fields.filter((f) => section(f.group) && (!f.expert || expertMode())).map((f) => entry(section(f.group), `s_${f.key}`, t(`web.setting_${f.key}`), `${t(`web.group_${f.group}`)} ${t(`web.tip_${f.key}`)} ${f.key.replace(/_/g, " ")}`)),
-    ...Object.entries(TOPICS).flatMap(([id, keys]) => keys.map((key) => entry(id, key, t(key), t(`${key.replace("_title", "")}_hint`)))),
-  ];
+    ...Object.entries(TOPICS).flatMap(([path, keys]) => keys.map((key) => entry(path, key, t(key), t(`${key.replace("_title", "")}_hint`)))),
+  ].filter((item) => allowed(item.path));
 }
 
 function jumpTo(target) {
@@ -257,18 +276,42 @@ function jumpTo(target) {
   setTimeout(() => found.classList.remove("flash"), 2200);
 }
 
+// Which section, which tab of Data & backup, and what to jump to: from #/settings/SECTION[/TAB][/TARGET].
+function place(params) {
+  let [wanted, ...rest] = params;
+  if (DATA_TABS.some(([id]) => id === wanted) || wanted === "data") {
+    const tab = wanted === "data" ? rest.shift() : wanted;
+    const tabs = dataTabs();
+    return { current: "data", tab: tabs.some(([id]) => id === tab) ? tab : tabs[0][0], target: rest[0] };
+  }
+  wanted = MOVED[wanted] || wanted;
+  return { current: SECTIONS.some(([id]) => id === wanted) ? wanted : "general", target: rest[0] };
+}
+
+function navigation(current) {
+  const items = shown();
+  return h("nav", { class: "hub-nav", "aria-label": t("web.nav_settings") }, NAV_GROUPS.map((group) => {
+    const own = items.filter(([, , , g]) => g === group);
+    return own.length ? h("div", { class: "hub-group" }, h("small", { class: "hub-group-title" }, t(`web.set_group_${group}`)),
+      own.map(([id, ic]) => h("a", { href: `#/settings/${id}`, class: id === current ? "active" : "", "aria-current": id === current ? "page" : null },
+        icon(ic), h("span", {}, t(`web.set_${id}`)), icon("chevron-right", "hub-chevron")))) : null;
+  }));
+}
+
 export async function render(main, params = []) {
-  const wanted = MOVED[params[0]] || params[0];
-  const current = SECTIONS.some(([id]) => id === wanted) ? wanted : "general";
+  const { current, tab, target } = place(params);
   const body = h("div", { class: "hub-body stack" });
   const extra = h("div", { class: "hub-extra stack" });
-  const saveBar = h("div", { class: "save-bar hidden" });
-  const tabs = h("nav", { class: "hub-nav", "aria-label": t("web.nav_settings") }, shown().map(([id, ic]) =>
-    h("a", { href: `#/settings/${id}`, class: id === current ? "active" : "" }, icon(ic), h("span", {}, t(`web.set_${id}`)))));
+  const saveBar = h("div", { class: "save-bar hidden", role: "status" });
+  const tabs = navigation(current);
   const results = h("section", { class: "panel search-results hidden", "aria-live": "polite" });
-  const back = h("a", { class: "hub-back", href: "#/settings" }, icon("chevron-left"), t(`web.set_${current}`));
+  const back = h("a", { class: "hub-back", href: "#/settings" }, icon("chevron-left"), t("web.nav_settings"));
+  const head = h("header", { class: "hub-head" }, h("span", { class: "hub-head-icon" }, icon(sectionIcon(current))),
+    h("div", {}, h("h2", {}, t(`web.set_${current}`)), h("p", { class: "muted" }, t(`web.set_${current}_hint`))));
+  const subtabs = current === "data" ? h("nav", { class: "tabs hub-tabs", "aria-label": t("web.set_data") }, dataTabs().map(([id, ic]) =>
+    h("a", { href: `#/settings/data/${id}`, class: id === tab ? "active" : "", "aria-current": id === tab ? "page" : null }, icon(ic), " ", t(`web.set_${id}`)))) : null;
   const hub = h("div", { class: params[0] ? "hub" : "hub menu" }, h("div", { class: "hub-side" }, tabs),
-    h("div", { class: "hub-main" }, back, body, extra, saveBar, supportNote()));
+    h("div", { class: "hub-main" }, back, head, subtabs, body, extra, saveBar, supportNote()));
   let index = null;
   const search = searchToggle(t("web.set_search"), async (query) => {
     // Searches all tabs, not this one: results replace the page until the search is closed.
@@ -280,9 +323,9 @@ export async function render(main, params = []) {
     results.classList.toggle("hidden", !words.length);
     const groups = [...new Set(matches.map((item) => item.id))];
     fill(results, matches.length ? groups.map((id) => [
-      h("h3", {}, icon(SECTIONS.find(([section]) => section === id)[1]), " ", t(`web.set_${id}`)),
+      h("h3", {}, icon(sectionIcon(id)), " ", t(`web.set_${id}`)),
       h("ul", { class: "list" }, matches.filter((item) => item.id === id).map((item) => h("li", { class: "link-row" },
-        h("a", { class: "grow", href: `#/settings/${id}${item.target ? `/${item.target}` : ""}` }, item.label), icon("chevron-right"))))])
+        h("a", { class: "grow", href: `#/settings/${item.path}${item.target ? `/${item.target}` : ""}` }, item.label), icon("chevron-right"))))])
       : h("p", { class: "muted" }, t("web.set_no_results")));
   });
   // The view switch sits in the header with the title and the search, where it is seen first.
@@ -295,7 +338,11 @@ export async function render(main, params = []) {
     saveBar.classList.remove("hidden");
   };
   const section = SECTIONS.find(([id]) => id === current);
-  if (section[2]) {
+  if (current === "data" && tab !== "backup") {
+    if (tab === "storage") await (await import("./storage.js")).render(body);
+    else if (tab === "move") await (await import("./move.js")).render(body);
+    else dataSection(body);
+  } else if (section[2]) {
     const view = await import("./settings.js");
     await view.render(body, [], { embedded: true, groups: section[2], register: (fn) => { save = fn; },
       onSaved: (changed) => { saveBar.classList.add("hidden"); if (Object.keys(changed || {}).length) { if (changed.language) location.reload(); restartPrompt(); } else toast(t("web.saved")); } });
@@ -315,7 +362,11 @@ export async function render(main, params = []) {
       body.before(contacts);
       await (await import("./contacts.js")).contactsPanel(contacts);
     }
-    if (current === "backup") await backupPanel(extra);
+    if (current === "data") {  // what happened last first, the settings below
+      const status = h("div");
+      body.before(status);
+      await backupPanel(status);
+    }
     if (current === "audio") await voicePanel(extra);
     if (current === "general") {
       const { helpPanel, historyPanel } = await import("./settings-help.js");
@@ -337,20 +388,14 @@ export async function render(main, params = []) {
     (await import("./appearance.js")).render(body);
   } else if (current === "security") {
     stop = await (await import("./scan.js")).render(body);
-  } else if (current === "storage") {
-    await (await import("./storage.js")).render(body);
   } else if (current === "support") {
     await supportSection(body);
   } else if (current === "access") {
     await (await import("./access.js")).render(body);
     await apiSection(extra);
-  } else if (current === "data") {
-    dataSection(body);
-  } else if (current === "move") {
-    await (await import("./move.js")).render(body);
   } else {
     await updateSection(body);
   }
-  if (params[1]) jumpTo(params[1]);
+  if (target) jumpTo(target);
   return stop;
 }

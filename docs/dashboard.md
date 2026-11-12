@@ -212,7 +212,7 @@ root rights, programs in temporary folders, and accounts. It changes nothing and
 admins by messenger (also `/securityscan` in chat). A rootkit scan runs if `rkhunter` or `chkrootkit`
 is installed. A clean result is no guarantee that a system is not compromised.
 
-*Settings → Storage* shows what uses the disk and can delete old recordings, photos and clips, compact
+*Settings → Data & backup → Storage* shows what uses the disk and can delete old recordings, photos and clips, compact
 the database, and clear old system logs and the package cache (also `/storage` in chat). Evidence videos
 and face data are not cleaned there.
 
@@ -308,10 +308,22 @@ compare it. The CA key never leaves the device. You can use your own
 certificate instead (`PI_GUARD_DASHBOARD_TLS_CERT`, `…_TLS_KEY`), e.g. from a
 reverse proxy with a real domain.
 
+## The assistant's chat
+
+With the AI assistant on, a round button at the bottom right opens its chat: a panel beside the page on a computer,
+the whole screen on a phone. It starts with three examples to tap, shows dots while the Pi thinks, renders lists and
+bold text in answers, asks *Yes* or *No* before every action, and shows errors in the chat itself. *New conversation*
+clears it; the microphone records a spoken question where the browser allows it.
+
 ## Normal and expert view
 
+Settings are grouped into Basics, Alerts, Devices & access and System; each section starts with a line on what it
+holds, and each setting shows its explanation under its name. Switches are drawn as toggles. *Data & backup* holds
+four tabs: *Backup*, *Storage*, *Moving* and, in the expert view, *Export*; the old links (`#/settings/backup`,
+`/storage`, `/move`, `/data`) open the right tab.
+
 Settings open in the normal view with what most people need. The switch next to the title and the search shows everything, also the complex
-settings and the sections Integrations, Dashboard, Security and Data. It is remembered per device and works the same
+settings, the sections Integrations, Dashboard and Security, and the Export tab. It is remembered per device and works the same
 in the phone app. Nothing is lost by switching: hidden settings keep their values.
 
 In the expert view, *Messengers* ends with *Test messages*: one test message through each messenger that is set up,

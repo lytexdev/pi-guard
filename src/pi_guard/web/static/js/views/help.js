@@ -9,7 +9,7 @@ export const CHAPTERS = [
   ["overview", "#/overview", "home"], ["live", "#/live", "video"], ["events", "#/events", "bell"],
   ["people", "#/people", "users"], ["network", "#/network/overview", "network"], ["vpn", "#/network/vpn", "brand-wireguard"],
   ["kids", "#/addons/kids", "mood-happy"], ["emergency", "#/settings/emergency", "alert-triangle"], ["medical", "#/addons/medical", "user-check"],
-  ["apps", "#/addons/mobile", "device-mobile"], ["assistant", "#/addons/assistant", "speakerphone"], ["move", "#/settings/move", "map-pin"],
+  ["apps", "#/addons/mobile", "device-mobile"], ["assistant", "#/addons/assistant", "speakerphone"], ["move", "#/settings/data/move", "map-pin"],
   ["settings", "#/settings", "settings"],
 ];
 // What viewers can open; the rest of the tour is for admins.
