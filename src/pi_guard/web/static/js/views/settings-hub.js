@@ -13,7 +13,7 @@ const dataTabs = () => DATA_TABS.filter(([id]) => id !== "export" || expertMode(
 // What is on the pages without settings fields, so the search finds it too.
 const TOPICS = {
   modes: ["web.set_plan"],
-  appearance: ["web.theme", "web.text_size", "web.ap_nav", "web.ap_color", "web.ap_font", "web.ap_animations", "web.ap_logo"],
+  appearance: ["web.theme", "web.text_size", "web.ap_nav", "web.ap_color", "web.ap_font", "web.ap_animations", "web.ap_reset"],
   devices: ["web.cameras", "web.speaker", "web.microphone", "web.trusted_devices", "web.quiet_hours_sound"],
   access: ["web.users_title", "web.webauthn_title", "web.recovery_title", "web.codeword", "web.login_security", "web.account", "web.api_tokens", "web.api_docs"],
   messaging: ["web.discord_status", "web.signal_status"],

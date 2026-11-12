@@ -56,6 +56,8 @@ export function h(tag, attrs = {}, ...children) {
     if (name.startsWith("on")) el.addEventListener(name.slice(2), value);
     else if (name === "class") el.className = value;
     else if (name === "dataset") Object.assign(el.dataset, value);
+    // Through the CSSOM: the Content Security Policy blocks style attributes, not this.
+    else if (name === "style") el.style.cssText = value;
     else el.setAttribute(name, value === true ? "" : value);
   }
   for (const child of children.flat(Infinity)) {
@@ -63,6 +65,11 @@ export function h(tag, attrs = {}, ...children) {
     el.append(child instanceof Node ? child : document.createTextNode(String(child)));
   }
   return el;
+}
+
+// A small (i) next to a label: its text shows on hover, keyboard focus and a tap (tooltip.js).
+export function infoTip(text) {
+  return h("button", { type: "button", class: "info-tip", title: text, "data-tap-tip": "" }, icon("info-circle"));
 }
 
 const SVG = "http://www.w3.org/2000/svg";

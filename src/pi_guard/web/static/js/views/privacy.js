@@ -1,5 +1,5 @@
 // Optional privacy upstream: multi-hop exit, DNS, Tor, profiles, diagnostics.
-import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, whileShown } from "../api.js";
+import { api, askDialog, attempt, confirmDialog, fill, h, icon, infoTip, t, toast, whileShown } from "../api.js";
 
 function badge(ok, label) {
   return h("span", { class: `badge ${ok ? "ok" : ""}` }, label);
@@ -151,7 +151,6 @@ function chainPanel(cfg, caps, redraw, diag) {
       type: "button",
       role: "listitem",
       class: `chain-hop ${node.kind} ${node.status || "idle"}`,
-      style: `--i:${i}`,
       onclick: () => show(node),
     }, icon(hopIcon(node.kind)), h("span", {}, hopTitle(node)),
       node.provider ? h("small", {}, node.provider) : (node.iface ? h("small", {}, node.iface) : null));
@@ -323,7 +322,7 @@ function dnsPanel(cfg, caps, redraw) {
           if (await attempt(() => api("/api/privacy/dns", { method: "PUT", body: { ...dns, strict: ev.target.checked } }), t("web.saved"))) redraw();
           else redraw();
         },
-      }), t("web.priv_dns_strict")),
+      }), t("web.priv_dns_strict"), infoTip(t("web.priv_dns_strict_tip"))),
     h("p", { class: "muted" }, h("small", {}, t("web.priv_dns_strict_hint"))));
 }
 

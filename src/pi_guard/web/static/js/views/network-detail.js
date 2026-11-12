@@ -30,6 +30,13 @@ function piholePanel(p, redraw) {
     h("p", {}, h("a", { href: p.url.replace(/\/$/, "") + "/admin/", target: "_blank", rel: "noopener" }, t("web.open_pihole"))));
 }
 
+// What a VPN device is; the Pi takes it from the app, the choice in the dialog, or the name.
+const KIND_ICONS = { android: "brand-android", ios: "brand-apple", macos: "brand-apple", windows: "brand-windows", linux: "terminal-2",
+  phone: "device-mobile", tablet: "device-tablet", computer: "device-laptop", other: "device-desktop" };
+const kindIcon = (kind) => KIND_ICONS[kind] || KIND_ICONS.other;
+const kindSelect = (id, value = "") => h("select", { id }, h("option", { value: "" }, t("web.wg_kind_auto")),
+  Object.keys(KIND_ICONS).map((kind) => h("option", { value: kind, selected: kind === value }, t(`web.wg_kind_${kind}`))));
+
 function showAccess(peer) {
   // QR code for the WireGuard app, plus the file for laptops.
   const dialog = h("dialog", { class: "wg-dialog" },
@@ -51,15 +58,17 @@ function showAccess(peer) {
 function addDialog(redraw) {
   const name = h("input", { id: "wg_name", type: "text", maxlength: 32, placeholder: t("web.wg_name_placeholder"), required: true });
   const full = h("input", { type: "checkbox", checked: true, id: "wg_full" });
+  const kind = kindSelect("wg_kind");
   const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, t("web.wg_add")),
     h("form", { class: "stack", method: "dialog" },
       h("div", { class: "field" }, h("label", { for: "wg_name" }, t("web.wg_name")), name),
+      h("div", { class: "field" }, h("label", { for: "wg_kind" }, t("web.wg_kind")), kind),
       h("label", { class: "check", for: "wg_full" }, full, h("span", {}, t("web.wg_full_tunnel"), h("small", { class: "muted block" }, t("web.wg_full_tunnel_hint")))),
       h("div", { class: "row end" }, h("button", { type: "button", onclick: () => dialog.close() }, t("web.cancel")),
         h("button", { class: "primary", type: "submit" }, icon("plus"), t("web.wg_add")))));
   dialog.querySelector("form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const peer = await attempt(() => api("/api/network/wireguard/peers", { method: "POST", body: { name: name.value, full_tunnel: full.checked } }));
+    const peer = await attempt(() => api("/api/network/wireguard/peers", { method: "POST", body: { name: name.value, full_tunnel: full.checked, kind: kind.value } }));
     if (!peer) return;
     dialog.close();
     showAccess(peer);
@@ -71,15 +80,20 @@ function addDialog(redraw) {
   name.focus();
 }
 
-function peerDialog(p) {
+function peerDialog(p, redraw) {
   const row = (label, value) => (value ? [h("dt", {}, label), h("dd", {}, value)] : null);
-  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, p.name || p.public_key.slice(0, 10)),
+  const kind = p.id ? kindSelect("wg_kind_edit", p.kind_set || "") : null;
+  kind?.addEventListener("change", async () => {
+    if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { kind: kind.value } }), t("web.saved"))) redraw();
+  });
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, icon(kindIcon(p.kind)), " ", p.name || p.public_key.slice(0, 10)),
     h("p", {}, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline"))),
     h("dl", { class: "kv" },
       row(t("web.wg_address"), p.address || p.allowed_ips), row(t("web.wg_route"), p.id ? t(p.full_tunnel ? "web.wg_route_full" : "web.wg_home_only") : null),
       row(t("web.wg_last"), p.latest_handshake ? when(p.latest_handshake) : t("web.never_connected")), row(t("web.wg_from"), p.endpoint),
       row(t("web.wg_received"), `${((p.received || 0) / 1e6).toFixed(1)} MB`), row(t("web.wg_sent"), `${((p.sent || 0) / 1e6).toFixed(1)} MB`),
       row(t("web.wg_created"), p.created ? when(p.created) : null), row(t("web.wg_key"), h("span", { class: "mono" }, `${p.public_key.slice(0, 16)}…`))),
+    kind ? h("div", { class: "field" }, h("label", { for: "wg_kind_edit" }, t("web.wg_kind")), kind) : null,
     h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
@@ -89,8 +103,8 @@ function peerDialog(p) {
 function peerCard(p, redraw) {
   const state = p.pending ? t("web.wg_pending") : p.latest_handshake ? t("web.last_handshake", { time: when(p.latest_handshake) }) : t("web.never_connected");
   return h("article", { class: `wg-card${p.active ? " on" : ""}` },
-    h("button", { class: "wg-card-main", onclick: () => peerDialog(p) },
-      h("span", { class: "wg-avatar" }, icon(/phone|handy|pixel|iphone|android/i.test(p.name || "") ? "device-mobile" : "device-desktop")),
+    h("button", { class: "wg-card-main", onclick: () => peerDialog(p, redraw) },
+      h("span", { class: "wg-avatar", title: t(`web.wg_kind_${KIND_ICONS[p.kind] ? p.kind : "other"}`) }, icon(kindIcon(p.kind))),
       h("span", { class: "grow" }, h("strong", { class: "block" }, p.name || `${p.public_key.slice(0, 10)}…`),
         h("small", { class: "muted block" }, state),
         h("span", { class: "row wrap" }, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline")),

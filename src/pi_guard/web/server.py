@@ -433,8 +433,7 @@ class Dashboard:
         return web.Response(text="User-agent: *\nDisallow: /\n")
 
     async def _logo(self, request: web.Request) -> web.StreamResponse:
-        for path in sorted(self.settings.data_dir.glob("logo.*")):
-            return web.FileResponse(path, headers={"Cache-Control": "no-cache"})
+        # The logo is pi-guard's own; only the phone app may disguise itself.
         return web.FileResponse(STATIC / "img" / "logo.svg")
 
     async def _ca(self, request: web.Request) -> web.StreamResponse:

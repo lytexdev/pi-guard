@@ -124,7 +124,7 @@ button, .button {
   background: var(--surface-2); color: var(--text); font: inherit; font-weight: 500; cursor: pointer;
   touch-action: manipulation; user-select: none;
 }
-button:hover, .button:hover { border-color: #3a414c; text-decoration: none; }
+button:hover, .button:hover { border-color: var(--hover-line, #3a414c); text-decoration: none; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 button.danger { color: var(--danger); }
@@ -237,11 +237,21 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 
 /* Design choices (per device, set in the setup assistant or under More) */
 :root[data-theme="light"] {
-  --bg: #f3f5f8; --surface: #ffffff; --surface-2: #eef1f5; --line: #d5dbe3;
-  --text: #15191f; --muted: #5a6573; --accent: #0b6fc7; --accent-ink: #ffffff;
-  --ok: #1a8f52; --warn: #a86400; --danger: #c62828;
+  /* Softer than paper white: a grey-blue page, cards a step lighter, lines and grey text dark
+     enough for WCAG AA (all text colours at least 4.5:1 on every background). */
+  --bg: #e6eaf0; --surface: #f8f9fb; --surface-2: #e9edf2; --line: #c3cbd6;
+  --text: #121820; --muted: #4a5563; --accent: #0a62b0; --accent-ink: #ffffff;
+  --ok: #12703e; --warn: #8f5500; --danger: #b3261e;
+  --hover-line: #9aa5b3; --shadow: 0 1px 2px rgba(20, 30, 45, .06), 0 2px 8px rgba(20, 30, 45, .05);
   color-scheme: light;
 }
+:root[data-theme="light"] .panel, :root[data-theme="light"] .addon-card { box-shadow: var(--shadow); }
+:root[data-theme="light"] .nav { background: #f1f3f7; }
+:root[data-theme="light"] .nav a.active { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent); }
+:root[data-theme="light"] input, :root[data-theme="light"] select, :root[data-theme="light"] textarea { background: #ffffff; }
+:root[data-theme="light"] .tip { background: #1d2530; color: #f3f5f8; }
+:root[data-theme="light"] dialog::backdrop { background: rgba(20, 30, 45, .4); }
+:root[data-theme="light"] .login .panel, :root[data-theme="light"] .card-menu-list, :root[data-theme="light"] .addon-menu-body { box-shadow: 0 8px 28px rgba(20, 30, 45, .16); }
 :root[data-theme="contrast"] {
   --bg: #000000; --surface: #000000; --surface-2: #141414; --line: #ffffff;
   --text: #ffffff; --muted: #e0e0e0; --accent: #7fd0ff; --accent-ink: #000000;
@@ -421,26 +431,31 @@ input.toggle:disabled { opacity: .5; cursor: not-allowed; }
 .privacy .chain-hops .badge { min-width: 1.6em; text-align: center; }
 .privacy-panel h3 { margin: 12px 0 6px; font-size: 1rem; }
 .chain-track { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin: 8px 0 4px; overflow-x: auto; padding-bottom: 4px; }
-.chain-hop { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 108px; max-width: 148px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); text-align: left; opacity: 0; transform: translateY(6px); animation: chain-in .35s ease forwards; animation-delay: calc(var(--i, 0) * 60ms); }
+.chain-hop { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 108px; max-width: 148px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); text-align: left; animation: chain-in .35s ease backwards; }
 .chain-hop small { color: var(--muted); font-size: .8rem; }
 .chain-hop.home_vpn { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 14%, var(--surface-2)); }
 .chain-hop.ok { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 45%, transparent); }
 .chain-hop.pending { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
 .chain-hop:focus-visible, .chain-hop:hover { border-color: var(--accent); }
-.chain-link { width: 28px; min-width: 28px; align-self: center; height: 2px; position: relative; background: var(--line); margin: 0 2px; opacity: 0; animation: chain-in .35s ease forwards; animation-delay: calc(var(--i, 0) * 60ms); }
-.chain-link span, .chain-link.live { display: block; height: 2px; width: 100%; }
+.chain-link { width: 28px; min-width: 28px; align-self: center; height: 2px; position: relative; background: var(--line); margin: 0 2px; animation: chain-in .35s ease backwards; }
+.chain-link span { display: block; height: 2px; width: 100%; }
 .chain-link.live { background: transparent; }
 .chain-link.live span { height: 2px; background: var(--accent); background-image: linear-gradient(90deg, transparent 0 40%, var(--accent) 40% 60%, transparent 60%); background-size: 18px 2px; }
+/* Visible without any animation: an animation that replaces chain-in (the pulse below did) or none
+   at all (animations off) must not leave the hops at opacity 0, which showed only the links. */
 @media (prefers-reduced-motion: reduce) {
-  .chain-hop, .chain-link { opacity: 1; transform: none; animation: none; }
+  .chain-hop, .chain-link { animation: none; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .chain-link.live span { animation: chain-flow 0.9s linear infinite; }
-  .chain-track.on .chain-hop.ok { animation: chain-pulse 2.4s ease-in-out infinite; }
+  .chain-track.on .chain-hop.ok { animation: chain-in .35s ease backwards, chain-pulse 2.4s ease-in-out .4s infinite; }
 }
-@keyframes chain-in { to { opacity: 1; transform: none; } }
+@keyframes chain-in { from { opacity: 0; transform: translateY(6px); } }
 @keyframes chain-flow { to { background-position: 18px 0; } }
 @keyframes chain-pulse { 50% { filter: brightness(1.06); } }
+.info-tip { background: none; border: 0; padding: 2px; min-height: 0; margin-left: 4px; color: var(--muted); cursor: help; vertical-align: middle; line-height: 0; }
+.info-tip:hover, .info-tip:focus-visible { color: var(--accent); }
+.info-tip .icon { width: 17px; height: 17px; }
 .chain-detail { min-height: 2.6em; margin: 6px 0 2px; display: grid; gap: 4px; }
 .chain-mini { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
 .chain-chip { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: .85rem; background: var(--surface-2); }

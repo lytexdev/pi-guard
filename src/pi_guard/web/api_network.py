@@ -36,7 +36,14 @@ from pi_guard.network.reach import (
     tailscale,
     tailscale_way,
 )
-from pi_guard.network.wgpeers import PQ_FOLDER, SERVER_ADDRESS, PeerError, PeerStore, Server
+from pi_guard.network.wgpeers import (
+    PQ_FOLDER,
+    SERVER_ADDRESS,
+    PeerError,
+    PeerStore,
+    Server,
+    guess_kind,
+)
 from pi_guard.network.wireguard import read_status, status_file
 from pi_guard.security.files import atomic_write
 from pi_guard.web.server import current, dashboard, read_json
@@ -73,6 +80,7 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/network/wireguard/peers/{id:\\d+}", wg_show),
         web.get("/api/network/wireguard/peers/{id:\\d+}/file", wg_file),
         web.delete("/api/network/wireguard/peers/{id:\\d+}", wg_remove),
+        web.patch("/api/network/wireguard/peers/{id:\\d+}", wg_kind),
     ]
 
 
@@ -118,10 +126,19 @@ async def overview(request: web.Request) -> web.Response:
     store = dashboard(request).wg_peers
     if wireguard is not None and store is not None:
         stored = {p["public_key"]: p for p in store.list()}
+        # Devices paired with the app know what they are; the rest are chosen or guessed.
+        paired = app.mobile.list() if app.mobile is not None else []
+        apps = {int(m["vpn_peer"]): str(m["platform"]) for m in paired if m.get("vpn_peer")}
+        for p in stored.values():
+            p["kind_set"] = p.get("kind") or ""
+            p["kind"] = p["kind_set"] or apps.get(p["id"]) or guess_kind(p["name"])
         for peer in wireguard["peers"]:
             known = stored.get(peer["public_key"])
             if known:
-                peer.update(name=known["name"], id=known["id"], full_tunnel=known["full_tunnel"])
+                peer.update(name=known["name"], id=known["id"], full_tunnel=known["full_tunnel"],
+                            kind=known["kind"], kind_set=known["kind_set"])  # fmt: skip
+            else:
+                peer["kind"] = "other"
         # Devices added a moment ago, before the root job loaded them.
         loaded = {p["public_key"] for p in wireguard["peers"]}
         wireguard["peers"] += [
@@ -649,13 +666,29 @@ async def wg_add(request: web.Request) -> web.Response:
     data = await read_json(request)
     try:
         peer_id = await asyncio.to_thread(
-            store.add, str(data.get("name", "")), data.get("full_tunnel") is not False
+            store.add,
+            str(data.get("name", "")),
+            data.get("full_tunnel") is not False,
+            str(data.get("kind", "")),
         )
     except PeerError as exc:
         raise web.HTTPBadRequest(text=str(exc)) from None
     name, config = _config(request, peer_id)
     dashboard(request).app.db.audit(f"web:{current(request).username}", "wireguard.add", name)
     return web.json_response({"id": peer_id, "name": name, "qr": _qr(config)})
+
+
+async def wg_kind(request: web.Request) -> web.Response:
+    """What kind of device it is, for its icon. "" lets the app or the name decide again."""
+    data = await read_json(request)
+    try:
+        found = await asyncio.to_thread(_store(request).set_kind, _peer_id(request),
+                                        str(data.get("kind", "")))  # fmt: skip
+    except PeerError as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from None
+    if not found:
+        raise web.HTTPNotFound()
+    return web.json_response({"ok": True})
 
 
 async def wg_show(request: web.Request) -> web.Response:

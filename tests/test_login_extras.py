@@ -285,7 +285,7 @@ async def test_people_keep_their_own_login(tmp_path: Path) -> None:
         app.db.close()
 
 
-async def test_appearance_and_logo(tmp_path: Path) -> None:
+async def test_appearance_and_its_reset(tmp_path: Path) -> None:
     client, app = await _client(tmp_path)
     try:
         headers = {"X-CSRF-Token": await _login(client)}
@@ -294,17 +294,22 @@ async def test_appearance_and_logo(tmp_path: Path) -> None:
         body = {"accent": "#ff7a59", "font": "serif", "animations": False}
         assert (await client.put("/api/appearance", json=body, headers=headers)).status == 200
 
-        svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
-        url = "/api/appearance/logo"
-        assert (await client.post(url, data=svg, headers=headers)).status == 400
-        png = b"\x89PNG\r\n\x1a\n" + b"0" * 100
-        assert (await client.post(url, data=png, headers=headers)).status == 200
-
-        client.session.cookie_jar.clear()  # the login page shows both
-        session = await (await client.get("/api/session")).json()
-        assert session["appearance"]["accent"] == "#ff7a59" and session["appearance"]["logo"]
+        # The logo can no longer be changed; an old one is not shown.
+        (app.settings.data_dir / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+        assert (await client.post("/api/appearance/logo", data=b"x", headers=headers)).status in (
+            404,
+            405,
+        )
         logo = await client.get("/branding/logo")
-        assert logo.status == 200 and await logo.read() == png
+        assert logo.status == 200 and (await logo.read()).lstrip().startswith(b"<")
+
+        client.session.cookie_jar.clear()  # the login page shows it
+        session = await (await client.get("/api/session")).json()
+        assert session["appearance"]["accent"] == "#ff7a59"
+        headers = {"X-CSRF-Token": await _login(client)}
+        assert (await client.delete("/api/appearance", headers=headers)).status == 200
+        assert not (await (await client.get("/api/session")).json())["appearance"].get("accent")
+        assert not (app.settings.data_dir / "logo.png").exists()
     finally:
         await client.close()
         app.db.close()

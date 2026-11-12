@@ -8,7 +8,6 @@ import re
 
 from aiohttp import web
 
-from pi_guard.security.files import atomic_write
 from pi_guard.web.api_mobile import forget_devices, role_changed
 from pi_guard.web.auth import CredentialError, totp_uri
 from pi_guard.web.profiles import ProfileError, clean, from_vcard, to_vcard
@@ -36,8 +35,7 @@ def routes() -> list[web.RouteDef]:
         web.patch("/api/dashboard-users/{id:\\d+}", user_role),
         web.delete("/api/dashboard-users/{id:\\d+}", user_delete),
         web.put("/api/appearance", appearance),
-        web.post("/api/appearance/logo", logo_upload),
-        web.delete("/api/appearance/logo", logo_delete),
+        web.delete("/api/appearance", appearance_reset),
         web.get("/api/setup/status", setup_status),
     ]
 
@@ -273,21 +271,6 @@ async def profile_vcard(request: web.Request) -> web.Response:
 FONTS = ("system", "serif", "rounded", "mono", "readable")
 MAX_APP_NAME = 30
 _COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
-LOGO_TYPES = {
-    b"\x89PNG": "png",
-    b"\xff\xd8\xff": "jpg",
-    b"RIFF": "webp",
-}  # no SVG: it can hold scripts
-MAX_LOGO = 1_000_000
-
-
-def _logo_type(body: bytes) -> str | None:
-    """Pictures only, recognised by content. No SVG: it can hold scripts."""
-    if body.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "png"
-    if body.startswith(b"\xff\xd8\xff"):
-        return "jpg"
-    return "webp" if body[:4] == b"RIFF" and body[8:12] == b"WEBP" else None
 
 
 async def appearance(request: web.Request) -> web.Response:
@@ -305,24 +288,11 @@ async def appearance(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
-async def logo_upload(request: web.Request) -> web.Response:
-    d = dashboard(request)
-    body = await request.read()
-    kind = _logo_type(body)
-    if kind is None or len(body) > MAX_LOGO:
-        raise web.HTTPBadRequest(text="web.ap_bad_logo")
-    for old in d.settings.data_dir.glob("logo.*"):
-        old.unlink()
-    atomic_write(d.settings.data_dir / f"logo.{kind}", body, 0o644)
-    saved = d.app.db.get("web.appearance") or {}
-    d.app.db.set("web.appearance", {**saved, "logo": True})
-    return web.json_response({"ok": True})
-
-
-async def logo_delete(request: web.Request) -> web.Response:
+async def appearance_reset(request: web.Request) -> web.Response:
+    """Back to the defaults for everyone. A logo from older versions goes as well."""
     d = dashboard(request)
     for old in d.settings.data_dir.glob("logo.*"):
         old.unlink()
-    saved = d.app.db.get("web.appearance") or {}
-    d.app.db.set("web.appearance", {**saved, "logo": False})
+    d.app.db.set("web.appearance", {})
+    d.app.db.audit(f"web:{current(request).username}", "appearance.reset")
     return web.json_response({"ok": True})

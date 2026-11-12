@@ -15,6 +15,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import ipaddress
+import re
 import secrets
 from dataclasses import dataclass
 from pathlib import Path
@@ -44,6 +45,29 @@ CREATE TABLE IF NOT EXISTS wg_peers (
     created TEXT NOT NULL
 );
 """
+
+
+# What a device is, for its icon. "" means not chosen: then the name or the app decides.
+KINDS = ("android", "ios", "windows", "linux", "macos", "phone", "tablet", "computer", "other")
+_GUESSES = (
+    ("ios", r"iphone|ipad|\bios\b"),
+    (
+        "android",
+        r"android|pixel|galaxy|samsung|xiaomi|oneplus|huawei|motorola|fairphone|redmi|oppo",
+    ),
+    ("windows", r"windows|\bwin(10|11)?\b|surface|desktop-[a-z0-9]{5,}"),
+    ("macos", r"\bmac|macbook|imac"),
+    ("linux", r"linux|ubuntu|debian|fedora|\barch\b|manjaro|mint|raspberry|\bnas\b|server"),
+    ("tablet", r"tablet|\btab\b"),
+    ("phone", r"handy|phone|smartphone"),
+    ("computer", r"laptop|notebook|computer|rechner|\bpc\b|thinkpad"),
+)
+
+
+def guess_kind(name: str) -> str:
+    """A device type from a name such as "Pixel Anna" or "Laptop Ben"; "other" if nothing fits."""
+    lowered = name.lower()
+    return next((kind for kind, pattern in _GUESSES if re.search(pattern, lowered)), "other")
 
 
 class PeerError(ValueError):
@@ -93,6 +117,9 @@ class PeerStore:
         self._file = data_dir / PEERS_FILE
         self._key = hashlib.sha256(b"pi-guard wireguard key\0" + secret_key).digest()
         db.executescript(_TABLE)
+        columns = {r[1] for r in db.execute("PRAGMA table_info(wg_peers)")}
+        if "kind" not in columns:  # added in 1.10
+            db.execute("ALTER TABLE wg_peers ADD COLUMN kind TEXT NOT NULL DEFAULT ''")
 
     # sealed values ---------------------------------------------------------------------
 
@@ -117,7 +144,8 @@ class PeerStore:
 
     def list(self) -> list[dict[str, Any]]:
         rows = self._db.execute(
-            "SELECT id, name, address, public_key, full_tunnel, created FROM wg_peers ORDER BY name"
+            "SELECT id, name, address, public_key, full_tunnel, created, kind FROM wg_peers "
+            "ORDER BY name"
         ).fetchall()
         return [{**dict(r), "full_tunnel": bool(r["full_tunnel"])} for r in rows]
 
@@ -128,20 +156,28 @@ class PeerStore:
                 return str(host)
         raise PeerError("web.wg_full")
 
-    def add(self, name: str, full_tunnel: bool = True) -> int:
+    def add(self, name: str, full_tunnel: bool = True, kind: str = "") -> int:
         name = check_name(name)
+        if kind not in ("", *KINDS):
+            raise PeerError("web.error")
         if self._db.execute("SELECT 1 FROM wg_peers WHERE name = ?", (name,)).fetchone():
             raise PeerError("web.wg_name_taken")
         private, public = generate_keypair()
         psk = base64.b64encode(secrets.token_bytes(32)).decode()
         cursor = self._db.execute(
             "INSERT INTO wg_peers (name, address, public_key, private_key, preshared_key, "
-            "full_tunnel, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "full_tunnel, created, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (name, self._free_address(), public, self._seal(private), self._seal(psk),
-             int(full_tunnel), utcnow().isoformat()),
+             int(full_tunnel), utcnow().isoformat(), kind),
         )  # fmt: skip
         self.write_file()
         return int(cursor.lastrowid or 0)
+
+    def set_kind(self, peer_id: int, kind: str) -> bool:
+        if kind not in ("", *KINDS):
+            raise PeerError("web.error")
+        cursor = self._db.execute("UPDATE wg_peers SET kind = ? WHERE id = ?", (kind, peer_id))
+        return bool(cursor.rowcount)
 
     def remove(self, peer_id: int) -> str | None:
         row = self._db.execute("SELECT name FROM wg_peers WHERE id = ?", (peer_id,)).fetchone()

@@ -12,7 +12,7 @@ export const FONTS = {
 const LOGO = "/static/img/logo.svg";
 let shared = {};
 
-export const logoUrl = () => (shared.logo ? "/branding/logo" : LOGO);
+export const logoUrl = () => LOGO;
 
 function inkFor(hex) {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
