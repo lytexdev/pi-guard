@@ -16,6 +16,11 @@ VERSION="${1:?usage: $0 VERSION [--publish SSH_HOST]}"
 CODE="$(git -C "$REPO" rev-list --count HEAD)"
 [[ "$VERSION" =~ ^[0-9A-Za-z.+-]+$ ]] || { echo "not a version: $VERSION" >&2; exit 1; }
 
+# Before anything else, so a run on the wrong machine (the Pi) leaves no signing key behind.
+SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+NDK="$(ls -d "$SDK"/ndk/* 2>/dev/null | sort -V | tail -1 || true)"
+[[ -n "$NDK" ]] || { echo "no Android NDK in $SDK/ndk: run this on the computer with the Android SDK, not on the Pi" >&2; exit 1; }
+
 if [[ ! -f "$PROPERTIES" ]]; then
     install -d -m 0700 "$SECRETS"
     password="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
@@ -28,8 +33,6 @@ if [[ ! -f "$PROPERTIES" ]]; then
 fi
 
 # The post-quantum key exchange, the same Rust code as on the Pi and on computers.
-SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
-NDK="$(ls -d "$SDK"/ndk/* | sort -V | tail -1)"
 TOOLS="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
 API=29
 for entry in arm64-v8a:aarch64-linux-android:aarch64-linux-android \

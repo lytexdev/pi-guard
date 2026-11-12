@@ -116,6 +116,8 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- `build-android.sh` stops before creating a signing key when there is no Android NDK, so a run on the Pi leaves no
+  second key behind.
 - The Pi's privacy exit never came up: a bracket in `pi-guard-exit-apply` was written so that no endpoint matched
   (`invalid exit.peer`), and with the kill switch on, VPN devices had no internet. Even when up, traffic of VPN devices
   was not routed into the exit nor masqueraded there; both are added. The kill switch now drops only VPN devices'
