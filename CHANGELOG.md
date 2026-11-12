@@ -160,6 +160,8 @@ All notable changes are documented here. The format follows
   tables in `/dev/shm`, the pi-guard user in groups) now count as known.
 - The phone app showed "this browser cannot get push"; the dashboard now knows it runs in the app.
 - Bars and progress set through style attributes had no width, because the Content Security Policy drops them.
+- Updates from the dashboard now also install the root job for the security check and storage, so new fixes arrive
+  without running `install.sh`.
 - `build-android.sh` (and so `release-apps.sh`) takes Java 17 when `JAVA_HOME` is not set and refuses other
   versions: under Java 25 the Gradle of AmneziaWG's tunnel library failed with only `25.0.5.0.3` as its error.
 - `build-android.sh` stops before creating a signing key when there is no Android NDK, so a run on the Pi leaves no
