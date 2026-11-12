@@ -1,7 +1,7 @@
 const assert = require("node:assert");
 const crypto = require("node:crypto");
 const test = require("node:test");
-const { newer, platformName, publicKey, signed } = require("./updates.js");
+const { newer, platformName, publicKey, signed, step } = require("./updates.js");
 
 const { publicKey: ours, privateKey } = crypto.generateKeyPairSync("ed25519");
 const stranger = crypto.generateKeyPairSync("ed25519").privateKey;
@@ -33,4 +33,11 @@ test("platforms are named as they are published", () => {
   assert.equal(platformName("linux", "x64"), "linux-x64");
   assert.equal(platformName("win32", "x64"), "win-x64");
   assert.equal(platformName("darwin", "arm64"), "mac-arm64");
+});
+test("a new major or minor version installs, a patch is offered", () => {
+  assert.strictEqual(step("2.0.0", "1.9.3"), "major");
+  assert.strictEqual(step("1.10.0", "1.9.3"), "minor");
+  assert.strictEqual(step("1.9.4", "1.9.3"), "patch");
+  assert.strictEqual(step("1.9.3", "1.9.3"), null);
+  assert.strictEqual(step("1.9.2", "1.9.3"), null);
 });

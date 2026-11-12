@@ -33,7 +33,10 @@ def _folder(request: web.Request) -> Path:
 
 
 async def latest(request: web.Request) -> web.Response:
-    meta = _folder(request) / "latest.json"
+    folder = _folder(request)
+    if request.query.get("check") == "1":  # "Check for updates" in the app; rate-limited there
+        await dashboard(request).app.app_updates.ask()
+    meta = folder / "latest.json"
     if not meta.is_file():
         return web.json_response({})
     return web.json_response(json.loads(meta.read_text()))

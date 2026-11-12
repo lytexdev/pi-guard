@@ -503,6 +503,8 @@ def _allowed_download(request: web.Request) -> None:
 
 async def app_latest(request: web.Request) -> web.Response:
     _allowed_download(request)
+    if request.query.get("check") == "1":  # "Check for updates" in the app
+        await dashboard(request).app.app_updates.ask()
     meta = _apk_dir(request) / "latest.json"
     if not meta.is_file():
         return web.json_response({})

@@ -9,7 +9,7 @@ const { pipeline } = require("node:stream/promises");
 const { Readable } = require("node:stream");
 const { promisify } = require("node:util");
 const { cleanAddress, fingerprint, issuedByPinned } = require("./trust.js");
-const { newer, platformName, signed } = require("./updates.js");
+const { platformName, signed, step } = require("./updates.js");
 const vpn = require("./vpn.js");
 
 const german = () => app.getLocale().startsWith("de");
@@ -178,8 +178,9 @@ function create() {
 }
 
 const FIRST_CHECK = 30_000;
-const CHECK_EVERY = 6 * 3600_000;
+const CHECK_EVERY = 3 * 3600_000;
 let updating = false;
+let told = null; // the patch already offered in this run, so it is offered once
 
 function tell(text, click) {
   const note = new Notification({ title: "PiGuard", body: text });
@@ -233,6 +234,8 @@ async function installLinux(file, version) {
   tell(german() ? `Version ${version} ist installiert und startet beim nächsten Öffnen. Klicken für jetzt.` : `Version ${version} is installed and starts next time. Click for now.`, restart);
 }
 
+// A new minor or major version installs by itself; a patch only shows a notice, and a click on it
+// (or "Check for updates") installs it. Asking makes the Pi look on GitHub first.
 async function checkForUpdate(asked = false) {
   if (updating || !config || !app.isPackaged) return;
   const platform = platformName();
@@ -241,12 +244,20 @@ async function checkForUpdate(asked = false) {
   const folder = path.join(app.getPath("userData"), "updates");
   try {
     const base = `${config.url}/api/updates/desktop/${platform}`;
-    const manifest = await (await session.defaultSession.fetch(base)).json();
-    if (!newer(manifest.version, app.getVersion())) {
+    const manifest = await (await session.defaultSession.fetch(asked ? `${base}?check=1` : base)).json();
+    const kind = step(manifest.version, app.getVersion());
+    if (!kind) {
       if (asked) dialog.showMessageBox(window, { message: german() ? "PiGuard ist aktuell." : "PiGuard is up to date." });
       return;
     }
     if (!signed(manifest, platform)) throw new Error(`${manifest.version} has no valid signature`);
+    if (kind === "patch" && !asked) {
+      if (told !== manifest.version) {
+        told = manifest.version;
+        tell(german() ? `Version ${manifest.version} ist verfügbar. Klicken zum Installieren.` : `Version ${manifest.version} is available. Click to install.`, () => checkForUpdate(true));
+      }
+      return;
+    }
     if (!managed) { // from a deb, rpm or pacman package: that belongs to the system, not to this app
       tell(german() ? `Version ${manifest.version} ist verfügbar. Aktualisiere das Paket.` : `Version ${manifest.version} is available. Update the package.`);
       return;

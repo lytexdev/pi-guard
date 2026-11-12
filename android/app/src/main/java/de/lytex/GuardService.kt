@@ -127,13 +127,19 @@ class GuardService : Service() {
         }
     }
 
-    /** On Wi-Fi only: an app update is no reason to use up someone's mobile data. */
+    /**
+     * A new minor or major version installs by itself, on Wi-Fi only: an update is no reason to use
+     * up someone's mobile data. A patch, or anything on mobile data, is announced; a tap installs it.
+     */
     private fun offerUpdate() {
         if (System.currentTimeMillis() - checkedUpdate < UPDATE_EVERY) return
-        if (getSystemService(ConnectivityManager::class.java).isActiveNetworkMetered) return
         checkedUpdate = System.currentTimeMillis()
         val meta = Updater.latest(store) ?: return
-        if (Updater.isNewer(this, meta)) Updater.install(this, store, meta)
+        val step = Updater.step(this, meta) ?: return
+        val metered = getSystemService(ConnectivityManager::class.java).isActiveNetworkMetered
+        val automatic = step != "patch" && !metered
+        Updater.announce(this, store, meta, installing = automatic)
+        if (automatic) Updater.install(this, store, meta)
     }
 
     private fun connect() {
@@ -293,7 +299,7 @@ class GuardService : Service() {
         private const val SERVICE_ID = 1
         private const val FIND_ID = 2
         const val UPDATE_ID = 3
-        private const val UPDATE_EVERY = 24 * 3600_000L
+        private const val UPDATE_EVERY = 3 * 3600_000L
         private const val ALERT_BASE = 100
         private const val RETRY_AFTER = 15_000L
         private const val RETRY_MAX = 300_000L

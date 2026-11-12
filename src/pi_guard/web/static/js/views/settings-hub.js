@@ -211,7 +211,7 @@ async function updateSection(root) {
     const state = u.state?.state;
     fill(box, h("section", { class: "panel stack" }, h("h2", {}, icon("brand-github"), " ", t("web.up_title")),
       h("dl", { class: "kv" }, h("dt", {}, t("web.up_version")), h("dd", {}, `${u.version}${u.commit ? ` (${u.commit})` : ""}`),
-        u.remote?.commit ? [h("dt", {}, t("web.up_latest")), h("dd", {}, `${u.remote.commit} · ${when(u.remote.date)}`)] : null),
+        u.remote?.commit ? [h("dt", {}, t("web.up_latest")), h("dd", {}, `${u.remote.version ? `${u.remote.version} · ` : ""}${u.remote.commit} · ${when(u.remote.date)}`)] : null),
       u.remote?.message ? h("p", { class: "muted" }, u.remote.message) : null,
       u.available ? h("p", { class: "notice" }, t("web.up_available")) : h("p", {}, icon("circle-check"), " ", t("web.up_current")),
       u.state?.message ? h("p", { class: `notice ${state === "failed" ? "danger" : ""}` }, `${u.state.message} (${when(u.state.time)})`) : null,

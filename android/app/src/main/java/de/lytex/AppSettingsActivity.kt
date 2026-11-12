@@ -147,7 +147,7 @@ class AppSettingsActivity : AppCompatActivity() {
 
     private fun update() {
         thread {
-            val meta = runCatching { Updater.latest(store) }.getOrNull()
+            val meta = runCatching { Updater.latest(store, ask = true) }.getOrNull()
             runOnUiThread {
                 if (meta == null || !Updater.isNewer(this, meta)) {
                     Toast.makeText(this, R.string.update_none, Toast.LENGTH_LONG).show()
