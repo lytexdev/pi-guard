@@ -319,10 +319,16 @@ class Voice:
                 if await asyncio.to_thread(recognizer.AcceptWaveform, chunk):
                     text = str(json.loads(recognizer.Result()).get("text", "")).strip()
                     if text:
-                        return text
+                        return self._corrected(text)
                 if loop.time() > deadline:
                     break
-        return str(json.loads(recognizer.FinalResult()).get("text", "")).strip()
+        return self._corrected(str(json.loads(recognizer.FinalResult()).get("text", "")).strip())
+
+    def _corrected(self, text: str) -> str:
+        """The small offline model hears names of this home only nearly right: put them back."""
+        from pi_guard.audio.vocabulary import correct, words
+
+        return correct(text, words(self._app, people=True)) if text else text
 
     async def _answer(self, question: str, lang: str) -> str:
         from pi_guard.addons.assistant import AssistantError

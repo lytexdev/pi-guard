@@ -49,12 +49,20 @@ export function scrollTopButton() {
 export const assistantIcon = () => h("img", { class: "ai-icon", src: "/static/img/assistant.svg", alt: "" });
 
 // The assistant's examples: a tap sends them as they are.
-const EXAMPLES = ["web.ai_example_light", "web.ai_example_record", "web.ai_example_help"];
+// Questions to start with: the Pi suggests ones that work here (a lamp only if there is one).
+const EXAMPLES = ["web.ai_ex_today", "web.ai_ex_help"];
+let examples = null;
 
 function panel() {
   const log = h("div", { class: "chat-log", "aria-live": "polite" });
-  const welcome = () => h("div", { class: "chat-welcome" }, assistantIcon(), h("p", {}, t("web.ai_hello")),
-    h("div", { class: "chat-chips" }, EXAMPLES.map((key) => h("button", { type: "button", class: "chip", onclick: () => ask(t(key)) }, t(key)))));
+  const chip = (text) => h("button", { type: "button", class: "chip", onclick: () => ask(text) }, text);
+  const welcome = () => {
+    const chips = h("div", { class: "chat-chips" }, (examples || EXAMPLES.map((key) => t(key))).map(chip));
+    if (!examples) {
+      api("/api/assistant/examples").then((r) => { examples = r.examples; fill(chips, examples.map(chip)); }).catch(() => {});
+    }
+    return h("div", { class: "chat-welcome" }, assistantIcon(), h("p", {}, t("web.ai_hello")), chips);
+  };
   const reset = () => fill(log, welcome());
   const say = (cls, ...content) => {
     log.querySelector(".chat-welcome")?.remove();

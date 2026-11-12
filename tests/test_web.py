@@ -765,7 +765,7 @@ async def test_a_voice_message_reaches_the_assistant_whole(
     heard: list[int] = []
 
     class Assistant:
-        async def transcribe(self, path: Path, language: str = "de") -> str:
+        async def transcribe(self, path: Path, language: str = "de", **_: Any) -> str:
             heard.append(path.stat().st_size)
             return ""
 

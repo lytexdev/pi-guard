@@ -33,6 +33,8 @@ log = logging.getLogger(__name__)
 ALERT_TYPES = (EventType.MOTION_DETECTED, EventType.PERSON_DETECTED, EventType.UNKNOWN_PERSON)
 CHECK_SECONDS = 30
 PHOTOS = 3
+# The assistant's emergency watch looks at most this often: alarms come in bursts.
+ASSESS_EVERY = 600
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS alerts (
@@ -61,6 +63,9 @@ class Escalation:
         self.contacts = Contacts(app.db, s)
         self.after_alerts = s.emergency_after_alerts
         self.after = timedelta(minutes=s.emergency_after_minutes)
+        self._assessed = float("-inf")  # monotonic: "never" must not mean "just now"
+        self.assessment: str | None = None  # the latest view, for the escalation message
+        self._tasks: set[asyncio.Task[None]] = set()
 
     @property
     def enabled(self) -> bool:
@@ -77,6 +82,59 @@ class Escalation:
             (event.ts.isoformat(), event.type.value, event.camera,
              snapshot.name if snapshot else None),
         )  # fmt: skip
+        assistant = self._app.addons.assistant
+        watching = assistant is not None and assistant.settings.emergency_watch and assistant.ready
+        if watching and snapshot is not None and snapshot.suffix == ".jpg":
+            now = asyncio.get_running_loop().time()
+            if now - self._assessed >= ASSESS_EVERY:
+                self._assessed = now
+                task = asyncio.ensure_future(self._assess(event, snapshot))
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
+
+    def facts(self, event: Event) -> str:
+        """What the Pi itself knows about an alarm, for the assistant: no pictures of anyone."""
+        app = self._app
+        camera = app.cameras.get(event.camera or "")
+        data = event.data or {}
+        lines = [f"Time: {format_time(event.ts, app.settings.tz, 'en', with_date=True)}",
+                 f"Event: {event.type.value}",
+                 f"Camera: {camera.camera.name if camera else event.camera or '?'}",
+                 f"Home mode: {app.modes.effective.value}"]  # fmt: skip
+        if event.type is EventType.UNKNOWN_PERSON:
+            known = ", ".join(data.get("known") or []) or "none"
+            lines.append(f"Face recognition: {data.get('faces', 0)} face(s), not a trusted person; "
+                         f"trusted people next to them: {known}")  # fmt: skip
+        elif data.get("recognition") == "uncertain":
+            lines.append("Face recognition: a face, too unclear to say who it is")
+        elif event.type is EventType.PERSON_DETECTED:
+            lines.append("Face recognition: a person, but no face that could be compared")
+        else:
+            lines.append("Face recognition: no person seen, only movement")
+        return "\n".join(lines)
+
+    async def _assess(self, event: Event, snapshot: Path) -> None:
+        from pi_guard.addons.assistant import AssistantError
+
+        app = self._app
+        assistant = app.addons.assistant
+        if assistant is None:
+            return
+        lang = app.settings.language
+        try:
+            view = await assistant.assess([snapshot], self.facts(event), lang)
+        except (AssistantError, OSError) as exc:
+            reason = getattr(exc, "key", type(exc).__name__)
+            log.warning("emergency watch could not look: %s", reason)
+            return
+        except Exception as exc:  # a provider problem must not touch the alarm itself
+            log.warning("emergency watch failed: %s", type(exc).__name__)
+            return
+        if not view:
+            return
+        self.assessment = view
+        app.db.audit("assistant", "emergency.assessed", event.type.value)
+        await app.messenger.notify_admins(t("emergency.assessment", lang, text=view), tone="alert")
 
     def open_alerts(self) -> list[OpenAlert]:
         rows = self._db.execute(
@@ -134,6 +192,8 @@ class Escalation:
             events.append(f"• {format_time(alert.ts, app.settings.tz, lang)} "
                           f"{t(f'event.{alert.type}', lang)} – {where}")  # fmt: skip
         tail = ["", t("emergency.what_to_do", lang)]
+        if self.assessment:
+            tail = ["", t("emergency.assessment", lang, text=self.assessment), *tail]
         photos = [app.media_dir / "snapshots" / a.snapshot for a in alerts if a.snapshot]
         photos = [p for p in photos if p.is_file()][-PHOTOS:]
         sent = 0

@@ -392,6 +392,10 @@ async function assistant(box, data, opts) {
   const share = h("input", { type: "checkbox", checked: section.share_documents });
   const actions = h("input", { type: "checkbox", checked: section.ai_actions });
   const vision = h("input", { type: "checkbox", checked: section.allow_vision });
+  const watch = h("input", { type: "checkbox", checked: section.emergency_watch });
+  watch.addEventListener("change", async () => {
+    if (watch.checked && !await confirmDialog(t("web.as_watch_confirm"), t("web.as_watch"), true)) watch.checked = false;
+  });
   const paperless = h("input", { type: "url", value: section.paperless_url || "", placeholder: "http://192.168.178.20:8000" });
   const nextcloud = h("input", { type: "url", value: section.nextcloud_url || "", placeholder: "https://cloud.example.org" });
   const nextUser = h("input", { value: section.nextcloud_user || "" });
@@ -406,7 +410,7 @@ async function assistant(box, data, opts) {
     await save("assistant", { ...section, provider: provider.value, model: model.value.trim(), base_url: url.value.trim() || null, location: location.value.trim(),
       price_input: amount(priceIn), price_output: amount(priceOut), budget: amount(budget), currency: currency.value,
       daily_token_limit: Number(limit.value), max_answer_tokens: Number(length.value), history_turns: Number(turns.value), speech_output: speech.checked,
-      share_documents: share.checked, ai_actions: actions.checked, allow_vision: vision.checked, paperless_url: paperless.value.trim() || null, nextcloud_url: nextcloud.value.trim() || null, nextcloud_user: nextUser.value.trim() }, opts);
+      share_documents: share.checked, ai_actions: actions.checked, allow_vision: vision.checked, emergency_watch: watch.checked, paperless_url: paperless.value.trim() || null, nextcloud_url: nextcloud.value.trim() || null, nextcloud_user: nextUser.value.trim() }, opts);
   } }, icon("check"), t("web.save"));
   fill(box,
     info ? askPanel(info) : null,
@@ -422,6 +426,8 @@ async function assistant(box, data, opts) {
       h("label", { class: "check" }, share, t("web.as_share")),
       h("label", { class: "check" }, actions, t("web.as_actions")),
       h("label", { class: "check" }, vision, t("web.as_vision")),
+      h("h3", {}, icon("alert-triangle"), " ", t("web.as_watch_title")), h("p", { class: "muted" }, t("web.as_watch_hint")),
+      h("label", { class: "check" }, watch, t("web.as_watch")),
       field("Paperless-ngx", paperless), field("Nextcloud", nextcloud), field(t("web.as_nextcloud_user"), nextUser),
       keys, button),
     info ? await knowledgePanel(info) : null,

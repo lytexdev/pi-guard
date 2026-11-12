@@ -22,9 +22,10 @@ from pi_guard.addons.languages import LANGUAGES as language_names
 from pi_guard.addons.languages import installed, translate_all
 from pi_guard.addons.remote import ConfirmationError
 from pi_guard.addons.smarthome import SmartHomeError
+from pi_guard.audio import vocabulary
 from pi_guard.audio.service import AudioError
 from pi_guard.config.files import AddonSettings, FileConfig
-from pi_guard.i18n import remove_extra
+from pi_guard.i18n import remove_extra, t
 from pi_guard.messaging.commands.addons import known_names
 from pi_guard.network.pihole import PiholeError
 from pi_guard.network.wgpeers import SUBNET
@@ -77,6 +78,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/assistant/chat/voice", assistant_chat_voice),
         web.post("/api/assistant/confirm", assistant_confirm),
         web.get("/api/assistant/jobs", assistant_jobs),
+        web.get("/api/assistant/examples", assistant_examples),
         web.delete("/api/assistant/jobs/{id:\\d+}", assistant_job_delete),
         web.post("/api/addons/assistant/voice", assistant_voice),
         web.get("/api/addons/assistant/knowledge", knowledge_list),
@@ -352,6 +354,40 @@ async def _chat(request: web.Request, text: str) -> web.Response:
                               "documents": list(answer.documents)})  # fmt: skip
 
 
+def examples(app: Any, lang: str) -> list[str]:
+    """Questions to start with that work here: a lamp only if there is one, a camera by name."""
+    out: list[str] = []
+    cameras = [p.camera.name or p.camera.room or cid for cid, p in app.cameras.items()]
+    home = app.addons.smarthome
+    lamps = [live.device.name for live in home.live.values()
+             if live.device.kind != "sensor"] if home is not None else []  # fmt: skip
+    sensors = [live.device.name for live in home.live.values()
+               if live.device.kind == "sensor"] if home is not None else []  # fmt: skip
+    if lamps:
+        out.append(t("web.ai_ex_switch", lang, device=lamps[0]))
+    if cameras:
+        out.append(t("web.ai_ex_today", lang))
+        vision = app.addons.assistant is not None and app.addons.assistant.settings.allow_vision
+        out.append(t("web.ai_ex_look" if vision else "web.ai_ex_photo", lang, camera=cameras[0]))
+    if sensors:
+        out.append(t("web.ai_ex_sensor", lang, device=sensors[0]))
+    if app.addons.agents is not None and app.addons.agents.list():
+        out.append(t("web.ai_ex_agents", lang))
+    if app.settings.wireguard_enabled:
+        out.append(t("web.ai_ex_vpn", lang))
+    assistant = app.addons.assistant
+    if assistant is not None and assistant.settings.location:
+        out.append(t("web.ai_ex_weather", lang))
+    out.append(t("web.ai_ex_away", lang))
+    out.append(t("web.ai_ex_help", lang))
+    return list(dict.fromkeys(out))[:4]
+
+
+async def assistant_examples(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    return web.json_response({"examples": examples(d.app, d.settings.language)})
+
+
 async def assistant_chat(request: web.Request) -> web.Response:
     return await _chat(request, str((await read_json(request)).get("text", "")))
 
@@ -364,7 +400,10 @@ async def assistant_chat_voice(request: web.Request) -> web.Response:
     path = Path(tempfile.gettempdir()) / f"pi-guard-chat-{uuid.uuid4().hex}.webm"
     path.write_bytes(body)
     try:
-        text = await assistant.transcribe(path, dashboard(request).settings.language)
+        app = dashboard(request).app
+        names = vocabulary.words(app, people=True)
+        text = await assistant.transcribe(path, app.settings.language,
+                                          hint=vocabulary.hint(app), vocabulary=names)  # fmt: skip
     except AssistantError as exc:
         raise web.HTTPConflict(text=exc.key) from None
     finally:

@@ -364,6 +364,10 @@ class AssistantAddon(_Model):
     ai_actions: bool = False
     # Camera pictures may be sent to the provider, each time after confirmation.
     allow_vision: bool = False
+    # As an emergency contact: after an alarm the alarm picture goes to the provider without
+    # asking, with what the Pi's own face recognition found, and the admins get its view.
+    # Reference pictures of trusted people never leave the Pi.
+    emergency_watch: bool = False
     paperless_url: str | None = None
     nextcloud_url: str | None = None
     nextcloud_user: str = ""
