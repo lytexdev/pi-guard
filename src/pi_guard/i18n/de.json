@@ -3191,5 +3191,20 @@
   "web.review_commands": "Befehle zum Selbst-Ausführen (werden nie automatisch ausgeführt):",
   "web.review_nothing": "Nichts zu tun.",
   "web.review_note": "Vorschläge einer KI können falsch sein. Ausgeführt werden nur die festen Korrekturen oben; alle anderen Befehle prüfst und startest du selbst.",
-  "web.scan_none_yet": "Noch kein Ergebnis: zuerst prüfen."
+  "web.scan_none_yet": "Noch kein Ergebnis: zuerst prüfen.",
+  "web.logs_tab_overview": "Überblick",
+  "web.logs_tab_service": "Dienst-Log",
+  "web.logs_tab_audit": "Protokoll",
+  "web.log_level": "Stufe",
+  "web.log_info": "Info",
+  "web.log_warning": "Warnungen",
+  "web.log_error": "Fehler",
+  "web.log_search": "Im Log suchen …",
+  "web.log_search_audit": "Nach Person, Aktion oder Detail suchen …",
+  "web.log_pause": "Anhalten",
+  "web.log_live": "Live",
+  "web.log_download": "Herunterladen",
+  "web.log_count": "{shown} von {total} Einträgen",
+  "web.audit_hint": "Wer wann was getan hat: Anmeldungen, Einstellungen, Freigaben. Wird nie verändert.",
+  "web.sec_all_good": "Keine Empfehlungen offen."
 }

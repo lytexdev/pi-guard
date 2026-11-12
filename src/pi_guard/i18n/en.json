@@ -3191,5 +3191,20 @@
   "web.review_commands": "Commands to run yourself (never run automatically):",
   "web.review_nothing": "Nothing to do.",
   "web.review_note": "An AI's suggestions can be wrong. Only the fixed fixes above run from here; check and start any other command yourself.",
-  "web.scan_none_yet": "No result yet: run the check first."
+  "web.scan_none_yet": "No result yet: run the check first.",
+  "web.logs_tab_overview": "Overview",
+  "web.logs_tab_service": "Service log",
+  "web.logs_tab_audit": "Audit trail",
+  "web.log_level": "Level",
+  "web.log_info": "Info",
+  "web.log_warning": "Warnings",
+  "web.log_error": "Errors",
+  "web.log_search": "Search the log …",
+  "web.log_search_audit": "Search by person, action or detail …",
+  "web.log_pause": "Pause",
+  "web.log_live": "Live",
+  "web.log_download": "Download",
+  "web.log_count": "{shown} of {total} entries",
+  "web.audit_hint": "Who did what and when: logins, settings, access. Never changed.",
+  "web.sec_all_good": "No recommendations open."
 }
