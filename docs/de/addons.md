@@ -12,6 +12,18 @@ pi-guard. Alles funktioniert im Dashboard und in jedem Messenger.
 | Fernbefehle | `/aktion` |
 | KI-Assistent | `/frage Text`, `/wetter [Ort]` |
 
+Jede Karte hat einen Schalter und ein Menü (drei Punkte): *An Navigation anheften*, *Hilfe & Anleitung* (was das Add-on
+macht und wie man anfängt, mit der Tour oder seiner Anleitung) und *Entfernen*. Telegram, Signal, WhatsApp, Discord,
+E-Mail und die Chatdienste sind ebenfalls Add-ons; die Handy-App nicht: Sie gehört zu pi-guard, ist standardmäßig an und
+liegt unter **Einstellungen › Apps**. Add-ons von anderen erscheinen als gleiche Karten unter *Eigene & Community*.
+
+**KI-Assistent als Notfallkontakt:** Mit *Bei Alarm Bilder ansehen und einschätzen* (aus, fragt vor dem Einschalten)
+schaut sich der Assistent höchstens alle 10 Minuten das Alarmbild an, zusammen mit dem, was die Gesichtserkennung auf dem
+Pi über vertraute Personen weiß, und schickt den Admins eine kurze Einschätzung; bei einer Eskalation steht sie auch in
+der Nachricht an die Notfallkontakte. Die Vergleichsbilder vertrauter Personen verlassen den Pi nie. Die Beispielfragen
+im Chat passen zu dem, was eingerichtet ist; Dokumente erreichen das Modell als gekennzeichnete Daten, nie als
+Anweisungen.
+
 **Dienste-Wächter** (Teil des Add-ons *Server*, zusammen mit den Computern mit Agent): Prüft Webseiten, Ports und Geräte. Nach mehreren Fehlversuchen kommt
 eine Nachricht, und noch eine, wenn der Dienst wieder läuft.
 
@@ -103,26 +115,26 @@ alles freiwillig.
 - **Organspende** ist eine Auswahl (ja, nein, nur bestimmte Organe, alle außer bestimmten, eine Person entscheidet,
   nicht entschieden) mit Notiz.
 - **Markdown** geht in den Textfeldern: `**fett**`, `*kursiv*`, Listen mit `-`, Überschriften mit `#`. *Vorschau* zeigt
-  es; die Notfallseite und das PDF auch.
+  es, das PDF auch. Der **Medikamentenplan** nimmt außerdem eine Markdown-Tabelle (`| Medikament | Morgens | … |`,
+  *Tabelle einfügen* legt eine an); gespeichert wie geschrieben, angezeigt als Tabelle, im PDF Zeile für Zeile.
 - **Benutzerkonto:** Eine Person lässt sich mit einem Konto verknüpfen. Ein SOS vom Handy dieses Kontos schickt den
   Notfallkontakten dann genau diese Daten, wenn sie dafür eingestellt sind. Wird das Konto gelöscht, endet die
   Verknüpfung.
 - **PDF, Bild, Senden:** Ein geöffnetes Blatt lässt sich als PDF (A4, zum Drucken), als Bild (PNG, im Browser gezeichnet,
-  zum Teilen vom Handy) speichern und an einen Notfallkontakt senden. Solange das Blatt offen ist, gilt dafür das Passwort,
-  mit dem es geöffnet wurde; beim Schließen wird es vergessen.
+  zum Teilen vom Handy) speichern und an einen Notfallkontakt senden. Dafür fragt es einmal pro geöffnetem Blatt nach dem
+  Passwort; beim Schließen wird es vergessen.
 
 - Verschlüsselt (AES-256-GCM) in einer eigenen Datenbank mit eigenem Schlüssel, nur für den Dienst lesbar; Gelöschtes
   wird überschrieben.
-- Nur Admins sehen, ändern oder teilen sie, und jedes Mal mit ihrem Passwort. Zuschauer sehen sie nie.
-- Jeder Blick, jede Änderung, jeder Link, jedes Öffnen und jede falsche PIN steht im Protokoll, mit der Nummer des
-  Eintrags, nie mit dem Inhalt.
-- Nichts davon geht in Push-Nachrichten oder MQTT. In einen Chat kommt es nur, wenn ein Admin es einem Notfallkontakt
-  schickt oder ein SOS es für einen so eingestellten Kontakt tut: als Rettungslink für eine Stunde mit der PIN in einer
-  zweiten Nachricht, oder als PDF, wenn das für diesen Kontakt gewählt ist (der Chatdienst behält die Datei dann). Es ist
-  Teil des Datenexports.
+- Angemeldete Admins (und Mitglieder mit diesem Recht) öffnen und ändern sie ohne weiteres Passwort; Dateien, Senden und
+  Löschen fragen danach. Zuschauer sehen sie nie.
+- Jeder Blick, jede Änderung, jede Datei und jedes Senden steht im Protokoll, mit der Nummer des Eintrags, nie mit dem
+  Inhalt.
+- Nichts davon geht in Push-Nachrichten oder MQTT. In einen Chat kommt es nur als PDF, wenn ein Admin es schickt oder ein
+  SOS es tut, an einen Kontakt, für den das PDF gewählt ist (der Chatdienst behält die Datei dann). Alle anderen Kontakte
+  erfahren nur, dass es Notfalldaten gibt und wo sie im Heimnetz oder VPN zu finden sind. Es ist Teil des Datenexports.
 
-**Notfall-Link:** zeigt das Blatt einer Person 15, 30 oder 60 Minuten lang, nur lesend, ohne Anmeldung. Standardmäßig
-zusätzlich mit sechsstelliger PIN: Sag sie am Telefon, nicht in derselben Nachricht wie den Link. Fünf falsche PINs
-beenden den Link, *Jetzt beenden* sofort. Was der Person schaden kann, steht ganz oben; die Seite lässt sich drucken.
+Rettungslinks gibt es nicht mehr (bis 1.9): Sie ließen sich nur im Heimnetz oder über das VPN öffnen, wo das Dashboard
+ohnehin da ist. Kontakte, die einen Link bekamen, bekommen jetzt den Hinweis.
 
 Frag die Menschen, die du einträgst: Es sind ihre Daten.

@@ -15,6 +15,10 @@ default. German: [de/sprache.md](de/sprache.md).
 - **Button:** a push button between a GPIO line and ground, set as *Talk button on GPIO* (BCM number, 0 = none). The
   Pi reads it with `gpiomon` from libgpiod 2. The service user needs the GPIO group once:
   `sudo usermod -aG gpio pi-guard`, then restart pi-guard.
+- **Names of this home:** the small offline model hears names such as "Wintergarten" or "Stehlampe Flur" only nearly
+  right. pi-guard puts close words back to the names of its cameras, rooms, devices, commands and trusted people
+  (offline, no tokens), so "schlafzimer" becomes "Schlafzimmer". In the chat, a cloud speech model (OpenAI) also gets
+  those names as a hint, never people's names. The model itself is not retrained on the Pi.
 - **Answer:** the question goes to the AI assistant add-on, like a question in the chat but without your documents,
   because nobody knows who is speaking. The answer is spoken with the assistant's voice if its provider has one, else
   with `espeak-ng` if installed (`sudo apt install espeak-ng`), else only shown on the Sound page.

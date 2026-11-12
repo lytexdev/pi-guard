@@ -162,6 +162,8 @@ Back to the official model: move `yolox_nano.onnx.official` back, or run `pi-gua
 
 ## Anonymous statistics
 
+The statistics are off in pi-guard for now (1.10): no Pi sends reports. The receiver below stays for a later version.
+
 Pis whose owners switch on *Help make pi-guard better* (Settings → Updates) send one report a week to
 `PI_GUARD_SUPPORT_URL`. What is in it, and what never is: [privacy.md](privacy.md#anonymous-statistics). Until a
 receiver runs and the URL is set, nothing is sent.

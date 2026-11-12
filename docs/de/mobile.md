@@ -5,13 +5,14 @@ unter *Add-ons* ein und starte neu.
 
 ## Installieren
 
-1. Öffne auf dem Handy im Heimnetz *Add-ons → Handy-App* und drücke **App herunterladen**.
+1. Öffne auf dem Handy im Heimnetz *Einstellungen → Apps* und drücke **App herunterladen**, oder öffne einen
+   Einladungslink von dort (sieben Tage gültig, nur Downloads).
 2. Öffne PiGuard im Heimnetz. Die App sucht pi-guard im Netzwerk, oder du trägst die Adresse ein.
 3. Prüfe den Zertifikats-Fingerabdruck und melde dich an. Das Handy bekommt einen eigenen Schlüssel und bleibt
    angemeldet.
 
 Neue Handys lassen sich nur im Heimnetz oder über das VPN verbinden. Einen VPN-Zugang bekommen nur Admins: Er reicht ins
-ganze Heimnetz, und Betrachter dürfen nur zuschauen. Unter *Add-ons → Handy-App* entfernst du ein
+ganze Heimnetz, und Betrachter dürfen nur zuschauen. Unter *Einstellungen → Apps* entfernst du ein
 Handy; sein Schlüssel gilt dann sofort nicht mehr.
 
 ## Was sie kann
@@ -28,7 +29,7 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
   läuft. Mit Tailscale findet sie das Dashboard selbst unter dieser Adresse. Für den ersten Zugang muss die App einmal zu Hause oder über ein
   anderes VPN geöffnet werden. WireGuard muss auf pi-guard eingerichtet sein.
   Mach das einmal zu Hause. Der gesamte Verkehr läuft dann über dein Zuhause.
-- **Handy finden:** unter *Add-ons → Handy-App* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
+- **Handy finden:** unter *Einstellungen → Apps* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
   vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
   zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
 - **Standort-Link:** *Standort-Link* fragt das Handy sofort nach seinem Standort, ohne Klingeln, und zeigt einen Link mit
@@ -102,7 +103,8 @@ Das läuft auf einem Rechner mit Android-SDK, nicht auf dem Pi. Der erste Lauf e
 `~/.config/pi-guard/android`. **Sichere ihn.** Android nimmt Updates nur mit demselben Schlüssel an: Ohne ihn muss jedes Handy
 die App löschen und neu verbinden. Er darf nie ins Repository.
 
-Neue Versionen lassen sich auch unter *Add-ons → Handy-App* hochladen. Handys schauen einmal am Tag nach und bieten sie an.
+Neue Versionen lassen sich auch unter *Einstellungen → Apps* hochladen. Handys schauen alle drei Stunden nach: Neue
+Haupt- und Unterversionen installieren sich im WLAN selbst, Korrekturen kommen als Benachrichtigung.
 Android fragt vor der Installation immer nach, wenn eine App nicht aus einem Store kommt; ganz still geht es also nicht.
 
 ## Sicherheit
@@ -113,12 +115,14 @@ Android fragt vor der Installation immer nach, wenn eine App nicht aus einem Sto
 - Das Zertifikat wird beim ersten Start festgelegt. Was nicht von deinem pi-guard oder einer öffentlichen Stelle kommt, wird
   abgelehnt.
 
-## pi-guard besser machen
+## Aussehen und Versionen
 
-Beim Einrichten und später in den App-Einstellungen gibt es zwei Schalter, beide aus, bis du sie einschaltest:
-**Absturzberichte** (nur Art des Fehlers und Stellen im Code, nie die Meldung und nichts, was du gesehen oder
-eingegeben hast) und **anonyme Nutzungsdaten** (Version der App und von Android). Beides geht nur an deinen eigenen
-pi-guard, und der gibt es nur im anonymen Wochenbericht weiter, wenn auch sein Besitzer zugestimmt hat.
+Die eigenen Bildschirme der App (Einstellungen, VPN, Einrichtung) nutzen die Farben des Dashboards, hell oder dunkel wie
+Android; das Dashboard in der App folgt ohne eigene Wahl ebenfalls dem System. In den App-Einstellungen steht die
+Version mit Build. Alarme kommen über die eigene Verbindung der App, deshalb bietet das Dashboard in der App keinen
+Browser-Push an.
+
+Die anonymen Statistiken sind vorerst aus: Die App fragt nicht mehr nach Absturzberichten oder Nutzungsdaten.
 
 ## Die App mit dem eigenen pi-guard
 

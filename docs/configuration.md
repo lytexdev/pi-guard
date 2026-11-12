@@ -41,6 +41,9 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 | `CONFIG_FILE` | `/etc/pi-guard/config.yaml` | |
 | `RUNTIME_DIR` | `/run/pi-guard` | tmpfs: latest frames, heartbeat |
 | `APP_UPDATES_FROM_GITHUB` | `true` | fetch signed releases of the phone app, desktop app and agent from GitHub for this Pi's devices, see [updates.md](updates.md#releases-on-github) |
+| `UPDATE_REPOSITORY` | `lytexdev/pi-guard` | the GitHub repository updates come from (owner/name), for forks; only releases signed with the trusted keys are installed |
+| `UPDATE_CHANNEL` | `stable` | `beta` also takes beta-* releases and pre-releases |
+| `UPDATE_AUTO` | `true` | install new major and minor releases by themselves, see [updates.md](updates.md#one-release-of-everything) |
 | `BACKUP_ENABLED`, `BACKUP_TARGET`, `BACKUP_PASSPHRASE`, … | off | encrypted backups to Nextcloud, rsync or Borg, see [backup.md](backup.md) |
 | `SUPPORT_URL` | – | `https://` receiver of the anonymous statistics; sent only after an admin switches them on under Settings → Updates, see [training.md](training.md#anonymous-statistics) |
 
@@ -105,7 +108,7 @@ a dashboard account, one or more ways to reach them (Telegram, Signal, Discord, 
 occasion what they get. Occasions are an **SOS from a phone** and **alarms nobody answered**. On top of the message
 itself a contact can get the place of the phone, photos and sound from the phone, pictures from the Pi's cameras,
 the latest events, 20 seconds from the Pi's microphone, and the emergency medical data of the person whose phone
-sent the SOS (as a rescue link with PIN, or as a PDF). *Send a test message* checks that a contact can be reached.
+sent the SOS (as a PDF, or only a note that they exist). *Send a test message* checks that a contact can be reached.
 
 The settings below are the older way and still work: each entry is a contact that gets what such contacts always
 got (SOS: place, phone photos and sound, Pi pictures, home sound; alarms: events and pictures). They are shown in

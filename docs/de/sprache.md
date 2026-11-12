@@ -15,6 +15,10 @@ offline und standardmäßig aus. Englisch: [../voice.md](../voice.md).
 - **Knopf:** Ein Taster zwischen einer GPIO-Leitung und Masse, eingetragen als *Sprechknopf an GPIO* (BCM-Nummer,
   0 = keiner). Der Pi liest ihn mit `gpiomon` aus libgpiod 2. Der Dienstnutzer braucht einmal die GPIO-Gruppe:
   `sudo usermod -aG gpio pi-guard`, dann pi-guard neu starten.
+- **Namen dieses Zuhauses:** Das kleine Offline-Modell hört Namen wie „Wintergarten“ oder „Stehlampe Flur“ oft nur fast
+  richtig. pi-guard setzt nahe Wörter wieder auf die Namen von Kameras, Räumen, Geräten, Befehlen und vertrauten
+  Personen (offline, ohne Tokens), aus „schlafzimer“ wird „Schlafzimmer“. Im Chat bekommt eine Cloud-Spracherkennung
+  (OpenAI) diese Namen zusätzlich als Hinweis, nie Namen von Menschen. Das Modell selbst wird auf dem Pi nicht neu trainiert.
 - **Antwort:** Die Frage geht an das Add-on KI-Assistent, wie eine Frage im Chat, aber ohne deine Dokumente, weil
   niemand weiß, wer spricht. Gesprochen wird mit der Stimme des Assistenten, wenn sein Anbieter eine hat, sonst mit
   `espeak-ng`, falls installiert (`sudo apt install espeak-ng`), sonst steht die Antwort nur auf der Ton-Seite.

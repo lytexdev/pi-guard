@@ -145,7 +145,12 @@ async function appsPanels() {
 export async function render(main, { embedded = false } = {}) {
   const top = embedded ? await appsPanels() : null;
   const draw = async () => {
-    const data = await api("/api/mobile/devices");
+    // Switched off (Settings > Apps above): the versions and invitations still work.
+    const data = await api("/api/mobile/devices").catch((error) => {
+      if (!embedded || error.message !== "web.addon_not_running") throw error;
+      return null;
+    });
+    if (!data) { fill(main, top, h("p", { class: "notice" }, t("web.mob_off"))); return; }
     const file = h("input", { type: "file", accept: ".apk", "aria-label": t("web.mob_apk") });
     const code = h("input", { type: "number", min: 1, placeholder: t("web.mob_version_code"), "aria-label": t("web.mob_version_code") });
     const version = h("input", { placeholder: t("web.mob_version_name"), "aria-label": t("web.mob_version_name") });

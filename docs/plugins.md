@@ -25,6 +25,8 @@ pi-guard plugin pack my_addon     # ZIP for the dashboard
   "source": "https://github.com/you/pi-guard-doorbell",
   "license": "MIT",
   "description": "Rings the speaker",
+  "help": "Rings the speaker when someone presses the doorbell.\n\n1. Enter the volume.\n2. Press *Test*.",
+  "docs": "https://github.com/you/pi-guard-doorbell#readme",
   "permissions": ["audio"],
   "settings": [
     {"key": "volume", "label": "Volume", "type": "number", "default": 40},
@@ -35,6 +37,10 @@ pi-guard plugin pack my_addon     # ZIP for the dashboard
 
 `release_branch` names the branch that holds releases. Without it, updates follow the repository's main
 branch, usually `main` or `master`.
+
+`help` (Markdown, up to 4000 characters) and `docs` (an `https://` link) are shown behind *Help & guide* in the add-on
+card's menu, next to *Pin to navigation*; without them the description is shown. Installed add-ons appear as cards
+under *Own & community*, like the built-in ones.
 
 `id` and `name` are required. `icon` is a name from the dashboard's icon set, `settings` become
 a form on the add-on's page and arrive in `self.settings`, with types `text`, `number`, `bool`

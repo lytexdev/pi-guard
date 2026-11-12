@@ -24,16 +24,17 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
 - Mit Signal (optional) werden sie Ende-zu-Ende-verschlüsselt verschickt.
 - Mit MQTT (optional) gehen nur Zustände an Ihren eigenen Server – keine
   Bilder, keine Namen.
-- Anonyme Statistiken nur, wenn ein Admin *pi-guard besser machen* unter Einstellungen → Updates einschaltet und
-  `PI_GUARD_SUPPORT_URL` einen Empfänger nennt: einmal pro Woche Anzahlen und Verteilungen aus den letzten sieben
-  Tagen, etwa wie groß Gesichter waren und wie ähnlich sie den eingetragenen Personen waren, und die
-  Ähnlichkeit von Gesichtern, die ein Admin mit *Wer ist das?* bestätigt oder korrigiert hat. Nie Bilder,
-  Gesichtsabdrücke, Namen, Uhrzeiten, Adressen oder eine Kennung des Haushalts. Die Seite zeigt vorher genau, was
-  gesendet würde.
+- Anonyme Statistiken gibt es seit 1.10 vorerst nicht mehr: Nichts wird gesammelt oder gesendet, früher gesammelte
+  Zahlen wurden gelöscht, und die Handy-App fragt nicht mehr danach. Die Instanz-ID bleibt auf dem Pi.
+- Mit *Bei Alarm Bilder ansehen* (aus) geht höchstens alle 10 Minuten das Alarmbild an den KI-Anbieter, mit dem, was die
+  Gesichtserkennung auf dem Pi gefunden hat; Vergleichsbilder vertrauter Personen nie. *Ergebnis prüfen lassen* beim
+  Sicherheitscheck schickt Status und kurze Details, erst nach Bestätigung. Beim Sprechen mit dem Assistenten im Chat
+  bekommt die Spracherkennung (OpenAI) Namen von Kameras, Räumen und Geräten als Hinweis, nie Namen von Menschen.
 - *Frag zu Einstellungen* mit eingeschaltetem KI-Assistenten schickt dem gewählten Anbieter Bezeichnungen, Hilfetexte
   und die Werte von Schaltern, Zahlen und Auswahlen, nie Geheimnisse, Listen oder die Zeitzone.
-- Notfalldaten gehen nur an Notfallkontakte, die dafür eingestellt sind, oder wenn ein Admin sie schickt: als
-  Rettungslink mit PIN, oder als PDF, wenn das für den Kontakt gewählt ist. Das PDF liegt dann beim Chatdienst.
+- Notfalldaten gehen nur als PDF an Notfallkontakte, für die das gewählt ist (bei einem SOS oder wenn ein Admin sie
+  schickt); das PDF liegt dann beim Chatdienst. Andere Kontakte erfahren nur, dass es Notfalldaten gibt. Rettungslinks
+  gibt es nicht mehr.
 - Kid Protect schreibt die MAC-Adressen der Kindergeräte und ihre Gruppen in Ihr Pi-hole; die FRITZ!Box bekommt ihre
   IP-Adressen, um zu den eingestellten Zeiten das Internet zu sperren.
 - Sonst nichts: keine Cloud, keine Werbung.
@@ -55,7 +56,7 @@ Ausgeschaltete Funktionen starten keine Extra-Dienste. Details: [vpn.md](../vpn.
 - Personen- und Gesichtserkennung
 - Anwesenheitserkennung
 - Steuerung über MQTT
-- Anonyme Statistiken
+- Der KI-Assistent als Notfallkontakt (Alarmbilder ansehen)
 
 ## Worauf Sie achten sollten
 

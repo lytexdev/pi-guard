@@ -80,11 +80,16 @@ are deleted with it, and are part of the data export.
 | Role | Can do |
 |---|---|
 | Admin | everything |
+| Member | what viewers see, plus what an admin ticks under *Permissions*: areas (home/away and alarm, people, network, logs, contacts, devices, apps), single add-ons and single settings sections |
 | Viewer | see the overview, live picture, camera room and events, and change their own password and two-factor code |
 
 Viewers cannot listen in, talk, take photos, change the mode, use the assistant or open
 settings. The server enforces this with an allowlist, so new features stay closed to viewers
-until they are added to it. A changed role counts at once; removing a person ends their
+until they are added to it. Members are checked the same way (`web/permissions.py`): each grant opens whole path
+segments, and access, logins, tokens, backups, updates, the security check and own add-ons are never grantable. A
+member's settings page shows and saves only the granted groups. The link button next to a person opens their contact
+details and links: Telegram, Discord, Signal and WhatsApp accounts, a trusted person the cameras know, and their
+emergency card. A changed role counts at once; removing a person ends their
 sessions and removes their phones, computers and VPN access. A new password logs out all other
 browsers of that person; paired phones log themselves in again the next time they open. Adding a
 passkey, an API token or a key file asks for the password; a passkey the owner's. Hardware keys, recovery codes and the code word belong to the main account.
@@ -107,9 +112,12 @@ error message.
 
 ## Add-ons and modules
 
-Discord, WhatsApp and email are modules under *Add-ons*. A module that is off disappears from *Settings →
-Messenger* and stops at the next restart; its entries are kept. Modules that are part of pi-guard carry a
-*Verified* badge. The plus beside the search adds your own add-ons, see [plugins](plugins.md).
+Telegram, Signal, Discord, WhatsApp, email and the chat services are modules under *Add-ons*. A module that is off
+disappears from *Settings → Messenger* and stops at the next restart; its entries are kept. Modules that are part of
+pi-guard carry a *Verified* badge. Each card's menu (three dots) pins it to the navigation, shows help and a way to the
+tour, and removes it. The plus beside the search adds your own add-ons, see [plugins](plugins.md). The phone app is no
+module: it is on by default, under *Settings → Apps*, with the versions this Pi hands out and invitation links (seven
+days, downloads only, kept as a hash) for people who should get the Android or desktop app.
 
 Panels in the settings fold by clicking their headline, and stay that way in this browser. Messengers that
 are off start folded.
@@ -168,11 +176,11 @@ recognition needs a face in the picture, roughly facing the camera and at least 
 
 Only the numbers of a face are stored, as with any enrollment. Viewers do not see the buttons.
 
-## Helping the project
+## Updates and versions
 
-*Settings → Updates → Help make pi-guard better* sends one report of anonymous counts a week, once an admin switches
-it on and `PI_GUARD_SUPPORT_URL` (*Statistics receiver* in the expert settings) names a receiver. *Show exactly what
-would be sent now* shows the report as it would go. What it holds: [privacy.md](privacy.md#anonymous-statistics).
+*Settings → Updates* shows the Pi's version (it is also next to the credit in the navigation), the newest release,
+where updates come from (repository and channel, see [updates.md](updates.md)), this installation's instance ID and
+every app version the Pi hands out, with *Check for app updates*. The anonymous statistics are off for now.
 
 ## Everyday tools
 
@@ -208,17 +216,26 @@ would be sent now* shows the report as it would go. What it holds: [privacy.md](
 
 *Settings → Security scan* checks the login, HTTPS, pi-guard's own files against their checksums, open
 ports, system updates, the firewall, SSH, system files against their packages, unknown programs with
-root rights, programs in temporary folders, and accounts. It changes nothing and can send a summary to
+root rights, programs in temporary folders, and accounts. It changes nothing by itself and can send a summary to
 admins by messenger (also `/securityscan` in chat). A rootkit scan runs if `rkhunter` or `chkrootkit`
-is installed. A clean result is no guarantee that a system is not compromised.
+is installed; warnings every pi-guard has (Pi-hole's tables in `/dev/shm`, the pi-guard user added to groups) count as
+known. A clean result is no guarantee that a system is not compromised.
+
+**Fixes:** below the result, fixes from a fixed list fit what was found: SSH root login off, SSH with keys only
+(refused when no key is set up), automatic security updates, accept the rkhunter state, firewall on (everything
+reachable today and SSH stay open). Each runs in the root job with a backup, after two confirmations, the fix's name
+typed and the password, and *Undo* puts the earlier state back. **AI review** sends statuses and short details to the
+assistant's provider after a confirmation and lists steps; it can point to a listed fix, any other command it names is
+shown to copy and never run.
 
 *Settings → Data & backup → Storage* shows what uses the disk and can delete old recordings, photos and clips, compact
 the database, and clear old system logs and the package cache (also `/storage` in chat). Evidence videos
 and face data are not cleaned there.
 
 pi-guard has no root rights. The system checks come from `pi-guard-maint`, a root job started by a
-systemd path unit. It accepts only four fixed words and writes its reports to `/var/lib/pi-guard-scan`,
-where pi-guard cannot write.
+systemd path unit. It accepts only fixed words (the jobs, and `fix-*`/`undo-*` for the listed fixes) and writes its
+reports to `/var/lib/pi-guard-scan`, where pi-guard cannot write; backups of fixes stay in `/var/lib/pi-guard-fixes`,
+readable by root only.
 
 ## If the dashboard feels slow
 
@@ -227,10 +244,16 @@ and the assistant's answers appear because they take a while anyway. More in [Pe
 
 ## Appearance
 
-*Settings → Appearance* sets the accent colour, font, animations and your own logo (PNG, JPEG or
-WebP up to 1 MB; no SVG, because it can contain scripts) for everyone, also on the login page.
-Theme and text size are chosen per device. No fonts are loaded from the internet: the choices use
-what the device has. The high-contrast theme keeps its own colours.
+*Settings → Appearance* sets the accent colour, font, animations and the app's name for everyone, also on the login
+page. The logo is pi-guard's own and cannot be changed (the phone app can still disguise itself). Theme (as the
+system, dark, light, high contrast) and text size are chosen per device; the light theme keeps every text colour at
+4.5:1 or more. *Reset to default* puts all of it back after a confirmation. No fonts are loaded from the internet: the
+choices use what the device has. The high-contrast theme keeps its own colours.
+
+## Logs
+
+*Logs* has three tabs: an overview of the last seven days (logins, failed logins, honeypot hits, bans, advice), the
+service log with level chips, search, pause, copy and download, and the audit trail grouped by day, searchable.
 
 ## Accessibility
 

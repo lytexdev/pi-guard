@@ -31,7 +31,7 @@ runs with `UMask=0077`; databases are `0600`).
 | A presence query per trusted device | your **router** (FRITZ!Box source) | only if configured |
 | MAC addresses of children's devices in a Kid Protect profile, and their groups | your **Pi-hole**; the router gets their IP addresses to cut the internet at set times | only with Kid Protect on |
 | Alert summary, and the events and up to three photos if chosen for the contact | **emergency contacts** via their messenger or email | only if alerts stay unconfirmed and contacts are set up for it |
-| A rescue link and its PIN, or the emergency medical sheet as PDF | **emergency contacts** set to get medical data | only after an SOS from a linked person's phone, or when an admin sends it |
+| The emergency medical sheet as PDF, or only a note that one exists | **emergency contacts** set to get medical data (the PDF only to those set to get it) | only after an SOS from a linked person's phone, or when an admin sends it |
 | Alert text (no photos, no names), and for admins a one-tap token for *All fine* and *Sound alarm*, valid an hour | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |
 | Live picture and sound, files you upload | your own browser, over HTTPS | only while you use the dashboard |
 | Your browser's public IP address | `api.ipify.org`, and the Pi asks `ipwho.is` about unknown addresses | when the overview is open (connection panel) |
@@ -40,18 +40,20 @@ runs with `UMask=0077`; databases are `0600`).
 | Labels, help texts and switch, number and choice values of settings (never secrets, lists or the time zone) | the AI provider | only when you use *Ask about settings* with the assistant on |
 | Names of devices and cameras | the AI provider | only if "AI may plan actions" is ticked |
 | A camera picture | the AI provider | only if allowed, and after you confirm each time |
+| An alarm picture and what the Pi's face recognition concluded (names of trusted people seen, never their pictures) | the AI provider | only with *Look at alarm pictures* on, at most every 10 minutes |
+| Statuses and short details of the security check | the AI provider | only when you press *Review the result* and confirm |
+| Names of cameras, rooms, devices and commands (never people's names) as a hint, with the recording | the speech provider (OpenAI) | when you talk to the assistant in the chat |
 | Town for the weather | Open-Meteo | add-on on, when you ask for the weather |
 | Text to translate | DeepL | add-on on and a DeepL key set |
 | Messages and pictures | Meta, if you use WhatsApp | WhatsApp set up |
 | Model files (download) | from GitHub | only when you run `pi-guard models download` |
 | Backups, encrypted with your passphrase before they leave | your Nextcloud, server or Borg repository | only if backups are set up, see [backup.md](backup.md) |
-| A request for the newest app release, and its files when there is a new one | GitHub | every 6 hours, unless `PI_GUARD_APP_UPDATES_FROM_GITHUB=false` |
-| Anonymous statistics: counts and histograms, see below | the receiver in `PI_GUARD_SUPPORT_URL` | only after an admin switches them on, once a week |
+| A request for the newest app release and Pi release, and their files when there is a new one | GitHub (the repository chosen under Settings › Updates) | every hour, unless switched off |
 
 Telegram bot chats are **not end-to-end encrypted**: photos and videos sent by
 the bot are stored on Telegram's servers like any cloud chat. Signal messages
-are end-to-end encrypted. Nothing else is sent anywhere: no telemetry unless you
-switch on the anonymous statistics below, no update checks, no cloud account.
+are end-to-end encrypted. Nothing else is sent anywhere: no telemetry, no cloud account. The instance ID made at the
+first start stays on the Pi.
 
 Never sent: face embeddings, recordings in bulk, the database, secrets.
 
@@ -59,24 +61,8 @@ The training tool in `training/` runs on your own computer and sends nothing; se
 
 ## Anonymous statistics
 
-Off until an admin switches on *Help make pi-guard better* under Settings → Updates, and only sent when
-`PI_GUARD_SUPPORT_URL` names a receiver (`https://` only). The page shows the exact report before you switch it on.
-Once a week the Pi sends, for the last seven days:
-
-- how many events of each kind
-- how big faces were (counts per 8 pixels) and how similar they were to the people enrolled (counts per 0.05)
-- for faces an admin confirmed or corrected with *Who is this?*: how similar they were, counts per 0.05; these are
-  forgotten once sent
-- how many bodies and pictures a person event had, and which detector ran
-- the version, the camera resolutions, whether recognition is on, the number of cameras and enrolled people (as
-  0-4 or "5+"), and the threshold and margin
-- from phones whose users agreed in the app (*Help make pi-guard better*, off by default): how many run which app and
-  Android version, and the app's crashes, each only as exception type and the places in the code, never its message;
-  sent once, then forgotten
-
-Never: pictures, face prints, names, times of day, event times, addresses or any number that stays the same between
-reports and could tell a home apart. The receiver sees the Pi's IP address, as any server does; the one in
-`training/` does not store it. See [training.md](training.md#anonymous-statistics).
+Off for now, since 1.10: nothing is collected or sent, figures an earlier version kept were deleted, and the phone app
+no longer asks. The code stays for a later version, which will again show the exact report before anything is sent.
 
 ## Defaults
 
@@ -84,7 +70,8 @@ reports and could tell a home apart. The receiver sees the Pi's IP address, as a
 - Person detection and face recognition: **off**
 - Presence detection: **off**; only explicitly enrolled devices are checked
 - MQTT inbound commands: **off**
-- Anonymous statistics: **off**
+- Anonymous statistics: **removed for now**
+- The assistant looking at alarm pictures: **off**
 
 ## Audio
 

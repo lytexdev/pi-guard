@@ -3235,5 +3235,7 @@
   "web.perm_devices": "Devices, sounds and calendars",
   "web.perm_apps": "Apps and invitations",
   "web.member_forbidden": "You lack the permission for this. An admin can grant it under Settings › Access.",
-  "web.theme_auto": "As the system"
+  "web.theme_auto": "As the system",
+  "web.mob_off": "The phone app is switched off. Switch it on above and restart pi-guard; the paired phones then appear here.",
+  "web.group_mobile": "Phone app"
 }

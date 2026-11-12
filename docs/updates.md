@@ -28,6 +28,22 @@ What happens then:
 Each pi-guard looks for new releases every hour. *Check for updates* in the phone or desktop app makes it look on GitHub
 at once (at most every 5 minutes, since anyone in the home network may ask).
 
+## Where updates come from
+
+*Settings → Updates* names the GitHub repository (`owner/name`, default `lytexdev/pi-guard`) and the channel:
+
+- **Stable** takes `release-*` tags for the Pi and normal `apps-*` releases for the apps.
+- **Beta** also takes `beta-*` tags and pre-releases, newest by date. `./scripts/ship.sh --beta` makes one
+  (`release.sh tag beta`, `release-apps.sh --prerelease`).
+
+pi-guard writes the choice to `update/source` in its data folder; the root job reads it like anything from pi-guard (no
+links, one short checked line), points the clone's `origin` there, and still installs only a release signed with the
+keys in `/opt/pi-guard/release-signers`. A fork with a different history is refused ("history differs"). The apps
+check the update key built into them, whichever repository the files come from.
+
+Each installation also gets an **instance ID** at its first start, shown on the same page. It never leaves the Pi;
+it is there for later use such as support.
+
 ## Why this is safe
 
 A pi-guard hands updates out, but it cannot make them. Every release is signed with an Ed25519 key that stays on the

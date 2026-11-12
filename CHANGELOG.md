@@ -8,6 +8,29 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Members: a third role that watches like a viewer and uses only what the owner ticks (areas, single add-ons, single
+  settings sections). The server checks each request by whole path segments; anything not listed stays with admins.
+- Links per account: Telegram, Discord, Signal and WhatsApp accounts, a trusted person the cameras know, and the
+  emergency card.
+- Settings › Apps: the phone app is part of pi-guard (on by default), with the versions this Pi hands out and
+  invitation links to download the Android and desktop app (seven days, downloads only, stored as a hash).
+- Add-on cards: a menu with *Pin to navigation*, *Help & guide* (with the tour or the add-on's docs) and *Remove*;
+  add-ons from others bring `help` and `docs` in their manifest and appear as the same cards. Telegram and Signal are
+  add-ons like WhatsApp and Discord.
+- Security check: fixes from a fixed list in the root job, each with a backup and *Undo* (SSH root login off, SSH keys
+  only, automatic security updates, accept the rkhunter state, firewall on), after two confirmations and the password;
+  and an AI review of the latest result that can point to these fixes and shows other commands only to copy.
+- The assistant as an emergency contact (off by default): it looks at alarm pictures with what the Pi's face
+  recognition found and sends a short view; reference pictures never leave the Pi.
+- Speech: a vocabulary of this home corrects nearly-right names offline on the Pi and in the chat; cloud speech gets
+  the names as a hint, never people's names.
+- Updates: the repository and channel (stable or beta) to update from, beta tags and pre-releases
+  (`ship.sh --beta`), an instance ID made at the first start, app versions with *Check for app updates*, and the
+  version in the dashboard, the desktop app's About and the phone app's settings.
+- VPN devices show their type (Android, iPhone, Windows, Linux, Mac, …), from the app, the form or the name.
+- Appearance: *Reset to default* after a confirmation; theme *as the system*, now the default.
+- Logs in three tabs: overview, service log with level chips, search, pause, copy and download, audit trail by day.
+- Medication plans as free text, Markdown or a Markdown table.
 - One release of everything: `scripts/ship.sh` gives the Pi, dashboard, phone app, desktop app and agent one version,
   chosen from the commit prefixes (`feat` minor, `!` or `BREAKING CHANGE` major, otherwise patch), then builds, signs
   and publishes. A new minor or major version installs by itself on the Pi (`update_auto`), the phone (on Wi-Fi) and the
@@ -72,6 +95,11 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- Softer light theme with a grey-blue page, lighter cards and at least 4.5:1 for every text colour; the phone app's
+  own screens follow the system's light or dark mode in the dashboard's colours.
+- The chat's example questions fit what is set up; prompts keep documents as tagged data and never reveal themselves.
+- The emergency card opens without another password when logged in; files, sending and deleting still ask.
+- The logo can no longer be changed (the phone app can still disguise itself).
 - Settings: sections grouped into Basics, Alerts, Devices & access and System, each with a short description, the
   explanation of every setting under its name, toggles for on and off, and a tidier phone list. *Storage*, *Backup*,
   *Moving* and *Export* are now tabs of *Data & backup*, which shows in the normal view too (Export only in the expert
@@ -119,8 +147,19 @@ All notable changes are documented here. The format follows
 - The add-on for connected computers is now called Home servers.
 - Settings open in a normal view with what most people need; a switch shows everything for experts.
 
+### Removed
+
+- Rescue links for emergency data (they only opened at home or over the VPN); contacts that got one now get a note.
+- The anonymous statistics, for now: nothing is collected or sent, stored figures are deleted, the app no longer asks.
+
 ### Fixed
 
+- The multi-hop chain showed only three blue lines once active: the hops stayed invisible and a live link took the
+  whole row.
+- The rootkit check said "no scanner installed" whenever rkhunter found something; known harmless warnings (Pi-hole's
+  tables in `/dev/shm`, the pi-guard user in groups) now count as known.
+- The phone app showed "this browser cannot get push"; the dashboard now knows it runs in the app.
+- Bars and progress set through style attributes had no width, because the Content Security Policy drops them.
 - `build-android.sh` (and so `release-apps.sh`) takes Java 17 when `JAVA_HOME` is not set and refuses other
   versions: under Java 25 the Gradle of AmneziaWG's tunnel library failed with only `25.0.5.0.3` as its error.
 - `build-android.sh` stops before creating a signing key when there is no Android NDK, so a run on the Pi leaves no

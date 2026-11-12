@@ -13,6 +13,10 @@ Netzwerkkarte, was andere sehen, und Umzug.
 **Netzwerk › VPN** zeigt oben, ob das VPN läuft, wie viele Geräte verbunden sind, den Weg von unterwegs und ob der
 quantensichere Schlüsseltausch an ist. Darunter die Bereiche *Geräte* (Karten mit Zustand und Datenmenge, *Zugang* zeigt
 den QR-Code erneut, *Gerät hinzufügen* öffnet ein kurzes Formular), *Von unterwegs*, *Privatsphäre* und *Quantensicher*.
+Jedes Gerät zeigt, was es ist (Android, iPhone, Windows, Linux, Mac, Tablet, Computer): Mit der App verbundene Geräte
+sagen es selbst, andere nehmen den im Formular oder in den Details gewählten Typ oder einen aus dem Namen geratenen.
+Unter *Privatsphäre* zeigt die Multi-Hop-Kette jeden Hop, und das (i) neben *Strikte DNS-Privatsphäre* erklärt, was es
+ändert.
 
 ## Feste IP-Adresse
 

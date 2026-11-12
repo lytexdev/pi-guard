@@ -15,6 +15,12 @@ messenger, where buttons become a numbered menu if the platform has none.
 
 All but the assistant are for admins.
 
+Each card has a switch and a menu (three dots): *Pin to navigation*, *Help & guide* (what the add-on does and how to
+start, with the tour or its documentation) and *Remove*. Telegram, Signal, WhatsApp, Discord, email and the chat
+services are add-ons too; the phone app is not: it is part of pi-guard, on by default, under **Settings › Apps**.
+Add-ons from others appear as the same cards under *Own & community*; see [plugins.md](plugins.md) for building and
+publishing one.
+
 ## Service watcher
 
 Part of the *Server* add-on, see [agent.md](agent.md).
@@ -152,6 +158,22 @@ picture to the provider after you confirm, each time. It needs a model that can 
 vision model in Ollama for keeping pictures at home. The provider then has a picture of the
 inside of your home, so use this with care.
 
+### As an emergency contact
+
+With *Look at alarm pictures and assess them* (off by default, asks before it switches on), the assistant looks at
+the picture of an alarm at most every 10 minutes, with what the Pi's own face recognition found (a trusted person,
+a stranger next to trusted people, no face), and sends the admins a short view: who or what it looks like and what to
+do. The same view goes into the message to the emergency contacts when an alarm is escalated. The reference pictures
+of trusted people never leave the Pi; only the alarm picture goes to the provider (with Ollama it stays at home).
+
+### Examples, safety and tokens
+
+The chat suggests questions that work on this Pi: a lamp only if there is one, cameras by their names, the weather
+only with a place. Excerpts from documents reach the model in their own tags, cut short and unable to close those
+tags, and the prompt tells it that documents, pictures and messages are data, never instructions, and never to reveal
+itself. Answers are short (`max_answer_tokens`), questions asked before are answered from a cache, and a daily token
+limit stops it.
+
 ### Your own files and documents
 
 Upload TXT, MD, JSON or PDF on the add-on page. Each file is checked (type, size, valid
@@ -248,30 +270,27 @@ donation, people to call, doctor and health insurance, and the person's phone an
   plans from a real practice or pharmacy have not been tried yet.
 - **Organ donation** is a choice (yes, no, only some organs, all but some, a person decides, not decided) with a note.
 - **Markdown** works in the text fields: `**bold**`, `*italic*`, lists with `-`, headings with `#`. *Preview* shows it;
-  the rescuer's page and the PDF show it too.
+  the PDF shows it too. The **medication plan** also takes a Markdown table (`| Medicine | Morning | … |`, *Insert
+  table* starts one); it is stored as written, shown as a table, and in the PDF line by line.
 - **Dashboard account:** a person can be linked to one account. An SOS from that account's phone then sends the
   emergency contacts that person's data, if they are set to get them. Removing the account ends the link.
 - **PDF, picture, send:** an open sheet can be saved as a PDF (A4, to print), as a picture (PNG, drawn in the browser,
-  to share from the phone) and sent to an emergency contact. Within one open sheet the password typed to open it is
-  used for these and forgotten when the sheet closes.
+  to share from the phone) and sent to an emergency contact. These ask for the password once per open sheet; it is
+  forgotten when the sheet closes.
 
 Health data are a special category under Art. 9 GDPR, so:
 
 - Each record is encrypted with AES-256-GCM in its own database (`DATA_DIR/medical.db`) with its own key
   (`DATA_DIR/medical.key`), both readable by the service only. Deleted records are overwritten. This protects a copied
   file; the running Pi can read them, as it must to show them.
-- Only admins see, change or share them, and each time with their password. Viewers never see them.
-- Every look, change, link, opened link and wrong PIN goes into the audit log, with the record's number, never its
-  content.
-- Nothing of it goes into push messages or MQTT. It reaches a chat only when an admin sends it to an emergency contact,
-  or an SOS does for a contact set to get it: as a rescue link valid an hour with its PIN in a second message, or as
-  the PDF if the owner chose that for this contact (the chat service then keeps the file). It is part of the data
-  export.
+- Logged-in admins (and members granted the add-on) open and change them without another password; files, sending
+  and deleting ask for it. Viewers never see them.
+- Every look, change, file and sending goes into the audit log, with the record's number, never its content.
+- Nothing of it goes into push messages or MQTT. It reaches a chat only as the PDF, when an admin sends it or an SOS
+  does, to a contact the owner set to get the PDF (the chat service then keeps the file). Every other contact is only
+  told that emergency data exist and where to find them at home or over the VPN. It is part of the data export.
 
-**Rescue link:** *Rescue link* makes a link to one person's sheet, valid for 15, 30 or 60 minutes, read only. By
-default it also asks for a six-digit PIN: tell it by phone, not in the same message as the link. Five wrong PINs end
-the link, and *End now* ends it at once. The page puts what can harm the person first (allergies, illnesses,
-medicines, implants), works without a login and loads nothing from elsewhere, and can be printed. Only hashes of
-link and PIN are stored.
+There are no rescue links any more (until 1.9): they only opened at home or over the VPN, where the dashboard is at
+hand anyway. Contacts set to get a link now get the note.
 
 Ask the people you add: these are their data.

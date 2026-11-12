@@ -13,7 +13,10 @@ the guest Wi-Fi, the network map, what others can see, and moving.
 
 **Network › VPN** shows on top whether the VPN runs, how many devices are connected, the way from outside and whether
 the quantum-safe key exchange is on. Below are its parts: *Devices* (cards with state and traffic, *Access* shows the
-QR code again, *Add device* opens a short form), *From outside*, *Privacy* and *Quantum-safe*.
+QR code again, *Add device* opens a short form), *From outside*, *Privacy* and *Quantum-safe*. Each device shows what it
+is (Android, iPhone, Windows, Linux, Mac, tablet, computer): devices paired with the app say so themselves, others take
+the type chosen in the form or in the device's details, or one guessed from their name. Under *Privacy*, the multi-hop
+chain shows each hop, and the (i) next to *Strict DNS privacy* explains what it changes.
 
 ## Fixed IP address
 

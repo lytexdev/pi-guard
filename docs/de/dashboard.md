@@ -68,10 +68,14 @@ Unter *Einstellungen → Zugang → Dashboard-Benutzer* legst du Personen mit ei
 | Rolle | Darf |
 |---|---|
 | Admin | alles |
+| Mitglied | was Betrachter sehen, dazu was ein Admin unter *Rechte* anhakt: Bereiche (Zuhause/Abwesend und Alarm, Personen, Netzwerk, Logs, Kontakte, Geräte, Apps), einzelne Add-ons und einzelne Einstellungsbereiche |
 | Betrachter | Übersicht, Live-Bild, Kameraraum und Ereignisse ansehen, eigenes Passwort und Zwei-Faktor-Code ändern |
 
 Betrachter können nicht mithören, sprechen, Fotos auslösen, den Modus ändern, den KI-Assistenten
-nutzen oder Einstellungen öffnen. Das prüft der Server, nicht nur die Oberfläche. Wird eine Person
+nutzen oder Einstellungen öffnen. Das prüft der Server, nicht nur die Oberfläche; bei Mitgliedern ebenso, Pfad für Pfad.
+Zugang, Anmeldungen, Tokens, Backups, Updates, Sicherheitscheck und eigene Add-ons lassen sich nie freigeben. Der
+Verknüpfungs-Knopf neben einer Person öffnet ihre Kontaktdaten und Verknüpfungen: Telegram, Discord, Signal, WhatsApp,
+eine vertraute Person der Kameras und ihre Notfallkarte. Wird eine Person
 entfernt, ist sie sofort abgemeldet, und ihre Handys, Computer und VPN-Zugänge sind weg. Ein neues
 Passwort meldet alle anderen Browser dieser Person ab; verbundene Handys melden sich beim nächsten
 Öffnen selbst wieder an. Einen Passkey, einen API-Token oder eine Schlüsseldatei anzulegen fragt nach
@@ -94,9 +98,13 @@ Dashboard die Fehlermeldung des Browsers.
 
 ## Add-ons und Module
 
-Discord, WhatsApp und E-Mail sind Module unter *Add-ons*. Ein ausgeschaltetes Modul verschwindet aus *Einstellungen →
-Messenger* und stoppt beim nächsten Neustart; seine Einträge bleiben erhalten. Was zu pi-guard gehört, trägt das
-Abzeichen *Verifiziert*. Das Plus neben der Suche fügt eigene Add-ons hinzu.
+Telegram, Signal, Discord, WhatsApp, E-Mail und die Chatdienste sind Module unter *Add-ons*. Ein ausgeschaltetes Modul
+verschwindet aus *Einstellungen → Messenger* und stoppt beim nächsten Neustart; seine Einträge bleiben erhalten. Was zu
+pi-guard gehört, trägt das Abzeichen *Verifiziert*. Das Menü jeder Karte (drei Punkte) heftet sie an die Navigation,
+zeigt Hilfe und den Weg zur Tour und entfernt sie. Das Plus neben der Suche fügt eigene Add-ons hinzu. Die Handy-App
+ist kein Modul: Sie ist standardmäßig an, unter *Einstellungen → Apps*, mit den Versionen, die dieser Pi weitergibt, und
+Einladungslinks (sieben Tage, nur Downloads, gespeichert als Hash) für Leute, die die Android- oder Desktop-App bekommen
+sollen.
 
 Abschnitte in den Einstellungen klappst du per Klick auf die Überschrift auf und zu; das bleibt in diesem Browser so.
 Messenger, die aus sind, starten zugeklappt.
@@ -160,12 +168,11 @@ zum Lernen 56.
 
 Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer sehen die Knöpfe nicht.
 
-## Das Projekt unterstützen
+## Updates und Versionen
 
-*Einstellungen → Updates → pi-guard besser machen* schickt einmal pro Woche einen Bericht mit anonymen Zahlen, sobald
-ein Admin es einschaltet und `PI_GUARD_SUPPORT_URL` (*Empfänger der Statistiken* in den Experten-Einstellungen) einen
-Empfänger nennt. *Genau zeigen, was jetzt gesendet würde* zeigt den Bericht so, wie er ginge. Was darin steht:
-[Datenschutz](datenschutz.md).
+*Einstellungen → Updates* zeigt die Version des Pi (sie steht auch neben dem Hinweis unten in der Navigation), die
+neueste Version, woher Updates kommen (Repository und Kanal Stabil/Beta), die Instanz-ID dieser Installation und alle
+App-Versionen, die der Pi weitergibt, mit *Nach App-Updates suchen*. Die anonymen Statistiken sind vorerst aus.
 
 ## Werkzeuge im Alltag
 
@@ -200,9 +207,17 @@ Empfänger nennt. *Genau zeigen, was jetzt gesendet würde* zeigt den Bericht so
 
 *Einstellungen → Sicherheitscheck* prüft Anmeldung, HTTPS, die pi-guard-Dateien gegen ihre Prüfsummen, offene
 Ports, System-Updates, Firewall, SSH, Systemdateien gegen ihre Pakete, unbekannte Programme mit Root-Rechten,
-Programme in temporären Ordnern und Konten. Er ändert nichts und kann eine Zusammenfassung per Messenger an
+Programme in temporären Ordnern und Konten. Er ändert von sich aus nichts und kann eine Zusammenfassung per Messenger an
 Admins schicken (im Chat auch `/sicherheitscheck`). Ein Rootkit-Scan läuft, wenn `rkhunter` oder `chkrootkit`
-installiert ist. Ein gutes Ergebnis ist keine Garantie, dass ein System sauber ist.
+installiert ist; Meldungen, die jedes pi-guard hat (Pi-hole-Tabellen in `/dev/shm`, der pi-guard-Benutzer in Gruppen),
+zählen als bekannt. Ein gutes Ergebnis ist keine Garantie, dass ein System sauber ist.
+
+**Korrekturen:** Unter dem Ergebnis stehen passende Korrekturen aus einer festen Liste: SSH-Anmeldung als root sperren,
+SSH nur mit Schlüssel (abgelehnt ohne hinterlegten Schlüssel), automatische Sicherheitsupdates, rkhunter-Stand
+übernehmen, Firewall einschalten (alles heute Erreichbare und SSH bleiben offen). Jede läuft im Root-Job mit Sicherung,
+nach zwei Bestätigungen, dem eingetippten Namen und dem Passwort; *Rückgängig* stellt den alten Zustand her. Die
+**KI-Prüfung** schickt nach Bestätigung Status und kurze Details an den KI-Anbieter und schlägt Schritte vor; sie kann
+auf eine Korrektur der Liste zeigen, andere Befehle stehen nur zum Kopieren da und werden nie ausgeführt.
 
 *Einstellungen → Daten & Sicherung → Speicher* zeigt, was den Platz belegt, und kann alte Aufnahmen, Fotos und Clips löschen, die
 Datenbank verdichten sowie alte Systemprotokolle und den Paket-Cache leeren (im Chat auch `/speicher`).
@@ -215,9 +230,17 @@ hat, mit ihrer Route. Antworten des Assistenten tauchen ebenfalls auf, weil sie 
 
 ## Erscheinungsbild
 
-Unter *Einstellungen → Erscheinungsbild* wählst du Akzentfarbe, Schriftart, Animationen und ein
-eigenes Logo (PNG, JPEG oder WebP bis 1 MB) für alle, auch für die Anmeldeseite. Farbschema und
-Schriftgröße gelten pro Gerät. Schriften werden nicht aus dem Internet geladen.
+Unter *Einstellungen → Erscheinungsbild* wählst du Akzentfarbe, Schriftart, Animationen und den Namen der App für
+alle, auch für die Anmeldeseite. Das Logo ist das von pi-guard und lässt sich nicht mehr ändern (die Handy-App kann sich
+weiter tarnen). Farbschema (wie System, dunkel, hell, hoher Kontrast) und Schriftgröße gelten pro Gerät; das helle
+Schema hält bei jeder Textfarbe mindestens 4,5:1 Kontrast. *Auf Standard zurücksetzen* stellt alles nach einer
+Rückfrage wieder her. Schriften werden nicht aus dem Internet geladen.
+
+## Logs
+
+*Logs* hat drei Reiter: einen Überblick der letzten sieben Tage (Anmeldungen, Fehlversuche, Honeypot, Sperren,
+Empfehlungen), das Dienst-Log mit Stufen-Filtern, Suche, Anhalten, Kopieren und Herunterladen, und das Protokoll nach
+Tagen gruppiert und durchsuchbar.
 
 ## Barrierefreiheit
 

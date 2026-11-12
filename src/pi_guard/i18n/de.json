@@ -3235,5 +3235,7 @@
   "web.perm_devices": "Geräte, Töne und Kalender",
   "web.perm_apps": "Apps und Einladungen",
   "web.member_forbidden": "Dafür fehlt dir das Recht. Ein Admin kann es unter Einstellungen › Zugang vergeben.",
-  "web.theme_auto": "Wie System"
+  "web.theme_auto": "Wie System",
+  "web.mob_off": "Die Handy-App ist ausgeschaltet. Schalte sie oben ein und starte pi-guard neu, dann erscheinen hier die verbundenen Handys.",
+  "web.group_mobile": "Handy-App"
 }
