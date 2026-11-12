@@ -17,6 +17,7 @@ const TOPICS = {
   devices: ["web.cameras", "web.speaker", "web.microphone", "web.trusted_devices", "web.quiet_hours_sound"],
   access: ["web.users_title", "web.webauthn_title", "web.recovery_title", "web.codeword", "web.login_security", "web.account", "web.api_tokens", "web.api_docs"],
   messaging: ["web.discord_status", "web.signal_status"],
+  apps: ["web.mob_devices", "web.mob_app", "web.apps_versions", "web.apps_invite"],
   security: ["web.scan_firewall", "web.scan_updates", "web.scan_rootkits", "web.scan_ports", "web.scan_ssh"],
   "data/storage": ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
   "data/export": ["web.ex_data", "web.ex_config", "web.ex_import"],
@@ -31,9 +32,9 @@ const fold = (text) => text.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "o
 const SECTIONS = [
   ["general", "settings", ["general"], "basics"], ["recording", "video", ["recording"], "basics"], ["detection", "users", ["detection"], "basics"],
   ["modes", "home", ["modes"], "basics"], ["audio", "volume", ["audio"], "basics"],
-  ["messaging", "device-mobile", ["messaging", "discord", "email", "whatsapp", "signal", "chatapps"], "alerts"], ["notifications", "bell-ringing", null, "alerts"],
+  ["messaging", "message", ["telegram", "discord", "email", "whatsapp", "signal", "chatapps"], "alerts"], ["notifications", "bell-ringing", null, "alerts"],
   ["emergency", "alert-triangle", ["emergency"], "alerts"],
-  ["devices", "camera", null, "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
+  ["devices", "camera", null, "home"], ["apps", "device-mobile", ["mobile"], "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
   ["data", "database", ["backup"], "system"], ["security", "shield-check", null, "system"], ["integrations", "router", ["integrations", "network"], "system"],
   ["dashboard", "world", ["dashboard"], "system"], ["updates", "refresh", null, "system"], ["support", "headset", null, "system"],
 ];
@@ -353,10 +354,11 @@ export async function render(main, params = []) {
       const modules = state.session.modules || {};
       if (modules.discord) extra.append(await discordPanel());
       if (modules.email) extra.append(emailPanel());
-      extra.append(await signalPanel());
+      if (modules.signal) extra.append(await signalPanel());
       if (expertMode()) extra.append(await messengerTests());
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
+    if (current === "apps") await (await import("./mobile.js")).render(extra, { embedded: true });
     if (current === "emergency") {  // the contacts first: the fields below are the old way
       const contacts = h("div");
       body.before(contacts);

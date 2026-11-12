@@ -87,6 +87,9 @@ def check_manifest(data: Any) -> dict[str, Any]:
     branch = str(data.get("release_branch", ""))
     if branch and not re.match(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$", branch):
         raise ManifestError("release_branch is not a branch name")
+    docs = str(data.get("docs", "") or "")
+    if docs and not docs.startswith("https://"):
+        raise ManifestError("docs must be an https:// link")
     fields = []
     for item in data.get("settings") or []:
         if isinstance(item, dict) and re.match(r"^[a-z0-9_]{1,32}$", str(item.get("key", ""))):
@@ -99,6 +102,9 @@ def check_manifest(data: Any) -> dict[str, Any]:
         "version": str(data.get("version", "0"))[:20], "icon": str(data.get("icon", "cpu"))[:40],
         "authors": [str(a)[:60] for a in authors if a][:10], "source": source[:300],
         "description": str(data.get("description", ""))[:300],
+        # What it does and how to use it, as Markdown: shown behind "?" on its card.
+        "help": str(data.get("help", ""))[:4000],
+        "docs": docs[:300],
         "license": str(data.get("license", ""))[:40], "settings": fields,
         "release_branch": branch,
         "permissions": [str(p)[:40] for p in data.get("permissions") or []][:20],

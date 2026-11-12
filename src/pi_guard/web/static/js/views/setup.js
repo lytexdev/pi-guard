@@ -296,7 +296,7 @@ export async function render(root, params) {
       t("web.setup_have_telegram", { bot: status.telegram.bot ? `@${status.telegram.bot}` : "Telegram", admins: status.telegram.admins }),
     ], () => go("telegram/change"));
   }
-  else if (step === "telegram") await embedded(root, "telegram", () => import("./settings.js"), { groups: ["messaging", "discord", "email", "whatsapp", "signal"] });
+  else if (step === "telegram") await embedded(root, "telegram", () => import("./settings.js"), { groups: ["telegram", "discord", "email", "whatsapp", "signal"] });
   else if (step === "alerts") await alerts(root);
   else if (step === "emergency") await embedded(root, "emergency", () => import("./settings.js"), { groups: ["emergency"] });
   else if (step === "people") await people(root);

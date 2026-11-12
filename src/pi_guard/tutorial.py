@@ -22,7 +22,7 @@ CHAPTERS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("emergency", "#/settings/emergency", ("notfallkontakt", "emergency contact", "sos")),
     ("medical", "#/addons/medical",
      ("notfalldaten", "medikament", "medical", "bmp", "organspende")),
-    ("apps", "#/addons/mobile", ("app", "handy", "android", "desktop", "phone")),
+    ("apps", "#/settings/apps", ("app", "handy", "android", "desktop", "phone")),
     ("assistant", "#/addons/assistant", ("assistent", "assistant", "ki ", "sprachsteuerung")),
     ("move", "#/settings/data/move", ("umzug", "umziehen", "moving", "neuer router", "new router")),
     ("settings", "#/settings", ("einstellung", "setting", "backup", "barrierefrei", "accessib")),

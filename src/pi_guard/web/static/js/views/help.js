@@ -9,7 +9,7 @@ export const CHAPTERS = [
   ["overview", "#/overview", "home"], ["live", "#/live", "video"], ["events", "#/events", "bell"],
   ["people", "#/people", "users"], ["network", "#/network/overview", "network"], ["vpn", "#/network/vpn", "brand-wireguard"],
   ["kids", "#/addons/kids", "mood-happy"], ["emergency", "#/settings/emergency", "alert-triangle"], ["medical", "#/addons/medical", "user-check"],
-  ["apps", "#/addons/mobile", "device-mobile"], ["assistant", "#/addons/assistant", "speakerphone"], ["move", "#/settings/data/move", "map-pin"],
+  ["apps", "#/settings/apps", "device-mobile"], ["assistant", "#/addons/assistant", "speakerphone"], ["move", "#/settings/data/move", "map-pin"],
   ["settings", "#/settings", "settings"],
 ];
 // What viewers can open; the rest of the tour is for admins.
@@ -50,4 +50,7 @@ export async function render(main, params = []) {
     h("section", { class: "panel stack" }, h("h2", {}, t("web.tut_more_title")), h("p", { class: "muted" }, t("web.tut_more")),
       h("p", {}, h("a", { href: "https://github.com/lytexdev/pi-guard/tree/main/docs", target: "_blank", rel: "noopener" }, t("web.tut_docs")))));
   if (params[0] === "tour") startTour();
+  // "#/help/kids" from an add-on's "?": the tour, at that chapter.
+  const chapter = chapters().findIndex(([id]) => id === params[0]);
+  if (chapter >= 0) startTour(chapter);
 }

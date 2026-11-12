@@ -10,7 +10,7 @@ export async function restartPrompt() {
 }
 
 const tip = (key) => (t(key) === key ? null : t(key));
-const GROUP_ICONS = { messaging: "brand-telegram", discord: "brand-discord", signal: "brand-signal", whatsapp: "brand-whatsapp", email: "mail" };
+const GROUP_ICONS = { telegram: "brand-telegram", mobile: "device-mobile", discord: "brand-discord", signal: "brand-signal", whatsapp: "brand-whatsapp", email: "mail" };
 const FIELD_ICONS = [["mqtt_", "brand-mqtt"], ["pihole_", "brand-pihole"], ["wireguard_", "brand-wireguard"], ["assistant_deepl", "brand-deepl"],
   ["assistant_paperless", "brand-paperless"], ["assistant_nextcloud", "brand-nextcloud"]];
 const fieldIcon = (key) => FIELD_ICONS.find(([prefix]) => key.startsWith(prefix))?.[1];

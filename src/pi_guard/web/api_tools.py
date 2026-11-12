@@ -46,7 +46,7 @@ DONATIONS = (
     ("bitcoin", "Bitcoin (BTC)", "bitcoin", "3B8PdpJnmL7rQyHhBytKtvUT7NgQfraBEH"),
     ("litecoin", "Litecoin (LTC)", "litecoin", "MShzshtse85i6ZkwiB1VKNGRNmEL5Dc3VX"),
 )  # fmt: skip
-NEEDS_NO_SETUP = ("mobile", "chatapps")  # the others start only once their settings are filled in
+NEEDS_NO_SETUP = ("chatapps",)  # the others start only once their settings are filled in
 LINK_SECONDS = 300
 LINK_VALID = 110  # signal-cli gives up on a code after 120 s; a new one comes just before
 TEST_SECONDS = 3

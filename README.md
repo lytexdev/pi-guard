@@ -84,7 +84,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | Other Linux | `.AppImage`, Flatpak |
 | Windows | `.exe` installer |
 | macOS | `.zip` |
-| Android | `.apk` from the dashboard under Add-ons › Phone app |
+| Android | `.apk` from the dashboard under Settings › Apps, or an invitation link from there |
 
 Build them with `scripts/build-desktop.sh` and `scripts/build-android.sh`, see [desktop app](docs/desktop.md).
 

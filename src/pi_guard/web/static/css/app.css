@@ -774,26 +774,35 @@ button.capture-thumb { width: 52px; height: 52px; min-height: 0; padding: 0; ove
 .addon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--gap); }
 .addon-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); transition: border-color .15s; }
 .addon-card.on { border-color: color-mix(in srgb, var(--ok, #3ddc97) 45%, var(--line)); }
-.addon-head { display: flex; align-items: flex-start; gap: 12px; }
-.addon-head h3 { margin: 0 0 4px; font-size: 1.05rem; display: flex; align-items: center; }
-.addon-icon { flex: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.addon-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.addon-title { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.addon-head h3 { margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 4px; max-width: 100%; color: var(--text); }
+.addon-head h3 .verified-mark { margin-left: 2px; padding: 0; }
+.addon-head h3 .verified-mark .icon, .pinned-mark .icon { width: 17px; height: 17px; }
+.pinned-mark { display: inline-flex; color: var(--accent); }
+.addon-head .badge { white-space: nowrap; }
+.addon-head .row.tight { gap: 6px; flex-wrap: wrap; }
+.addon-icon { flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.addon-icon .icon { width: 22px; height: 22px; }
 .addon-card:not(.on) .addon-icon { background: var(--surface-2); color: var(--muted); }
 .addon-text { margin: 0; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.addon-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
-.addon-foot .button.small { min-height: 34px; padding: 0 12px; font-size: .9rem; }
-.addon-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
-.addon-menu { position: relative; }
-.addon-menu summary { list-style: none; cursor: pointer; padding: 2px 8px; border-radius: 6px; font-size: 1.2rem; line-height: 1; color: var(--muted); }
+.addon-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; margin-top: auto; }
+.addon-foot .button.small { min-height: 36px; padding: 0 12px; font-size: .9rem; }
+.addon-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 500; }
+.addon-menu { position: relative; align-self: start; }
+.addon-menu summary { list-style: none; cursor: pointer; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; color: var(--muted); }
+.addon-menu summary:hover, .addon-menu summary:focus-visible { background: var(--surface-2); color: var(--text); }
 .addon-menu summary::-webkit-details-marker { display: none; }
-.addon-menu[open] summary { background: var(--surface-2); }
-.addon-menu-body { position: absolute; right: 0; top: 100%; z-index: 5; margin-top: 4px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); white-space: nowrap; }
-.segmented.wrap { flex-wrap: wrap; }
-.addon-head .pin { border: 0; background: none; color: var(--muted); padding: 4px; min-height: 0; }
-.addon-head .pin.on { color: var(--accent); }
-.addon-head .badge { white-space: nowrap; }
+.addon-menu[open] summary { background: var(--surface-2); color: var(--text); }
+.addon-menu-body { position: absolute; right: 0; top: 100%; z-index: 5; margin-top: 4px; padding: 6px; min-width: 220px; display: flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); white-space: nowrap; }
+.addon-menu-body > button, .addon-menu-body .git-row { justify-content: flex-start; width: 100%; border: 0; background: none; min-height: 40px; padding: 0 10px; gap: 10px; font-weight: 500; }
+.addon-menu-body > button:hover { background: var(--surface-2); }
+.addon-menu-body .git-row { white-space: normal; padding: 6px 10px; border-top: 1px solid var(--line); }
 .addon-why { margin: 0; font-size: .85rem; color: var(--warn); display: flex; gap: 6px; align-items: flex-start; }
 .addon-why .icon { flex: none; width: 16px; height: 16px; margin-top: 2px; }
-.addon-head > .grow { flex: 1; min-width: 0; }
+dialog.addon-help { max-width: min(560px, calc(100vw - 32px)); }
+dialog.addon-help .md { margin: 8px 0 16px; line-height: 1.55; }
+dialog.addon-help .md ol, dialog.addon-help .md ul { padding-left: 1.3em; }
 .big-pin { font-size: 1.6rem; letter-spacing: .25em; }
 .pre-line { white-space: pre-line; }
 .list > li.history-row { display: flex; flex-direction: column; align-items: stretch; gap: .25rem; }

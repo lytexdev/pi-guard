@@ -2,6 +2,7 @@
 // renderDetail() is also used by the setup assistant.
 import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when, whileShown } from "../api.js";
 import { searchToggle } from "../widgets.js";
+import { markdown } from "../markdown.js";
 import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
 
@@ -627,7 +628,7 @@ export async function setEnabled(id, enabled, opts = {}) {
 export async function render(main, params = []) {
   const id = params[0];
   if (id === "plugin") { await pluginPage(main, params[1]); return; }
-  if (id === "mobile") { await (await import("./mobile.js")).render(main); return; }
+  if (id === "mobile") { location.hash = "#/settings/apps"; return; }  // moved: the app is part of pi-guard
   if (id in DETAILS) {
     const box = h("div", { class: "stack" });
     fill(main, h("div", { class: "topbar" }, h("h1", {}, t(`addons.${id}`)), h("a", { class: "button", href: "#/addons" }, t("web.back"))), box);
@@ -636,32 +637,38 @@ export async function render(main, params = []) {
   }
   const data = await api("/api/addons");
   const pinned = new Set(state.session.pinned || []);
-  const pin = async (id, button) => {
+  const pin = async (id) => {
     if (pinned.has(id)) pinned.delete(id); else pinned.add(id);
-    button.classList.toggle("on", pinned.has(id));
     const saved = await attempt(() => api("/api/navigation/pinned", { method: "PUT", body: { pinned: [...pinned] } }));
     if (saved) { state.session.pinned = saved.pinned; location.reload(); }
   };
-  // Cards in groups, each with its state at a glance; removing sits in a menu, not next to "Open".
+  // Cards in groups, each with its state at a glance. Pinning, help and removing sit in its menu.
   const GROUPS = [["server", ["agents", "remote"]], ["network", ["analytics", "proxy"]], ["home", ["smarthome"]],
-    ["family", ["kids"]], ["health", ["medical"]], ["assistant", ["assistant", "languages"]], ["messages", ["discord", "whatsapp", "email", "mobile", "chatapps"]]];
-  const MODULE_ICONS = { discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", mobile: "device-mobile", chatapps: "message" };
+    ["family", ["kids"]], ["health", ["medical"]], ["assistant", ["assistant", "languages"]],
+    ["messages", ["telegram", "signal", "discord", "whatsapp", "email", "chatapps"]]];
+  const MODULE_ICONS = { telegram: "brand-telegram", signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", chatapps: "message" };
   const stateBadge = (on, extra) => extra
     ? h("span", { class: "badge warn" }, extra)
     : h("span", { class: `badge ${on ? "ok" : ""}` }, t(on ? "web.ad_on" : "web.ad_off"));
-  const why = (text) => h("p", { class: "addon-why" }, icon("alert-triangle"), " ", text);
-  const card = ({ id, title, iconName, text, enabled, badge, reason, open, onToggle, remove }) => {
-    const toggle = h("input", { type: "checkbox", checked: enabled, id: `ad_${id}` });
+  const why = (text) => h("p", { class: "addon-why" }, icon("alert-triangle"), h("span", {}, text));
+  const card = ({ id, title, iconName, text, enabled, badge, reason, open, onToggle, remove, help, official = true, more = [] }) => {
+    const toggle = h("input", { type: "checkbox", class: "toggle", role: "switch", checked: enabled, id: `ad_${id}`, "aria-label": `${title}: ${t("web.ad_switch")}` });
     toggle.addEventListener("change", () => onToggle(toggle));
-    const star = h("button", { class: `icon-only pin${pinned.has(id) ? " on" : ""}`, title: t("web.pm_pin"), onclick: () => pin(id, star) }, icon("list-details"));
-    const menu = remove ? h("details", { class: "addon-menu" }, h("summary", { title: t("web.ad_more"), "aria-label": t("web.ad_more") }, "⋯"),
-      h("div", { class: "addon-menu-body" }, h("button", { class: "danger", title: t("web.addon_remove_tip"), onclick: remove }, icon("trash"), t("web.addon_remove")))) : null;
+    const menu = h("details", { class: "addon-menu" },
+      h("summary", { title: t("web.ad_more"), "aria-label": `${title}: ${t("web.ad_more")}` }, icon("dots-vertical")),
+      h("div", { class: "addon-menu-body", role: "menu" },
+        h("button", { role: "menuitem", onclick: () => pin(id) }, icon("pin"), t(pinned.has(id) ? "web.ad_unpin" : "web.ad_pin")),
+        h("button", { role: "menuitem", onclick: () => { menu.open = false; helpDialog(title, iconName, help); } }, icon("help-circle"), t("web.ad_help")),
+        more,
+        remove ? h("button", { role: "menuitem", class: "danger", title: t("web.addon_remove_tip"), onclick: () => { menu.open = false; remove(); } }, icon("trash"), t("web.addon_remove")) : null));
     return h("article", { class: `addon-card${enabled ? " on" : ""}`, dataset: { state: enabled ? "on" : "off" } },
       h("div", { class: "addon-head" }, h("span", { class: "addon-icon" }, icon(iconName)),
-        h("div", { class: "grow" }, h("h3", {}, title, verified()), badge), star, menu),
+        h("div", { class: "addon-title" }, h("h3", {}, h("span", { class: "clip" }, title), official ? verified() : null,
+          pinned.has(id) ? h("span", { class: "pinned-mark", title: t("web.ad_pinned") }, icon("pin")) : null), badge),
+        menu),
       h("p", { class: "muted addon-text" }, text),
       reason ? why(reason) : null,
-      h("div", { class: "addon-foot" }, h("label", { class: "addon-switch", for: `ad_${id}` }, toggle, t("web.ad_switch")),
+      h("div", { class: "addon-foot" }, h("label", { class: "addon-switch", for: `ad_${id}` }, toggle, h("span", {}, t("web.ad_switch"))),
         open ? h("a", { class: `button small${enabled ? "" : " ghost"}`, href: open, title: t("web.addon_open") }, icon("settings"), t("web.ad_open")) : null));
   };
   const modules = await api("/api/modules");
@@ -669,6 +676,7 @@ export async function render(main, params = []) {
   for (const addon of data.addons) {
     const extra = addon.needs ? t("web.ad_needs_setup") : addon.enabled !== addon.running ? t("web.ad_restart") : null;
     cardFor[addon.id] = card({ id: addon.id, title: t(`addons.${addon.id}`), iconName: ADDONS[addon.id], text: t(`web.addon_${addon.id}_text`),
+      help: { text: t(`web.addon_${addon.id}_help`), chapter: HELP_CHAPTERS[addon.id] },
       enabled: addon.enabled, badge: stateBadge(addon.enabled, extra), reason: addon.needs ? t(addon.needs) : null, open: addon.id === "analytics" ? "#/network" : `#/addons/${addon.id}`,
       onToggle: (toggle) => setEnabled(addon.id, toggle.checked),
       remove: async () => {
@@ -679,8 +687,9 @@ export async function render(main, params = []) {
   }
   for (const module of modules) {
     let c;
-    c = cardFor[module.id] = card({ id: module.id, title: t(`web.addon_${module.id}`), iconName: MODULE_ICONS[module.id], text: t(`web.addon_${module.id}_text`),
-      enabled: module.enabled, badge: stateBadge(module.enabled), open: module.id === "mobile" ? "#/addons/mobile" : "#/settings/messaging",
+    c = cardFor[module.id] = card({ id: module.id, title: t(`web.addon_${module.id}`), iconName: MODULE_ICONS[module.id] || "message", text: t(`web.addon_${module.id}_text`),
+      help: { text: t(`web.addon_${module.id}_help`) },
+      enabled: module.enabled, badge: stateBadge(module.enabled), open: "#/settings/messaging",
       onToggle: async (toggle) => {
         const done = await attempt(() => api(`/api/modules/${module.id}`, { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
         if (!done) { toggle.checked = !toggle.checked; return; }
@@ -690,11 +699,29 @@ export async function render(main, params = []) {
         if (done.restart) restartPrompt();
       } });
   }
+  // Add-ons from other people: the same card, with what their manifest says about them.
+  const plugins = await api("/api/plugin-manager");
+  const drawOwn = () => render(main, params);
+  const pluginCards = plugins.map((p) => card({ id: `plugin_${p.id}`, title: p.name, iconName: p.icon || "cpu", official: false,
+    text: p.description || p.id, enabled: p.enabled,
+    badge: h("span", { class: "row tight" }, stateBadge(p.enabled, p.enabled !== p.running ? t("web.ad_restart") : null), h("small", { class: "muted" }, `v${p.version}${p.authors.length ? ` · ${p.authors.join(", ")}` : ""}`)),
+    help: { text: p.help || p.description, docs: p.docs || p.source, permissions: p.permissions },
+    open: `#/addons/plugin/${p.id}`,
+    onToggle: async (toggle) => {
+      if (await attempt(() => api(`/api/plugin-manager/${p.id}/enabled`, { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"))) restartPrompt();
+      else toggle.checked = !toggle.checked;
+    },
+    more: [h("button", { role: "menuitem", onclick: () => editSource(p) }, icon("pencil"), t("web.pm_edit")), p.git ? gitRow(p, drawOwn) : null],
+    remove: async () => {
+      if (await confirmDialog(t("web.addon_remove_confirm", { name: p.name }), t("web.addon_remove"), true)
+        && await attempt(() => api(`/api/plugin-manager/${p.id}`, { method: "DELETE" }), t("web.saved"))) drawOwn();
+    } }));
   const cards = h("div", { class: "stack" }, GROUPS.map(([group, ids]) => {
     const inside = ids.map((id) => cardFor[id]).filter(Boolean);
     return inside.length ? h("section", { class: "addon-group", dataset: { group } }, h("h2", { class: "section-title" }, t(`web.ad_group_${group}`)),
       h("div", { class: "addon-grid" }, inside)) : null;
-  }));
+  }), pluginCards.length ? h("section", { class: "addon-group", dataset: { group: "community" } }, h("h2", { class: "section-title" }, t("web.ad_group_community")),
+    h("div", { class: "addon-grid" }, pluginCards)) : null);
   let only = "all";
   const filters = h("div", { class: "segmented", role: "group", "aria-label": t("web.ad_filter") }, ["all", "on", "off"].map((value) =>
     h("button", { class: value === only ? "on" : "", onclick: (event) => {
@@ -711,53 +738,60 @@ export async function render(main, params = []) {
     cards.querySelectorAll(".addon-group").forEach((g) => g.classList.toggle("hidden", !g.querySelector(".addon-card:not(.hidden)")));
   };
   const ownPanel = h("section", { class: "panel stack hidden" });
-  const installed = h("section", { class: "panel stack hidden" });
-  const drawOwn = async () => {
-    const list = await api("/api/plugin-manager");
-    const zip = h("input", { type: "file", accept: ".zip", "aria-label": t("web.pm_upload") });
-    const name = h("input", { placeholder: t("web.pm_new_name"), "aria-label": t("web.pm_new_name") });
-    const gitUrl = h("input", { type: "url", placeholder: "https://github.com/…", "aria-label": t("web.pm_git") });
-    installed.classList.toggle("hidden", !list.length);
-    fill(installed, h("h2", {}, t("web.pm_installed")),
-      h("ul", { class: "list" }, list.map((p) => {
-        const on = h("input", { type: "checkbox", checked: p.enabled, "aria-label": p.name });
-        on.addEventListener("change", async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}/enabled`, { method: "PUT", body: { enabled: on.checked } }), t("web.saved"))) restartPrompt(); });
-        return h("li", { class: "person-row" }, on, icon(p.icon), h("div", { class: "grow clip" }, h("div", {}, h("a", { href: `#/addons/plugin/${p.id}` }, p.name), " ", h("small", { class: "muted" }, `v${p.version}${p.authors.length ? ` · ${p.authors.join(", ")}` : ""}`)), h("small", {}, p.description || p.id)),
-          h("button", { class: "icon-only", title: t("web.pm_edit"), onclick: () => editSource(p) }, icon("pencil")),
-          h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => { if (await attempt(() => api(`/api/plugin-manager/${p.id}`, { method: "DELETE" }), t("web.saved"))) drawOwn(); } }, icon("trash")),
-          p.git ? gitRow(p, drawOwn) : null);
-      })));
-    fill(ownPanel, h("h2", {}, t("web.pm_title")), h("p", { class: "notice" }, t("web.pm_warning")),
-      h("h3", {}, t("web.pm_upload")), h("p", { class: "muted" }, h("small", {}, t("web.pm_upload_hint"))),
-      h("div", { class: "row" }, zip, h("button", { onclick: async () => {
-        if (!zip.files.length) return;
-        const password = await askDialog(t("web.confirm_password"), { type: "password" });
-        if (!password) return;
-        const form = new FormData();
-        form.append("password", password);
-        form.append("file", zip.files[0], zip.files[0].name);
-        if (await attempt(() => api("/api/plugin-manager", { method: "POST", body: form }), t("web.saved"))) drawOwn();
-      } }, icon("upload"), t("web.upload"))),
-      h("h3", {}, icon("brand-github"), " ", t("web.pm_git")),
-      h("div", { class: "row" }, gitUrl, h("button", { onclick: async () => {
-        const password = gitUrl.value && await askDialog(t("web.confirm_password"), { type: "password" });
-        if (password && await attempt(() => api("/api/plugin-manager/git", { method: "POST", body: { url: gitUrl.value.trim(), password } }), t("web.saved"))) drawOwn();
-      } }, icon("download"), t("web.pm_install"))),
-      h("h3", {}, t("web.pm_create")),
-      h("div", { class: "row" }, name, h("button", { onclick: async () => {
-        const id = slug(name.value);
-        const password = name.value && await askDialog(t("web.confirm_password"), { type: "password" });
-        if (password && await attempt(() => api("/api/plugin-manager/create", { method: "POST", body: { id, name: name.value, password } }), t("web.saved"))) drawOwn();
-      } }, icon("plus"), t("web.pm_create_button"))));
+  const zip = h("input", { type: "file", accept: ".zip", "aria-label": t("web.pm_upload") });
+  const name = h("input", { placeholder: t("web.pm_new_name"), "aria-label": t("web.pm_new_name") });
+  const gitUrl = h("input", { type: "url", placeholder: "https://github.com/…", "aria-label": t("web.pm_git") });
+  fill(ownPanel, h("h2", {}, icon("plus"), " ", t("web.pm_title")), h("p", { class: "notice" }, t("web.pm_warning")),
+    h("h3", {}, t("web.pm_upload")), h("p", { class: "muted" }, h("small", {}, t("web.pm_upload_hint"))),
+    h("div", { class: "row" }, zip, h("button", { onclick: async () => {
+      if (!zip.files.length) return;
+      const password = await askDialog(t("web.confirm_password"), { type: "password" });
+      if (!password) return;
+      const form = new FormData();
+      form.append("password", password);
+      form.append("file", zip.files[0], zip.files[0].name);
+      if (await attempt(() => api("/api/plugin-manager", { method: "POST", body: form }), t("web.saved"))) drawOwn();
+    } }, icon("upload"), t("web.upload"))),
+    h("h3", {}, icon("brand-github"), " ", t("web.pm_git")),
+    h("div", { class: "row" }, gitUrl, h("button", { onclick: async () => {
+      const password = gitUrl.value && await askDialog(t("web.confirm_password"), { type: "password" });
+      if (password && await attempt(() => api("/api/plugin-manager/git", { method: "POST", body: { url: gitUrl.value.trim(), password } }), t("web.saved"))) drawOwn();
+    } }, icon("download"), t("web.pm_install"))),
+    h("h3", {}, t("web.pm_create")),
+    h("div", { class: "row" }, name, h("button", { onclick: async () => {
+      const id = slug(name.value);
+      const password = name.value && await askDialog(t("web.confirm_password"), { type: "password" });
+      if (password && await attempt(() => api("/api/plugin-manager/create", { method: "POST", body: { id, name: name.value, password } }), t("web.saved"))) drawOwn();
+    } }, icon("plus"), t("web.pm_create_button"))),
+    h("p", { class: "muted" }, h("small", {}, t("web.pm_develop"), " ", h("a", { href: "https://github.com/lytexdev/pi-guard/blob/main/docs/plugins.md", target: "_blank", rel: "noopener" }, "docs/plugins.md"))));
+  const search = searchToggle(t("web.pm_search"), (q) => { query = q; applyFilter(); });
+  // One card menu at a time; a click elsewhere or Escape closes it.
+  cards.addEventListener("toggle", (event) => {
+    if (event.target.open) cards.querySelectorAll(".addon-menu[open]").forEach((m) => { if (m !== event.target) m.open = false; });
+  }, true);
+  const closeMenus = (event) => {
+    if (!main.isConnected) { removeEventListener("click", closeMenus); removeEventListener("keydown", closeMenus); return; }
+    if (event.type === "keydown" ? event.key === "Escape" : !event.target.closest?.(".addon-menu")) cards.querySelectorAll(".addon-menu[open]").forEach((m) => { m.open = false; });
   };
-  const search = searchToggle(t("web.pm_search"), (q) => {
-    query = q;
-    applyFilter();
-    installed.querySelectorAll(".list li").forEach((el) => el.classList.toggle("hidden", q && !el.textContent.toLowerCase().includes(q)));
-  });
+  addEventListener("click", closeMenus);
+  addEventListener("keydown", closeMenus);
   fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_addons")), search,
-    h("button", { class: "icon-only", title: t("web.pm_add_tip"), "aria-label": t("web.pm_add_tip"), onclick: () => { ownPanel.classList.toggle("hidden"); ownPanel.scrollIntoView({ block: "nearest" }); } }, icon("plus")))), h("div", { class: "row" }, filters), cards, installed, ownPanel);
-  await drawOwn();
+    h("button", { class: "icon-only", title: t("web.pm_add_tip"), "aria-label": t("web.pm_add_tip"), onclick: () => { ownPanel.classList.toggle("hidden"); ownPanel.scrollIntoView({ block: "nearest" }); } }, icon("plus")))), h("div", { class: "row" }, filters), cards, ownPanel);
+}
+
+// "?" on a card: what the add-on does and how to start, with a way to the tutorial or its docs.
+const HELP_CHAPTERS = { assistant: "assistant", kids: "kids", medical: "medical", analytics: "network" };
+function helpDialog(title, iconName, help = {}) {
+  const body = markdown(help.text || "");  // builds nodes, never HTML from the text
+  const dialog = h("dialog", { class: "addon-help" }, h("h2", {}, icon(iconName || "help-circle"), " ", title), body,
+    help.permissions?.length ? h("p", { class: "notice" }, t("web.pm_permissions"), " ", help.permissions.join(", ")) : null,
+    h("div", { class: "row end" },
+      help.chapter ? h("a", { class: "button", href: `#/help/${help.chapter}`, onclick: () => dialog.close() }, icon("bulb"), t("web.ad_tutorial")) : null,
+      help.docs ? h("a", { class: "button", href: help.docs, target: "_blank", rel: "noopener noreferrer" }, icon("file-text"), t("web.ad_docs")) : null,
+      h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 async function pluginPage(main, id) {

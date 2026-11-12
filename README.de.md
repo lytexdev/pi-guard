@@ -89,7 +89,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 | Andere Linux-Systeme | `.AppImage`, Flatpak |
 | Windows | `.exe`-Installer |
 | macOS | `.zip` |
-| Android | `.apk` im Dashboard unter Add-ons › Handy-App |
+| Android | `.apk` im Dashboard unter Einstellungen › Apps, oder per Einladungslink von dort |
 
 ## Installation
 
