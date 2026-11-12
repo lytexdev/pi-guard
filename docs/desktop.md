@@ -23,7 +23,8 @@ Build them yourself with:
 ./scripts/build-desktop.sh 1.3.0 linux win mac
 ```
 
-`.rpm` and `.pacman` need extra tools; the `electronuserland/builder` Docker image has them. Packages installed by the
+`.rpm` and `.pacman` need extra tools (`rpmbuild`, `bsdtar`); `scripts/build-desktop.sh` leaves a package out when its
+tool is missing, with a note, instead of failing; the `electronuserland/builder` Docker image has them. Packages installed by the
 system cannot replace themselves: they tell you about a new version, and you update the package.
 
 Results land in `desktop/dist`. Windows needs wine on Linux. On macOS, build there for a working Apple Silicon version:
