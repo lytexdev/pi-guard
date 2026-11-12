@@ -318,14 +318,18 @@ def test_exit_apply_takes_real_endpoints(tmp_path: Path, endpoint: str) -> None:
     text = conf.read_text()
     assert f"Endpoint = {endpoint}" in text and "PresharedKey" not in text
     # VPN clients go out through the exit; the LAN and the VPN itself stay in the main table.
-    assert "iif wg0 lookup main suppress_prefixlength 0" in text and "iif wg0 table 51821" in text
+    for home in ("wg0", "awg0"):  # AmneziaWG devices must not pass the exit either
+        assert f"iif {home} lookup main suppress_prefixlength 0" in text
+        assert f"iif {home} table 51821" in text
 
 
 def test_firewall_sends_vpn_clients_through_the_exit() -> None:
     text = render(Plan(mode="vpn", exit_up=True, home_network="192.168.1.0/24"))
     assert 'oifname "pgexit" masquerade' in text  # the exit knows only its own address
-    assert 'iifname != "wg0" accept' in text  # the kill switch leaves containers alone
-    assert 'iifname "wg0" ip daddr 192.168.1.0/24 accept' in text  # home stays reachable
+    vpn = '{ "wg0", "awg0" }'  # AmneziaWG carries the same devices
+    assert f"iifname != {vpn} accept" in text  # the kill switch leaves containers alone
+    assert f"iifname {vpn} ip daddr 192.168.1.0/24 accept" in text  # home stays reachable
+    assert f'iifname {vpn} oifname "pgexit" accept' in text
     off = render(Plan(mode="off", exit_up=True))
     assert "masquerade" in off and "policy drop" not in off
     assert "masquerade" not in render(Plan(mode="vpn", exit_up=False))

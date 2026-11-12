@@ -8,7 +8,7 @@
 use crate::b64;
 use crate::config::valid_key;
 use crate::pq::{self, exchanged, now, valid_psk, PORT, PUBLIC_KEY_SIZE};
-use crate::sys::{read, set_preshared_key};
+use crate::sys::{read, set_preshared_key, set_preshared_key_with};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use pi_guard_kem::{pi, KEY_SIZE};
@@ -23,6 +23,9 @@ use std::thread::{self, sleep};
 use std::time::Duration;
 
 const INTERFACE: &str = "wg0";
+/// The same devices over AmneziaWG (scripts/amneziawg.sh), when set up. Its keys must follow wg0's,
+/// and a device greeting only there is not silent.
+const HIDDEN: &str = "awg0";
 const LISTEN: &str = "10.8.0.1";
 const DATA: &str = "/var/lib/pi-guard/wireguard";
 const OWN: &str = "/etc/pi-guard-vpn";
@@ -126,11 +129,24 @@ fn start(binary: &str, names: &[String], keys: &Keys) -> Option<Child> {
     Some(child)
 }
 
+fn hidden_up() -> bool {
+    Path::new("/sys/class/net").join(HIDDEN).exists()
+}
+
+/// On wg0, and on awg0 at once, so a device there does not lose its tunnel until the sync copies it.
+fn set_key(peer: &str, psk: &str) -> Result<(), String> {
+    set_preshared_key(INTERFACE, peer, psk)?;
+    if hidden_up() {
+        let _ = set_preshared_key_with("awg", HIDDEN, peer, psk);
+    }
+    Ok(())
+}
+
 fn take(path: &PathBuf, keys: &Keys) {
     let Some(name) = path.file_stem().and_then(|n| n.to_str()) else { return };
     let (Some(peer), Ok(text)) = (from_hex(name), fs::read_to_string(path)) else { return };
     let psk = text.trim().to_string();
-    if valid_psk(&psk) && set_preshared_key(INTERFACE, &peer, &psk).is_ok() {
+    if valid_psk(&psk) && set_key(&peer, &psk).is_ok() {
         keys.lock().unwrap().insert(peer, (psk, now()));
     }
 }
@@ -162,7 +178,7 @@ fn exchange(mut stream: TcpStream, keys: &Keys, last: &Mutex<HashMap<String, u64
     let start = b64::decode(starting_keys().get(&peer)?)?;
     let key = pi(&mut stream, &<[u8; KEY_SIZE]>::try_from(start).ok()?).ok()?;
     let psk = b64::encode(key.as_slice());
-    set_preshared_key(INTERFACE, &peer, &psk).ok()?;
+    set_key(&peer, &psk).ok()?;
     keys.lock().unwrap().insert(peer, (psk, now()));
     Some(())
 }
@@ -190,12 +206,23 @@ fn listen(keys: Keys) {
     }
 }
 
+fn parse_handshakes(text: &str, into: &mut HashMap<String, u64>) {
+    for line in text.lines() {
+        let Some((key, time)) = line.split_once('\t') else { continue };
+        let Ok(time) = time.parse::<u64>() else { continue };
+        let seen = into.entry(key.to_string()).or_insert(0);
+        *seen = (*seen).max(time);
+    }
+}
+
+/// The newest greeting of each device, over WireGuard or AmneziaWG.
 fn handshakes() -> HashMap<String, u64> {
-    let text = read("wg", &["show", INTERFACE, "latest-handshakes"]).unwrap_or_default();
-    text.lines().filter_map(|line| {
-        let (key, time) = line.split_once('\t')?;
-        Some((key.to_string(), time.parse().ok()?))
-    }).collect()
+    let mut seen = HashMap::new();
+    parse_handshakes(&read("wg", &["show", INTERFACE, "latest-handshakes"]).unwrap_or_default(), &mut seen);
+    if hidden_up() {
+        parse_handshakes(&read("awg", &["show", HIDDEN, "latest-handshakes"]).unwrap_or_default(), &mut seen);
+    }
+    seen
 }
 
 fn write_status(active: usize) {
@@ -240,12 +267,12 @@ pub fn run(binary: &str) -> ! {
             let silent = now().saturating_sub(seen.get(peer).copied().unwrap_or(0)) > STALE_SECONDS;
             if silent || !enabled {
                 if let Some(first) = starting.get(peer) {
-                    let _ = set_preshared_key(INTERFACE, peer, first);
+                    let _ = set_key(peer, first);
                 }
                 return false;
             }
             // The root job that loads devices writes starting keys; put the current one back.
-            let _ = set_preshared_key(INTERFACE, peer, psk);
+            let _ = set_key(peer, psk);
             true
         });
         write_status(held.len());
@@ -257,6 +284,15 @@ pub fn run(binary: &str) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_device_greeting_over_amneziawg_is_not_silent() {
+        let mut seen = HashMap::new();
+        parse_handshakes("KEYA=\t100\nKEYB=\t900\n", &mut seen); // wg0
+        parse_handshakes("KEYA=\t700\nKEYB=\t0\nbroken\n", &mut seen); // awg0
+        assert_eq!(seen.get("KEYA=").copied(), Some(700));
+        assert_eq!(seen.get("KEYB=").copied(), Some(900));
+    }
 
     #[test]
     fn a_device_is_found_by_its_address_in_the_tunnel() {

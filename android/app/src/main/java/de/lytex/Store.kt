@@ -63,6 +63,10 @@ class Store(context: Context) {
     var vpnWays: String?
         get() = prefs.getString("vpn_ways", null)
         set(value) = prefs.edit().putString("vpn_ways", value).apply()
+    /** The same ways disguised with AmneziaWG, as pi-guard sent them; tried after [vpnWays]. */
+    var vpnHidden: String?
+        get() = prefs.getString("vpn_hidden", null)
+        set(value) = prefs.edit().putString("vpn_hidden", value).apply()
     /** The way that answered last, tried first. */
     var vpnEndpoint: String?
         get() = prefs.getString("vpn_endpoint", null)

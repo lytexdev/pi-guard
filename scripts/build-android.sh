@@ -46,6 +46,26 @@ for entry in arm64-v8a:aarch64-linux-android:aarch64-linux-android \
         "$REPO/android/app/build/rust-jni/$abi/libpi_guard_kem.so"
 done
 
+# The tunnel: AmneziaWG's Android library, which speaks plain WireGuard as well as its disguised
+# form. Not on Maven, so it is built here once from a fixed release; the commit is checked, and
+# Go modules are checked by their go.sum. The result is kept in the cache, never in the repository.
+AWG_TAG=v3.1.20260814
+AWG_COMMIT=5c16489e2cd9ed3a0a7a27c7445bba5238132f86
+AWG_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/pi-guard/amneziawg-android-$AWG_TAG.aar"
+if [[ ! -f "$AWG_CACHE" ]]; then
+    work="$(mktemp -d)"
+    trap 'rm -rf "$work"' EXIT
+    echo "building the AmneziaWG tunnel library $AWG_TAG (once; needs a few minutes and the internet)"
+    git clone --quiet --depth 1 --branch "$AWG_TAG" --recurse-submodules --shallow-submodules \
+        https://github.com/amnezia-vpn/amneziawg-android.git "$work/awg" 2>/dev/null
+    [[ "$(git -C "$work/awg" rev-parse HEAD)" == "$AWG_COMMIT" ]] || { echo "amneziawg-android $AWG_TAG is not commit $AWG_COMMIT; stopping" >&2; exit 1; }
+    # Their build names an NDK; take the one installed here instead of downloading another.
+    sed -i "s/ndkVersion = \"[^\"]*\"/ndkVersion = \"$(basename "$NDK")\"/" "$work/awg/settings.gradle.kts"
+    (cd "$work/awg" && ./gradlew --quiet :tunnel:assembleRelease)
+    install -D -m 0644 "$work/awg/tunnel/build/outputs/aar/tunnel-release.aar" "$AWG_CACHE"
+fi
+install -D -m 0644 "$AWG_CACHE" "$REPO/android/app/build/awg/amneziawg-tunnel.aar"
+
 cd "$REPO/android"
 PIGUARD_KEYSTORE_PROPERTIES="$PROPERTIES" PIGUARD_VERSION_CODE="$CODE" PIGUARD_VERSION_NAME="$VERSION" \
     ./gradlew --quiet assembleRelease

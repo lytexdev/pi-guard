@@ -8,6 +8,12 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- A disguised way home with AmneziaWG for networks that block WireGuard: `scripts/amneziawg.sh` builds the kernel
+  module (DKMS) and tools from fixed, checksum-verified releases and sets up `awg0` next to `wg0` with the same key,
+  devices and addresses; `pi-guard-awg-sync` mirrors devices and routes each through the interface it greeted
+  last. The phone app (1.8) gets the disguised ways and tries them after the normal ones, using AmneziaWG's tunnel
+  library, which `build-android.sh` builds once. The post-quantum service, the privacy exit and its kill switch
+  include `awg0`. *Network › VPN › From outside* shows the new way. Not yet in the desktop app.
 - Emergency contacts in the dashboard (*Settings → Emergency*): name, relation, phone, email, a linked account, several
   ways to reach them (Telegram, Signal, Discord, WhatsApp, email), and for an SOS and for unanswered alarms what each
   gets: place, photos and sound from the phone, pictures from the Pi, latest events, sound from home, emergency medical

@@ -26,6 +26,7 @@ from pi_guard.core.permissions import Role, User
 from pi_guard.core.schedule import CALENDAR_KEY, clean_calendar
 from pi_guard.i18n import t
 from pi_guard.messaging.base import ProviderUnavailableError
+from pi_guard.network import awg
 from pi_guard.network.reach import addresses, endpoints, tailscale
 from pi_guard.network.wgpeers import PeerError
 from pi_guard.network.wireguard import read_status, status_file
@@ -427,7 +428,10 @@ async def vpn(request: web.Request) -> web.Response:
     name, config = _config(request, peer)
     status = read_status(status_file(d.settings, "wireguard.status")) or {}
     port = (status.get("interface") or {}).get("listen_port")
-    return web.json_response({"config": config, "name": name, "ways": endpoints(d.settings, port)},
+    ways = endpoints(d.settings, port)
+    # Separate from "ways": apps before 1.8 would try them as plain WireGuard and wait in vain.
+    hidden = awg.ways(ways, await asyncio.to_thread(awg.read))
+    return web.json_response({"config": config, "name": name, "ways": ways, "obfuscated": hidden},
                              headers={"Cache-Control": "no-store"})  # fmt: skip
 
 

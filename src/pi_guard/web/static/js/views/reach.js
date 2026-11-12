@@ -1,7 +1,7 @@
 // The ways home from outside. Only a device that connected from outside proves one works.
 import { api, attempt, fill, h, icon, t } from "../api.js";
 
-const ICONS = { ipv4: "world", ipv6: "network", relay: "router", tailscale: "plug-connected" };
+const ICONS = { ipv4: "world", ipv6: "network", relay: "router", tailscale: "plug-connected", awg: "eye-off" };
 const BADGE = { ok: "ok", warn: "danger", off: "" };
 
 function row(way) {

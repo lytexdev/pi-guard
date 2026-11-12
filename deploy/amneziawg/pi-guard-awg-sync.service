@@ -1,0 +1,15 @@
+[Unit]
+Description=Keep the obfuscated VPN (awg0) in step with WireGuard (wg0)
+After=wg-quick@wg0.service awg-quick@awg0.service
+Requires=awg-quick@awg0.service
+
+[Service]
+ExecStart=/usr/local/sbin/pi-guard-awg-sync
+Restart=always
+RestartSec=3
+ProtectHome=yes
+PrivateTmp=yes
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

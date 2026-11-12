@@ -6,10 +6,10 @@ import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.util.Base64
 import android.util.Log
-import com.wireguard.android.backend.BackendException
-import com.wireguard.android.backend.GoBackend
-import com.wireguard.android.backend.Tunnel
-import com.wireguard.config.Config
+import org.amnezia.awg.backend.BackendException
+import org.amnezia.awg.backend.GoBackend
+import org.amnezia.awg.backend.Tunnel
+import org.amnezia.awg.config.Config
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -23,7 +23,10 @@ object Vpn {
     class Failed(val problem: Problem) : Exception(problem.name)
     class Status(val received: Long, val sent: Long, val handshake: Long)
     class Access(val address: String, val server: String)
-    class Way(val kind: String, val endpoint: String, val mtu: Int)
+    /** One way home. [disguise] makes it AmneziaWG: the same tunnel, its packets looking different. */
+    class Way(val kind: String, val endpoint: String, val mtu: Int, val disguise: Map<String, Long> = emptyMap()) {
+        val hidden: Boolean get() = disguise.isNotEmpty()
+    }
 
     var upSince = 0L
         private set
@@ -78,7 +81,16 @@ object Vpn {
     }
 
     /** The access with one way filled in. WireGuard prefers IPv4, so IPv6 is named by its address. */
-    private fun prepared(text: String, chosen: Way?): String = withExcluded(withWay(withKey(text), chosen))
+    private fun prepared(text: String, chosen: Way?): String = withDisguise(withExcluded(withWay(withKey(text), chosen)), chosen)
+
+    /** Jc, S1, H1 and the rest go into [Interface]; without them it is plain WireGuard. */
+    private fun withDisguise(text: String, chosen: Way?): String {
+        if (chosen == null || !chosen.hidden) return text
+        val lines = text.lines()
+        val at = lines.indexOfFirst { it.startsWith("PrivateKey") } + 1
+        val extra = chosen.disguise.filterKeys { it in DISGUISE }.map { (key, value) -> "$key = $value" }
+        return (lines.take(at) + extra + lines.drop(at)).joinToString("\n")
+    }
 
     private fun withKey(text: String): String {
         val key = pqKey ?: return text
@@ -168,9 +180,15 @@ object Vpn {
         return System.currentTimeMillis() - handshake < STALE
     }
 
-    fun ways(store: Store): List<Way> = runCatching {
-        val list = JSONArray(store.vpnWays ?: "[]")
-        (0 until list.length()).map { list.getJSONObject(it) }.map { Way(it.getString("kind"), it.getString("endpoint"), it.optInt("mtu")) }
+    /** The normal ways first; the disguised ones only after them, as they cost a little more. */
+    fun ways(store: Store): List<Way> = parse(store.vpnWays) + parse(store.vpnHidden)
+
+    private fun parse(json: String?): List<Way> = runCatching {
+        val list = JSONArray(json ?: "[]")
+        (0 until list.length()).map { list.getJSONObject(it) }.map { item ->
+            val disguise = item.optJSONObject("awg")?.let { awg -> awg.keys().asSequence().associateWith { awg.getLong(it) } }.orEmpty()
+            Way(item.getString("kind"), item.getString("endpoint"), item.optInt("mtu"), disguise)
+        }
     }.getOrDefault(emptyList())
 
     @Synchronized
@@ -230,6 +248,7 @@ object Vpn {
         }
         store.vpnName = answer.optString("name").ifEmpty { null }
         store.vpnWays = answer.optJSONArray("ways")?.toString()
+        store.vpnHidden = answer.optJSONArray("obfuscated")?.toString() // AmneziaWG, when the Pi has it
         return answer.getString("config").also { store.vpnConfig = it }
     }
 
@@ -251,6 +270,7 @@ object Vpn {
     }
 
     private const val TAG = "PiGuardVpn"
+    private val DISGUISE = setOf("Jc", "Jmin", "Jmax", "S1", "S2", "H1", "H2", "H3", "H4")
     private const val WAY_WAIT = 12_000L
     private const val POLL = 500L
     private const val CHECK_EVERY = 20_000L
