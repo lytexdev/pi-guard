@@ -40,17 +40,6 @@
     <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
-                <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_bell" app:tint="@color/accent" android:importantForAccessibility="no" />
-                <TextView style="@style/Heading" android:text="@string/help_title" />
-            </LinearLayout>
-            <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/share_crashes" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/help_crashes" />
-            <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/share_usage" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/help_usage" />
-            <TextView style="@style/Hint" android:text="@string/help_hint" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-    <com.google.android.material.card.MaterialCardView style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
                 <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_calendar" app:tint="@color/accent" android:importantForAccessibility="no" />
                 <TextView style="@style/Heading" android:text="@string/calendar_section" />
             </LinearLayout>
@@ -87,6 +76,7 @@
                 <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_download" app:tint="@color/accent" android:importantForAccessibility="no" />
                 <TextView style="@style/Heading" android:text="@string/update_section" />
             </LinearLayout>
+            <TextView android:id="@+id/app_version" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:textAppearance="?attr/textAppearanceBodyMedium" />
             <Button android:id="@+id/update" style="@style/Button.Tonal" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/update_check" app:icon="@drawable/ic_refresh" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

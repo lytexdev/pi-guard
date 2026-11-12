@@ -3206,5 +3206,21 @@
   "web.log_download": "Herunterladen",
   "web.log_count": "{shown} von {total} Einträgen",
   "web.audit_hint": "Wer wann was getan hat: Anmeldungen, Einstellungen, Freigaben. Wird nie verändert.",
-  "web.sec_all_good": "Keine Empfehlungen offen."
+  "web.sec_all_good": "Keine Empfehlungen offen.",
+  "web.group_updates": "Quelle und Verhalten",
+  "web.setting_update_repository": "Repository (GitHub, Besitzer/Name)",
+  "web.tip_update_repository": "Woher Updates kommen, z. B. für einen eigenen Fork. Installiert wird trotzdem nur, was mit den auf dem Pi hinterlegten Schlüsseln signiert ist",
+  "web.setting_update_channel": "Kanal",
+  "web.tip_update_channel": "Stabil: nur fertige Versionen. Beta: auch Vorabversionen zum Testen, früher, aber mit mehr Risiko",
+  "web.up_instance": "Instanz-ID",
+  "web.up_instance_hint": "Eine zufällige Kennung dieser Installation, beim ersten Start erzeugt. Sie verlässt den Pi nicht.",
+  "web.up_apps": "Apps für deine Geräte",
+  "web.up_apps_check": "Nach App-Updates suchen",
+  "web.up_apps_none": "Noch keine Apps auf diesem Pi.",
+  "web.up_apps_checked": "Geprüft.",
+  "web.up_source": "Quelle",
+  "web.opt_update_channel_stable": "Stabil",
+  "web.opt_update_channel_beta": "Beta",
+  "web.push_in_android": "Alarme kommen in dieser App über ihre eigene Verbindung zum Pi, ohne Google. Einstellen kannst du sie unter App-Einstellungen.",
+  "web.push_in_desktop": "In der Desktop-App gibt es keine Push-Benachrichtigungen. Alarme bekommst du über die Handy-App oder einen Messenger (Add-ons)."
 }

@@ -46,8 +46,8 @@ def sign(repo: Path, name: str, key: Path) -> None:
         "tag", "-s", "-m", name, name)  # fmt: skip
 
 
-def trusted(repo: Path, allowed: Path) -> str | None:
-    done = subprocess.run([str(CHECK), str(repo), str(allowed)], env=ENV,
+def trusted(repo: Path, allowed: Path, channel: str = "stable") -> str | None:
+    done = subprocess.run([str(CHECK), str(repo), str(allowed), channel], env=ENV,
                           capture_output=True, text=True)  # fmt: skip
     return done.stdout.strip() if done.returncode == 0 else None
 
@@ -69,6 +69,20 @@ def test_the_newest_release_signed_with_the_key_counts(repo: Path, tmp_path: Pat
     sign(repo, "release-20260201-000000", key)
     commit(repo, "not released yet")
     assert trusted(repo, allowed) == wanted
+
+
+def test_a_beta_counts_only_on_the_beta_channel(repo: Path, tmp_path: Path) -> None:
+    key = new_key(tmp_path / "key")
+    allowed = signers(tmp_path / "signers", key)
+    stable = commit(repo, "stable")
+    sign(repo, "release-20260101-000000", key)
+    beta = commit(repo, "beta")
+    sign(repo, "beta-20260301-000000", key)  # "beta" sorts before "release": the date must count
+    assert trusted(repo, allowed) == stable
+    assert trusted(repo, allowed, "beta") == beta
+    newer = commit(repo, "stable again")
+    sign(repo, "release-20260401-000000", key)
+    assert trusted(repo, allowed, "beta") == newer
 
 
 def test_a_signature_of_another_key_counts_for_nothing(repo: Path, tmp_path: Path) -> None:

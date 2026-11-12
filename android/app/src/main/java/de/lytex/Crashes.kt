@@ -39,18 +39,9 @@ object Crashes {
             .put("sdk", Build.VERSION.SDK_INT)
     }
 
-    /** On start: send a waiting report if the person agreed, and delete it in any case. */
+    /** On start: the anonymous statistics are off for now, so a waiting report is only deleted. */
+    @Suppress("UNUSED_PARAMETER")
     fun sendPending(context: Context, store: Store) {
-        val file = File(context.filesDir, FILE)
-        if (!file.exists()) return
-        try {
-            if (store.shareCrashes && store.token != null) {
-                Net.post(store, "/api/mobile/crash", JSONObject(file.readText())).close()
-            }
-        } catch (_: Exception) {
-            // Not sent this time; the report is still deleted: one try only.
-        } finally {
-            file.delete()
-        }
+        File(context.filesDir, FILE).delete()
     }
 }

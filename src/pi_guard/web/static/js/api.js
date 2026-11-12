@@ -67,6 +67,15 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+// Which shell shows the dashboard: "android" (the PiGuard app; older versions only say WebView),
+// "desktop" (the Electron app) or "browser".
+export function appShell() {
+  const agent = navigator.userAgent || "";
+  if (/PiGuardApp\//.test(agent) || /; wv\)/.test(agent)) return "android";
+  if (/Electron\//.test(agent)) return "desktop";
+  return "browser";
+}
+
 // A small (i) next to a label: its text shows on hover, keyboard focus and a tap (tooltip.js).
 export function infoTip(text) {
   return h("button", { type: "button", class: "info-tip", title: text, "data-tap-tip": "" }, icon("info-circle"));

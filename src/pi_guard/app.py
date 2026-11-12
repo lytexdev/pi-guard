@@ -7,6 +7,7 @@ import contextlib
 import json
 import logging
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from functools import partial
@@ -39,7 +40,6 @@ from pi_guard.detection.enrollment import EnrollmentSession
 from pi_guard.detection.faces import BiometricStore, FaceRecognizer
 from pi_guard.detection.motion import MotionDetector
 from pi_guard.detection.persons import PersonDetector
-from pi_guard.diagnostics.contribution import Contribution
 from pi_guard.diagnostics.scan import SecurityScan
 from pi_guard.i18n import LANGUAGES, load_extra, t
 from pi_guard.integrations.mqtt.bridge import MqttBridge
@@ -63,6 +63,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 CHAT_APPS = ("slack", "rocketchat", "matrix", "mastodon")
+INSTANCE_KEY = "instance.id"
 
 HEARTBEAT_SECONDS = 5
 MAX_PARALLEL_CLIPS = 2
@@ -145,7 +146,15 @@ class App:
         self.webpush: WebPush | None = None
         self.escalation = Escalation(self)
         self.notifier = Notifier(self)
-        self.contribution = Contribution(self)
+        # A random name for this installation, made once, for later use (support, pairing).
+        # It never leaves the Pi on its own.
+        if not self.db.get(INSTANCE_KEY):
+            self.db.set(INSTANCE_KEY, str(uuid.uuid4()))
+        # The anonymous statistics are off for now (CHANGELOG 1.10): nothing is collected or
+        # sent, and what an earlier version kept goes.
+        for key in ("contribution.enabled", "contribution.corrections", "contribution.crashes",
+                    "contribution.last_sent"):  # fmt: skip
+            self.db.execute("DELETE FROM kv WHERE key = ?", (key,))
         self.app_updates = AppUpdates(self)
         self.self_update = SelfUpdate(self)
         self.backups = Backups(self)
@@ -315,7 +324,6 @@ class App:
             "retention": self.retention.run,
             "calendars": Feeds(self.db).run,
             "notifier": self.notifier.run,
-            "contribution": self.contribution.run,
             "app-updates": self.app_updates.run,
             "self-update": self.self_update.run,
             "backup": self.backups.run,

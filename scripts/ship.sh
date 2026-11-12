@@ -5,6 +5,7 @@
 #   ./scripts/ship.sh               # the version follows from the commits since the last release
 #   ./scripts/ship.sh minor         # or say it: major, minor or patch
 #   ./scripts/ship.sh --next        # only print the version it would make
+#   ./scripts/ship.sh --beta [STEP] # a beta: only Pis and devices on the beta channel take it
 #
 # Since the last apps-* release, a commit "feat: ..." makes a minor version (1.9.0), "fix!: ..."
 # or a "BREAKING CHANGE" line a major one (2.0.0), anything else a patch (1.8.1). Devices install
@@ -62,6 +63,8 @@ set_version() {
 }
 
 STEP=""
+BETA=false
+if [[ "${1:-}" == --beta ]]; then BETA=true; shift; fi
 case "${1:-}" in
     --next) next_version "${2:-}"; exit ;;
     major|minor|patch) STEP="$1" ;;
@@ -87,12 +90,12 @@ fi
 
 if ! git rev-parse -q --verify "refs/tags/apps-$VERSION" >/dev/null; then
     say "apps: build, sign, publish apps-$VERSION"
-    "$REPO/scripts/release-apps.sh" "$VERSION"
+    if $BETA; then "$REPO/scripts/release-apps.sh" "$VERSION" --prerelease; else "$REPO/scripts/release-apps.sh" "$VERSION"; fi
 fi
 say "pushing main"
 git push --quiet origin main
-if [[ "$(git tag --points-at HEAD --list 'release-*')" == "" ]]; then
+if [[ "$(git tag --points-at HEAD --list 'release-*' 'beta-*')" == "" ]]; then
     say "Pi: signing the release (asks for the passphrase of your release key)"
-    "$REPO/scripts/release.sh" tag
+    if $BETA; then "$REPO/scripts/release.sh" tag beta; else "$REPO/scripts/release.sh" tag; fi
 fi
 say "done: $VERSION. Every pi-guard takes the apps and itself within an hour."

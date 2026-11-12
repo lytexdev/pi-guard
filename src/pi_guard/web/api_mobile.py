@@ -191,15 +191,10 @@ async def device_socket(request: web.Request) -> web.WebSocketResponse:
 
 
 async def crash_report(request: web.Request) -> web.Response:
-    """A crash of the app, sent only with its user's consent. Kept for the anonymous
-    statistics, which pass it on only if this Pi's owner switched them on."""
-    from pi_guard.diagnostics.contribution import clean_crash, keep_crash
-
+    """Older apps send crashes when their user agreed. The statistics are off for now, so
+    nothing is kept; the answer stays the same so those apps do not retry."""
     _device(request)
-    crash = clean_crash(await read_json(request))
-    if crash is None:
-        raise web.HTTPBadRequest(text="not a crash report")
-    keep_crash(dashboard(request).app, crash)
+    await read_json(request)
     return web.json_response({"ok": True})
 
 

@@ -82,7 +82,8 @@ function shell(route) {
     h("div", { class: "spacer" }),
     state.session?.voice_listening ? h("a", { href: "#/settings/audio", class: "voice-badge", title: t("web.vo_listening_tip") }, icon("microphone"), h("span", {}, t("web.vo_listening"))) : null,
     h("a", { href: "#/logout" }, icon("logout"), h("span", {}, t("web.logout"))),
-    h("div", { class: "credit" }, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex")));
+    h("div", { class: "credit" }, "pi-guard", state.session?.version ? h("a", { href: "#/settings/updates", title: t("web.up_title") }, ` v${state.session.version}`) : null,
+      " · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex")));
   const tabbar = h("nav", { class: "tabbar", "aria-label": "pi-guard" },
     viewer ? items.map(([r, i, l]) => link(r, i, l, tabs)) : [
       ...items.slice(0, 4).map(([r, i, l]) => link(r, i, l, tabs)),

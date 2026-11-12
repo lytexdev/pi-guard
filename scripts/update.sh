@@ -53,11 +53,25 @@ healthy() {
     return 1
 }
 
+# Where updates come from, as chosen in the dashboard: "owner/name stable|beta". Written by
+# pi-guard, so read like anything from it: no links, one short line, checked word by word.
+SOURCE="$DATA/update/source"
+CHANNEL=stable
+if [[ -f "$SOURCE" && ! -L "$SOURCE" ]]; then
+    read -r wanted channel < <(head -c 200 "$SOURCE") || true
+    if [[ "${wanted:-}" =~ ^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,38}/[A-Za-z0-9_.-]{1,100}$ ]]; then
+        url="https://github.com/${wanted%.git}.git"
+        current="$(git_as_owner remote get-url origin 2>/dev/null || true)"
+        [[ "${current%.git}.git" == "$url" ]] || git_as_owner remote set-url origin "$url"
+    fi
+    [[ "${channel:-}" == beta ]] && CHANNEL=beta
+fi
+
 report running "checking"
 [[ -s "$SIGNERS" && -x "$CHECK" ]] || { report failed "no release key on this device; see docs/updates.md"; exit 1; }
 git_as_owner fetch --quiet --force --tags origin || { report failed "download failed"; exit 1; }
 old="$(git_as_owner rev-parse HEAD)"
-new="$(runuser -u "$OWNER" -- "$CHECK" "$REPO" "$SIGNERS")" \
+new="$(runuser -u "$OWNER" -- "$CHECK" "$REPO" "$SIGNERS" "$CHANNEL")" \
     || { report failed "no signed release found"; exit 1; }
 if [[ "$old" == "$new" ]]; then report done "already up to date"; exit 0; fi
 if git_as_owner merge-base --is-ancestor "$new" "$old"; then

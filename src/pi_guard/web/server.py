@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 
 from aiohttp import web
 
+from pi_guard import __version__
 from pi_guard.security.files import atomic_write
 from pi_guard.web.auth import (
     DEFAULT_PASSWORD,
@@ -478,6 +479,7 @@ class Dashboard:
             "nav": self.app.db.get(f"web.nav.{session.username}") or [] if session else [],
             "support": (self.app.db.get("web.support") or {}) if active else {},
             "modules": self.modules() if active else {},
+            "version": __version__ if active else None,  # not before login: no hint for attackers
             # Everyone signed in sees that the microphone listens for the wake phrase.
             "voice_listening": bool(active and self.app.voice.enabled
                                     and self.settings.voice_wake_enabled),

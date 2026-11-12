@@ -34,6 +34,7 @@ NO_STORE = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
 def routes() -> list[web.RouteDef]:
     return [
         web.get("/api/apps", apps),
+        web.post("/api/apps/check", apps_check),
         web.post("/api/apps/invite", invite_create),
         web.delete("/api/apps/invite", invite_clear),
         web.get("/get/{token}", invite_page),
@@ -89,6 +90,13 @@ async def apps(request: web.Request) -> web.Response:
     d = dashboard(request)
     return web.json_response({**versions(d.settings.data_dir), "invites": len(_live(d)),
                               "invite_days": INVITE_DAYS})  # fmt: skip
+
+
+async def apps_check(request: web.Request) -> web.Response:
+    """Look for new app versions on GitHub now (rate-limited there), then say what is here."""
+    d = dashboard(request)
+    await d.app.app_updates.ask()
+    return web.json_response({**versions(d.settings.data_dir), "last": d.app.app_updates.last})
 
 
 async def invite_create(request: web.Request) -> web.Response:

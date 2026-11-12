@@ -284,7 +284,7 @@ async def test_pinned_add_ons(tmp_path: Path) -> None:
 async def test_update_only_leaves_a_request(tmp_path: Path, monkeypatch: Any) -> None:
     from pi_guard.web import api_system
 
-    async def remote() -> dict[str, str]:
+    async def remote(*_: Any) -> dict[str, str]:
         return {"commit": "abc", "date": "2026-11-01T00:00:00Z", "message": "x"}
 
     monkeypatch.setattr(api_system, "_remote", remote)
@@ -293,6 +293,7 @@ async def test_update_only_leaves_a_request(tmp_path: Path, monkeypatch: Any) ->
         h = {"X-CSRF-Token": await _login(client)}
         status = await (await client.get("/api/system/update")).json()
         assert status["remote"]["commit"] == "abc" and status["pending"] is False
+        assert status["instance"] and status["source"]["repository"] == "lytexdev/pi-guard"
         assert (await client.post("/api/system/update", headers=h)).status == 200
         assert (app.settings.data_dir / "update" / "request").exists()
     finally:

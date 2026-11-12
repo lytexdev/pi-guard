@@ -3206,5 +3206,21 @@
   "web.log_download": "Download",
   "web.log_count": "{shown} of {total} entries",
   "web.audit_hint": "Who did what and when: logins, settings, access. Never changed.",
-  "web.sec_all_good": "No recommendations open."
+  "web.sec_all_good": "No recommendations open.",
+  "web.group_updates": "Source and behaviour",
+  "web.setting_update_repository": "Repository (GitHub, owner/name)",
+  "web.tip_update_repository": "Where updates come from, e.g. for your own fork. Only what the keys stored on the Pi signed is installed either way",
+  "web.setting_update_channel": "Channel",
+  "web.tip_update_channel": "Stable: finished versions only. Beta: also pre-releases for testing, earlier but riskier",
+  "web.up_instance": "Instance ID",
+  "web.up_instance_hint": "A random name of this installation, made at the first start. It never leaves the Pi.",
+  "web.up_apps": "Apps for your devices",
+  "web.up_apps_check": "Check for app updates",
+  "web.up_apps_none": "No apps on this Pi yet.",
+  "web.up_apps_checked": "Checked.",
+  "web.up_source": "Source",
+  "web.opt_update_channel_stable": "Stable",
+  "web.opt_update_channel_beta": "Beta",
+  "web.push_in_android": "This app gets alerts over its own connection to the Pi, without Google. Adjust them in the app settings.",
+  "web.push_in_desktop": "The desktop app has no push notifications. You get alerts through the phone app or a messenger (Add-ons)."
 }

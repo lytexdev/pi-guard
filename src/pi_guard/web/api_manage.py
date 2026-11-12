@@ -31,7 +31,6 @@ from pi_guard.core.permissions import Role
 from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.enrollment import EnrollmentSession, video_frames
 from pi_guard.detection.faces import EnrollmentError, FaceRecognizer
-from pi_guard.diagnostics.contribution import record_correction
 from pi_guard.i18n import LANGUAGES, t
 from pi_guard.notifications.rules import DEFAULTS, resolve
 from pi_guard.recording.evidence import MAX_MINUTES, evidence_files, record_evidence
@@ -722,16 +721,15 @@ async def learn_from_event(request: web.Request) -> web.Response:
     face, actor = result.faces[index], _actor(request)
     try:
         if is_person:
-            total, score = await asyncio.to_thread(faces.learn, name, result.image, face, actor)
+            total, _ = await asyncio.to_thread(faces.learn, name, result.image, face, actor)
         else:
-            score = await asyncio.to_thread(faces.reject, name, result.image, face)
+            await asyncio.to_thread(faces.reject, name, result.image, face)
     except EnrollmentError as exc:
         raise web.HTTPUnprocessableEntity(text=exc.key) from None
     app = dashboard(request).app
     action = "faces.learn" if is_person else "faces.reject"
     app.db.audit(actor, action, f"event={request.match_info['id']}")
     mark_reviewed(app, int(request.match_info["id"]), index)
-    record_correction(app, is_person, score)  # only the score's bin, for the statistics
     if not is_person:
         return web.json_response({"ok": True})
     quality = await asyncio.to_thread(faces.quality, faces.store.exists(name) or name)

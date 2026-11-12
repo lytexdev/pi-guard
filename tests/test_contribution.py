@@ -1,4 +1,6 @@
-"""Anonymous statistics: off by default, numbers only, sent once a week."""
+"""The module stays for later; pi-guard does not use it while the statistics are off.
+
+Anonymous statistics: off by default, numbers only, sent once a week."""
 
 from __future__ import annotations
 
@@ -116,7 +118,9 @@ def test_crashes_keep_only_their_shape(app: Any) -> None:
     assert "pg_secret" not in json.dumps(report)
 
 
-async def test_a_phone_sends_a_crash_with_its_key(tmp_path: Path) -> None:
+async def test_a_crash_from_an_older_app_is_not_kept_while_statistics_are_off(
+    tmp_path: Path,
+) -> None:
     from .test_mobile import _paired
 
     client, app, _, bearer = await _paired(tmp_path)
@@ -125,10 +129,7 @@ async def test_a_phone_sends_a_crash_with_its_key(tmp_path: Path) -> None:
                  "app": "1.4.0", "sdk": 34}  # fmt: skip
         assert (await client.post("/api/mobile/crash", json=crash)).status == 401
         assert (await client.post("/api/mobile/crash", json=crash, headers=bearer)).status == 200
-        assert (await client.post("/api/mobile/crash", json={"x": 1}, headers=bearer)).status == 400
-        assert (
-            app.db.get("contribution.crashes")[0]["exception"] == "java.lang.NullPointerException"
-        )
+        assert app.db.get("contribution.crashes") is None
     finally:
         await client.close()
         app.db.close()

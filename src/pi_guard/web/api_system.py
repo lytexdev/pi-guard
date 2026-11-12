@@ -29,7 +29,6 @@ from pi_guard.addons.plugin_updates import PluginGitError
 from pi_guard.config.files import FileConfig
 from pi_guard.core import self_update
 from pi_guard.core.app_updates import step
-from pi_guard.diagnostics.contribution import ENABLED_KEY, build_report
 from pi_guard.web.api_manage import saved_config, write_config
 from pi_guard.web.server import current, dashboard, read_json
 
@@ -48,8 +47,6 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/backup", backup_status),
         web.post("/api/backup/run", backup_run),
         web.post("/api/backup/key", backup_key),
-        web.get("/api/contribution", contribution_status),
-        web.put("/api/contribution", contribution_switch),
         web.get("/api/plugin-manager", plugin_list),
         web.post("/api/plugin-manager", plugin_upload),
         web.post("/api/plugin-manager/create", plugin_create),
@@ -112,29 +109,6 @@ async def backup_key(request: web.Request) -> web.Response:
     return web.json_response({"public_key": public_key(d.settings.data_dir)})
 
 
-# --- anonymous statistics -----------------------------------------------------------------
-
-
-async def contribution_status(request: web.Request) -> web.Response:
-    """Whether statistics are sent, where to, and the exact report that would go now."""
-    app = dashboard(request).app
-    c = app.contribution
-    report = await asyncio.to_thread(build_report, app)
-    return web.json_response({"enabled": c.enabled, "url": c.url, "last_sent": c.last_sent(),
-                              "report": report})  # fmt: skip
-
-
-async def contribution_switch(request: web.Request) -> web.Response:
-    data = await read_json(request)
-    if not isinstance(data.get("enabled"), bool):
-        raise web.HTTPBadRequest(text="invalid request")
-    app = dashboard(request).app
-    app.db.set(ENABLED_KEY, data["enabled"])
-    app.db.audit(f"web:{current(request).username}", "contribution",
-                 "on" if data["enabled"] else "off")  # fmt: skip
-    return web.json_response({"enabled": data["enabled"]})
-
-
 # --- updates ------------------------------------------------------------------------------
 
 
@@ -142,9 +116,11 @@ def _update_dir(request: web.Request) -> Path:
     return dashboard(request).settings.data_dir / "update"
 
 
-async def _remote() -> dict[str, Any]:
+async def _remote(settings: Any = None) -> dict[str, Any]:
     # Only to show. What counts is the signature, which update.sh checks itself.
-    return await self_update.remote()
+    if settings is None:
+        return await self_update.remote()
+    return await self_update.remote(False, settings.update_repository, settings.update_channel)
 
 
 def _available(commit: str | None, remote: dict[str, Any]) -> bool:
@@ -165,9 +141,12 @@ async def update_status(request: web.Request) -> web.Response:
             state = {}
     commit_file = Path("/opt/pi-guard/commit")
     commit = commit_file.read_text().strip()[:10] if commit_file.exists() else None
-    remote = await _remote()
+    remote = await _remote(dashboard(request).settings)
     return web.json_response({
         "version": __version__, "commit": commit, "remote": remote, "state": state,
+        "instance": dashboard(request).app.db.get("instance.id"),
+        "source": {"repository": dashboard(request).settings.update_repository,
+                   "channel": dashboard(request).settings.update_channel},
         "available": _available(commit, remote),
         "installed_by_script": commit_file.exists(),
         "pending": (directory / "request").exists(),

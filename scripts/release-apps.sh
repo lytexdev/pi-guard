@@ -19,10 +19,12 @@ shift
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must look like 1.2.3" >&2; exit 1; }
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UPLOAD=true
+PRERELEASE=()
 PARTS=()
 for arg in "$@"; do
     case "$arg" in
         --no-upload) UPLOAD=false ;;
+        --prerelease) PRERELEASE=(--prerelease) ;;  # for the beta channel only
         android|desktop|agent|proxy) PARTS+=("$arg") ;;
         *) echo "unknown: $arg" >&2; exit 1 ;;
     esac
@@ -90,7 +92,7 @@ ls -1 "$OUT"
 if $UPLOAD; then
     git -C "$REPO" tag -a "apps-$VERSION" -m "Apps $VERSION"
     git -C "$REPO" push origin "apps-$VERSION"
-    gh release create "apps-$VERSION" "$OUT"/* --title "Apps $VERSION" --notes \
+    gh release create "apps-$VERSION" "$OUT"/* "${PRERELEASE[@]}" --title "Apps $VERSION" --notes \
 "Phone app, desktop app, agent and pgproxy $VERSION; the apps and the agent are signed. Every pi-guard fetches these by itself and hands them to its
 devices; each file is checked against the update key first. To download by hand, check the file against SHA256SUMS."
     echo "published apps-$VERSION"

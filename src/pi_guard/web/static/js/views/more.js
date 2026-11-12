@@ -1,5 +1,5 @@
 // Mobile hub for the secondary pages, plus language and app settings.
-import { api, attempt, h, icon, lang, t, toast, fill } from "../api.js";
+import { api, appShell, attempt, h, icon, lang, t, toast, fill } from "../api.js";
 import { switchLanguage } from "../app.js";
 import { setDesign, SIZES, THEMES } from "../theme.js";
 
@@ -11,6 +11,10 @@ function b64ToBytes(base64) {
 async function pushPanel() {
   const info = await api("/api/push").catch(() => ({ enabled: false }));
   const panel = h("section", { class: "panel stack" }, h("h2", {}, t("web.this_app")));
+  // The phone app gets alerts over its own connection; the desktop app cannot get push at all:
+  // neither is a browser to offer push or installing the page in.
+  const shell = appShell();
+  if (shell !== "browser") { panel.append(h("p", {}, icon(shell === "android" ? "circle-check" : "info-circle"), " ", t(`web.push_in_${shell}`))); return panel; }
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   if (!standalone) panel.append(h("p", { class: "muted" }, t("web.install_hint")));
   if (!info.enabled) { panel.append(h("p", { class: "muted" }, t("web.push_disabled"))); return panel; }

@@ -296,6 +296,10 @@ function menu() {
       // The dashboard's help page with its guided tour, the same as in the browser and the phone app.
       { label: de ? "Hilfe & Tutorial" : "Help & tutorial", accelerator: "F1", click: () => (config ? window.loadURL(new URL("/#/help/tour", config.url).href).catch(() => {}) : change()) },
       { label: de ? "Nach Updates suchen" : "Check for updates", click: () => checkForUpdate(true) },
+      { label: de ? "Über PiGuard" : "About PiGuard", click: () => dialog.showMessageBox(window, {
+        title: "PiGuard", message: `PiGuard ${app.getVersion()}`,
+        detail: `${de ? "Desktop-App" : "Desktop app"} · Electron ${process.versions.electron}${config ? `\n${config.url}` : ""}`,
+      }) },
       { type: "separator" },
       { role: "quit", label: de ? "Beenden" : "Quit" },
     ] },

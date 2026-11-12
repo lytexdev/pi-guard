@@ -36,8 +36,14 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-REPOSITORY = "lytexdev/pi-guard"
-RELEASES = f"https://api.github.com/repos/{REPOSITORY}/releases?per_page=10"
+REPOSITORY = "lytexdev/pi-guard"  # the default; Settings > Updates may name another
+
+
+def releases_url(repository: str = REPOSITORY) -> str:
+    return f"https://api.github.com/repos/{repository}/releases?per_page=10"
+
+
+RELEASES = releases_url()
 # The same key as in agent/src/update.rs and desktop/updates.js. Its private half never leaves
 # the computer that builds releases. A fork puts its own here.
 UPDATE_KEY = bytes.fromhex("7cdf1b203f7747803d04eaf7cdc52350c684f6e5b3b0ea64cd1636b593b8b716")
@@ -141,9 +147,10 @@ def verify(manifest: Manifest, key: bytes | None = None) -> bool:
     return True
 
 
-def _is_apps(release: dict[str, Any]) -> bool:
+def _is_apps(release: dict[str, Any], beta: bool = False) -> bool:
     tag = str(release.get("tag_name", ""))
-    return tag.startswith("apps-") and not release.get("draft") and not release.get("prerelease")
+    wanted = beta or not release.get("prerelease")
+    return tag.startswith("apps-") and not release.get("draft") and bool(wanted)
 
 
 def folder(data_dir: Path, manifest: Manifest) -> Path:
@@ -241,9 +248,13 @@ class AppUpdates:
         updated: list[str] = []
         async with httpx.AsyncClient(timeout=60, follow_redirects=True,
                                      headers={"User-Agent": "pi-guard"}) as client:  # fmt: skip
-            answer = await client.get(RELEASES, headers={"Accept": "application/vnd.github+json"})
+            s = self._app.settings
+            repository = s.update_repository
+            url = RELEASES if repository == REPOSITORY else releases_url(repository)
+            answer = await client.get(url, headers={"Accept": "application/vnd.github+json"})
             answer.raise_for_status()
-            release = next((r for r in answer.json() if _is_apps(r)), None)
+            beta = s.update_channel == "beta"
+            release = next((r for r in answer.json() if _is_apps(r, beta)), None)
             if release is None:
                 return updated
             assets = {str(a["name"]): str(a["browser_download_url"]) for a in release["assets"]}

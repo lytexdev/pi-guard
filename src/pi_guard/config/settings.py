@@ -218,6 +218,13 @@ class Settings(BaseSettings):
     # Install a new major or minor pi-guard release by itself; a patch is only announced
     # (core/self_update.py). The update still takes only releases signed with the owner's key.
     update_auto: bool = True
+    # Where updates come from: a GitHub repository ("owner/name"), for forks or own builds, and
+    # the channel: "stable" takes release-* tags and normal releases, "beta" also beta-* tags
+    # and pre-releases. Either way only what the trusted keys signed is installed.
+    update_repository: str = Field(
+        "lytexdev/pi-guard", pattern=r"^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,38}/[A-Za-z0-9_.-]{1,100}$"
+    )
+    update_channel: Literal["stable", "beta"] = "stable"
     # Where anonymous statistics go when the owner switches them on (diagnostics/contribution.py).
     support_url: str | None = None
     dashboard_allow_unauthenticated: bool = False

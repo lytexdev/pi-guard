@@ -86,6 +86,9 @@ class MainActivity : AppCompatActivity() {
         web.isHorizontalScrollBarEnabled = false
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
+        // The dashboard tells the app from a browser by this: no "install" or "browser push" hints.
+        val version = packageManager.getPackageInfo(packageName, 0).versionName
+        web.settings.userAgentString = "${web.settings.userAgentString} PiGuardApp/$version"
         web.settings.mediaPlaybackRequiresUserGesture = false
         CookieManager.getInstance().setAcceptCookie(true)
         web.webViewClient = object : WebViewClient() {

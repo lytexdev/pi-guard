@@ -1,5 +1,5 @@
 // Settings: one place with sections, search and a save bar that appears when it is needed.
-import { askDialog, api, attempt, fill, h, icon, t, toast, when, whileShown, expertMode, setExpertMode } from "../api.js";
+import { askDialog, api, attempt, fill, h, icon, infoTip, t, toast, when, whileShown, expertMode, setExpertMode } from "../api.js";
 import { state } from "../app.js";
 import { installFolds, unfold } from "../folds.js";
 import { searchToggle, supportNote } from "../widgets.js";
@@ -36,7 +36,7 @@ const SECTIONS = [
   ["emergency", "alert-triangle", ["emergency"], "alerts"],
   ["devices", "camera", null, "home"], ["apps", "device-mobile", ["mobile"], "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
   ["data", "database", ["backup"], "system"], ["security", "shield-check", null, "system"], ["integrations", "router", ["integrations", "network"], "system"],
-  ["dashboard", "world", ["dashboard"], "system"], ["updates", "refresh", null, "system"], ["support", "headset", null, "system"],
+  ["dashboard", "world", ["dashboard"], "system"], ["updates", "refresh", ["updates"], "system"], ["support", "headset", null, "system"],
 ];
 const NAV_GROUPS = ["basics", "alerts", "home", "system"];
 
@@ -164,55 +164,18 @@ async function voicePanel(box) {
 }
 
 // Anonymous statistics: off until the owner switches them on, with the exact report shown first.
-async function contributionPanel(box) {
-  const draw = async () => {
-    const c = await api("/api/contribution");
-    const toggle = h("input", { type: "checkbox", id: "contribution", checked: c.enabled, disabled: !c.url && !c.enabled });
-    toggle.addEventListener("change", async () => {
-      const done = await attempt(() => api("/api/contribution", { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
-      if (!done) toggle.checked = !toggle.checked;
-      draw();
-    });
-    fill(box, h("section", { class: "panel stack" }, h("h2", {}, icon("chart-bar"), " ", t("web.co_title")),
-      h("p", {}, t("web.co_intro")),
-      h("ul", {}, ["web.co_sent", "web.co_never", "web.co_when"].map((key) => h("li", {}, t(key)))),
-      h("div", { class: "switch-row" }, h("label", { for: "contribution" }, t("web.co_switch")), h("div", { class: "control" }, toggle)),
-      c.url ? h("p", { class: "muted" }, h("small", {}, t("web.co_url", { url: c.url }), c.last_sent ? ` · ${t("web.co_last", { time: when(c.last_sent) })}` : ""))
-        : h("p", { class: "notice" }, t("web.co_no_url")),
-      h("details", {}, h("summary", {}, t("web.co_preview")), h("pre", { class: "mono wrap" }, JSON.stringify(c.report, null, 2)))));
-  };
-  await draw();
-}
-
-const MESSENGER_NAMES = { telegram: "Telegram", signal: "Signal", discord: "Discord", whatsapp: "WhatsApp", email: "E-Mail",
-  slack: "Slack", rocketchat: "Rocket.Chat", matrix: "Matrix", mastodon: "Mastodon", mobile: "App" };
-
-// Expert view: a test message through every messenger that is set up.
-async function messengerTests() {
-  const list = await api("/api/messengers").catch(() => []);
-  return h("section", { class: "panel stack" }, h("h2", {}, icon("message"), " ", t("web.messengers_title")),
-    h("p", { class: "muted" }, t("web.messengers_intro")),
-    list.length ? h("ul", { class: "list" }, list.map((m) => h("li", {},
-      h("span", { class: `dot ${m.connected ? "ok" : "danger"}` }),
-      h("div", { class: "grow" }, h("div", {}, MESSENGER_NAMES[m.name] || m.name),
-        m.admins ? null : h("small", { class: "muted" }, t("web.messenger_no_admin"))),
-      h("button", { onclick: async () => {
-        const r = await attempt(() => api(`/api/messengers/${encodeURIComponent(m.name)}/test`, { method: "POST" }));
-        if (r) toast(t("web.messenger_test_sent", { count: r.sent }));
-      } }, icon("bell"), t("web.test"))))) : h("p", { class: "empty" }, t("web.nothing")));
-}
-
 async function updateSection(root) {
   const box = h("div");
-  const helping = h("div");
-  fill(root, box, helping);
-  contributionPanel(helping).catch(() => helping.remove());
+  const apps = h("div");
+  fill(root, box, apps);
   const draw = async () => {
     const u = await api("/api/system/update");
     const state = u.state?.state;
-    fill(box, h("section", { class: "panel stack" }, h("h2", {}, icon("brand-github"), " ", t("web.up_title")),
+    fill(box, h("section", { class: "panel stack" }, h("h2", {}, icon("brand-raspberrypi"), " ", t("web.up_title")),
       h("dl", { class: "kv" }, h("dt", {}, t("web.up_version")), h("dd", {}, `${u.version}${u.commit ? ` (${u.commit})` : ""}`),
-        u.remote?.commit ? [h("dt", {}, t("web.up_latest")), h("dd", {}, `${u.remote.version ? `${u.remote.version} · ` : ""}${u.remote.commit} · ${when(u.remote.date)}`)] : null),
+        u.remote?.commit ? [h("dt", {}, t("web.up_latest")), h("dd", {}, `${u.remote.version ? `${u.remote.version} · ` : ""}${u.remote.commit} · ${when(u.remote.date)}`)] : null,
+        u.source ? [h("dt", {}, t("web.up_source")), h("dd", { class: "mono" }, `${u.source.repository} · ${t(`web.opt_update_channel_${u.source.channel}`)}`)] : null,
+        u.instance ? [h("dt", {}, t("web.up_instance"), " ", infoTip(t("web.up_instance_hint"))), h("dd", { class: "mono" }, u.instance)] : null),
       u.remote?.message ? h("p", { class: "muted" }, u.remote.message) : null,
       u.available ? h("p", { class: "notice" }, t("web.up_available")) : h("p", {}, icon("circle-check"), " ", t("web.up_current")),
       u.state?.message ? h("p", { class: `notice ${state === "failed" ? "danger" : ""}` }, `${u.state.message} (${when(u.state.time)})`) : null,
@@ -223,7 +186,23 @@ async function updateSection(root) {
         h("button", { onclick: draw }, t("web.up_check"))),
       h("p", { class: "muted" }, h("small", {}, t("web.up_hint")))));
   };
-  await draw();
+  const drawApps = (info) => {
+    const row = (iconName, label, value, note) => h("li", {}, icon(iconName), h("div", { class: "grow" }, h("div", {}, label), note ? h("small", { class: "muted" }, note) : null), h("strong", {}, value || "–"));
+    const desktop = Object.entries(info.desktop || {});
+    const last = info.last || {};
+    fill(apps, h("section", { class: "panel stack" }, h("h2", {}, icon("device-mobile"), " ", t("web.up_apps")),
+      h("ul", { class: "list compact" },
+        row("brand-android", t("web.apps_android"), info.android, last["android-apk"]),
+        desktop.map(([platform, version]) => row(platform.startsWith("win") ? "brand-windows" : "terminal-2", t("web.apps_desktop", { platform: platform.startsWith("win") ? "Windows" : "Linux" }), version, last[`desktop-${platform}`])),
+        Object.entries(info.agent || {}).map(([platform, version]) => row("server", `Agent ${platform}`, version, last[`agent-${platform}`]))),
+      !info.android && !desktop.length ? h("p", { class: "muted" }, t("web.up_apps_none")) : null,
+      h("p", { class: "muted" }, h("small", {}, t("web.apps_versions_hint"))),
+      h("div", { class: "row" }, h("button", { onclick: async () => {
+        const next = await attempt(() => api("/api/apps/check", { method: "POST", body: {} }), t("web.up_apps_checked"));
+        if (next) drawApps(next);
+      } }, icon("refresh"), t("web.up_apps_check")), h("a", { class: "button ghost", href: "#/settings/apps" }, icon("share"), t("web.apps_invite")))));
+  };
+  await Promise.all([draw(), api("/api/apps").then(drawApps).catch(() => fill(apps))]);
 }
 
 async function supportSection(box) {
@@ -363,6 +342,11 @@ export async function render(main, params = []) {
       const contacts = h("div");
       body.before(contacts);
       await (await import("./contacts.js")).contactsPanel(contacts);
+    }
+    if (current === "updates") {  // versions and the update button first, the source below
+      const status = h("div");
+      body.before(status);
+      await updateSection(status);
     }
     if (current === "data") {  // what happened last first, the settings below
       const status = h("div");

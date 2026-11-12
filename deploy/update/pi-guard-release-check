@@ -5,12 +5,18 @@
 # update.sh runs it as root. The signing key stays on the owner's computer. gpg.minTrustLevel
 # says outright that only a listed key counts, whatever a git version does by default.
 set -uo pipefail
-REPO="${1:?usage: $0 REPOSITORY SIGNERS}"
-SIGNERS="${2:?usage: $0 REPOSITORY SIGNERS}"
+REPO="${1:?usage: $0 REPOSITORY SIGNERS [stable|beta]}"
+SIGNERS="${2:?usage: $0 REPOSITORY SIGNERS [stable|beta]}"
+CHANNEL="${3:-stable}"
 LIMIT=20  # newest first; someone adding junk tags must not make this run for ever
 
 [[ -s "$SIGNERS" ]] || exit 1
-for tag in $(git -C "$REPO" tag --list 'release-*' --sort=-version:refname | head -n "$LIMIT"); do
+# Tags end in a date (release-20261112-150000): sort by it, so a beta can be newer than a release.
+patterns=('release-*')
+[[ "$CHANNEL" == beta ]] && patterns+=('beta-*')
+tags="$(git -C "$REPO" tag --list "${patterns[@]}" | grep -E '^(release|beta)-[0-9]{8}-[0-9]{6}$' \
+    | sed -E 's/^([a-z]+)-(.*)$/\2 \1-\2/' | sort -r | cut -d' ' -f2 | head -n "$LIMIT")"
+for tag in $tags; do
     if git -C "$REPO" -c gpg.format=ssh -c gpg.ssh.program=ssh-keygen \
         -c gpg.ssh.allowedSignersFile="$SIGNERS" -c gpg.minTrustLevel=fully \
         verify-tag "refs/tags/$tag" >/dev/null 2>&1; then

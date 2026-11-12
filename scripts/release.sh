@@ -3,6 +3,7 @@
 #
 #   ./scripts/release.sh key    once: makes the signing key and puts its public half in the repo
 #   ./scripts/release.sh tag    signs the current main and pushes the release tag
+#   ./scripts/release.sh tag beta   the same as a beta: only Pis on the beta channel take it
 #
 # A Pi installs only what this key signed, so someone who gets into the GitHub account cannot run
 # anything on it. Back the key up: without it, Pis accept no new version until a new key is set
@@ -31,10 +32,13 @@ make_tag() {
     [[ -z "$(git status --porcelain)" ]] || die "there are uncommitted changes"
     git fetch --quiet origin main
     [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || die "main differs from origin/main"
-    local name
-    name="release-$(date -u +%Y%m%d-%H%M%S)"
+    local name kind="release"
+    [[ "${1:-}" == beta ]] && kind="beta"
+    name="$kind-$(date -u +%Y%m%d-%H%M%S)"
     git -c gpg.format=ssh -c user.signingkey="$KEY" tag -s -m "pi-guard $name" "$name"
-    [[ "$(deploy/update/pi-guard-release-check . "$SIGNERS")" == "$(git rev-parse HEAD)" ]] \
+    local channel=stable
+    [[ "$kind" == beta ]] && channel=beta
+    [[ "$(deploy/update/pi-guard-release-check . "$SIGNERS" "$channel")" == "$(git rev-parse HEAD)" ]] \
         || { git tag -d "$name" >/dev/null; die "the new tag does not pass the check"; }
     git push --quiet origin "refs/tags/$name"
     echo "signed and pushed $name"
@@ -42,6 +46,6 @@ make_tag() {
 
 case "${1:-}" in
     key) make_key ;;
-    tag) make_tag ;;
-    *) die "usage: $0 key|tag" ;;
+    tag) make_tag "${2:-}" ;;
+    *) die "usage: $0 key|tag [beta]" ;;
 esac
