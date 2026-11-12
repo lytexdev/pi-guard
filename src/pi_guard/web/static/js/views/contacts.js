@@ -116,7 +116,7 @@ export async function contactsPanel(box) {
     };
     fill(box, h("section", { class: "panel stack" },
       h("div", { class: "row between" }, h("h2", {}, icon("alert-triangle"), " ", t("web.ec_title")),
-        h("button", { class: "primary", onclick: () => editor(data, { share: { sos: FITS.sos.filter((s) => !["events", "medical"].includes(s)), escalation: ["events", "pi_photo"] }, medical_mode: "link", channels: [] }, (v) => save(null, v)) }, icon("plus"), t("web.ec_add"))),
+        h("button", { class: "primary", onclick: () => editor(data, { share: { sos: FITS.sos.filter((s) => !["events", "medical"].includes(s)), escalation: ["events", "pi_photo"] }, medical_mode: "note", channels: [] }, (v) => save(null, v)) }, icon("plus"), t("web.ec_add"))),
       h("p", { class: "muted" }, t("web.ec_intro", { alerts: data.after_alerts, minutes: data.after_minutes })),
       h("ul", { class: "list" }, data.contacts.length ? data.contacts.map((c) => h("li", {},
         h("div", { class: "row" }, c.channels.map((ch) => icon(BRAND[ch.provider] || "message"))),

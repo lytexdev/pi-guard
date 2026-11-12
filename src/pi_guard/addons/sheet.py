@@ -33,10 +33,17 @@ def _plain(text: str) -> str:
 
 
 def markdown_lines(text: str) -> list[tuple[str, str]]:
-    """(style, text) per line: h for headings, li for list items, p otherwise."""
+    """(style, text) per line: h for headings, li for list items, p otherwise. A table row
+    becomes one line with its cells joined, its dashed divider is left out."""
     lines: list[tuple[str, str]] = []
     for raw in text.splitlines():
         if not raw.strip() or re.fullmatch(r"\s*([-*_]\s*){3,}", raw):
+            continue
+        if "|" in raw and re.fullmatch(r"\s*\|?(\s*:?-+:?\s*\|)+\s*:?-*:?\s*\|?\s*", raw):
+            continue
+        if raw.strip().startswith("|"):
+            cells = [_plain(c) for c in raw.strip().strip("|").split("|")]
+            lines.append(("p", " · ".join(c for c in cells if c)))
             continue
         heading = re.match(r"^\s*#{1,6}\s+(.*)", raw)
         item = _LIST.match(raw)

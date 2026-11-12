@@ -1,6 +1,6 @@
-// Emergency medical information. Every look, change, file and link asks for the password and
-// goes into the audit log. While one sheet is open, the password typed to open it is kept in
-// this dialog only, for its PDF, picture, BMP text and sending; closing the sheet forgets it.
+// Emergency medical information. Logged in, you open and change a sheet without another
+// password; files and sending (they leave this screen) and deleting ask for it. Everything goes
+// into the audit log. The password typed for a file is kept in that sheet's dialog only.
 import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when } from "../api.js";
 import { markdown } from "../markdown.js";
 
@@ -40,7 +40,15 @@ function markdownField(key, value, rows) {
     area.classList.toggle("hidden", show);
     toggle.textContent = t(show ? "web.md_edit_text" : "web.md_preview");
   } }, t("web.md_preview"));
-  const field = h("div", { class: "field" }, h("div", { class: "row between" }, h("label", { for: `md_${key}` }, t(`web.md_f_${key}`)), toggle), area, preview);
+  const table = key === "medication_plan" ? h("button", { type: "button", class: "ghost small", onclick: () => {
+    const start = area.selectionStart ?? area.value.length;
+    const before = area.value.slice(0, start);
+    area.value = `${before}${before && !before.endsWith("\n") ? "\n\n" : ""}${t("web.md_plan_table")}${area.value.slice(start)}`;
+    area.rows = Math.max(area.rows, 8);
+    area.focus();
+  } }, icon("list-details"), t("web.md_insert_table")) : null;
+  const field = h("div", { class: "field" }, h("div", { class: "row between" }, h("label", { for: `md_${key}` }, t(`web.md_f_${key}`)), h("div", { class: "row tight" }, table, toggle)), area, preview,
+    key === "medication_plan" ? h("small", { class: "muted" }, t("web.md_plan_hint")) : null);
   return { field, value: () => area.value };
 }
 
@@ -230,7 +238,7 @@ async function picture(lines, name) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function sendDialog(person, pass) {
+async function sendDialog(person, need) {
   const data = await attempt(() => api("/api/contacts"));
   if (!data) return;
   const contacts = data.contacts.filter((c) => !c.legacy);
@@ -240,13 +248,20 @@ async function sendDialog(person, pass) {
       : h("p", { class: "notice" }, t("web.md_send_none"), " ", h("a", { href: "#/settings/emergency", onclick: () => dialog.close() }, t("web.ec_title"))),
     h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
       contacts.length ? h("button", { class: "primary", onclick: async () => {
+        const pass = await need();
+        if (!pass) return;
         const sent = await attempt(() => api(`/api/medical/${person.id}/send`, { method: "POST", body: { contact: Number(pick.value), password: pass } }));
         if (sent) { dialog.close(); toast(t(`web.md_sent_${sent.mode}`)); }
       } }, icon("message"), t("web.md_send")) : null));
 }
 
-function sheetDialog(person, record, pass, edit) {
-  const post = (path, body = {}) => api(path, { method: "POST", body: { ...body, password: pass }, raw: true });
+function sheetDialog(person, record, edit) {
+  let pass = "";
+  const need = async () => { pass ||= await password() || ""; return pass; };
+  const post = async (path, body = {}) => {
+    if (!await need()) throw Object.assign(new Error("web.cancelled"), { status: 401 });
+    return api(path, { method: "POST", body: { ...body, password: pass }, raw: true });
+  };
   const dialog = modal("editor wide", h("div", { class: "row between" }, h("h2", {}, record.name), h("button", { class: "icon-only", title: t("web.close"), onclick: () => dialog.close() }, icon("x"))),
     h("div", { class: "row wrap md-actions" },
       h("button", { class: "primary", onclick: () => { dialog.close(); edit(record); } }, icon("pencil"), t("web.md_edit")),
@@ -256,72 +271,37 @@ function sheetDialog(person, record, pass, edit) {
         if (r) await picture((await r.json()).lines, record.name);
       } }, icon("photo"), t("web.md_picture")),
       h("button", { title: t("web.md_bmp_tip"), onclick: async () => { const r = await attempt(() => post(`/api/medical/${person.id}/bmp`)); if (r) saveFile(r, "bmp.xml"); } }, icon("qrcode"), "BMP"),
-      h("button", { title: t("web.md_send_tip"), onclick: () => sendDialog(person, pass) }, icon("message"), t("web.md_send"))),
+      h("button", { title: t("web.md_send_tip"), onclick: () => sendDialog(person, need) }, icon("message"), t("web.md_send"))),
     sheetView(record),
     h("p", { class: "muted" }, h("small", {}, t("web.md_sheet_password"))));
   dialog.addEventListener("close", () => { pass = ""; });
 }
 
-function linkDialog(person, redraw) {
-  const minutes = h("select", { id: "md_min" }, [15, 30, 60].map((m) => h("option", { value: m, selected: m === 30 }, t("web.md_minutes", { minutes: m }))));
-  const pin = h("input", { type: "checkbox", id: "md_pin", checked: true });
-  const pass = h("input", { type: "password", id: "md_pass", autocomplete: "current-password" });
-  const dialog = modal("wg-dialog", h("h2", {}, t("web.md_link_for", { name: person.name })), h("p", { class: "muted" }, t("web.md_link_hint")),
-    h("div", { class: "stack" }, h("div", { class: "field" }, h("label", { for: "md_min" }, t("web.md_valid")), minutes),
-      h("label", { class: "check", for: "md_pin" }, pin, t("web.md_with_pin")),
-      h("div", { class: "field" }, h("label", { for: "md_pass" }, t("web.md_password")), pass)),
-    h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
-      h("button", { class: "primary", onclick: async () => {
-        const made = await attempt(() => api(`/api/medical/${person.id}/link`, { method: "POST", body: { minutes: Number(minutes.value), pin: pin.checked, password: pass.value } }));
-        if (made) { dialog.close(); showLink(made); redraw(); }
-      } }, icon("plus"), t("web.md_make_link"))));
-}
-
-function showLink(link) {
-  const dialog = modal("wg-dialog", h("h2", {}, t("web.md_link_title")),
-    h("p", {}, t("web.md_link_intro", { time: when(link.expires) })),
-    h("pre", { class: "mono wrap" }, link.url),
-    link.pin ? h("p", {}, t("web.md_link_pin"), " ", h("strong", { class: "mono big-pin" }, link.pin)) : h("p", { class: "notice" }, t("web.md_link_no_pin")),
-    h("div", { class: "row end" },
-      h("button", { onclick: () => navigator.clipboard?.writeText(link.url).then(() => toast(t("web.copied"))) }, icon("copy"), t("web.copy")),
-      navigator.share ? h("button", { onclick: () => navigator.share({ url: link.url }).catch(() => {}) }, icon("upload"), t("web.share")) : null,
-      h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
-}
-
 export async function medical(box, status) {
   const people = await status("/api/medical");
   if (!people) { fill(box, h("p", { class: "notice" }, t("web.addon_restart"))); return; }
-  const [links, accounts] = await Promise.all([status("/api/medical/links"), status("/api/medical/accounts")]);
+  const accounts = await status("/api/medical/accounts");
   const redraw = () => medical(box, status);
-  const save = async (id, record, pass) => {
-    pass ||= await password();
-    if (!pass) return false;
+  const save = async (id, record) => {
     const url = id ? `/api/medical/${id}` : "/api/medical";
-    const done = await attempt(() => api(url, { method: id ? "PUT" : "POST", body: { record, password: pass } }), t("web.saved"));
+    const done = await attempt(() => api(url, { method: id ? "PUT" : "POST", body: { record } }), t("web.saved"));
     if (done) redraw();
     return Boolean(done);
   };
   const open = async (person) => {
-    const pass = await password();
-    if (!pass) return;
-    const record = await attempt(() => api("/api/medical/view", { method: "POST", body: { id: person.id, password: pass } }));
-    if (record) sheetDialog(person, record, pass, (r) => medicalForm(r, accounts || [], (values) => save(person.id, values, pass)));
+    const record = await attempt(() => api("/api/medical/view", { method: "POST", body: { id: person.id } }));
+    if (record) sheetDialog(person, record, (r) => medicalForm(r, accounts || [], (values) => save(person.id, values)));
   };
   fill(box,
     h("section", { class: "panel stack" }, h("h2", {}, t("web.md_people")), h("p", { class: "muted" }, t("web.md_intro")),
       h("ul", { class: "list" }, people.length ? people.map((p) => h("li", {}, icon("user"),
         h("div", { class: "grow" }, h("div", {}, p.name), h("small", { class: "muted" }, t("web.md_updated", { time: when(p.updated) }))),
-        h("button", { onclick: () => open(p) }, icon("eye"), t("web.md_open_edit")),
-        h("button", { class: "primary", onclick: () => linkDialog(p, redraw) }, icon("world"), t("web.md_link_button")),
+        h("button", { class: "primary", onclick: () => open(p) }, icon("eye"), t("web.md_open_edit")),
         h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
           if (!await confirmDialog(t("web.md_delete", { name: p.name }), t("web.delete"), true)) return;
           const pass = await password();
           if (pass && await attempt(() => api(`/api/medical/${p.id}`, { method: "DELETE", body: { password: pass } }), t("web.deleted"))) redraw();
         } }, icon("trash")))) : h("li", { class: "empty" }, t("web.md_none"))),
       h("div", {}, h("button", { onclick: () => medicalForm({}, accounts || [], (values) => save(null, values)) }, icon("plus"), t("web.md_add")))),
-    h("section", { class: "panel stack" }, h("h2", {}, t("web.md_links")),
-      h("ul", { class: "list" }, links?.length ? links.map((l) => h("li", {}, icon("clock"),
-        h("div", { class: "grow" }, h("div", {}, l.name), h("small", { class: "muted" }, t("web.md_link_state", { time: when(l.expires), opened: l.opened }), l.pin ? " · PIN" : "")),
-        h("button", { class: "danger", onclick: async () => { if (await attempt(() => api(`/api/medical/links/${l.id}`, { method: "DELETE" }), t("web.saved"))) redraw(); } }, t("web.md_end")))) : h("li", { class: "empty" }, t("web.md_no_links")))),
     h("p", { class: "muted" }, h("small", {}, t("web.md_privacy"))));
 }

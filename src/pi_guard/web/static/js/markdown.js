@@ -1,5 +1,5 @@
 // A small Markdown for notes: headings, lists (also nested and with [ ] boxes), quotes, rules,
-// **bold**, *italic*, `code`, ~~struck~~ and links. Builds DOM nodes, never HTML text, so
+// tables, **bold**, *italic*, `code`, ~~struck~~ and links. Builds DOM nodes, never HTML text, so
 // nothing typed into a sheet can run as a script. Links open only for http(s), mailto and tel.
 
 const node = (tag, attrs = {}, children = []) => {
@@ -32,6 +32,18 @@ export function inline(text) {
 }
 
 // One block element per paragraph, heading, quote or list.
+// A Markdown table: | a | b | rows, the second line made of dashes (| --- | :-: |).
+const cells = (line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+const isDivider = (line) => /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(line) && line.includes("-") && line.includes("|");
+
+function table(rows) {
+  const [head, , ...body] = rows.map(cells);
+  const width = head.length;
+  const row = (values, tag) => node("tr", {}, Array.from({ length: width }, (_, i) => node(tag, {}, inline(values[i] || ""))));
+  return node("div", { class: "table-wrap" }, [node("table", { class: "md-table" }, [
+    node("thead", {}, [row(head, "th")]), node("tbody", {}, body.map((values) => row(values, "td")))])]);
+}
+
 export function markdown(text) {
   const blocks = [];
   const lines = String(text || "").replace(/\r\n/g, "\n").split("\n");
@@ -46,7 +58,18 @@ export function markdown(text) {
     paragraph = [];
   };
   const closeLists = () => { stack = []; };
-  for (const raw of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = lines[index];
+    if (raw.includes("|") && index + 1 < lines.length && isDivider(lines[index + 1])) {
+      flush();
+      closeLists();
+      const rows = [raw, lines[index + 1]];
+      index += 2;
+      while (index < lines.length && lines[index].includes("|") && lines[index].trim()) rows.push(lines[index++]);
+      index -= 1;
+      blocks.push(table(rows));
+      continue;
+    }
     const item = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/.exec(raw);
     if (item) {
       flush();

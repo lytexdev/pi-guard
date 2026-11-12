@@ -1,6 +1,7 @@
-"""Emergency medical information: admins with their password, rescuers with a short link.
+"""Emergency medical information for logged-in admins; files, sending and deleting need the
+password. There are no rescue links: they only worked at home or over the VPN.
 
-See addons/medical.py for how the data are kept. Every view, change and link goes into the
+See addons/medical.py for how the data are kept. Every view, change and file goes into the
 audit log, with the person's record number, never the content.
 """
 
@@ -14,7 +15,7 @@ from aiohttp import web
 from pi_guard.addons.medical import MedicalError, MedicalRecords
 from pi_guard.core.timeutil import utcnow
 from pi_guard.i18n import format_time, t
-from pi_guard.web.server import STATIC, current, dashboard, json_body_limit, read_json
+from pi_guard.web.server import current, dashboard, json_body_limit, read_json
 
 
 def routes() -> list[web.RouteDef]:
@@ -24,17 +25,11 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/medical", save),
         web.put("/api/medical/{id:\\d+}", save),
         web.delete("/api/medical/{id:\\d+}", delete),
-        web.get("/api/medical/links", links),
-        web.post("/api/medical/{id:\\d+}/link", make_link),
-        web.delete("/api/medical/links/{id:[0-9a-f]{16}}", end_link),
         web.post("/api/medical/{id:\\d+}/pdf", sheet_pdf),
         web.post("/api/medical/{id:\\d+}/bmp", sheet_bmp),
         web.post("/api/medical/{id:\\d+}/send", send),
         web.post("/api/medical/bmp", read_bmp),
         web.get("/api/medical/accounts", accounts),
-        web.get("/emergency/{token:[A-Za-z0-9_-]{20,80}}", rescue_page),
-        web.get("/api/emergency/{token:[A-Za-z0-9_-]{20,80}}", rescue_state),
-        web.post("/api/emergency/{token:[A-Za-z0-9_-]{20,80}}", rescue_open),
     ]
 
 
@@ -50,7 +45,7 @@ def _actor(request: web.Request) -> str:
 
 
 async def _confirmed(request: web.Request) -> dict[str, Any]:
-    """The request body, after the admin's password. Health data need it every time."""
+    """The request body, after the admin's password: for files, sending and deleting."""
     d = dashboard(request)
     data = await read_json(request)
     if d.auth.check_password(d.auth.account()["username"], str(data.get("password", ""))) is None:
@@ -64,8 +59,9 @@ async def people(request: web.Request) -> web.Response:
 
 
 async def view(request: web.Request) -> web.Response:
+    """Logged in is enough to look: the dashboard login is the lock (and it is audited)."""
     records = _records(request)
-    data = await _confirmed(request)
+    data = await read_json(request)
     record_id = int(data.get("id", 0))
     sheet = records.read(record_id)
     if sheet is None:
@@ -87,7 +83,7 @@ async def accounts(request: web.Request) -> web.Response:
 
 async def save(request: web.Request) -> web.Response:
     records = _records(request)
-    data = await _confirmed(request)
+    data = await read_json(request)
     record_id = int(request.match_info["id"]) if "id" in request.match_info else None
     record = dict(data.get("record") or {})
     account = str(record.get("account") or "")
@@ -113,32 +109,6 @@ async def delete(request: web.Request) -> web.Response:
     if not records.delete(record_id):
         raise web.HTTPNotFound()
     dashboard(request).app.db.audit(_actor(request), "medical.delete", str(record_id))
-    return web.json_response({"ok": True})
-
-
-async def links(request: web.Request) -> web.Response:
-    return web.json_response(_records(request).links())
-
-
-async def make_link(request: web.Request) -> web.Response:
-    records = _records(request)
-    data = await _confirmed(request)
-    record_id = int(request.match_info["id"])
-    try:
-        minutes, with_pin = int(data.get("minutes", 30)), data.get("pin", True) is not False
-        token, pin, expires = records.make_link(record_id, minutes, with_pin, _actor(request))
-    except MedicalError as exc:
-        raise web.HTTPBadRequest(text=exc.key) from None
-    dashboard(request).app.db.audit(_actor(request), "medical.link", str(record_id))
-    url = f"{request.scheme}://{request.host}/emergency/{token}"
-    return web.json_response({"url": url, "pin": pin, "expires": expires},
-                             headers={"Cache-Control": "no-store"})  # fmt: skip
-
-
-async def end_link(request: web.Request) -> web.Response:
-    if not _records(request).end_link(request.match_info["id"]):
-        raise web.HTTPNotFound()
-    dashboard(request).app.db.audit(_actor(request), "medical.link_end")
     return web.json_response({"ok": True})
 
 
@@ -204,7 +174,7 @@ async def read_bmp(request: web.Request) -> web.Response:
 
 
 async def send(request: web.Request) -> web.Response:
-    """The sheet to one emergency contact, as that contact is set to get it (link or PDF)."""
+    """The sheet to one emergency contact, as that contact is set to get it (a note or PDF)."""
     from pi_guard.notifications import sharing
 
     records = _records(request)
@@ -226,47 +196,3 @@ async def send(request: web.Request) -> web.Response:
     if not sent:
         raise web.HTTPBadGateway(text="web.ec_unreachable")
     return web.json_response({"sent": sent, "mode": contact.medical_mode})
-
-
-# --- the rescuer's side: no login, the link is the permission ---------------------------------
-
-
-async def rescue_page(request: web.Request) -> web.FileResponse:
-    return web.FileResponse(
-        STATIC / "emergency.html",
-        headers={
-            "Cache-Control": "no-store",
-            "Referrer-Policy": "no-referrer",
-            "X-Robots-Tag": "noindex",
-        },
-    )
-
-
-async def rescue_state(request: web.Request) -> web.Response:
-    """Whether the link is valid and needs a PIN; nothing about the person."""
-    records = _records(request)
-    state = records.link_state(request.match_info["token"])
-    if state is None:
-        raise web.HTTPGone(text="expired")
-    return web.json_response({**state, "language": dashboard(request).settings.language},
-                             headers={"Cache-Control": "no-store"})  # fmt: skip
-
-
-async def rescue_open(request: web.Request) -> web.Response:
-    d = dashboard(request)
-    ip = d.guard.client_ip(request)
-    if not d.guard.login_allowed(ip):
-        raise web.HTTPTooManyRequests(text="Too many attempts")
-    records = _records(request)
-    pin = str((await read_json(request)).get("pin", ""))[:12]
-    try:
-        opened = await asyncio.to_thread(records.open_link, request.match_info["token"], pin)
-    except MedicalError:
-        d.guard.login_failed(ip)
-        d.app.db.audit(f"web:{ip}", "medical.link_wrong_pin")
-        raise web.HTTPForbidden(text="wrong pin") from None
-    if opened is None:
-        raise web.HTTPGone(text="expired")
-    _, sheet = opened
-    d.app.db.audit(f"rescue:{ip}", "medical.link_open")
-    return web.json_response(sheet, headers={"Cache-Control": "no-store"})

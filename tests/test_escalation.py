@@ -129,6 +129,6 @@ def test_contacts_are_checked() -> None:
     share = {"sos": ["location", "medical", "nonsense"]}
     made = clean({"name": " A  B ", "channels": twice, "share": share, "medical_mode": "x"})
     assert made["name"] == "A B" and made["channels"] == [["email", "a@b.de"]]
-    assert made["share"] == {"sos": ["location", "medical"]} and made["medical_mode"] == "link"
+    assert made["share"] == {"sos": ["location", "medical"]} and made["medical_mode"] == "note"
     fresh = clean({"name": "A", "channels": [{"provider": "email", "address": "a@b.de"}]})
     assert fresh["share"] == DEFAULT_SHARE and "medical" not in fresh["share"]["sos"]

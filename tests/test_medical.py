@@ -1,4 +1,4 @@
-"""Emergency medical information: encrypted, password every time, short links for rescuers."""
+"""Emergency medical information: encrypted, open when logged in, files with the password."""
 
 from __future__ import annotations
 
@@ -31,77 +31,32 @@ def test_records_are_encrypted_on_disk(tmp_path: Path) -> None:
     records.close()
 
 
-def test_a_rescue_link_needs_its_pin_and_ends(tmp_path: Path, monkeypatch: Any) -> None:
-    from datetime import timedelta
-
-    from pi_guard.addons import medical
-    from pi_guard.core.timeutil import utcnow
-
-    records = MedicalRecords(tmp_path)
-    record_id = records.save(None, LENA)
-    token, pin, _ = records.make_link(record_id, 15, True, "web:admin")
-    assert pin is not None and len(pin) == 6
-    assert token not in str(records.links()) and records.link_state(token) == {
-        "expires": records.links()[0]["expires"], "pin": True}  # fmt: skip
-    with pytest.raises(MedicalError):
-        records.open_link(token, "000000" if pin != "000000" else "111111")
-    name, sheet = records.open_link(token, pin)
-    assert name == "Lena Krause" and sheet["allergies"] == "Penicillin"
-    for _ in range(4):  # with the one above, five wrong PINs
-        with pytest.raises(MedicalError):
-            records.open_link(token, "nope")
-    assert records.link_state(token) is None  # five wrong PINs end it
-    assert records.open_link(token, pin) is None  # also the right one, afterwards
-    with pytest.raises(MedicalError, match="minutes"):
-        records.make_link(record_id, 600, True, "x")
-    open_token, no_pin, _ = records.make_link(record_id, 15, False, "x")
-    assert no_pin is None and records.open_link(open_token, "")[0] == "Lena Krause"
-    later = utcnow() + timedelta(minutes=16)
-    monkeypatch.setattr(medical, "utcnow", lambda: later)
-    assert records.link_state(open_token) is None  # ran out
-    records.close()
-
-
-async def test_the_dashboard_asks_for_the_password_every_time(tmp_path: Path) -> None:
+async def test_logged_in_admins_open_a_sheet_and_files_need_the_password(tmp_path: Path) -> None:
     client, app = await _client(tmp_path)
     try:
         app.dashboard.guard.login_allowed = lambda ip: True
         headers = {"X-CSRF-Token": await _login(client)}
         enable(app, medical={"enabled": True})
-        created = await client.post("/api/medical", json={"record": LENA, "password": "no"},
-                                    headers=headers)  # fmt: skip
-        assert created.status == 403
-        created = await client.post("/api/medical", json={"record": LENA, "password": PASSWORD},
-                                    headers=headers)  # fmt: skip
+        created = await client.post("/api/medical", json={"record": LENA}, headers=headers)
         record_id = (await created.json())["id"]
         listed = await (await client.get("/api/medical")).json()
         assert listed[0]["name"] == "Lena Krause" and "allergies" not in listed[0]
-        seen = await client.post("/api/medical/view", json={"id": record_id, "password": PASSWORD},
-                                 headers=headers)  # fmt: skip
+        seen = await client.post("/api/medical/view", json={"id": record_id}, headers=headers)
         assert (await seen.json())["medications"].startswith("Marcumar")
-        body = {"minutes": 30, "pin": True, "password": PASSWORD}
-        answer = await client.post(f"/api/medical/{record_id}/link", headers=headers, json=body)
-        made = await answer.json()
-        token = made["url"].rsplit("/", 1)[1]
-        client.session.cookie_jar.clear()  # the rescuer has no login
-        page = await client.get(f"/emergency/{token}")
-        assert page.status == 200 and "emergency.js" in await page.text()
-        state = await (await client.get(f"/api/emergency/{token}")).json()
-        assert state["pin"] is True and "name" not in state
-        wrong = await client.post(f"/api/emergency/{token}", json={"pin": "x"})
-        assert wrong.status == 403
-        sheet = await client.post(f"/api/emergency/{token}", json={"pin": made["pin"]})
-        assert (await sheet.json())["name"] == "Lena Krause"
-        assert (await client.get("/api/medical")).status == 401  # the rest still needs a login
+        pdf = await client.post(f"/api/medical/{record_id}/pdf", json={}, headers=headers)
+        assert pdf.status == 403  # a file leaves the screen: password
+        gone = await client.delete(f"/api/medical/{record_id}", json={}, headers=headers)
+        assert gone.status == 403
+        # No rescue links any more: no public way to the data.
+        assert (
+            await client.post(f"/api/medical/{record_id}/link", json={}, headers=headers)
+        ).status in (404, 405)
+        client.session.cookie_jar.clear()
+        assert (await client.get("/api/emergency/" + "a" * 32)).status == 401
+        assert (await client.get("/emergency/" + "a" * 32)).status == 404
+        assert (await client.get("/api/medical")).status == 401
         actions = [r[0] for r in app.db.execute("SELECT action FROM audit")]
-        for action in (
-            "medical.save",
-            "medical.view",
-            "medical.link",
-            "medical.link_open",
-            "medical.link_wrong_pin",
-        ):
-            assert action in actions
+        assert "medical.save" in actions and "medical.view" in actions
         detail = " ".join(r[0] for r in app.db.execute("SELECT detail FROM audit"))
         assert "Penicillin" not in detail and "Lena" not in detail
     finally:
@@ -230,20 +185,20 @@ async def test_files_accounts_and_sending_from_the_dashboard(tmp_path: Path) -> 
         app.providers["signal"] = SimpleNamespace(supports_buttons=False)
         app.messenger.send = send  # type: ignore[method-assign]
         contacts = app.escalation.contacts
-        by_link = contacts.save(None, {"name": "Oma", "channels": [
+        by_note = contacts.save(None, {"name": "Oma", "medical_mode": "link", "channels": [
             {"provider": "signal", "address": "+4917000001"}]})  # fmt: skip
         by_file = contacts.save(None, {"name": "Arzt", "medical_mode": "sheet", "channels": [
             {"provider": "signal", "address": "+4917000002"}]})  # fmt: skip
-        for contact in (by_link, by_file):
+        for contact in (by_note, by_file):
             answer = await client.post(f"/api/medical/{record_id}/send", headers=headers,
                                        json={"password": PASSWORD, "contact": contact})  # fmt: skip
             assert answer.status == 200
-        assert "/emergency/" in sent[0][1] and "Penicillin" not in sent[0][1]
-        assert "PIN" in sent[1][1]  # the PIN in a message of its own
-        assert sent[2][0] == "+4917000002" and sent[2][2] == b"%PDF"
-        assert len(app.addons.medical.links()) == 1
+        # An old "link" contact now gets a note only: no link, no data.
+        assert "emergency data" in sent[0][1] and "Penicillin" not in sent[0][1]
+        assert "http" not in sent[0][1] and sent[0][2] is None
+        assert sent[1][0] == "+4917000002" and sent[1][2] == b"%PDF"
         actions = [r[0] for r in app.db.execute("SELECT action FROM audit")]
-        assert {"medical.pdf", "medical.picture", "medical.sent_link", "medical.sent_sheet"} <= set(
+        assert {"medical.pdf", "medical.picture", "medical.sent_note", "medical.sent_sheet"} <= set(
             actions
         )
 

@@ -347,7 +347,7 @@ class Dashboard:
         if (
             not path.startswith("/api/")
             or path in PUBLIC
-            or path.startswith(("/api/i18n/", "/api/updates/", "/api/emergency/"))
+            or path.startswith(("/api/i18n/", "/api/updates/"))
         ):
             return await handler(request)
         bearer = request.headers.get("Authorization", "")

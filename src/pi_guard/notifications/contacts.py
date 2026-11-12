@@ -24,7 +24,7 @@ from pi_guard.storage.db import Database
 OCCASIONS = ("sos", "escalation")
 SHARES = ("location", "phone_photo", "phone_audio", "pi_photo", "events", "home_audio",
           "medical")  # fmt: skip
-MEDICAL_MODES = ("link", "sheet")  # sheet: the PDF goes to the chat service
+MEDICAL_MODES = ("note", "sheet")  # note: only that data exist; sheet: the PDF goes to the chat
 PROVIDERS = ("telegram", "signal", "discord", "whatsapp", "email")
 # What the old settings sent; new contacts start with this as well, without medical data.
 DEFAULT_SHARE = {
@@ -62,7 +62,7 @@ class Contact:
     share: dict[str, list[str]] = field(
         default_factory=lambda: {k: list(v) for k, v in DEFAULT_SHARE.items()}
     )
-    medical_mode: str = "link"
+    medical_mode: str = "note"
     relation: str = ""
     phone: str = ""
     email: str = ""
@@ -119,20 +119,22 @@ def clean(data: dict[str, Any]) -> dict[str, Any]:
     email = _line(data.get("email"), 200)
     if email and not _ADDRESS["email"].match(email):
         raise ContactError("web.ec_bad_email")
-    mode = str(data.get("medical_mode") or "link")
+    mode = str(data.get("medical_mode") or "note")
+    mode = "note" if mode == "link" else mode  # rescue links are gone (1.10)
     return {
         "name": name, "relation": _line(data.get("relation"), 40),
         "phone": _line(data.get("phone"), 40), "email": email,
         "account": _line(data.get("account"), 64), "note": _line(data.get("note"), 300),
         "channels": [list(c) for c in channels[:MAX_CHANNELS]], "share": share,
-        "medical_mode": mode if mode in MEDICAL_MODES else "link",
+        "medical_mode": mode if mode in MEDICAL_MODES else "note",
     }  # fmt: skip
 
 
 def _contact(row_id: int, data: dict[str, Any]) -> Contact:
     return Contact(
         id=row_id, name=data["name"], channels=[(p, a) for p, a in data["channels"]],
-        share=data["share"], medical_mode=data.get("medical_mode", "link"),
+        share=data["share"],
+        medical_mode="note" if data.get("medical_mode", "link") == "link" else data["medical_mode"],
         relation=data.get("relation", ""), phone=data.get("phone", ""),
         email=data.get("email", ""), account=data.get("account", ""), note=data.get("note", ""),
     )  # fmt: skip

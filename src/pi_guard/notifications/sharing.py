@@ -1,9 +1,9 @@
 """What an emergency contact gets: the words always, the rest only if it was chosen for it.
 
 The SOS of a phone and the dashboard's "send to a contact" both go through here, so the
-emergency medical data leave the Pi in one place only: as a rescue link (valid an hour,
-with a PIN in a message of its own) or, if the owner chose it for this contact, as the PDF
-sheet. Every sending is in the audit log with the record number, never the content.
+emergency medical data leave the Pi in one place only: as the PDF sheet, to a contact the owner
+chose that for. Every other contact is only told that data exist. Every sending is in the audit
+log with the record number, never the content.
 """
 
 from __future__ import annotations
@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-LINK_MINUTES = 60
 EVENTS = 5
 _FAILED = (ProviderUnavailableError, RuntimeError, OSError)
 
@@ -66,14 +65,9 @@ async def send_medical(
                 text = t("emergency.medical_sheet", lang, name=name)
                 await app.messenger.send(provider, chat,
                                          Reply(text, document=path, tone="alert"))  # fmt: skip
-        else:
-            token, pin, _ = records.make_link(record_id, LINK_MINUTES, True, actor)
-            url = f"{base_url.rstrip('/')}/emergency/{token}"
+        else:  # a note only: the data stay on the Pi
             await app.messenger.send(provider, chat, Reply(
-                t("emergency.medical_link", lang, name=name, url=url, minutes=LINK_MINUTES),
-                tone="alert"))  # fmt: skip
-            await app.messenger.send(provider, chat, Reply(
-                t("emergency.medical_pin", lang, pin=pin), tone="alert"))  # fmt: skip
+                t("emergency.medical_note", lang, name=name), tone="alert"))  # fmt: skip
     except _FAILED:
         log.warning("emergency data via %s failed", provider)
         return False
