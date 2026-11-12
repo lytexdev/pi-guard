@@ -421,11 +421,11 @@ function shortcuts(d) {
   return h("section", { class: "panel stack" }, h("h2", {}, t("web.nm_shortcuts")),
     h("div", { class: "nm-shortcuts" },
       item("ban", t("web.nm_sc_block"), t("web.nm_sc_block_hint"), "#/network/blocks"),
-      item("mood-happy", t("web.nm_sc_kids"), t("web.nm_sc_kids_hint"), "#/addons/kids"),
+      d.kids ? item("mood-happy", t("web.nm_sc_kids"), t("web.nm_sc_kids_hint"), "#/addons/kids") : null,
       item("qrcode", t("web.nm_sc_guest"), t("web.nm_sc_guest_hint"), null, () => document.querySelector(".nm-wifi")?.scrollIntoView({ behavior: "smooth" })),
       item("network", t("web.nm_sc_map"), t("web.nm_sc_map_hint"), "#/network/map"),
       item("eye", t("web.ex_title"), t("web.ex_teaser"), null, exposureDialog),
-      item("map-pin", t("web.nm_sc_move"), t("web.nm_sc_move_hint"), "#/settings/move")));
+      item("map-pin", t("web.nm_sc_move"), t("web.nm_sc_move_hint"), "#/settings/data/move")));
 }
 
 async function overviewTab(body, d, redraw) {

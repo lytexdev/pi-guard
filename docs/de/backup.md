@@ -1,7 +1,7 @@
 # Backups
 
 pi-guard sichert seine Konfiguration und Daten auf Wunsch selbst: in eine Nextcloud, per rsync auf einen Server oder in
-ein Borg-Repository. Einrichten unter *Einstellungen → Backup*. Ausführlich: [backup.md](../backup.md).
+ein Borg-Repository. Einrichten unter *Einstellungen → Daten & Sicherung → Backup*. Ausführlich: [backup.md](../backup.md).
 
 - **Was drin ist:** `/etc/pi-guard` mit Konfiguration und `.env` (also auch Tokens und Passwörter), die Datenbanken,
   Gesichtsabdrücke, Schlüssel, Töne, die Signal-Verknüpfung. Aufnahmen und Bilder nur, wenn *Auch Aufnahmen und Bilder*
@@ -18,7 +18,7 @@ ein Borg-Repository. Einrichten unter *Einstellungen → Backup*. Ausführlich: 
 
 ## Umzug
 
-Unter *Einstellungen → Umzug*, für ein neues Zuhause, einen neuen Router oder Internetanbieter, oder einen neuen Pi.
+Unter *Einstellungen → Daten & Sicherung → Umzug*, für ein neues Zuhause, einen neuen Router oder Internetanbieter, oder einen neuen Pi.
 
 **Vorher:**
 

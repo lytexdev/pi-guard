@@ -11,10 +11,17 @@ CONF_DIR="${PI_GUARD_EXIT_DIR:-/etc/wireguard}"
 CONF="$CONF_DIR/$IFACE.conf"
 STATUS_DIR="${PI_GUARD_STATUS_DIR:-/run/pi-guard-status}"
 KEY_RE='^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$'
-ENDPOINT_RE='^[A-Za-z0-9.:_\[\]%-]{3,253}$'
+# "]" first: inside brackets a backslash is no escape, and "\]" ended the class early, so every
+# endpoint was refused.
+ENDPOINT_RE='^[][A-Za-z0-9.:_%-]{3,253}$'
 ADDR_RE='^[0-9a-fA-F:.]+/[0-9]{1,3}$'
 MTU_RE='^[0-9]{3,4}$'
 TABLE_ID=51821
+HOME_IFACE="${PI_GUARD_HOME_IFACE:-wg0}"
+# Traffic from the home VPN: first the main table without its default route (LAN, the VPN
+# itself), then the exit. The kill switch in nft.plan drops what would still leave another way.
+RULE_MAIN=10900
+RULE_EXIT=10901
 
 umask 077
 mkdir -p "$STATUS_DIR"
@@ -65,8 +72,11 @@ trap 'rm -f "$TMP"' EXIT
         "$private" "$address" "$mtu" "$TABLE_ID"
     printf 'PostUp = ip rule add from %s table %s; ip rule add to %s table %s\n' \
         "${address%/*}" "$TABLE_ID" "${address%/*}" "$TABLE_ID"
+    printf 'PostUp = ip rule add iif %s lookup main suppress_prefixlength 0 priority %s; ip rule add iif %s table %s priority %s\n' \
+        "$HOME_IFACE" "$RULE_MAIN" "$HOME_IFACE" "$TABLE_ID" "$RULE_EXIT"
     printf 'PostDown = ip rule del from %s table %s; ip rule del to %s table %s\n' \
         "${address%/*}" "$TABLE_ID" "${address%/*}" "$TABLE_ID"
+    printf 'PostDown = ip rule del priority %s; ip rule del priority %s\n' "$RULE_MAIN" "$RULE_EXIT"
     printf '\n[Peer]\nPublicKey = %s\n' "$pub"
     if [[ "$psk" != AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= ]]; then
         printf 'PresharedKey = %s\n' "$psk"

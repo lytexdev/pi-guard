@@ -57,7 +57,8 @@ DEFAULT: dict[str, Any] = {
             "ipv6_address": None,
             "public_key": None,
             "private_key_sealed": None,
-            "selected": None,  # {country, city, hostname, multihop_entry?}
+            "expiry": None,
+            "selected": None,  # {country, city, hostname, entry_hostname?, ...}
         },
         "custom": [],  # [{id, name, endpoint, public_key, private_key_sealed, ...}]
     },

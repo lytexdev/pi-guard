@@ -141,6 +141,7 @@ async def overview(request: web.Request) -> web.Response:
         "wlans": wlans,
         "nearby": await _nearby_wifi(),
         "blockpage": s.blockpage_ip,
+        "kids": app.addons.kids is not None,
     })  # fmt: skip
 
 

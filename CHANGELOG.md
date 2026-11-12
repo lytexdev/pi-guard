@@ -61,6 +61,16 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- Settings: sections grouped into Basics, Alerts, Devices & access and System, each with a short description, the
+  explanation of every setting under its name, toggles for on and off, and a tidier phone list. *Storage*, *Backup*,
+  *Moving* and *Export* are now tabs of *Data & backup*, which shows in the normal view too (Export only in the expert
+  view); old links open the right tab. The backup notice has a button to the backup settings.
+- The assistant's chat is a panel at the bottom right (the whole screen on a phone) with examples to tap, dots while it
+  thinks, Markdown in answers, Yes and No as buttons with the answer in the chat, errors in the chat instead of under
+  it, a new-conversation button, and one input line with microphone and send.
+- Mullvad: choosing a server is a dialog with country, city and server instead of typing a host name, and offers
+  Mullvad's own multi-hop with an entry server. The Pi takes keys, addresses and ports from the relay list, not from
+  the browser. Linking refuses an account without paid time and shows until when it is paid.
 - `scripts/build-desktop.sh` leaves out `.rpm` or `.pacman` when `rpmbuild` or `bsdtar` is missing instead of failing
   the release, and puts `desktop/package.json` back after the build, so `release-apps.sh` finds a clean tree.
 - *Network › Overview* shows the state at a glance, the last 24 hours of name lookups, devices without a name, the
@@ -100,6 +110,15 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- The Pi's privacy exit never came up: a bracket in `pi-guard-exit-apply` was written so that no endpoint matched
+  (`invalid exit.peer`), and with the kill switch on, VPN devices had no internet. Even when up, traffic of VPN devices
+  was not routed into the exit nor masqueraded there; both are added. The kill switch now drops only VPN devices'
+  traffic that would leave another way: the home network stays reachable and other forwarding is left alone. Run
+  `sudo ./scripts/privacy-server.sh install` again after updating.
+- Mullvad answers a wrong account number with 400 `INVALID_ACCOUNT`, which showed as "API request failed"; it now says
+  the number was refused. Two Mullvad hops took the entry's multi-hop port when the exit had none, which leads to
+  another exit; a multi-hop that cannot be built is now refused instead of becoming a single hop.
+- *Network › Overview* offered Kid Protect while the add-on was off.
 - Voice control looked up words with a name the vosk package does not have, so switching on the wake phrase failed.
 - Taking pictures on a phone held upright cut the picture to a landscape strip, so the face seemed zoomed in and hardly
   fit the oval. The picture now keeps the camera's own shape, and the camera uses its widest zoom.

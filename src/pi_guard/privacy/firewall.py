@@ -32,8 +32,20 @@ def render(plan: Plan) -> str:
         f"delete table inet {TABLE}",
         f"table inet {TABLE} {{",
     ]
+    # VPN clients leave through the exit with its address: Mullvad and other exits know
+    # only that one. Needed with or without a kill switch.
+    nat = (
+        [
+            "  chain postrouting {",
+            "    type nat hook postrouting priority srcnat; policy accept;",
+            f'    oifname "{EXIT_IFACE}" masquerade',
+            "  }",
+        ]
+        if plan.exit_up
+        else []
+    )
     if plan.mode == "off":
-        lines.append("}")
+        lines += [*nat, "}"]
         return "\n".join(lines) + "\n"
 
     # Forwarding from VPN clients: fail closed when strict/vpn and an exit is expected.
@@ -43,9 +55,13 @@ def render(plan: Plan) -> str:
         + ("drop" if plan.mode in {"vpn", "strict", "custom"} else "accept")
         + ";",
         "    ct state established,related accept",
+        # The kill switch is about VPN clients only: containers and other forwarding pass.
+        f'    iifname != "{HOME_IFACE}" accept',
         f'    iifname "{HOME_IFACE}" oifname "{EXIT_IFACE}" accept',
         f'    iifname "{EXIT_IFACE}" oifname "{HOME_IFACE}" ct state established,related accept',
     ]
+    if plan.home_network:  # the home network stays reachable from the VPN
+        fwd.append(f'    iifname "{HOME_IFACE}" ip daddr {plan.home_network} accept')
     if plan.tor:
         fwd.append(f'    iifname "{HOME_IFACE}" meta skuid debian-tor accept')
         fwd.append("    meta skuid debian-tor accept")
@@ -95,7 +111,7 @@ def render(plan: Plan) -> str:
         out.append("    meta l4proto { tcp, udp } th dport 53 accept")
     out.append("  }")
 
-    lines += fwd + inp + out + ["}"]
+    lines += fwd + inp + out + nat + ["}"]
     return "\n".join(lines) + "\n"
 
 

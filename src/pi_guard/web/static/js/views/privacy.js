@@ -177,9 +177,13 @@ function providersPanel(cfg, caps, redraw) {
     h("h3", {}, t("web.priv_mullvad")),
     mullvad.has_account
       ? h("div", { class: "stack" },
-        h("p", {}, t("web.priv_mullvad_linked", { name: mullvad.device_name || "—" })),
+        h("p", {}, t("web.priv_mullvad_linked", { name: mullvad.device_name || "—" }),
+          mullvad.expiry ? h("small", { class: "muted block" }, t("web.priv_mullvad_paid_until", { date: new Date(mullvad.expiry).toLocaleDateString() })) : null),
+        mullvad.selected?.hostname ? h("p", {}, h("span", { class: "badge accent" }, icon("world"), " ",
+          mullvad.selected.entry_hostname ? `${mullvad.selected.entry_hostname} → ${mullvad.selected.hostname}` : mullvad.selected.hostname),
+          mullvad.selected.entry_hostname ? h("small", { class: "muted block" }, t("web.priv_mullvad_multihop_on")) : null) : null,
         h("div", { class: "row" },
-          h("button", { onclick: () => mullvadPick(redraw) }, t("web.priv_mullvad_pick")),
+          h("button", { onclick: () => mullvadPick(redraw, mullvad.selected || {}) }, icon("world"), t("web.priv_mullvad_pick")),
           h("button", { class: "danger", onclick: async () => {
             const password = await askDialog(t("web.priv_confirm_pw"), { type: "password" });
             if (password == null) return;
@@ -210,29 +214,63 @@ function providersPanel(cfg, caps, redraw) {
       h("button", { onclick: () => customImport(redraw) }, icon("file-text"), t("web.priv_custom_import"))));
 }
 
-async function mullvadPick(redraw) {
+// Country, city and server from Mullvad's list; an entry server makes it Mullvad's own
+// multi-hop (in at one server, out at another). The Pi takes keys and ports from the list.
+async function mullvadPick(redraw, current = {}) {
   const data = await attempt(() => api("/api/privacy/providers/mullvad/relays"));
-  if (!data?.countries?.length) return;
-  const country = data.countries[0];
-  const city = country.cities?.[0];
-  const relay = city?.relays?.[0];
-  if (!relay) { toast(t("web.priv_mullvad_no_relay")); return; }
-  // Simple first-relay pick; advanced UI can refine later via same API.
-  const pick = await askDialog(t("web.priv_mullvad_hostname_prompt", { example: relay.hostname }));
-  if (pick == null) return;
-  let found = null;
-  for (const c of data.countries) {
-    for (const ci of c.cities || []) {
-      for (const r of ci.relays || []) {
-        if (r.hostname === pick.trim()) found = { country: c.code, city: ci.code, ...r };
-      }
-    }
-  }
-  if (!found) { toast(t("web.priv_mullvad_server")); return; }
-  if (await attempt(() => api("/api/privacy/providers/mullvad/server", { method: "PUT", body: {
-    country: found.country, city: found.city, hostname: found.hostname,
-    ipv4: found.ipv4, public_key: found.public_key, multihop_port: found.multihop_port,
-  } }), t("web.saved"))) redraw();
+  if (!data?.countries?.length) { toast(t("web.priv_mullvad_no_relay"), true); return; }
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  const countries = [...data.countries].sort(byName);
+  const picker = (prefix, chosen) => {
+    const country = h("select", { "aria-label": t("web.priv_mullvad_country") });
+    const city = h("select", { "aria-label": t("web.priv_mullvad_city") });
+    const server = h("select", { "aria-label": t("web.priv_mullvad_server_pick") });
+    const fillCities = () => {
+      const c = countries.find((x) => x.code === country.value);
+      fill(city, ...[...(c?.cities || [])].sort(byName).map((x) => h("option", { value: x.code, selected: x.code === chosen.city }, x.name)));
+      fillServers();
+    };
+    const fillServers = () => {
+      const c = countries.find((x) => x.code === country.value)?.cities?.find((x) => x.code === city.value);
+      fill(server, h("option", { value: "" }, t("web.priv_mullvad_any")),
+        ...(c?.relays || []).map((r) => h("option", { value: r.hostname, selected: r.hostname === chosen.hostname }, r.hostname)));
+    };
+    fill(country, ...countries.map((c) => h("option", { value: c.code, selected: c.code === (chosen.country || (prefix === "exit" ? "de" : "se")) }, c.name)));
+    country.addEventListener("change", fillCities);
+    city.addEventListener("change", fillServers);
+    fillCities();
+    // "Any" takes the first server of the city: they are equal for this purpose.
+    const value = () => server.value || countries.find((x) => x.code === country.value)?.cities?.find((x) => x.code === city.value)?.relays?.[0]?.hostname || "";
+    return { value, box: h("div", { class: "grid three" },
+      h("label", { class: "field" }, t("web.priv_mullvad_country"), country), h("label", { class: "field" }, t("web.priv_mullvad_city"), city),
+      h("label", { class: "field" }, t("web.priv_mullvad_server_pick"), server)) };
+  };
+  const exitPick = picker("exit", { country: current.country, city: current.city, hostname: current.hostname });
+  const entryWanted = h("input", { type: "checkbox", class: "toggle", role: "switch", id: "mv_multihop", checked: Boolean(current.entry_hostname) });
+  const entryRelay = current.entry_hostname ? findRelay(countries, current.entry_hostname) : {};
+  const entryPick = picker("entry", entryRelay);
+  const entryBox = h("div", { class: `stack ${entryWanted.checked ? "" : "hidden"}` }, h("h3", {}, t("web.priv_mullvad_entry")), entryPick.box);
+  entryWanted.addEventListener("change", () => entryBox.classList.toggle("hidden", !entryWanted.checked));
+  const dialog = h("dialog", { class: "editor" },
+    h("div", { class: "row between" }, h("h2", {}, t("web.priv_mullvad_pick")), h("button", { class: "icon-only", title: t("web.close"), onclick: () => dialog.close() }, icon("x"))),
+    h("div", { class: "stack" },
+      h("h3", {}, t("web.priv_mullvad_exit")), h("p", { class: "muted" }, h("small", {}, t("web.priv_mullvad_exit_hint"))), exitPick.box,
+      h("div", { class: "switch-row is-bool" }, h("div", { class: "switch-label" }, h("label", { for: "mv_multihop" }, t("web.priv_mullvad_multihop")),
+        h("small", { class: "muted" }, t("web.priv_mullvad_multihop_hint"))), h("div", { class: "control" }, entryWanted)),
+      entryBox),
+    h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
+      h("button", { class: "primary", onclick: async () => {
+        const body = { hostname: exitPick.value(), entry_hostname: entryWanted.checked ? entryPick.value() : null };
+        if (await attempt(() => api("/api/privacy/providers/mullvad/server", { method: "PUT", body }), t("web.saved"))) { dialog.close(); redraw(); }
+      } }, icon("check"), t("web.save"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+function findRelay(countries, hostname) {
+  for (const c of countries) for (const ci of c.cities || []) for (const r of ci.relays || []) if (r.hostname === hostname) return { country: c.code, city: ci.code, hostname };
+  return {};
 }
 
 async function customManual(redraw) {
