@@ -57,6 +57,6 @@ fi
 
 MODE=off
 grep -q 'policy drop' "$PLAN" && MODE=strict || MODE=open
-grep -q 'oifname "pgexit"' "$PLAN" && MODE=vpn
+grep -q 'iifname "wg0" oifname "pgexit"' "$PLAN" && MODE=vpn
 write_status "applied=1" "mode=$MODE"
 echo "pi-guard-privacy-nft: applied ($MODE)"

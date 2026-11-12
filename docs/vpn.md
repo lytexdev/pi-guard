@@ -42,13 +42,30 @@ sudo ./scripts/privacy-server.sh unlock
 | --- | --- |
 | Custom WireGuard / `.conf` import as exit | yes |
 | Mullvad account → device → server (public API) | yes |
-| Mullvad native multi-hop (entry + exit) | when the relay list exposes a multihop port |
+| Mullvad native multi-hop (entry + exit) | yes: *Choose server* → *Multi-hop through a second server* |
 | Independent nested WG tunnels beyond that | refused (not silently faked) |
 | DNS modes (system / custom / VPN-routed / provider / DoT) | yes; DoH/DoQ not shipped yet |
 | Pi upstream kill switch (nftables) | yes; LAN management stays allowed |
 | Tor SOCKS / VPN-then-Tor | only if `tor` is already installed |
 | AmneziaWG / Shadowsocks / Xray | capability-gated; off on a stock Pi kernel |
 | SSH remote VPS setup | plan/preview only; no auto-apply |
+
+### Mullvad
+
+*Network › VPN › Providers*: link the account with its 16-digit number (it is checked with Mullvad, an account without
+paid time is refused, and the number is stored sealed), then *Choose server*: country, city and server for the exit,
+and with *Multi-hop through a second server* an entry server. Mullvad's own multi-hop connects to the entry's address
+on the exit's port with the exit's key, so the entry sees the home and the exit sees the destination. Keys, addresses
+and ports come from Mullvad's relay list on the Pi, never from the browser.
+
+`pi-guard-exit-apply` brings up `pgexit` and routes the home VPN (`wg0`) into it: the main table without its default
+route first (home network, the VPN itself), then the exit. The privacy table masquerades what leaves through
+`pgexit`, and with the kill switch it drops VPN traffic that would leave another way; other forwarding, such as
+containers, is not touched. After an update of these scripts run `sudo ./scripts/privacy-server.sh install` again.
+
+Until 2026-11-12 every exit was refused (`invalid exit.peer`): a bracket in the endpoint check of
+`pi-guard-exit-apply` was written so that no address matched. With the kill switch on, VPN devices then had no
+internet. Tested with the Mullvad API's answers and the script in test mode; a real tunnel to Mullvad was not tested.
 
 Honest limits: the home VPN endpoint remains identifiable; multi-hop is not correlation-proof; same-provider entry and
 exit are not independent trust domains; Tor routing is not Tor Browser; obfuscation does not mean undetectable.

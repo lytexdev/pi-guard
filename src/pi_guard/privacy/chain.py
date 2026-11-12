@@ -92,8 +92,9 @@ def build_active_peer(store: Any) -> Any:
             "entry_hostname": (entry.get("params") or {}).get("hostname"),
             "entry_ipv4": (entry.get("params") or {}).get("ipv4"),
             "entry_public_key": (entry.get("params") or {}).get("public_key"),
-            "multihop_port": (exit_hop.get("params") or {}).get("multihop_port")
-            or (entry.get("params") or {}).get("multihop_port"),
+            # Mullvad multi-hop goes to the entry's address on the exit's own port; the
+            # entry's port would lead to another exit.
+            "multihop_port": (exit_hop.get("params") or {}).get("multihop_port"),
         }
         return MullvadProvider().build_peer(store, {"params": params})
     hop = hops[0]

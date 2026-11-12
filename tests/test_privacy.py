@@ -210,6 +210,7 @@ async def test_mullvad_register_mocked(privacy: PrivacyService) -> None:
 
     session = MagicMock()
     session.post = MagicMock(return_value=Resp())
+    session.get = MagicMock(return_value=_Reply(200, {"expiry": "2099-01-01T00:00:00+00:00"}))
     provider._session = session
     with (
         patch.object(provider, "token", AsyncMock(side_effect=fake_token)),
@@ -219,6 +220,7 @@ async def test_mullvad_register_mocked(privacy: PrivacyService) -> None:
     ):
         result = await provider.register_device(account, privacy.store)
     assert result["device_id"] == "dev-1"
+    assert privacy.store.data["providers"]["mullvad"]["expiry"].startswith("2099")
     assert (
         privacy.store.open(privacy.store.data["providers"]["mullvad"]["account_sealed"]) == account
     )
@@ -285,3 +287,140 @@ async def test_api_privacy_config_and_profile(tmp_path: Path) -> None:
     finally:
         await client.close()
         app.db.close()
+
+
+def _run_exit_apply(tmp_path: Path, line: str) -> tuple[int, Path]:
+    import os
+    import subprocess
+
+    privacy_dir, conf_dir, status = tmp_path / "privacy", tmp_path / "wg", tmp_path / "status"
+    for folder in (privacy_dir, conf_dir, status):
+        folder.mkdir(exist_ok=True)
+    (privacy_dir / "exit.peer").write_text(line)
+    env = {**os.environ, "PI_GUARD_PRIVACY_DIR": str(privacy_dir),
+           "PI_GUARD_EXIT_DIR": str(conf_dir), "PI_GUARD_STATUS_DIR": str(status)}  # fmt: skip
+    result = subprocess.run(["bash", str(EXIT_APPLY)], env=env, capture_output=True, text=True)
+    return result.returncode, conf_dir / "pgexit.conf"
+
+
+@pytest.mark.skipif(not EXIT_APPLY.is_file(), reason="deploy script missing")
+@pytest.mark.parametrize(
+    "endpoint", ["185.209.196.74:51820", "[2a03:1b20:3:f011::a01f]:51820", "vpn.example.org:51820"]
+)
+def test_exit_apply_takes_real_endpoints(tmp_path: Path, endpoint: str) -> None:
+    # Every endpoint was refused once: "\]" ended the bracket in the shell pattern.
+    private, public = generate_keypair()
+    psk = "A" * 43 + "="
+    code, conf = _run_exit_apply(
+        tmp_path, f"{public}\t{psk}\t{endpoint}\t0.0.0.0/0,::/0\t10.64.0.2/32\t{private}\t1280\n"
+    )
+    assert code == 0 and conf.is_file()
+    text = conf.read_text()
+    assert f"Endpoint = {endpoint}" in text and "PresharedKey" not in text
+    # VPN clients go out through the exit; the LAN and the VPN itself stay in the main table.
+    assert "iif wg0 lookup main suppress_prefixlength 0" in text and "iif wg0 table 51821" in text
+
+
+def test_firewall_sends_vpn_clients_through_the_exit() -> None:
+    text = render(Plan(mode="vpn", exit_up=True, home_network="192.168.1.0/24"))
+    assert 'oifname "pgexit" masquerade' in text  # the exit knows only its own address
+    assert 'iifname != "wg0" accept' in text  # the kill switch leaves containers alone
+    assert 'iifname "wg0" ip daddr 192.168.1.0/24 accept' in text  # home stays reachable
+    off = render(Plan(mode="off", exit_up=True))
+    assert "masquerade" in off and "policy drop" not in off
+    assert "masquerade" not in render(Plan(mode="vpn", exit_up=False))
+
+
+class _Reply:
+    def __init__(self, status: int, body: Any) -> None:
+        self.status, self.body = status, body
+
+    async def json(self, content_type: Any = None) -> Any:
+        return self.body
+
+    async def __aenter__(self) -> _Reply:
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        return None
+
+
+async def test_mullvad_wrong_account_is_named() -> None:
+    # Mullvad answers a wrong number with 400 INVALID_ACCOUNT, not 401 (checked 2026-11-12).
+    provider = MullvadProvider()
+    session = MagicMock()
+    session.post = MagicMock(return_value=_Reply(400, {"code": "INVALID_ACCOUNT"}))
+    provider._session = session
+    with pytest.raises(PrivacyError, match="bad_account"):
+        await provider.token("0000000000000000")
+    session.post = MagicMock(return_value=_Reply(503, {"code": "SERVICE_UNAVAILABLE"}))
+    with pytest.raises(PrivacyError, match="priv_mullvad_api"):
+        await provider.token("0000000000000000")
+
+
+async def test_mullvad_refuses_an_expired_account(privacy: PrivacyService) -> None:
+    provider = MullvadProvider()
+    session = MagicMock()
+    session.get = MagicMock(return_value=_Reply(200, {"expiry": "2020-01-01T00:00:00+00:00"}))
+    session.post = MagicMock()
+    provider._session = session
+    with (
+        patch.object(provider, "token", AsyncMock(return_value="tok")),
+        pytest.raises(PrivacyError, match="expired"),
+    ):
+        await provider.register_device("1234567890123456", privacy.store)
+    session.post.assert_not_called()  # no device is used up on the account
+
+
+RELAYS = [
+    {"code": "de", "name": "Germany", "cities": [{"code": "fra", "name": "Frankfurt", "relays": [
+        {"hostname": "de-fra-wg-004", "ipv4": "185.209.196.74", "public_key": "EXIT=",
+         "multihop_port": 3155}]}]},
+    {"code": "se", "name": "Sweden", "cities": [{"code": "sto", "name": "Stockholm", "relays": [
+        {"hostname": "se-sto-wg-001", "ipv4": "193.138.218.220", "public_key": "ENTRY=",
+         "multihop_port": 3001}]}]},
+]  # fmt: skip
+
+
+def test_mullvad_multihop_uses_entry_address_and_exit_port(privacy: PrivacyService) -> None:
+    provider = MullvadProvider()
+    mullvad = privacy.store.data["providers"]["mullvad"]
+    private, _ = generate_keypair()
+    mullvad.update({"device_id": "d", "ipv4_address": "10.64.0.9/32",
+                    "private_key_sealed": privacy.store.seal(private)})  # fmt: skip
+    # The browser's keys and ports are ignored: they come from the relay list.
+    chosen = provider.select_server(
+        privacy.store,
+        {"hostname": "de-fra-wg-004", "entry_hostname": "se-sto-wg-001", "public_key": "FAKE"},
+        RELAYS,
+    )
+    assert chosen["public_key"] == "EXIT=" and chosen["entry_ipv4"] == "193.138.218.220"
+    peer = provider.build_peer(privacy.store)
+    assert peer.endpoint == "193.138.218.220:3155" and peer.peer_public_key == "EXIT="
+    single = provider.select_server(privacy.store, {"hostname": "de-fra-wg-004"}, RELAYS)
+    assert single["entry_hostname"] is None
+    assert provider.build_peer(privacy.store).endpoint == "185.209.196.74:51820"
+    for bad in ({"hostname": "de-fra-wg-004", "entry_hostname": "de-fra-wg-004"},
+                {"hostname": "de-fra-wg-004", "entry_hostname": "xx-nowhere"}):  # fmt: skip
+        with pytest.raises(PrivacyError):
+            provider.select_server(privacy.store, bad, RELAYS)
+    # A multi-hop without what it needs is refused, never made a single hop.
+    mullvad["selected"] = {**single, "entry_hostname": "se-sto-wg-001"}
+    with pytest.raises(PrivacyError):
+        provider.build_peer(privacy.store)
+
+
+def test_two_mullvad_hops_use_the_exits_port(privacy: PrivacyService) -> None:
+    from pi_guard.privacy.chain import build_active_peer
+
+    mullvad = privacy.store.data["providers"]["mullvad"]
+    private, _ = generate_keypair()
+    mullvad.update({"device_id": "d", "ipv4_address": "10.64.0.9/32",
+                    "private_key_sealed": privacy.store.seal(private)})  # fmt: skip
+    entry = MullvadProvider.find_relay(RELAYS, "se-sto-wg-001")
+    exit_relay = MullvadProvider.find_relay(RELAYS, "de-fra-wg-004")
+    privacy.store.data["chain"]["hops"] = [
+        {"id": "a", "provider": "mullvad", "name": "in", "params": entry},
+        {"id": "b", "provider": "mullvad", "name": "out", "params": exit_relay},
+    ]
+    assert build_active_peer(privacy.store).endpoint == "193.138.218.220:3155"

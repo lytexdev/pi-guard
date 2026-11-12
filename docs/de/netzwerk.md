@@ -130,3 +130,9 @@ Technische Details: [network.md](../network.md#wireguard-home-vpn).
 Optionaler Multi-Hop-Exit auf dem Pi (Mullvad, eigener WireGuard, Tor). Geräte nutzen weiter das
 Heim-VPN; der Pi leitet ausgewählten Verkehr über einen Upstream-Hop. Installation:
 `sudo ./scripts/privacy-server.sh install`. Details: [vpn.md](../vpn.md#privacy-upstream-optional).
+
+Mullvad: unter *Netzwerk › VPN* das Konto mit seiner 16-stelligen Nummer verknüpfen (ein Konto ohne bezahlte Zeit wird
+abgelehnt), dann *Server wählen*: Land, Stadt und Server für den Ausgang, und mit *Multi-Hop über einen zweiten Server*
+einen Eingang. Schlüssel, Adressen und Ports nimmt der Pi aus Mullvads Serverliste. Bis 2026-11-12 kam kein Exit hoch
+(`invalid exit.peer` im Journal), mit Kill-Switch hatten VPN-Geräte dann kein Internet. Nach dem Update
+`sudo ./scripts/privacy-server.sh install` erneut ausführen. Eine echte Verbindung zu Mullvad ist noch nicht getestet.

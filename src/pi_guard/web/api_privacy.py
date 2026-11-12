@@ -305,13 +305,15 @@ async def mullvad_server(request: web.Request) -> web.Response:
     data = await read_json(request)
     svc = _svc(request)
     try:
-        selected = svc.mullvad.select_server(svc.store, data)
+        countries = await svc.mullvad.relays(svc.store.relay_cache_path())
+        selected = svc.mullvad.select_server(svc.store, data, countries)
         # Keep a mullvad hop in the chain in sync with selection.
         hops = [h for h in svc.store.data["chain"]["hops"] if h.get("provider") != "mullvad"]
+        names = [selected.get("entry_hostname"), selected.get("hostname")]
         hops.append(
             {
                 "provider": "mullvad",
-                "name": selected.get("hostname") or "Mullvad",
+                "name": " → ".join(filter(None, names)),
                 "params": selected,
             }
         )
