@@ -44,5 +44,10 @@ pub fn run_input(program: &str, args: &[&str], input: &[u8]) -> Result<(), Strin
 
 /// A secret for `wg`, through a pipe instead of the argument list, where every user could read it.
 pub fn set_preshared_key(interface: &str, peer: &str, key: &str) -> Result<(), String> {
-    run_input("wg", &["set", interface, "peer", peer, "preshared-key", "/dev/stdin"], key.as_bytes())
+    set_preshared_key_with("wg", interface, peer, key)
+}
+
+/// The same for another tool of the WireGuard family, such as AmneziaWG's `awg`.
+pub fn set_preshared_key_with(tool: &str, interface: &str, peer: &str, key: &str) -> Result<(), String> {
+    run_input(tool, &["set", interface, "peer", peer, "preshared-key", "/dev/stdin"], key.as_bytes())
 }

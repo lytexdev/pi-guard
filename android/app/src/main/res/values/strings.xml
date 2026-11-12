@@ -44,6 +44,7 @@
     <string name="vpn_way_ipv4">Directly, IPv4</string>
     <string name="vpn_way_ipv6">Directly, IPv6</string>
     <string name="vpn_way_relay">Through your rented server</string>
+    <string name="vpn_way_hidden">Disguised (AmneziaWG)</string>
     <string name="look_calculator">Calculator</string>
     <string name="look_notes">Notes</string>
     <string name="look_weather">Weather</string>

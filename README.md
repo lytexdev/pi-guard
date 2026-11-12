@@ -49,8 +49,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   scan, storage clean-up and Wi-Fi QR codes. A tutorial with a guided tour, also in the apps,
   through the assistant and with `/tutorial` in chats.
 - **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
-  a WireGuard VPN with your own devices, optional privacy upstream (multi-hop /
-  Mullvad / Tor), a safe fixed-IP script, and help with moving to a new home,
+  a WireGuard VPN with your own devices, a disguised way for networks that block
+  WireGuard (AmneziaWG), optional privacy upstream (multi-hop / Mullvad / Tor), a safe fixed-IP script, and help with moving to a new home,
   router or Pi (see [backups](docs/backup.md#moving)).
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /

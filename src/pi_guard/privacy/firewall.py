@@ -8,6 +8,8 @@ from dataclasses import dataclass
 TABLE = "pi_guard_privacy"
 EXIT_IFACE = "pgexit"
 HOME_IFACE = "wg0"
+# The same VPN devices over AmneziaWG (scripts/amneziawg.sh); harmless where it does not exist.
+HOME_IFACES = '{ "wg0", "awg0" }'
 # Management ports that must stay reachable from the LAN even in strict mode.
 DASHBOARD_PORTS = (8080, 8443)
 SSH_PORT = 22
@@ -56,14 +58,14 @@ def render(plan: Plan) -> str:
         + ";",
         "    ct state established,related accept",
         # The kill switch is about VPN clients only: containers and other forwarding pass.
-        f'    iifname != "{HOME_IFACE}" accept',
-        f'    iifname "{HOME_IFACE}" oifname "{EXIT_IFACE}" accept',
-        f'    iifname "{EXIT_IFACE}" oifname "{HOME_IFACE}" ct state established,related accept',
+        f"    iifname != {HOME_IFACES} accept",
+        f'    iifname {HOME_IFACES} oifname "{EXIT_IFACE}" accept',
+        f'    iifname "{EXIT_IFACE}" oifname {HOME_IFACES} ct state established,related accept',
     ]
     if plan.home_network:  # the home network stays reachable from the VPN
-        fwd.append(f'    iifname "{HOME_IFACE}" ip daddr {plan.home_network} accept')
+        fwd.append(f"    iifname {HOME_IFACES} ip daddr {plan.home_network} accept")
     if plan.tor:
-        fwd.append(f'    iifname "{HOME_IFACE}" meta skuid debian-tor accept')
+        fwd.append(f"    iifname {HOME_IFACES} meta skuid debian-tor accept")
         fwd.append("    meta skuid debian-tor accept")
     if plan.mode == "vpn" and not plan.exit_up and not plan.tor:
         # VPN mode without an active exit: do not lock the home WAN (owner still setting up).
@@ -95,7 +97,7 @@ def render(plan: Plan) -> str:
         '    oif "lo" accept',
         "    ct state established,related accept",
         f'    oifname "{EXIT_IFACE}" accept',
-        f'    oifname "{HOME_IFACE}" accept',
+        f"    oifname {HOME_IFACES} accept",
         "    udp sport 68 udp dport 67 accept",
         "    udp sport 546 udp dport 547 accept",
         "    icmpv6 type { nd-router-solicit, nd-neighbor-solicit, nd-neighbor-advert } accept",

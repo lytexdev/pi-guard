@@ -78,7 +78,7 @@ Freigaben › Portfreigaben › Gerät für Freigaben hinzufügen*).
 
 ### Wege von unterwegs
 
-Im Dashboard unter **Netzwerk › VPN › Von unterwegs** stehen vier Wege mit ihrem Zustand. Was funktioniert, hängt
+Im Dashboard unter **Netzwerk › VPN › Von unterwegs** stehen fünf Wege mit ihrem Zustand. Was funktioniert, hängt
 vom Internetanschluss ab, nicht von der Router-Marke. Richten Sie gern mehrere ein: Die App probiert
 sie der Reihe nach und merkt sich den, der geantwortet hat.
 
@@ -88,6 +88,7 @@ sie der Reihe nach und merkt sich den, der geantwortet hat.
 | **IPv6** | Namen mit der IPv6-Adresse des Pi, UDP 51820 im Router erlaubt, IPv6 im Handynetz | DS-Lite und CGNAT mit IPv6 |
 | **Mietserver** | kleinen Debian- oder Ubuntu-Server | jedem Anschluss, auch LTE und Starlink |
 | **Tailscale** | Tailscale-Konto, Tailscale-App auf dem Handy | jedem Anschluss, ohne Router-Änderung |
+| **Getarnt (AmneziaWG)** | den IPv4- oder IPv6-Weg und einen zweiten weitergeleiteten UDP-Port | Netzen, die WireGuard sperren: Hotel, Firma, manche Länder |
 
 Viele Kabel- und Glasfaseranschlüsse (zum Beispiel oft bei Vodafone) haben keine eigene IPv4-Adresse
 (DS-Lite, CGNAT). Eine Portfreigabe bewirkt dann nichts. Das trifft Sie, wenn die WAN-Adresse im
@@ -124,6 +125,24 @@ erneut anzeigen; für Laptops gibt es eine `.conf`-Datei. Entfernte Geräte sind
 nach wenigen Sekunden ausgesperrt.
 
 Technische Details: [network.md](../network.md#wireguard-home-vpn).
+
+### Getarnt mit AmneziaWG
+
+AmneziaWG ist WireGuard mit anders aussehenden Paketen (Füllpakete, Polster, andere Kopfzeilen). Netze,
+die WireGuard an seinem Aussehen erkennen und sperren, lassen es durch. Auf dem Pi:
+
+```bash
+sudo ./scripts/amneziawg.sh install        # UDP 443, oder: install 51821
+```
+
+Das baut das Kernelmodul per DKMS (nach Kernel-Updates von selbst neu) und die Werkzeuge `awg`/`awg-quick`
+aus festen Versionen mit geprüfter Prüfsumme, richtet `awg0` neben `wg0` ein und öffnet den Port in ufw.
+Danach am Router den UDP-Port an den Pi weiterleiten und pi-guard neu starten. Geräte, Schlüssel und
+Adressen bleiben die von `wg0`: `pi-guard-awg-sync` überträgt sie jede Sekunde und leitet ein Gerät über
+den Weg zurück, über den es sich zuletzt gemeldet hat. Die Handy-App ab 1.8 probiert die getarnten Wege,
+wenn die normalen nicht antworten, und zeigt dann *Getarnt (AmneziaWG)*. Die Desktop-App kann es noch
+nicht. Nach dem Update auch `sudo ./scripts/vpn-server.sh install` (Post-Quantum-Schlüssel auch über awg0)
+und `sudo ./scripts/privacy-server.sh install` (Privacy-Ausgang und Kill-Switch auch für awg0) ausführen.
 
 ### Privacy-Upstream
 

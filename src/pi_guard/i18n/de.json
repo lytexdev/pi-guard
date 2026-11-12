@@ -3077,5 +3077,11 @@
   "web.priv_mullvad_exit_hint": "Mit dieser Adresse erscheinen die VPN-Geräte im Internet.",
   "web.priv_mullvad_entry": "Eingang",
   "web.priv_mullvad_multihop": "Multi-Hop über einen zweiten Server",
-  "web.priv_mullvad_multihop_hint": "Mullvads eigenes Multi-Hop: Der Eingang sieht, wer du bist, der Ausgang, wohin es geht, keiner beides. Etwas langsamer."
+  "web.priv_mullvad_multihop_hint": "Mullvads eigenes Multi-Hop: Der Eingang sieht, wer du bist, der Ausgang, wohin es geht, keiner beides. Etwas langsamer.",
+  "web.reach_awg": "Getarnt (AmneziaWG)",
+  "web.reach_awg_off": "Nicht eingerichtet. Für Netze, die WireGuard erkennen und sperren (Hotel, Firma, manche Länder): dieselbe Verbindung, nur anders verpackt.",
+  "web.reach_awg_down": "Eingerichtet, aber awg0 läuft gerade nicht. sudo ./scripts/amneziawg.sh status zeigt mehr.",
+  "web.reach_awg_ok": "Läuft auf UDP {port}. Am Router UDP {port} an den Pi weiterleiten. Die App ab 1.8 nimmt diesen Weg, wenn die normalen nicht antworten.",
+  "web.reach_how_awg": "Auf dem Pi ausführen. Es baut AmneziaWG aus einer festen, geprüften Version, richtet awg0 neben wg0 ein und öffnet den Port in ufw. Danach am Router den UDP-Port an den Pi weiterleiten und pi-guard neu starten.",
+  "web.reach_cmd_awg": "sudo ./scripts/amneziawg.sh install"
 }

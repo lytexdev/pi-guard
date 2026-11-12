@@ -1,7 +1,7 @@
 package de.lytex
 
 import android.app.Application
-import com.wireguard.android.backend.GoBackend
+import org.amnezia.awg.backend.GoBackend
 import kotlin.concurrent.thread
 
 class PiGuardApp : Application() {

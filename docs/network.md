@@ -129,7 +129,7 @@ Freigaben › Portfreigaben › Gerät für Freigaben hinzufügen*).
 
 ### Ways home from outside
 
-Dashboard › **Network › VPN › From outside** shows four ways with their state. Which ones work depends on your
+Dashboard › **Network › VPN › From outside** shows five ways with their state. Which ones work depends on your
 internet connection, not on the router brand. Set up several: the app tries them in turn and
 remembers the one that answered.
 
@@ -139,6 +139,7 @@ remembers the one that answered.
 | **IPv6** | a name with the Pi's own IPv6 address, UDP 51820 allowed in the router, IPv6 on the phone's network | DS-Lite and CGNAT with IPv6 |
 | **Rented server** | a small Debian or Ubuntu server | every connection, also LTE and Starlink |
 | **Tailscale** | a Tailscale account, the Tailscale app on the phone | every connection, no router change |
+| **Disguised (AmneziaWG)** | the IPv4 or IPv6 way, plus a second UDP port forwarded | networks that block WireGuard: hotels, offices, some countries |
 
 Many cable and fibre lines have no IPv4 address of their own (DS-Lite, CGNAT), and port forwarding
 then does nothing. If the router's WAN address differs from what the internet sees, or starts with
@@ -153,6 +154,9 @@ router's DynDNS or a service like DuckDNS. pi-guard does not update the name its
 **IPv6:** `sudo ./scripts/wireguard.sh endpoint6 pi.name.example.org`. The name must lead to the Pi
 itself, not to the router, and follow its address when the prefix changes. FRITZ!Box gives every
 shared device its own MyFRITZ! name. Open UDP 51820 for the Pi over IPv6.
+
+**Disguised (AmneziaWG):** `sudo ./scripts/amneziawg.sh install` (UDP 443 unless you name a port), then
+forward that UDP port to the Pi like the WireGuard port, and restart pi-guard. See [vpn.md](vpn.md#disguised-amneziawg).
 
 **Rented server:**
 

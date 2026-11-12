@@ -19,6 +19,7 @@ from aiohttp import web
 from pi_guard.addons.blocking import BlockError, Blocks
 from pi_guard.config import OVERRIDE_YAML
 from pi_guard.config.files import FileConfig, TrustedDevice
+from pi_guard.network import awg
 from pi_guard.network.blocklists import MAX_FILE_BYTES, PRESETS, parse_domains, valid_list_address
 from pi_guard.network.fritzbox import FritzError, as_dicts
 from pi_guard.network.inspect import inspect_device
@@ -613,6 +614,7 @@ async def reach(request: web.Request) -> web.Response:
             ipv4_way(s.wireguard_endpoint, v4, public, used["ipv4"]),
             ipv6_way(s.wireguard_endpoint_v6, v6, own_ipv6(), used["ipv6"]),
             relay_way(s.wireguard_relay, relay, used["relay"]),
+            awg.way(await asyncio.to_thread(awg.read), s.wireguard_endpoint, awg.running()),
             tailscale_way(await asyncio.to_thread(tailscale)),
         ],
     }, headers={"Cache-Control": "no-store"})  # fmt: skip

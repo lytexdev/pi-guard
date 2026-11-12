@@ -11,6 +11,7 @@ The VPN connects phones and computers to your home, like a commercial VPN app, b
 | Lockdown | through Android | yes | no | |
 | Split tunneling | per app | per program | no | |
 | Quantum-resistant tunnel | yes | yes | yes | |
+| Disguised way (AmneziaWG) | yes, from 1.8 | not yet | not yet | |
 
 ## Privacy upstream (optional)
 
@@ -71,6 +72,38 @@ Honest limits: the home VPN endpoint remains identifiable; multi-hop is not corr
 exit are not independent trust domains; Tor routing is not Tor Browser; obfuscation does not mean undetectable.
 
 See also [privacy.md](privacy.md) and the compatibility notes under *Things that already went wrong* in `AGENTS.md`.
+
+## Disguised (AmneziaWG)
+
+Some networks recognise WireGuard by the look of its packets and block it: hotels, offices, some countries.
+[AmneziaWG](https://github.com/amnezia-vpn) is WireGuard with junk packets before the handshake, padded
+handshakes and other message headers; the keys and the encryption stay WireGuard's.
+
+```bash
+sudo ./scripts/amneziawg.sh install          # UDP 443, or name a port: install 51821
+sudo ./scripts/amneziawg.sh status
+sudo ./scripts/amneziawg.sh remove
+```
+
+`install` builds the kernel module with DKMS (rebuilt by itself after kernel updates) and the `awg`/`awg-quick`
+tools, from fixed releases whose SHA-256 the script checks, and sets up `awg0` next to `wg0` with the Pi's
+WireGuard key. The disguise is chosen once at random and kept in `/var/lib/pi-guard-awg/params`, because the
+apps carry the same values. Forward the UDP port on the router to the Pi, then restart pi-guard.
+
+Devices stay those of `wg0`. `pi-guard-awg-sync` copies every device's key, preshared key and address to `awg0`
+each second and routes a device's `10.8.0.N` through the interface it greeted last, so Pi-hole, presence and the
+dashboard see one device whichever way it came. The post-quantum service sets rotating keys on both and counts
+a greeting on either as alive; the privacy exit and its kill switch treat `awg0` like `wg0`. After updating, run
+`vpn-server.sh install` and `privacy-server.sh install` again so their parts know `awg0`.
+
+The phone app (1.8 and newer) gets the disguised ways next to the normal ones and tries them after those; it
+uses AmneziaWG's tunnel library, which also speaks plain WireGuard. `scripts/build-android.sh` builds that
+library once from a fixed release (commit checked) into `~/.cache/pi-guard`. The desktop app does not have it
+yet: it would need AmneziaWG on each computer.
+
+Tested: the module and tools build on the owner's Pi (kernel 6.18, Debian 13), the sync script with stand-in
+tools, the app compiles against the library's API. Not tested yet: a real connection over `awg0`, from a phone
+in a network that blocks WireGuard.
 
 ## Installing on Linux
 

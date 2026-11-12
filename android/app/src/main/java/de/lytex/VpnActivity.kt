@@ -154,9 +154,10 @@ class VpnActivity : AppCompatActivity() {
         row(R.id.address, access?.address)
         row(R.id.server, Vpn.way?.takeIf { status != null }?.endpoint?.substringBeforeLast(':')?.trim('[', ']') ?: access?.server)
         row(R.id.way, Vpn.way?.takeIf { fresh }?.let {
-            getString(when (it.kind) {
-                "ipv6" -> R.string.vpn_way_ipv6
-                "relay" -> R.string.vpn_way_relay
+            getString(when {
+                it.hidden -> R.string.vpn_way_hidden
+                it.kind == "ipv6" -> R.string.vpn_way_ipv6
+                it.kind == "relay" -> R.string.vpn_way_relay
                 else -> R.string.vpn_way_ipv4
             })
         })

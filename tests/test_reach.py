@@ -159,13 +159,13 @@ def test_only_public_ipv6_addresses_count(tmp_path: Path) -> None:
     assert own_ipv6(tmp_path / "missing") == []
 
 
-async def test_the_dashboard_reports_all_four_ways_to_admins(tmp_path: Path) -> None:
+async def test_the_dashboard_reports_all_ways_to_admins(tmp_path: Path) -> None:
     client, app = await _client(tmp_path)
     try:
         assert (await client.get("/api/network/reach")).status == 401
         await _login(client)
         body = await (await client.get("/api/network/reach")).json()
-        assert [w["id"] for w in body["ways"]] == ["ipv4", "ipv6", "relay", "tailscale"]
+        assert [w["id"] for w in body["ways"]] == ["ipv4", "ipv6", "relay", "awg", "tailscale"]
         assert body["public"] is None  # nothing was asked on the internet
     finally:
         await client.close()
