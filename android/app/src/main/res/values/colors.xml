@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#121418</color>
-    <color name="surface">#1A1D23</color>
-    <color name="surface2">#22262E</color>
-    <color name="line">#2C313A</color>
-    <color name="text">#E7E9EC</color>
-    <color name="muted">#98A1AD</color>
-    <color name="accent">#5CB3FF</color>
-    <color name="accent_ink">#0B1A29</color>
-    <color name="ok">#3DDC97</color>
-    <color name="warn">#FFC857</color>
-    <color name="danger">#FF6B6B</color>
+    <!-- Light, as the dashboard's light theme; values-night has the dark one. -->
+    <color name="bg">#E6EAF0</color>
+    <color name="surface">#F8F9FB</color>
+    <color name="surface2">#E9EDF2</color>
+    <color name="line">#C3CBD6</color>
+    <color name="text">#121820</color>
+    <color name="muted">#4A5563</color>
+    <color name="accent">#0A62B0</color>
+    <color name="accent_ink">#FFFFFF</color>
+    <color name="ok">#12703E</color>
+    <color name="warn">#8F5500</color>
+    <color name="danger">#B3261E</color>
     <color name="sos">#D32F2F</color>
     <color name="emergency">#7A1414</color>
     <color name="look_calculator">#37474F</color>
@@ -19,4 +20,5 @@
     <color name="look_clock">#263238</color>
     <color name="look_files">#00897B</color>
     <color name="look_music">#8E24AA</color>
+    <bool name="light_bars">true</bool>
 </resources>

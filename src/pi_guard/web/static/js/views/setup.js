@@ -4,7 +4,7 @@
 // assistant can be opened again under More.
 import { api, attempt, fill, h, icon, lang, t, toast } from "../api.js";
 import { state, switchLanguage } from "../app.js";
-import { logoUrl, setDesign, SIZES, THEMES } from "../theme.js";
+import { chosenTheme, logoUrl, setDesign, SIZES, THEMES } from "../theme.js";
 import { sharedDesign } from "./appearance.js";
 
 const STEPS = ["welcome", "account", "devices", "telegram", "alerts", "emergency", "people", "addons", "design", "finish"];
@@ -242,7 +242,7 @@ function design(root) {
   const draw = () => frame(root, "design", h("div", { class: "stack" },
     h("section", { class: "panel" }, h("h2", {}, t("web.theme")),
       h("div", { class: "choice" }, THEMES.map((theme) => h("button", {
-        class: (localStorage.getItem("theme") || "dark") === theme ? "on" : "",
+        class: chosenTheme() === theme ? "on" : "",
         onclick: () => { setDesign(theme); draw(); },
       }, t(`web.theme_${theme}`))))),
     h("section", { class: "panel" }, h("h2", {}, t("web.text_size")),

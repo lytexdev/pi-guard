@@ -3234,5 +3234,6 @@
   "web.perm_contacts": "Emergency contacts and notifications",
   "web.perm_devices": "Devices, sounds and calendars",
   "web.perm_apps": "Apps and invitations",
-  "web.member_forbidden": "You lack the permission for this. An admin can grant it under Settings › Access."
+  "web.member_forbidden": "You lack the permission for this. An admin can grant it under Settings › Access.",
+  "web.theme_auto": "As the system"
 }

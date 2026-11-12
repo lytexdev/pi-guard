@@ -1,5 +1,5 @@
 // Per-device design: theme and text size, remembered in this browser.
-export const THEMES = ["dark", "light", "contrast"];
+export const THEMES = ["auto", "dark", "light", "contrast"];  // auto: as the system is
 export const SIZES = ["normal", "large"];
 
 export const FONTS = {
@@ -35,9 +35,13 @@ export function applyAppearance(appearance = shared) {
   root.classList.toggle("no-motion", shared.animations === false);
 }
 
+const systemLight = matchMedia("(prefers-color-scheme: light)");
+export const chosenTheme = () => { try { return localStorage.getItem("theme") || "auto"; } catch { return "auto"; } };
+
 export function applyDesign() {
   const root = document.documentElement;
-  root.dataset.theme = localStorage.getItem("theme") || "dark";
+  const chosen = chosenTheme();
+  root.dataset.theme = chosen === "auto" ? (systemLight.matches ? "light" : "dark") : chosen;
   root.dataset.text = localStorage.getItem("text") || "normal";
   const color = getComputedStyle(root).getPropertyValue("--bg").trim();
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color || "#121418");
@@ -49,3 +53,6 @@ export function setDesign(theme, size) {
   if (size) localStorage.setItem("text", size);
   applyDesign();
 }
+
+// "As the system": follow a change of the system's light or dark mode while the page is open.
+systemLight.addEventListener?.("change", () => { if (chosenTheme() === "auto") applyDesign(); });

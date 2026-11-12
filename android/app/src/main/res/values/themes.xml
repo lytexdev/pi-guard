@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The dashboard's colours, so the native screens and the dashboard read as one app. -->
+    <!-- The dashboard's colours, light or dark as the system is, so the native screens and the
+         dashboard read as one app. -->
     <!-- Quick actions from the app icon: no window of their own, only a dialog or a toast. -->
     <style name="Theme.PiGuard.Invisible" parent="Theme.PiGuard">
         <item name="android:windowIsTranslucent">true</item>
@@ -8,7 +9,7 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:backgroundDimEnabled">false</item>
     </style>
-    <style name="Theme.PiGuard" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Theme.PiGuard" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
         <item name="colorOnPrimary">@color/accent_ink</item>
         <item name="colorSecondaryContainer">@color/surface2</item>
@@ -24,6 +25,8 @@
         <item name="android:windowBackground">@color/bg</item>
         <item name="android:statusBarColor">@color/bg</item>
         <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:windowLightStatusBar">@bool/light_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/light_bars</item>
         <item name="materialButtonStyle">@style/Button</item>
     </style>
 </resources>

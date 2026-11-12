@@ -1,7 +1,7 @@
 // Mobile hub for the secondary pages, plus language and app settings.
 import { api, appShell, attempt, h, icon, lang, t, toast, fill } from "../api.js";
 import { switchLanguage } from "../app.js";
-import { setDesign, SIZES, THEMES } from "../theme.js";
+import { chosenTheme, setDesign, SIZES, THEMES } from "../theme.js";
 
 function b64ToBytes(base64) {
   const padded = (base64 + "===".slice((base64.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/");
@@ -50,7 +50,7 @@ function designPanel() {
   const panel = h("section", { class: "panel" });
   const draw = () => fill(panel, h("h2", {}, t("web.design")),
     h("div", { class: "segmented" }, THEMES.map((theme) => h("button", {
-      class: (localStorage.getItem("theme") || "dark") === theme ? "on" : "",
+      class: chosenTheme() === theme ? "on" : "",
       onclick: () => { setDesign(theme); draw(); } }, t(`web.theme_${theme}`)))),
     h("p", {}),
     h("div", { class: "segmented" }, SIZES.map((size) => h("button", {

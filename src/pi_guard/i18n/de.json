@@ -3234,5 +3234,6 @@
   "web.perm_contacts": "Notfallkontakte und Benachrichtigungen",
   "web.perm_devices": "Geräte, Töne und Kalender",
   "web.perm_apps": "Apps und Einladungen",
-  "web.member_forbidden": "Dafür fehlt dir das Recht. Ein Admin kann es unter Einstellungen › Zugang vergeben."
+  "web.member_forbidden": "Dafür fehlt dir das Recht. Ein Admin kann es unter Einstellungen › Zugang vergeben.",
+  "web.theme_auto": "Wie System"
 }
