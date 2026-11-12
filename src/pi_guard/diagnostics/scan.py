@@ -30,8 +30,27 @@ EPHEMERAL_PORTS = 32768
 ORDER = {"bad": 0, "warn": 1, "unknown": 2, "ok": 3}
 
 
-def check(key: str, status: str, detail: Any = "") -> dict[str, Any]:
-    return {"id": key, "status": status, "detail": str(detail)}
+def check(key: str, status: str, detail: Any = "", fix: str | None = None) -> dict[str, Any]:
+    """`fix` names the advice when it differs from the usual web.scan_<key>_fix."""
+    item = {"id": key, "status": status, "detail": str(detail)}
+    if fix:
+        item["fix"] = fix
+    return item
+
+
+# rkhunter warnings that every pi-guard has: Pi-hole keeps its tables in /dev/shm, and the
+# install adds the pi-guard user to groups such as gpio. Shown as known, not as a finding.
+_HARMLESS = ("/dev/shm/FTL-",  # noqa: S108 - a name to match, not a file we use
+             "User 'pi-guard' has been added to the group",
+             "Suspicious file types found in /dev:",
+             "Changes found in the group file for group")  # fmt: skip
+
+
+def rootkit_findings(lines: list[str]) -> tuple[list[str], int]:
+    """(warnings worth a look, how many known harmless ones were left out)."""
+    left = [x for x in lines if x.strip()]
+    kept = [x for x in left if not any(h in x for h in _HARMLESS)]
+    return kept, len(left) - len(kept)
 
 
 def request_root(data_dir: Path, word: str) -> None:
@@ -136,11 +155,13 @@ def root_checks(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     checks.append(check("accounts", "bad" if admins or empty else "ok", ", ".join(admins)))
     tool = report.get("rootkit_tool")
     if tool is None:
-        checks.append(check("rootkits", "unknown"))
+        checks.append(check("rootkits", "unknown", fix="web.scan_rootkits_missing_fix"))
     else:
-        warnings = report.get("rootkit_warnings") or []
+        warnings, harmless = rootkit_findings(report.get("rootkit_warnings") or [])
+        note = f"{tool}" + (f" (+{harmless} known)" if harmless else "")
         checks.append(check("rootkits", "bad" if warnings else "ok",
-                            "; ".join([tool, *warnings[:3]])))  # fmt: skip
+                            "; ".join([note, *warnings[:3]]),
+                            fix="web.scan_rootkits_found_fix"))  # fmt: skip
     return checks
 
 

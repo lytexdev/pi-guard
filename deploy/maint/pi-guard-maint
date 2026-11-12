@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 REQUEST = Path("/var/lib/pi-guard/maint/request")
@@ -160,7 +161,203 @@ def clean_apt():
     disk()
 
 
+# --- fixes ------------------------------------------------------------------------------
+# A fixed list of corrections the security check may offer, each with a way back. pi-guard and
+# its assistant can only name one of these words; what runs is written here. Backups stay in
+# a folder only root can read.
+
+BACKUPS = Path("/var/lib/pi-guard-fixes")
+SSH_DROPIN = Path("/etc/ssh/sshd_config.d/05-pi-guard.conf")  # first file wins in sshd
+AUTO_UPGRADES = Path("/etc/apt/apt.conf.d/20auto-upgrades")
+RKHUNTER_DB = Path("/var/lib/rkhunter/db/rkhunter.dat")
+APT_ENV = {**os.environ, "DEBIAN_FRONTEND": "noninteractive"}
+
+
+class FixError(Exception):
+    pass
+
+
+def journal():
+    try:
+        return json.loads((BACKUPS / "journal.json").read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def save_journal(data):
+    BACKUPS.mkdir(mode=0o700, exist_ok=True)
+    os.chown(BACKUPS, 0, 0)
+    BACKUPS.chmod(0o700)
+    target = BACKUPS / "journal.json"
+    temporary = target.with_suffix(".tmp")
+    temporary.write_text(json.dumps(data))
+    temporary.chmod(0o600)
+    temporary.replace(target)
+    # pi-guard may see which fixes are in place, not the backups.
+    write("fixes", {name: {"applied": entry["applied"]} for name, entry in data.items()})
+
+
+def keep(path):
+    """The file as it was: its text, or None if there was none."""
+    return path.read_text() if path.is_file() else None
+
+
+def put_back(path, text):
+    if text is None:
+        path.unlink(missing_ok=True)
+    else:
+        path.write_text(text)
+
+
+def ssh_settings(changes):
+    """Write settings into our sshd drop-in, check them, reload. Returns the old drop-in."""
+    before = keep(SSH_DROPIN)
+    lines = {}
+    for line in (before or "").splitlines():
+        if line.strip() and not line.startswith("#"):
+            key, _, value = line.partition(" ")
+            lines[key] = value
+    lines.update(changes)
+    SSH_DROPIN.parent.mkdir(exist_ok=True)
+    SSH_DROPIN.write_text("# Written by pi-guard's security check; undo it in the dashboard.\n"
+                          + "".join(f"{k} {v}\n" for k, v in lines.items()))
+    if subprocess.run(["sshd", "-t"], capture_output=True, check=False).returncode != 0:
+        put_back(SSH_DROPIN, before)
+        raise FixError("sshd refused the change; nothing was changed")
+    reload_ssh()
+    return before
+
+
+def reload_ssh():
+    for unit in ("ssh", "sshd"):
+        done = subprocess.run(["systemctl", "reload", unit], capture_output=True, check=False)
+        if done.returncode == 0:
+            return
+
+
+def has_ssh_key():
+    homes = [Path("/root"), *(Path("/home").iterdir() if Path("/home").is_dir() else [])]
+    for home in homes:
+        keys = home / ".ssh" / "authorized_keys"
+        try:
+            lines = keys.read_text().splitlines()
+        except OSError:
+            continue
+        if any(line.strip() and not line.startswith("#") for line in lines):
+            return True
+    return False
+
+
+def apply_ssh_root():
+    return {"dropin": ssh_settings({"PermitRootLogin": "no"})}
+
+
+def apply_ssh_passwords():
+    if not has_ssh_key():
+        raise FixError("no SSH key is set up: switching off passwords would lock you out")
+    return {"dropin": ssh_settings({"PasswordAuthentication": "no",
+                                    "KbdInteractiveAuthentication": "no"})}
+
+
+def undo_ssh(backup):
+    put_back(SSH_DROPIN, backup.get("dropin"))
+    reload_ssh()
+
+
+def apply_auto_updates():
+    status = run("dpkg-query", "-W", "-f=${Status}", "unattended-upgrades")
+    before = "install ok installed" in status
+    backup = {"file": keep(AUTO_UPGRADES), "installed": before}
+    if not before:
+        done = subprocess.run(["apt-get", "install", "-y", "-qq", "unattended-upgrades"],
+                              capture_output=True, env=APT_ENV, timeout=900, check=False)
+        if done.returncode != 0:
+            raise FixError("unattended-upgrades could not be installed")
+    AUTO_UPGRADES.write_text('APT::Periodic::Update-Package-Lists "1";\n'
+                             'APT::Periodic::Unattended-Upgrade "1";\n')
+    return backup
+
+
+def undo_auto_updates(backup):
+    put_back(AUTO_UPGRADES, backup.get("file"))
+    if not backup.get("installed"):
+        subprocess.run(["apt-get", "remove", "-y", "-qq", "unattended-upgrades"],
+                       capture_output=True, env=APT_ENV, timeout=900, check=False)
+
+
+def apply_rkhunter():
+    if not shutil.which("rkhunter"):
+        raise FixError("rkhunter is not installed")
+    backup = {"db": RKHUNTER_DB.read_bytes().hex() if RKHUNTER_DB.is_file() else None}
+    run("rkhunter", "--propupd", "--quiet", timeout=900)
+    return backup
+
+
+def undo_rkhunter(backup):
+    if backup.get("db") is not None:
+        RKHUNTER_DB.write_bytes(bytes.fromhex(backup["db"]))
+
+
+def apply_firewall():
+    if not shutil.which("ufw"):
+        raise FixError("ufw is not installed: sudo apt install ufw")
+    if "Status: active" in run("ufw", "status"):  # nothing to do or undo
+        raise FixError("the firewall is already on")
+    # Everything that answers on the network today stays reachable, SSH above all: this only
+    # closes what is not open yet.
+    allowed = {"22/tcp"}
+    for line in run("ss", "-H", "-ltun").splitlines():
+        fields = line.split()
+        if len(fields) >= 5:
+            host, _, port = fields[4].rpartition(":")
+            if port.isdigit() and not host.startswith(("127.", "[::1]", "[::ffff:127.")):
+                allowed.add(f"{port}/{'tcp' if fields[0] == 'tcp' else 'udp'}")
+    for rule in sorted(allowed):
+        run("ufw", "allow", rule)
+    if "active" not in run("ufw", "--force", "enable"):
+        raise FixError("ufw could not be switched on")
+    return {"rules": sorted(allowed)}
+
+
+def undo_firewall(backup):
+    run("ufw", "--force", "disable")
+
+
+FIXES = {
+    "ssh-root": (apply_ssh_root, undo_ssh),
+    "ssh-passwords": (apply_ssh_passwords, undo_ssh),
+    "auto-updates": (apply_auto_updates, undo_auto_updates),
+    "rkhunter": (apply_rkhunter, undo_rkhunter),
+    "firewall": (apply_firewall, undo_firewall),
+}
+
+
+def fix(name, undo):
+    data = journal()
+    result = {"id": name, "undo": undo, "ok": False, "time": int(time.time())}
+    try:
+        apply, revert = FIXES[name]
+        if undo:
+            if name not in data:
+                raise FixError("this fix is not in place")
+            revert(data.pop(name)["backup"])
+        else:
+            if name in data:
+                raise FixError("this fix is already in place")
+            data[name] = {"applied": int(time.time()), "backup": apply()}
+        save_journal(data)
+        result["ok"] = True
+    except FixError as exc:
+        result["message"] = str(exc)
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        result["message"] = type(exc).__name__
+    write("fix", result)
+
+
 JOBS = {"scan": scan, "disk": disk, "clean-journal": clean_journal, "clean-apt": clean_apt}
+for _name in FIXES:
+    JOBS[f"fix-{_name}"] = lambda n=_name: fix(n, undo=False)
+    JOBS[f"undo-{_name}"] = lambda n=_name: fix(n, undo=True)
 
 if __name__ == "__main__":
     job = JOBS.get(take_request())

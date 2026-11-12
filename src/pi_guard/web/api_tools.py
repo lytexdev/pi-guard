@@ -26,6 +26,7 @@ from pi_guard.audio.service import AudioError
 from pi_guard.core.calendars import CalendarError, Feeds
 from pi_guard.core.permissions import Role
 from pi_guard.core.schedule import CALENDAR_KEY, PLAN_KEY, clean_plan
+from pi_guard.diagnostics import fixes
 from pi_guard.diagnostics import storage as disk
 from pi_guard.diagnostics.scan import HELPER, read_report, request_root
 from pi_guard.i18n import t
@@ -36,7 +37,7 @@ from pi_guard.network.lan import neighbour_table
 from pi_guard.network.pihole import PiholeError
 from pi_guard.web.api_account import _qr_svg
 from pi_guard.web.api_manage import apply_settings
-from pi_guard.web.server import MODULES, current, dashboard, read_json
+from pi_guard.web.server import MODULES, confirm_password, current, dashboard, read_json
 
 log = logging.getLogger(__name__)
 
@@ -91,6 +92,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/me/nav", nav_put),
         web.get("/api/scan", scan_get),
         web.post("/api/scan", scan_start),
+        web.post("/api/scan/fix", scan_fix),
+        web.post("/api/scan/review", scan_review),
         web.get("/api/storage", storage_get),
         web.post("/api/storage/clean", storage_clean),
     ]
@@ -645,8 +648,52 @@ async def nav_put(request: web.Request) -> web.Response:
 
 async def scan_get(request: web.Request) -> web.Response:
     app = dashboard(request).app
-    return web.json_response({"running": app.scanner.running, "last": app.scanner.last,
-                              "root_job": HELPER.exists()})  # fmt: skip
+    last = app.scanner.last
+    assistant = app.addons.assistant
+    return web.json_response({
+        "running": app.scanner.running, "last": last, "root_job": HELPER.exists(),
+        "fixes": {"offered": fixes.offered(last), "applied": fixes.applied(),
+                  "result": fixes.result()},
+        "review": assistant is not None and assistant.ready,
+    })  # fmt: skip
+
+
+async def scan_fix(request: web.Request) -> web.Response:
+    """One fix from the fixed list, or its undo. Needs the password and the fix's name typed."""
+    d = dashboard(request)
+    data = await read_json(request)
+    name, undo = str(data.get("id", "")), data.get("undo") is True
+    if name not in fixes.FIXES:
+        raise web.HTTPNotFound()
+    confirm_password(request, str(data.get("password", "")))
+    if not undo and str(data.get("confirm", "")).strip().casefold() != name:
+        raise web.HTTPBadRequest(text="web.scan_fix_confirm_wrong")
+    if not HELPER.exists():
+        raise web.HTTPConflict(text="web.scan_no_job")
+    request_root(d.settings.data_dir, f"{'undo' if undo else 'fix'}-{name}")
+    d.app.db.audit(_actor(request), "security.fix", f"{'undo ' if undo else ''}{name}")
+    return web.json_response({"ok": True})
+
+
+async def scan_review(request: web.Request) -> web.Response:
+    """The assistant's view of the latest result: steps, and which fixed fix does each."""
+    from pi_guard.addons.assistant import LANGUAGE_NAMES, AssistantError
+
+    d = dashboard(request)
+    assistant = d.app.addons.assistant
+    last = d.app.scanner.last
+    if assistant is None:
+        raise web.HTTPConflict(text="web.addon_not_running")
+    if not last:
+        raise web.HTTPConflict(text="web.scan_none_yet")
+    language = LANGUAGE_NAMES.get(d.settings.language, "German")
+    try:
+        answer, _ = await assistant.complete_checked(fixes.review_prompt(language),
+                                                     fixes.review_input(last))  # fmt: skip
+    except AssistantError as exc:
+        raise web.HTTPConflict(text=exc.key) from None
+    d.app.db.audit(_actor(request), "security.review")
+    return web.json_response(fixes.parse_review(answer))
 
 
 async def scan_start(request: web.Request) -> web.Response:
