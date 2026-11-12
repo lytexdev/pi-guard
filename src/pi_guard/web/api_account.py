@@ -5,9 +5,11 @@ from __future__ import annotations
 import base64
 import io
 import re
+from typing import Any
 
 from aiohttp import web
 
+from pi_guard.web import permissions
 from pi_guard.web.api_mobile import forget_devices, role_changed
 from pi_guard.web.auth import CredentialError, totp_uri
 from pi_guard.web.profiles import ProfileError, clean, from_vcard, to_vcard
@@ -154,7 +156,8 @@ async def my_password(request: web.Request) -> web.Response:
 
 async def users(request: web.Request) -> web.Response:
     d = dashboard(request)
-    return web.json_response({"owner": d.auth.account()["username"], "users": d.auth.users()})
+    return web.json_response({"owner": d.auth.account()["username"], "users": d.auth.users(),
+                              "catalog": list(permissions.ALL)})  # fmt: skip
 
 
 async def user_add(request: web.Request) -> web.Response:
@@ -170,16 +173,26 @@ async def user_add(request: web.Request) -> web.Response:
 
 
 async def user_role(request: web.Request) -> web.Response:
+    """Role, and for a member what they may use (web/permissions.py)."""
     d = dashboard(request)
-    role = str((await read_json(request)).get("role", ""))
+    data = await read_json(request)
+    role = str(data.get("role", ""))
     user_id = int(request.match_info["id"])
-    if not d.auth.set_role(user_id, role):
+    granted = data.get("permissions")
+    if not isinstance(granted, list):
+        granted = next((u["permissions"] for u in d.auth.users() if u["id"] == user_id), [])
+    if not d.auth.set_access(user_id, role, [str(p) for p in granted][:200]):
         raise web.HTTPBadRequest(text="web.error")
     await role_changed(
         request, next(u["username"] for u in d.auth.users() if u["id"] == user_id), role
     )
-    d.app.db.audit(_actor(request), "account.user_role", role)
+    d.app.db.audit(_actor(request), "account.user_role",
+                   f"{role} {len(d.auth.permissions_of(_username(d, user_id)))}")  # fmt: skip
     return web.json_response({"ok": True})
+
+
+def _username(d: Any, user_id: int) -> str:
+    return next((str(u["username"]) for u in d.auth.users() if u["id"] == user_id), "")
 
 
 async def user_delete(request: web.Request) -> web.Response:

@@ -42,7 +42,7 @@ function resetPanel(redraw) {
       try { ["theme", "text"].forEach((key) => localStorage.removeItem(key)); } catch { /* private window */ }
       if (!await attempt(async () => {
         await api("/api/me/nav", { method: "POST", body: { order: [] } });
-        if (state.session.role !== "viewer") await api("/api/appearance", { method: "DELETE" });
+        if (state.session.role === "admin") await api("/api/appearance", { method: "DELETE" });
       }, t("web.ap_reset_done"))) return;
       state.session = await api("/api/session");
       applyDesign();
@@ -111,7 +111,7 @@ export function render(box) {
     h("div", { class: "choice" }, SIZES.map((size) => h("button", { class: (localStorage.getItem("text") || "normal") === size ? "on" : "",
       onclick: () => { setDesign(null, size); drawDevice(); } }, t(`web.text_${size}`)))));
   drawDevice();
-  const isAdmin = state.session.role !== "viewer";
+  const isAdmin = state.session.role === "admin";
   if (isAdmin) sharedDesign(shared);
   fill(box, device, navPanel(), isAdmin ? shared : null, resetPanel(() => render(box)));
 }

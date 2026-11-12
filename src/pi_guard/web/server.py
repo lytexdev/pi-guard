@@ -26,6 +26,7 @@ from aiohttp import web
 
 from pi_guard import __version__
 from pi_guard.security.files import atomic_write
+from pi_guard.web import permissions
 from pi_guard.web.auth import (
     DEFAULT_PASSWORD,
     PENDING_ALL,
@@ -360,8 +361,17 @@ class Dashboard:
             raise web.HTTPUnauthorized(text="login required")
         if path not in SETUP_ALLOWED and self._setup_required(session):
             raise web.HTTPForbidden(text="setup_required")
-        if self.auth.role_of(session.username) == "viewer" and not self._viewer_may(request):
+        role = self.auth.role_of(session.username)
+        if role == "viewer" and not self._viewer_may(request):
             raise web.HTTPForbidden(text="web.viewer_forbidden")
+        if (
+            role == "member"
+            and not self._viewer_may(request)
+            and not permissions.allowed(
+                self.auth.permissions_of(session.username), request.method, path
+            )
+        ):
+            raise web.HTTPForbidden(text="web.member_forbidden")
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             token = request.headers.get("X-CSRF-Token", "")
             if not secrets.compare_digest(token, session.csrf):
@@ -480,6 +490,7 @@ class Dashboard:
             "support": (self.app.db.get("web.support") or {}) if active else {},
             "modules": self.modules() if active else {},
             "version": __version__ if active else None,  # not before login: no hint for attackers
+            "permissions": self.auth.permissions_of(session.username) if active and session else [],
             # Everyone signed in sees that the microphone listens for the wake phrase.
             "voice_listening": bool(active and self.app.voice.enabled
                                     and self.settings.voice_wake_enabled),

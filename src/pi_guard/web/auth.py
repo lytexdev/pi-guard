@@ -26,6 +26,7 @@ from urllib.parse import quote
 
 from pi_guard.core.timeutil import utcnow
 from pi_guard.storage.db import Database
+from pi_guard.web.permissions import clean as clean_permissions
 
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 2**14, 8, 1
 SESSION_IDLE = timedelta(hours=12)
@@ -71,6 +72,16 @@ CREATE TABLE IF NOT EXISTS web_credentials (
 def _normal(answer: str) -> str:
     """Answers count without case and extra spaces: "Berlin " is "berlin"."""
     return " ".join(answer.split()).casefold()
+
+
+ROLES = ("admin", "member", "viewer")
+
+
+def _granted(raw: str | None) -> list[str]:
+    try:
+        return clean_permissions(json.loads(raw or "[]"))
+    except (ValueError, TypeError):
+        return []
 
 
 class CredentialError(Exception):
@@ -169,6 +180,9 @@ class AuthStore:
     def __init__(self, db: Database, secret_key: bytes = b"") -> None:
         self._db = db
         db.executescript(_SCHEMA)
+        columns = {r[1] for r in db.execute("PRAGMA table_info(web_users)")}
+        if "permissions" not in columns:  # members (1.10): what the owner granted them
+            db.execute("ALTER TABLE web_users ADD COLUMN permissions TEXT NOT NULL DEFAULT '[]'")
         self.configure_keys(secret_key)
 
     # key files: the file content is the credential; only its hash is stored
@@ -306,14 +320,28 @@ class AuthStore:
         )
         self.end_all()
 
-    # More people: admins can do everything, viewers only watch (see VIEWER_PATHS in server.py).
+    # More people: admins can do everything, viewers only watch (see VIEWER_PATHS in server.py),
+    # members watch and may use what was granted to them (web/permissions.py).
 
     def users(self) -> list[dict[str, Any]]:
         rows = self._db.execute(
-            "SELECT id, username, role, created, totp IS NOT NULL AS totp FROM web_users "
-            "ORDER BY username"
+            "SELECT id, username, role, created, totp IS NOT NULL AS totp, permissions "
+            "FROM web_users ORDER BY username"
         ).fetchall()
-        return [{**dict(r), "totp": bool(r["totp"])} for r in rows]
+        return [{**dict(r), "totp": bool(r["totp"]), "permissions": _granted(r["permissions"])}
+                for r in rows]  # fmt: skip
+
+    def permissions_of(self, username: str) -> list[str]:
+        """What a member may use; admins and viewers have none of their own."""
+        row = self._extra(username)
+        return _granted(row["permissions"]) if row and row["role"] == "member" else []
+
+    def set_access(self, user_id: int, role: str, permissions: list[str]) -> bool:
+        if role not in ROLES:
+            return False
+        granted = json.dumps(clean_permissions(permissions) if role == "member" else [])
+        return self._db.execute("UPDATE web_users SET role = ?, permissions = ? WHERE id = ?",
+                                (role, granted, user_id)).rowcount > 0  # fmt: skip
 
     def _extra(self, username: str) -> Any:
         return self._db.execute(
@@ -332,7 +360,7 @@ class AuthStore:
     def add_user(self, username: str, password: str, role: str) -> None:
         username = username.strip()
         self._check_new_login(username, password)
-        if role not in ("admin", "viewer"):
+        if role not in ROLES:
             raise CredentialError("web.bad_username")
         taken = username.casefold() == self.account()["username"].casefold()
         if taken or self._extra(username) is not None:
@@ -343,7 +371,7 @@ class AuthStore:
         )
 
     def set_role(self, user_id: int, role: str) -> bool:
-        if role not in ("admin", "viewer"):
+        if role not in ROLES:
             return False
         return self._db.execute("UPDATE web_users SET role = ? WHERE id = ?",
                                 (role, user_id)).rowcount > 0  # fmt: skip

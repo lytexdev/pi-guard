@@ -36,6 +36,7 @@ from pi_guard.notifications.rules import DEFAULTS, resolve
 from pi_guard.recording.evidence import MAX_MINUTES, evidence_files, record_evidence
 from pi_guard.recording.segments import ClipError
 from pi_guard.security.files import atomic_write, is_within
+from pi_guard.web import permissions
 from pi_guard.web.server import confirm_password, current, dashboard, read_json
 from pi_guard.web.settings_schema import BY_KEY, EXPERT, FIELDS, SECRETS, to_env
 
@@ -121,17 +122,29 @@ def _actor(request: web.Request) -> str:
 # --- settings and configuration ------------------------------------------------------
 
 
+def _groups(request: web.Request) -> set[str] | None:
+    """The settings groups a member may see and change; None for admins (all of them)."""
+    d = dashboard(request)
+    username = current(request).username
+    if d.auth.role_of(username) != "member":
+        return None
+    return permissions.settings_groups(d.auth.permissions_of(username))
+
+
 async def get_settings(request: web.Request) -> web.Response:
     s = dashboard(request).settings
+    groups = _groups(request)
+    fields = [f for f in FIELDS if groups is None or f.group in groups]
     return web.json_response({
-        "values": {f.key: "" if f.kind == "secret" else _plain(getattr(s, f.key)) for f in FIELDS},
+        "values": {f.key: "" if f.kind == "secret" else _plain(getattr(s, f.key)) for f in fields},
         "fields": [{"key": f.key, "group": f.group, "expert": f.key in EXPERT,
                     "kind": "choice" if f.kind == "language" else f.kind, "min": f.minimum,
                     "max": f.maximum,
                     "options": list(LANGUAGES) if f.kind == "language" else list(f.options)}
-                   for f in FIELDS],
-        "secrets": {key: getattr(s, key) is not None for key in SECRETS},
-        "overrides": sorted(read_overrides(s.data_dir)),
+                   for f in fields],
+        "secrets": {key: getattr(s, key) is not None for key in SECRETS
+                    if groups is None or (BY_KEY.get(key) and BY_KEY[key].group in groups)},
+        "overrides": sorted(read_overrides(s.data_dir)) if groups is None else [],
     })  # fmt: skip
 
 
@@ -147,6 +160,11 @@ SOURCES = ("dashboard", "assistant")
 async def put_settings(request: web.Request) -> web.Response:
     d = dashboard(request)
     data = await read_json(request)
+    groups = _groups(request)
+    if groups is not None and any(
+        key not in BY_KEY or BY_KEY[key].group not in groups for key in data
+    ):  # fmt: skip
+        raise web.HTTPForbidden(text="web.member_forbidden")
     source = request.query.get("source", "dashboard")
     await apply_settings(d, data, _actor(request), source if source in SOURCES else "dashboard")
     return web.json_response({"ok": True, "restart_required": True})

@@ -15,7 +15,12 @@ from typing import Any
 
 from pi_guard.storage.db import Database
 
-FIELDS = {"name": 80, "email": 120, "phone": 40, "address": 200, "note": 500}
+FIELDS = {"name": 80, "email": 120, "phone": 40, "address": 200, "note": 500,
+          # Links to the same person elsewhere: a trusted person the cameras know, and their
+          # messenger accounts (Telegram ID or @name, Discord ID, Signal and WhatsApp number).
+          "person": 80, "telegram": 64, "discord": 32, "signal": 40, "whatsapp": 40}  # fmt: skip
+MESSENGER = {"telegram": re.compile(r"^(@[A-Za-z0-9_]{5,32}|-?[0-9]{3,20})$"),
+             "discord": re.compile(r"^[0-9]{15,22}$")}  # fmt: skip
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS web_profiles (
     username TEXT PRIMARY KEY COLLATE NOCASE, data TEXT NOT NULL);
@@ -40,8 +45,12 @@ def clean(data: dict[str, Any]) -> dict[str, str]:
         values[key] = "\n".join(line for line in lines if line)[: FIELDS[key]]
     if values["email"] and not EMAIL.match(values["email"]):
         raise ProfileError("web.pp_bad_email")
-    if values["phone"] and not PHONE.match(values["phone"]):
-        raise ProfileError("web.pf_bad_phone")
+    for key in ("phone", "signal", "whatsapp"):
+        if values[key] and not PHONE.match(values[key]):
+            raise ProfileError("web.pf_bad_phone")
+    for key, pattern in MESSENGER.items():
+        if values[key] and not pattern.match(values[key]):
+            raise ProfileError(f"web.pf_bad_{key}")
     return {k: v for k, v in values.items() if v}
 
 

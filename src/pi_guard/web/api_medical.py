@@ -30,6 +30,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/medical/{id:\\d+}/send", send),
         web.post("/api/medical/bmp", read_bmp),
         web.get("/api/medical/accounts", accounts),
+        web.get("/api/medical/linked", linked),
+        web.put("/api/medical/link-account", link_account),
     ]
 
 
@@ -100,6 +102,36 @@ async def save(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(text=exc.key) from None
     dashboard(request).app.db.audit(_actor(request), "medical.save", str(saved))
     return web.json_response({"id": saved})
+
+
+async def linked(request: web.Request) -> web.Response:
+    """Which account each sheet belongs to: names and numbers, no health data."""
+    records = _records(request)
+    rows = []
+    for person in records.people():
+        sheet = records.read(person["id"]) or {}
+        account = sheet.get("account", "")
+        rows.append({"id": person["id"], "name": person["name"], "account": account})
+    return web.json_response(rows)
+
+
+async def link_account(request: web.Request) -> web.Response:
+    """Give an account its emergency card (or none): from the user list under Access."""
+    records = _records(request)
+    data = await read_json(request)
+    account = str(data.get("account", ""))
+    if account.casefold() not in {n.casefold() for n in _account_names(request)}:
+        raise web.HTTPBadRequest(text="web.md_unknown_account")
+    wanted = int(data.get("id") or 0)
+    for person in records.people():
+        sheet = records.read(person["id"]) or {}
+        mine = str(sheet.get("account", "")).casefold() == account.casefold()
+        if person["id"] == wanted and not mine:
+            records.save(person["id"], {**sheet, "account": account})
+        elif person["id"] != wanted and mine:
+            records.save(person["id"], {**sheet, "account": ""})
+    dashboard(request).app.db.audit(_actor(request), "medical.account", str(wanted))
+    return web.json_response({"ok": True})
 
 
 async def delete(request: web.Request) -> web.Response:

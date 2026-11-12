@@ -988,3 +988,5 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .audit-days { display: grid; gap: 14px; }
 .audit-day h3 { margin: 0 0 4px; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
 .badge.info { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.perm-group { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px 10px; margin: 0 0 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 2px 12px; }
+.perm-group legend { padding: 0 6px; font-weight: 600; color: var(--muted); font-size: .85rem; }

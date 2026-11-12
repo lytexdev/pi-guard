@@ -37,6 +37,18 @@ const SECONDARY = [
 
 const VIEWER_ROUTES = ["overview", "live", "monitor", "events", "account", "help"];
 
+// The pages a member may open: what viewers see, and what the owner granted (web/permissions.py).
+export function memberRoutes(session = state.session) {
+  const granted = session?.permissions || [];
+  const routes = [...VIEWER_ROUTES, "more"];
+  if (granted.includes("people")) routes.push("people");
+  if (granted.includes("network")) routes.push("network");
+  if (granted.includes("logs")) routes.push("logs");
+  if (granted.some((p) => p.startsWith("addon:"))) routes.push("addons");
+  if (granted.some((p) => p.startsWith("settings:")) || granted.some((p) => ["contacts", "devices", "apps"].includes(p))) routes.push("settings");
+  return routes;
+}
+
 applyAccessibility();
 installLightbox();
 installTooltips();
@@ -55,7 +67,9 @@ function link(route, iconName, label, current) {
 // The main entries in this person's own order; anything new goes to the end.
 export function navItems() {
   const viewer = state.session?.role === "viewer";
-  const items = viewer ? [...PRIMARY.filter(([r]) => VIEWER_ROUTES.includes(r)), ["account", "user", "web.nav_account"]] : [...PRIMARY, ...SECONDARY];
+  const member = state.session?.role === "member";
+  const allowed = member ? memberRoutes() : VIEWER_ROUTES;
+  const items = viewer || member ? [...[...PRIMARY, ...SECONDARY].filter(([r]) => allowed.includes(r)), ["account", "user", "web.nav_account"]] : [...PRIMARY, ...SECONDARY];
   const order = state.session?.nav || [];
   const rank = (route) => (order.includes(route) ? order.indexOf(route) : order.length);
   return items.map((item, index) => [item, index]).sort((a, b) => rank(a[0][0]) - rank(b[0][0]) || a[1] - b[1]).map(([item]) => item);
@@ -153,8 +167,9 @@ async function show(turn) {
   if (!session.authenticated && name !== "login") { location.hash = "#/login"; return; }
   if (session.authenticated && name === "login") { location.hash = "#/overview"; return; }
   if (session.role === "viewer" && name !== "login" && !VIEWER_ROUTES.includes(name)) { location.hash = "#/overview"; return; }
+  if (session.role === "member" && name !== "login" && !memberRoutes(session).includes(name)) { location.hash = "#/overview"; return; }
   if (session.setup_required && name !== "setup") { location.hash = "#/setup/welcome"; return; }
-  if (session.authenticated && session.role !== "viewer" && !session.setup_done && name === "overview"
+  if (session.authenticated && session.role === "admin" && !session.setup_done && name === "overview"
       && !sessionStorage.getItem("pg.setup_later")) { location.hash = "#/setup/welcome"; return; }
   const loader = VIEWS[name] || VIEWS.overview;
   if (name === "login" || name === "setup") {

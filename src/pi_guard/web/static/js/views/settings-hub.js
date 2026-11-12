@@ -42,7 +42,15 @@ const NAV_GROUPS = ["basics", "alerts", "home", "system"];
 
 // Sections for people who know what they are looking for.
 const EXPERT_SECTIONS = ["integrations", "dashboard", "security"];
-const shown = () => SECTIONS.filter(([id]) => expertMode() || !EXPERT_SECTIONS.includes(id));
+// A member sees the sections the owner granted (web/permissions.py); appearance is per device.
+const MEMBER_NEEDS = { devices: "devices", notifications: "contacts", apps: "apps", appearance: null };
+function memberMay(id) {
+  if (state.session?.role !== "member") return true;
+  const granted = state.session.permissions || [];
+  if (id in MEMBER_NEEDS) return MEMBER_NEEDS[id] === null || granted.includes(MEMBER_NEEDS[id]) || granted.includes(`settings:${id}`);
+  return granted.includes(`settings:${id}`);
+}
+const shown = () => SECTIONS.filter(([id]) => (expertMode() || !EXPERT_SECTIONS.includes(id)) && memberMay(id));
 const sectionIcon = (id) => SECTIONS.find(([section]) => section === id)?.[1] || "settings";
 
 function modeSwitch(redraw) {
@@ -259,13 +267,15 @@ function jumpTo(target) {
 // Which section, which tab of Data & backup, and what to jump to: from #/settings/SECTION[/TAB][/TARGET].
 function place(params) {
   let [wanted, ...rest] = params;
-  if (DATA_TABS.some(([id]) => id === wanted) || wanted === "data") {
+  if ((DATA_TABS.some(([id]) => id === wanted) || wanted === "data") && memberMay("data")) {
     const tab = wanted === "data" ? rest.shift() : wanted;
     const tabs = dataTabs();
     return { current: "data", tab: tabs.some(([id]) => id === tab) ? tab : tabs[0][0], target: rest[0] };
   }
   wanted = MOVED[wanted] || wanted;
-  return { current: SECTIONS.some(([id]) => id === wanted) ? wanted : "general", target: rest[0] };
+  const open = SECTIONS.filter(([id]) => memberMay(id));  // expert sections stay reachable by link
+  const fallback = open.some(([id]) => id === "general") ? "general" : open[0]?.[0] || "appearance";
+  return { current: open.some(([id]) => id === wanted) ? wanted : fallback, target: rest[0] };
 }
 
 function navigation(current) {

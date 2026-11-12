@@ -5,7 +5,7 @@ import { createCredential, explainKeyError } from "../webauthn.js";
 import { profileDialog } from "./profile.js";
 
 const contact = (name) => h("button", { class: "icon-only", title: t("web.pf_title"),
-  onclick: () => profileDialog(`/api/profiles/${encodeURIComponent(name)}`, t("web.pf_of", { name })) }, icon("list-details"));
+  onclick: () => profileDialog(`/api/profiles/${encodeURIComponent(name)}`, t("web.pf_of", { name }), name) }, icon("link"));
 
 function showCodes(codes) {
   const dialog = h("dialog", {}, h("h2", {}, t("web.recovery_title")), h("p", {}, t("web.recovery_save")),
@@ -31,12 +31,39 @@ function keyGuide(keys) {
     h("small", { class: "muted" }, t("web.key_guide_here", { host: location.host })));
 }
 
+// What a member may use, ticked by area: the server allows nothing else (web/permissions.py).
+function permissionsDialog(user, catalog, draw) {
+  const boxes = new Map();
+  const group = (prefix, title) => {
+    const items = catalog.filter((p) => (prefix ? p.startsWith(prefix) : !p.includes(":")));
+    return h("fieldset", { class: "perm-group" }, h("legend", {}, t(title)),
+      items.map((p) => {
+        const box = h("input", { type: "checkbox", checked: user.permissions.includes(p) });
+        boxes.set(p, box);
+        const [kind, name] = p.includes(":") ? p.split(":") : ["area", p];
+        const label = kind === "addon" ? t(`addons.${name}`) : kind === "settings" ? t(`web.set_${name}`) : t(`web.perm_${name}`);
+        return h("label", { class: "check" }, box, label);
+      }));
+  };
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, icon("key"), " ", t("web.perm_for", { name: user.username })),
+    h("p", { class: "muted" }, t("web.perm_hint")),
+    group(null, "web.perm_areas"), group("addon:", "web.perm_addons"), group("settings:", "web.perm_settings"),
+    h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
+      h("button", { class: "primary", onclick: async () => {
+        const chosen = [...boxes].filter(([, box]) => box.checked).map(([p]) => p);
+        if (await attempt(() => api(`/api/dashboard-users/${user.id}`, { method: "PATCH", body: { role: "member", permissions: chosen } }), t("web.saved"))) { dialog.close(); draw(); }
+      } }, icon("check"), t("web.save"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 async function peoplePanel(draw) {
   // Who may open the dashboard: admins change everything, viewers only watch.
   const data = await api("/api/dashboard-users");
   const name = h("input", { placeholder: t("web.username"), maxlength: 32, autocomplete: "off", "aria-label": t("web.username") });
   const password = h("input", { type: "password", placeholder: t("web.password"), autocomplete: "new-password", "aria-label": t("web.password") });
-  const roles = (selected) => ["viewer", "admin"].map((r) => h("option", { value: r, selected: r === selected }, t(`web.role_${r}`)));
+  const roles = (selected) => ["viewer", "member", "admin"].map((r) => h("option", { value: r, selected: r === selected }, t(`web.role_${r}`)));
   const role = h("select", { "aria-label": t("web.role") }, roles("viewer"));
   return h("section", { class: "panel stack" }, h("h2", {}, icon("users"), " ", t("web.users_title")),
     h("p", { class: "muted" }, t("web.users_hint")),
@@ -44,8 +71,12 @@ async function peoplePanel(draw) {
       h("li", {}, icon("shield-lock"), h("div", { class: "grow" }, data.owner), h("span", { class: "badge accent" }, t("web.role_owner")), contact(data.owner)),
       data.users.map((u) => {
         const select = h("select", { "aria-label": t("web.role") }, roles(u.role));
-        select.addEventListener("change", () => attempt(() => api(`/api/dashboard-users/${u.id}`, { method: "PATCH", body: { role: select.value } }), t("web.saved")));
-        return h("li", {}, icon("user"), h("div", { class: "grow" }, u.username, u.totp ? h("small", { class: "block" }, t("web.totp_on")) : null), select, contact(u.username),
+        select.addEventListener("change", async () => {
+          if (await attempt(() => api(`/api/dashboard-users/${u.id}`, { method: "PATCH", body: { role: select.value } }), t("web.saved"))) draw();
+        });
+        const rights = u.role === "member" ? h("button", { class: "small", title: t("web.perm_title"), onclick: () => permissionsDialog(u, data.catalog, draw) },
+          icon("key"), t("web.perm_count", { count: u.permissions.length })) : null;
+        return h("li", {}, icon("user"), h("div", { class: "grow" }, u.username, u.totp ? h("small", { class: "block" }, t("web.totp_on")) : null), select, rights, contact(u.username),
           h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
             if (await confirmDialog(t("web.users_delete", { name: u.username }), t("web.delete"), true)
                 && await attempt(() => api(`/api/dashboard-users/${u.id}`, { method: "DELETE" }), t("web.deleted"))) draw();
