@@ -20,6 +20,7 @@ around it. It is meant for younger children, together with talking to them.
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
 import re
@@ -56,6 +57,28 @@ MAX_WINDOWS = 14
 MAX_MINUTES = 24 * 60
 _TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _MAC = re.compile(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$")
+MAX_DEVICES = 100  # in one profile
+
+
+def device_id(value: str) -> str:
+    """A device by its MAC address (also with "-") or by its address in the home network.
+
+    The column is still called `mac`; it holds either. Pi-hole takes both as a client; the
+    router cuts the internet by IPv4, found for a MAC, used as it is for an IPv4.
+    """
+    text = value.strip().lower()
+    mac = text.replace("-", ":")
+    if _MAC.match(mac):
+        return mac
+    try:
+        address = ipaddress.ip_address(text)
+    except ValueError:
+        raise KidsError("web.kp_bad_device") from None
+    if address.is_loopback or address.is_multicast or address.is_unspecified or address.is_global:
+        raise KidsError("web.kp_bad_device")  # only devices in the home network
+    return str(address)
+
+
 _TABLES = """
 CREATE TABLE IF NOT EXISTS kid_profiles (
     id INTEGER PRIMARY KEY, data TEXT NOT NULL, created TEXT NOT NULL);
@@ -179,9 +202,7 @@ class Kids:
         return [dict(r) for r in rows]
 
     def assign(self, mac: str, profile_id: int | None, name: str = "") -> None:
-        mac = mac.strip().lower()
-        if not _MAC.match(mac):
-            raise KidsError("web.kp_bad_device")
+        mac = device_id(mac)
         if profile_id is None:
             self._db.execute("DELETE FROM kid_devices WHERE mac = ?", (mac,))
             return
@@ -189,6 +210,22 @@ class Kids:
             raise KidsError("web.kp_not_found")
         self._db.execute("INSERT OR REPLACE INTO kid_devices (mac, profile, name) VALUES (?, ?, ?)",
                          (mac, profile_id, " ".join(name.split())[:40]))  # fmt: skip
+
+    def set_devices(self, profile_id: int, devices: list[dict[str, Any]]) -> None:
+        """The devices of one profile, all at once (the profile dialog). A device chosen here
+        leaves another profile; one no longer chosen is unfiltered again."""
+        if self._profile(profile_id) is None:
+            raise KidsError("web.kp_not_found")
+        if len(devices) > MAX_DEVICES:
+            raise KidsError("web.kp_too_many_devices")
+        chosen = {device_id(str(d.get("id", ""))): " ".join(str(d.get("name", "")).split())[:40]
+                  for d in devices if isinstance(d, dict)}  # fmt: skip
+        self._db.execute("DELETE FROM kid_devices WHERE profile = ?", (profile_id,))
+        for ident, name in chosen.items():
+            self._db.execute(
+                "INSERT OR REPLACE INTO kid_devices (mac, profile, name) VALUES (?, ?, ?)",
+                (ident, profile_id, name),
+            )
 
     def pause(self, profile_id: int, minutes: int) -> None:
         """Without internet now, for `minutes`; 0 ends a pause."""
@@ -356,7 +393,11 @@ class Kids:
             offline = {d["mac"] for p in profiles if self.offline(p["id"], p, now)
                        for d in p["devices"]}  # fmt: skip
             addresses = await self._addresses() if offline or self._db.get(CUT_KEY) else {}
-            await self._router({addresses[m] for m in offline if m in addresses})
+            # A device chosen by its IPv4 is cut at that address; one by its MAC at the address
+            # the router knows for it. The router cannot cut an IPv6 address alone.
+            cut = {addresses[m] for m in offline if m in addresses}
+            cut |= {m for m in offline if "." in m and not _MAC.match(m)}
+            await self._router(cut)
         self._offline = state
 
     async def run(self) -> None:

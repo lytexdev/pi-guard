@@ -27,6 +27,55 @@ function windowRow(w, rows) {
   return row;
 }
 
+// The profile's devices: ticked from the home network, each by its MAC or its local address,
+// or typed in. A device in another profile moves here when ticked.
+const MAC_RE = /^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i;
+function devicePicker(data, profile) {
+  const mine = new Map((profile.devices || []).map((d) => [d.mac, d]));
+  const elsewhere = new Map(data.profiles.filter((p) => p.id !== profile.id).flatMap((p) => p.devices.map((d) => [d.mac, p.name])));
+  const rows = [];
+  const list = h("div", { class: "kp-devices" });
+  const add = (device, manual = false) => {
+    const box = h("input", { type: "checkbox", checked: device.checked });
+    const by = manual ? null : h("select", { "aria-label": t("web.kp_device_by") },
+      h("option", { value: "mac", selected: device.by !== "ip" }, `MAC ${device.mac || "–"}`),
+      h("option", { value: "ip", selected: device.by === "ip", disabled: !device.ip }, `IP ${device.ip || "–"}`));
+    if (!device.mac && by) by.value = "ip";
+    const other = elsewhere.get(device.mac) || elsewhere.get(device.ip);
+    const row = h("label", { class: "kp-device", dataset: { text: `${device.name} ${device.ip} ${device.mac}`.toLowerCase() } }, box,
+      h("span", { class: "grow" }, h("strong", {}, device.name || device.mac || device.ip),
+        h("small", { class: "muted block mono" }, manual ? device.ident : [device.ip, device.mac].filter(Boolean).join(" · ")),
+        other ? h("small", { class: "block warn-text" }, t("web.kp_in_other", { name: other })) : null),
+      by);
+    rows.push({ box, value: () => ({ id: manual ? device.ident : (by.value === "ip" ? device.ip : device.mac), name: device.name || "" }) });
+    list.append(row);
+  };
+  for (const n of data.network) {
+    const chosen = mine.get(n.mac) || mine.get(n.ip);
+    add({ ...n, checked: Boolean(chosen), by: chosen && chosen.mac === n.ip ? "ip" : "mac" });
+    mine.delete(n.mac); mine.delete(n.ip);
+  }
+  for (const [ident, d] of mine) add({ ident, name: d.name, checked: true }, true);  // typed in before
+  const search = h("input", { type: "search", placeholder: t("web.kp_search"), "aria-label": t("web.kp_search") });
+  search.addEventListener("input", () => [...list.children].forEach((r) => { r.hidden = !r.dataset.text.includes(search.value.toLowerCase()); }));
+  const all = (on) => rows.forEach((r) => { if (!r.box.closest("label").hidden) r.box.checked = on; });
+  const ident = h("input", { placeholder: t("web.kp_device_manual"), "aria-label": t("web.kp_device_manual"), autocomplete: "off" });
+  const label = h("input", { placeholder: t("web.device_name"), "aria-label": t("web.device_name"), maxlength: 40 });
+  const field = h("fieldset", { class: "md-section" }, h("legend", {}, t("web.kp_devices")),
+    h("p", { class: "muted" }, h("small", {}, t("web.kp_devices_pick_hint"))),
+    h("div", { class: "row wrap" }, h("div", { class: "grow" }, search),
+      h("button", { type: "button", onclick: () => all(true) }, t("web.kp_all")), h("button", { type: "button", onclick: () => all(false) }, t("web.kp_none_devices"))),
+    data.network.length || mine.size ? list : h("p", { class: "notice" }, t("web.kp_no_network")),
+    h("div", { class: "row wrap" }, ident, label, h("button", { type: "button", onclick: () => {
+      const value = ident.value.trim();
+      const isIp = /^[0-9.]+$|:/.test(value) && !MAC_RE.test(value);
+      if (!MAC_RE.test(value) && !isIp) { toast(t("web.kp_bad_device"), true); return; }
+      add({ ident: value.toLowerCase().replaceAll("-", ":"), name: label.value.trim(), checked: true }, true);
+      ident.value = ""; label.value = "";
+    } }, icon("plus"), t("web.kp_device_add"))));
+  return { field, value: () => rows.filter((r) => r.box.checked).map((r) => r.value()) };
+}
+
 function editor(data, profile, onSave) {
   const name = h("input", { id: "kp_name", value: profile.name || "", maxlength: 40, placeholder: t("web.kp_name_hint") });
   const chosen = new Set(profile.categories || data.defaults);
@@ -37,6 +86,7 @@ function editor(data, profile, onSave) {
   });
   const rows = [];
   const windows = h("div", { class: "stack" }, (profile.offline || []).map((w) => windowRow(w, rows)));
+  const picker = devicePicker(data, profile);
   const dialog = h("dialog", { class: "editor wide" }, h("h2", {}, profile.name || t("web.kp_new")),
     h("div", { class: "stack" },
       h("div", { class: "field" }, h("label", { for: "kp_name" }, t("web.kp_name")), name),
@@ -47,10 +97,11 @@ function editor(data, profile, onSave) {
         h("p", { class: "muted" }, h("small", {}, t(data.router ? "web.kp_offline_router" : "web.kp_offline_dns"))),
         windows,
         h("div", { class: "row wrap" }, Object.entries(TEMPLATES).map(([id, w]) =>
-          h("button", { type: "button", onclick: () => windows.append(windowRow(w, rows)) }, icon("plus"), t(`web.kp_tpl_${id}`)))))),
+          h("button", { type: "button", onclick: () => windows.append(windowRow(w, rows)) }, icon("plus"), t(`web.kp_tpl_${id}`))))),
+      picker.field),
     h("div", { class: "row end sticky-actions" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
       h("button", { class: "primary", onclick: async () => {
-        const values = { name: name.value, categories: categories.filter(([, b]) => b.checked).map(([c]) => c), offline: rows.map((r) => r.value()) };
+        const values = { name: name.value, categories: categories.filter(([, b]) => b.checked).map(([c]) => c), offline: rows.map((r) => r.value()), devices: picker.value() };
         if (await onSave(values)) dialog.close();
       } }, icon("check"), t("web.save"))));
   dialog.addEventListener("close", () => dialog.remove());
@@ -92,7 +143,7 @@ export async function kidsPanel(box) {
     const assign = async (mac, name, profile) => after(await attempt(() => api("/api/kids/devices", { method: "PUT", body: { mac, name, profile: profile ? Number(profile) : null } }), t("web.saved")));
     const assigned = new Map(data.profiles.flatMap((p) => p.devices.map((d) => [d.mac, { ...d, profile: p.id }])));
     const network = [...data.network];
-    for (const [mac, d] of assigned) if (!network.some((n) => n.mac === mac)) network.push({ mac, ip: "", name: d.name });
+    for (const [mac, d] of assigned) if (!network.some((n) => n.mac === mac || n.ip === mac)) network.push(MAC_RE.test(mac) ? { mac, ip: "", name: d.name } : { mac: "", ip: mac, name: d.name });
     const profileCard = (p) => {
       const [tone, label] = stateOf(p);
       const paused = p.paused_until && Date.parse(p.paused_until) > Date.now();
@@ -119,13 +170,14 @@ export async function kidsPanel(box) {
     };
     const search = h("input", { type: "search", placeholder: t("web.kp_search"), "aria-label": t("web.kp_search") });
     const rows = network.map((d) => {
-      const current = assigned.get(d.mac)?.profile || "";
+      const by = assigned.has(d.mac) ? d.mac : assigned.has(d.ip) ? d.ip : d.mac || d.ip;
+      const current = assigned.get(by)?.profile || "";
       const pick = h("select", { "aria-label": t("web.kp_profile_for", { name: d.name || d.mac }) }, h("option", { value: "" }, t("web.kp_unfiltered")),
         data.profiles.map((p) => h("option", { value: p.id, selected: p.id === current }, p.name)));
-      pick.addEventListener("change", () => assign(d.mac, d.name, pick.value));
+      pick.addEventListener("change", () => assign(by, d.name, pick.value));
       return h("tr", { dataset: { text: `${d.name} ${d.ip} ${d.mac}`.toLowerCase() } },
         h("td", {}, d.name || "–", current ? [" ", h("span", { class: "badge accent" }, t("web.kp_filtered"))] : null),
-        h("td", { class: "mono" }, d.ip || "–"), h("td", { class: "mono" }, d.mac), h("td", {}, pick));
+        h("td", { class: "mono" }, d.ip || "–"), h("td", { class: "mono" }, d.mac || "–"), h("td", {}, pick));
     });
     search.addEventListener("input", () => rows.forEach((r) => { r.hidden = !r.dataset.text.includes(search.value.toLowerCase()); }));
     fill(box,

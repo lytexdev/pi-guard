@@ -81,12 +81,15 @@ Pi-hole; Zeiten ohne Internet gehen auch nur mit einer FRITZ!Box.
 - **Zeiten ohne Internet:** etwa 21:00 bis 6:30 in Schulnächten, eine Wochenendnacht oder Hausaufgabenzeit, mit Vorlagen
   dafür. Eine Zeit über Mitternacht gehört zum Tag, an dem sie beginnt. *Internet pausieren* schaltet es sofort für 15
   Minuten bis zwei Stunden ab, *Extra-Zeit* gibt Internet während einer Zeit ohne.
-- **Geräte:** In der Liste des Heimnetzes für jedes Kindergerät ein Profil wählen; Geräte ohne Profil bleiben unverändert.
-  Handys mit privater (wechselnder) WLAN-Adresse brauchen das fürs Heimnetz ausgeschaltet, sonst erkennt das Profil sie
-  nicht.
+- **Geräte:** Im Dialog des Profils die Geräte des Heimnetzes anhaken (mit Suche, *Alle* und *Keine*) und für jedes
+  wählen, ob es über seine **MAC-Adresse** oder seine **lokale IP** (IPv4 oder IPv6) erkannt wird; fehlende Geräte trägst
+  du per MAC oder IP von Hand ein. Die Liste des Heimnetzes darunter setzt das Profil auch pro Gerät. Geräte ohne Profil
+  bleiben unverändert; ein Gerät, das in einem zweiten Profil angehakt wird, wechselt dorthin. Handys mit privater
+  (wechselnder) WLAN-Adresse brauchen das fürs Heimnetz ausgeschaltet, oder du wählst sie über eine IP, die der Router
+  ihnen immer gibt.
 
 So funktioniert es: Jedes Profil ist eine Pi-hole-Gruppe (`pi-guard-kids-N`), seine Geräte sind Pi-hole-Clients per
-MAC-Adresse in dieser Gruppe und der Standardgruppe, und die Listen des Profils gelten nur für die Gruppe, also für
+MAC- oder IP-Adresse in dieser Gruppe und der Standardgruppe, und die Listen des Profils gelten nur für die Gruppe, also für
 niemanden sonst. Eine Liste, die schon für alle da war, bleibt das. Eine Zeit ohne Internet setzt eine Regel, die für die
 gerade gesperrten Gruppen jeden Namen blockiert; mit FRITZ!Box sperrt auch der Router das Internet dieser Geräte, und
 danach wird nur zurückgegeben, was Kid Protect gesperrt hat. Die Listen von Kid Protect stehen nicht unter

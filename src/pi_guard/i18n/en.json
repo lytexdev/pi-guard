@@ -2770,7 +2770,7 @@
   "web.kp_bad_time": "Each time needs a start, an end and at least one day.",
   "web.kp_not_found": "Profile not found.",
   "web.kp_too_many": "At most 20 profiles.",
-  "web.kp_bad_device": "This is not a device address (MAC).",
+  "web.kp_bad_device": "That is neither a MAC address nor a local IP.",
   "web.kp_bad_minutes": "Between 0 and 1440 minutes.",
   "web.kp_profiles": "Profiles",
   "web.kp_add": "Add profile",
@@ -3240,5 +3240,13 @@
   "web.group_mobile": "Phone app",
   "web.dev_searching": "Looking for cameras, microphones and speakers …",
   "web.setting_mobile_enabled": "Allow the phone app",
-  "web.tip_mobile_enabled": "Phones with the PiGuard app can connect: alerts, VPN, finding the phone and the emergency button. Takes effect after a restart"
+  "web.tip_mobile_enabled": "Phones with the PiGuard app can connect: alerts, VPN, finding the phone and the emergency button. Takes effect after a restart",
+  "web.kp_device_by": "Recognise by",
+  "web.kp_in_other": "Now in profile {name}; moves here when saved",
+  "web.kp_device_manual": "MAC or local IP",
+  "web.kp_device_add": "Add device",
+  "web.kp_devices_pick_hint": "Tick devices and choose whether each is recognised by its MAC address or its local IP. The MAC is safer unless the device uses a random MAC; the IP fits when the router always gives it the same one. Add devices missing here below.",
+  "web.kp_all": "All",
+  "web.kp_none_devices": "None",
+  "web.kp_too_many_devices": "At most 100 devices in one profile."
 }

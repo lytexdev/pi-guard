@@ -2770,7 +2770,7 @@
   "web.kp_bad_time": "Jede Zeit braucht Anfang, Ende und mindestens einen Tag.",
   "web.kp_not_found": "Profil nicht gefunden.",
   "web.kp_too_many": "Höchstens 20 Profile.",
-  "web.kp_bad_device": "Das ist keine Geräteadresse (MAC).",
+  "web.kp_bad_device": "Das ist weder eine MAC-Adresse noch eine lokale IP.",
   "web.kp_bad_minutes": "Zwischen 0 und 1440 Minuten.",
   "web.kp_profiles": "Profile",
   "web.kp_add": "Profil hinzufügen",
@@ -3240,5 +3240,13 @@
   "web.group_mobile": "Handy-App",
   "web.dev_searching": "Kameras, Mikrofone und Lautsprecher werden gesucht …",
   "web.setting_mobile_enabled": "Handy-App erlauben",
-  "web.tip_mobile_enabled": "Handys mit der PiGuard-App können sich verbinden: Alarme, VPN, Handy finden und Notfallknopf. Wirkt nach einem Neustart"
+  "web.tip_mobile_enabled": "Handys mit der PiGuard-App können sich verbinden: Alarme, VPN, Handy finden und Notfallknopf. Wirkt nach einem Neustart",
+  "web.kp_device_by": "Erkennen über",
+  "web.kp_in_other": "Gerade im Profil {name}; wechselt beim Speichern hierher",
+  "web.kp_device_manual": "MAC oder lokale IP",
+  "web.kp_device_add": "Gerät eintragen",
+  "web.kp_devices_pick_hint": "Haken setzen und wählen, ob das Gerät über seine MAC-Adresse oder seine lokale IP erkannt wird. Die MAC ist sicherer, wenn das Gerät keine zufällige MAC nutzt; die IP passt, wenn der Router ihm immer dieselbe gibt. Geräte, die hier fehlen, trägst du unten ein.",
+  "web.kp_all": "Alle",
+  "web.kp_none_devices": "Keine",
+  "web.kp_too_many_devices": "Höchstens 100 Geräte in einem Profil."
 }

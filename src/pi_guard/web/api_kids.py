@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from aiohttp import web
 
-from pi_guard.addons.kids import CATEGORIES, DEFAULT_CATEGORIES, Kids, KidsError
+from pi_guard.addons.kids import CATEGORIES, DEFAULT_CATEGORIES, Kids, KidsError, device_id
 from pi_guard.network.pihole import PiholeError
 from pi_guard.web.api_network import LABEL_PREFIX
 from pi_guard.web.server import current, dashboard, read_json
@@ -94,7 +94,13 @@ async def save(request: web.Request) -> web.Response:
     data = await read_json(request)
     profile_id = int(request.match_info["id"]) if "id" in request.match_info else None
     try:
+        devices = data.get("devices")
+        if isinstance(devices, list):  # all checked first: nothing is saved half
+            for device in devices:
+                device_id(str(device.get("id", "")) if isinstance(device, dict) else "")
         saved = kids.save(profile_id, {k: data.get(k) for k in ("name", "categories", "offline")})
+        if isinstance(data.get("devices"), list):  # the dialog sends the whole choice
+            kids.set_devices(saved, data["devices"])
     except KidsError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
     _audit(request, "kids.save", str(saved))

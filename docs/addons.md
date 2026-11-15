@@ -224,15 +224,18 @@ also work with a FRITZ!Box alone. Open it under *Add-ons → Kid Protect*.
 - **Times without internet:** for example 21:00 to 06:30 on school nights, a weekend night or homework time, with
   templates for these. A time past midnight belongs to the day it starts. *Pause internet* switches it off now for 15
   minutes to two hours, *Extra time* gives internet during a time without it.
-- **Devices:** choose a profile for each child's device in the list of the home network; devices without a profile are
-  not changed. Phones with a private (changing) Wi-Fi address need it switched off for the home network, or the
-  profile does not recognise them.
+- **Devices:** in the profile's dialog, tick the devices from the home network (with search, *All* and *None*) and
+  choose for each whether it is recognised by its **MAC address** or its **local IP** (IPv4 or IPv6); devices missing
+  from the list are typed in by MAC or IP. The list of the home network below also sets a profile per device. Devices
+  without a profile are not changed; a device ticked in a second profile moves there. Phones with a private (changing)
+  Wi-Fi address need it switched off for the home network, or be chosen by an IP the router always gives them.
 
-How it works: each profile is a Pi-hole group (`pi-guard-kids-N`), its devices are Pi-hole clients by MAC address in
-that group and in the default group, and the profile's lists are assigned to the group only, so nobody else is
+How it works: each profile is a Pi-hole group (`pi-guard-kids-N`), its devices are Pi-hole clients by MAC or IP address
+in that group and in the default group, and the profile's lists are assigned to the group only, so nobody else is
 filtered by them. A list that was already there for everyone stays so. A time without internet adds one rule that
-blocks every name for the groups that are offline; with a FRITZ!Box the router also cuts these devices' internet, and
-only what Kid Protect cut is given back afterwards. The lists made by Kid Protect are not shown under *Network → Lists*.
+blocks every name for the groups that are offline; with a FRITZ!Box the router also cuts these devices' internet (by
+the IPv4 it knows for a MAC, or the IPv4 chosen; an IPv6 alone it cannot cut), and only what Kid Protect cut is given
+back afterwards. The lists made by Kid Protect are not shown under *Network → Lists*.
 Every change goes to Pi-hole at once, and the add-on checks every minute.
 
 DNS filters are no lock: mobile data, a VPN or another DNS server get around them. They help younger children most,

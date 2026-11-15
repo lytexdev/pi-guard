@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Kid Protect: a profile's dialog picks its devices from the home network (search, all, none), each by its MAC address
+  or its local IPv4/IPv6, and takes devices typed in by MAC or IP. A device chosen by IPv4 is cut at the router by it.
 - Members: a third role that watches like a viewer and uses only what the owner ticks (areas, single add-ons, single
   settings sections). The server checks each request by whole path segments; anything not listed stays with admins.
 - Links per account: Telegram, Discord, Signal and WhatsApp accounts, a trusted person the cameras know, and the

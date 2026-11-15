@@ -198,8 +198,50 @@ async def test_parents_set_it_up_in_the_dashboard(tmp_path: Path) -> None:
         assert bad.status == 400
         profiles = (await (await client.get("/api/kids")).json())["profiles"]
         assert profiles[0]["offline_now"] and profiles[0]["devices"][0]["name"] == "Tablet"
+        # The profile dialog sends its whole choice, also a device by its local address.
+        body = {**body, "devices": [{"id": "192.168.178.60", "name": "Laptop"}]}
+        saved = await client.put(f"/api/kids/profiles/{made['id']}", json=body, headers=headers)
+        assert saved.status == 200 and "192.168.178.60" in hole.clients
+        bad_device = {**body, "devices": [{"id": "8.8.8.8"}]}
+        put = await client.put(f"/api/kids/profiles/{made['id']}", json=bad_device, headers=headers)
+        assert put.status == 400  # and the profile kept its devices
+        kept = (await (await client.get("/api/kids")).json())["profiles"][0]["devices"]
+        assert [d["mac"] for d in kept] == ["192.168.178.60"]
         actions = {r[0] for r in app.db.execute("SELECT action FROM audit")}
         assert {"kids.save", "kids.device", "kids.pause"} <= actions
     finally:
         await client.close()
         app.db.close()
+
+
+def test_a_device_is_chosen_by_its_mac_or_its_local_address() -> None:
+    from pi_guard.addons.kids import device_id
+
+    assert device_id(" AA-BB-CC-DD-EE-01 ") == "aa:bb:cc:dd:ee:01"
+    assert device_id("192.168.178.42") == "192.168.178.42"
+    assert device_id("FD00::1A") == "fd00::1a"
+    for bad in ("8.8.8.8", "127.0.0.1", "aa:bb", "laptop; rm -rf", "", "224.0.0.1"):
+        with pytest.raises(KidsError):
+            device_id(bad)
+
+
+async def test_the_profile_dialog_sets_its_devices_and_ips_are_cut(
+    db: Database, monkeypatch: Any
+) -> None:
+    router = FakeRouter()
+    kids = Kids(db, None, router, TZ)
+    mia = kids.save(None, {"name": "Mia", "offline": [NIGHT]})
+    ben = kids.save(None, {"name": "Ben"})
+    kids.assign("aa:bb:cc:dd:ee:02", ben)
+    kids.set_devices(mia, [{"id": "192.168.1.50", "name": "Tablet"},
+                           {"id": "AA:BB:CC:DD:EE:02", "name": "Handy"}])  # fmt: skip
+    mine = {d["mac"]: d["profile"] for d in kids.devices()}
+    assert mine == {"192.168.1.50": mia, "aa:bb:cc:dd:ee:02": mia}  # moved from Ben
+    late = datetime(2026, 11, 8, 23, 0, tzinfo=TZ)
+    monkeypatch.setattr(kids_module, "utcnow", lambda: late)
+    await kids.apply()
+    assert "192.168.1.50" in router.blocked  # by its address, without a MAC
+    kids.set_devices(mia, [])
+    assert kids.devices() == []
+    with pytest.raises(KidsError):
+        kids.set_devices(mia, [{"id": "1.1.1.1"}])
