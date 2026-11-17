@@ -16,7 +16,8 @@ All notable changes are documented here. The format follows
 
 - VPN devices: rename, per-device internet path (`home` / `exit` / follow the Pi), hourly usage chart, and VPN plus
   Pi-hole as add-on cards (still driven by their settings). Desktop VPN page warns how to unlock lockdown and a missing
-  handshake. Needs an updated `privacy-server.sh` install for per-device routes on the Pi.
+  handshake. Signed Pi updates refresh privacy/wireguard/amneziawg helpers and systemd units when those are already
+  installed, so path-unit changes no longer need a manual `privacy-server.sh install`.
 
 ### Changed
 

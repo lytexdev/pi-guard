@@ -144,6 +144,10 @@ release by itself within an hour (`PI_GUARD_UPDATE_AUTO=false` turns that off) a
 it tells the admins in the chat. It leaves the same note as the update button, so the signature check above still
 decides. A Pi on an older release cannot do this yet, so it takes the first new release with the update button.
 
+Each update also refreshes optional root parts that were already installed (privacy exit helpers and path units,
+WireGuard apply/status, AmneziaWG sync, update/maint path units) and restarts them when needed. It never installs
+those for the first time: that stays `privacy-server.sh install`, `wireguard.sh setup`, or `amneziawg.sh` once.
+
 An update never changes `/opt/pi-guard/release-signers`, or stolen access could replace it. To change the key, for
 example because it was lost, make a new one and put it there by hand on each Pi:
 

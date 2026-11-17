@@ -145,8 +145,8 @@ Danach am Router den UDP-Port an den Pi weiterleiten und pi-guard neu starten. G
 Adressen bleiben die von `wg0`: `pi-guard-awg-sync` überträgt sie jede Sekunde und leitet ein Gerät über
 den Weg zurück, über den es sich zuletzt gemeldet hat. Die Handy-App ab 1.8 probiert die getarnten Wege,
 wenn die normalen nicht antworten, und zeigt dann *Getarnt (AmneziaWG)*. Die Desktop-App kann es noch
-nicht. Nach dem Update auch `sudo ./scripts/vpn-server.sh install` (Post-Quantum-Schlüssel auch über awg0)
-und `sudo ./scripts/privacy-server.sh install` (Privacy-Ausgang und Kill-Switch auch für awg0) ausführen.
+nicht. Signierte Updates halten Sync- und Privacy-Units aktuell; `vpn-server.sh install` nur, wenn sich die
+VPN-Server-Binary selbst geändert hat.
 
 ### Privacy-Upstream
 
@@ -157,5 +157,6 @@ Heim-VPN; der Pi leitet ausgewählten Verkehr über einen Upstream-Hop. Installa
 Mullvad: unter *Netzwerk › VPN* das Konto mit seiner 16-stelligen Nummer verknüpfen (ein Konto ohne bezahlte Zeit wird
 abgelehnt), dann *Server wählen*: Land, Stadt und Server für den Ausgang, und mit *Multi-Hop über einen zweiten Server*
 einen Eingang. Schlüssel, Adressen und Ports nimmt der Pi aus Mullvads Serverliste. Bis 2026-11-12 kam kein Exit hoch
-(`invalid exit.peer` im Journal), mit Kill-Switch hatten VPN-Geräte dann kein Internet. Nach dem Update
-`sudo ./scripts/privacy-server.sh install` erneut ausführen. Eine echte Verbindung zu Mullvad ist noch nicht getestet.
+(`invalid exit.peer` im Journal), mit Kill-Switch hatten VPN-Geräte dann kein Internet. Signierte Updates
+bringen geänderte Exit-Units von allein mit; `privacy-server.sh install` nur einmal zur Erstinstallation.
+Eine echte Verbindung zu Mullvad ist noch nicht getestet.

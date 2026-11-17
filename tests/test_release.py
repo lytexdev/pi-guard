@@ -175,3 +175,16 @@ def test_update_trusts_no_key_from_the_repository() -> None:
     assert 'SIGNERS="$PREFIX/release-signers"' in update
     assert "origin/main" not in update  # the branch is what an attacker could move
     assert "deploy/update/release-signers" not in update
+
+
+def test_update_refreshes_optional_units_when_installed() -> None:
+    """Signed updates keep privacy/wg/awg units current; first install stays the owner's script."""
+    update = (ROOT / "scripts/update.sh").read_text()
+    assert "refresh_helpers" in update
+    assert "pi-guard-exit-apply.path" in update
+    assert "pi-guard-wg-apply.path" in update
+    assert "pi-guard-awg-sync.service" in update
+    assert "First install stays the owner's step" in update
+    assert "privacy-server.sh" in update
+    # Only refresh when the helper is already present; do not invent privacy.
+    assert '[[ -e /usr/local/sbin/pi-guard-exit-apply' in update

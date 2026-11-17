@@ -34,17 +34,83 @@ report() {  # report STATE MESSAGE
 }
 git_as_owner() { runuser -u "$OWNER" -- git -C "$REPO" "$@"; }
 
-# Root helpers of optional parts, installed by their own scripts: kept current with each update,
-# never added by it (that stays the owner's step, e.g. privacy-server.sh install).
+# Optional root parts already installed by their own scripts stay current (binaries and systemd
+# units). First install stays the owner's step (privacy-server.sh, wireguard.sh, amneziawg.sh).
 refresh_helpers() {
-    local pair source target
-    for pair in deploy/privacy/pi-guard-exit-apply:pi-guard-exit-apply \
-                deploy/privacy/pi-guard-privacy-nft:pi-guard-privacy-nft \
-                deploy/amneziawg/pi-guard-awg-sync:pi-guard-awg-sync; do
-        source="$REPO/${pair%%:*}" target="/usr/local/sbin/${pair##*:}"
-        [[ -f "$target" && -f "$source" ]] && install -m 0755 "$source" "$target"
-    done
-    systemctl try-restart pi-guard-awg-sync 2>/dev/null || true
+    local src unit iface
+
+    if [[ -e /usr/local/sbin/pi-guard-exit-apply || -f /var/lib/pi-guard/privacy/installed ]]; then
+        src="$REPO/deploy/privacy"
+        for unit in pi-guard-exit-apply pi-guard-privacy-nft pi-guard-tor-ctl pi-guard-privacy-status; do
+            [[ -f "$src/$unit" ]] && install -m 0755 "$src/$unit" /usr/local/sbin/
+        done
+        for unit in \
+            pi-guard-exit-apply.service pi-guard-exit-apply.path \
+            pi-guard-privacy-nft.service pi-guard-privacy-nft.path \
+            pi-guard-tor-ctl.service pi-guard-tor-ctl.path \
+            pi-guard-privacy-status.service pi-guard-privacy-status.timer
+        do
+            [[ -f "$src/$unit" ]] && install -m 0644 "$src/$unit" /etc/systemd/system/
+        done
+    fi
+
+    if [[ -e /usr/local/sbin/pi-guard-wg-apply ]]; then
+        src="$REPO/deploy/wireguard"
+        install -m 0755 "$src/pi-guard-wg-apply" /usr/local/sbin/pi-guard-wg-apply
+        install -m 0755 "$src/pi-guard-wg-status" /usr/local/sbin/pi-guard-wg-status
+        install -m 0644 "$src"/pi-guard-wg-{status.service,status.timer,apply.service,apply.path} \
+            /etc/systemd/system/
+    fi
+
+    if [[ -e /usr/local/sbin/pi-guard-awg-sync ]]; then
+        src="$REPO/deploy/amneziawg"
+        install -m 0755 "$src/pi-guard-awg-sync" /usr/local/sbin/pi-guard-awg-sync
+        install -m 0644 "$src/pi-guard-awg-sync.service" /etc/systemd/system/
+    fi
+
+    if [[ -e /etc/systemd/system/pi-guard-pq.service && -f "$REPO/deploy/vpn/pi-guard-pq.service" ]]; then
+        install -m 0644 "$REPO/deploy/vpn/pi-guard-pq.service" /etc/systemd/system/
+    fi
+    if [[ -e /etc/modules-load.d/pi-guard-vpn-modules.conf \
+          && -f "$REPO/deploy/vpn/pi-guard-vpn-modules.conf" ]]; then
+        install -m 0644 "$REPO/deploy/vpn/pi-guard-vpn-modules.conf" \
+            /etc/modules-load.d/pi-guard-vpn-modules.conf
+    fi
+
+    if [[ -e /etc/systemd/system/pi-guard-update.path ]]; then
+        install -m 0644 "$REPO/deploy/update/pi-guard-update.path" \
+            "$REPO/deploy/update/pi-guard-update.service" /etc/systemd/system/
+    fi
+    if [[ -e /etc/systemd/system/pi-guard-maint.path ]]; then
+        install -m 0644 "$REPO/deploy/maint/pi-guard-maint.path" \
+            "$REPO/deploy/maint/pi-guard-maint.service" /etc/systemd/system/
+    fi
+
+    systemctl daemon-reload
+
+    if [[ -e /usr/local/sbin/pi-guard-exit-apply ]]; then
+        systemctl enable --now pi-guard-exit-apply.path pi-guard-privacy-nft.path \
+            pi-guard-tor-ctl.path pi-guard-privacy-status.timer 2>/dev/null || true
+        # New path units and exit rules take effect now, not only on the next peer change.
+        systemctl start pi-guard-exit-apply.service 2>/dev/null || true
+        systemctl start pi-guard-privacy-nft.service 2>/dev/null || true
+    fi
+    if [[ -e /usr/local/sbin/pi-guard-wg-apply ]]; then
+        systemctl enable --now --quiet pi-guard-wg-status.timer pi-guard-wg-apply.path 2>/dev/null || true
+        iface=wg0
+        if [[ -f "$ENV_FILE" ]]; then
+            iface=$(sed -n 's/^PI_GUARD_WIREGUARD_INTERFACE=//p' "$ENV_FILE" | head -1 | tr -d '"')
+            [[ -n "$iface" ]] || iface=wg0
+        fi
+        /usr/local/sbin/pi-guard-wg-apply "$iface" 2>/dev/null || true
+    fi
+    if [[ -e /usr/local/sbin/pi-guard-awg-sync ]]; then
+        systemctl enable --quiet pi-guard-awg-sync 2>/dev/null || true
+        systemctl try-restart pi-guard-awg-sync 2>/dev/null || true
+    fi
+    if [[ -e /etc/systemd/system/pi-guard-pq.service ]]; then
+        systemctl try-restart pi-guard-pq 2>/dev/null || true
+    fi
     return 0
 }
 
