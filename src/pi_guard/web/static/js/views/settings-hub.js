@@ -432,7 +432,7 @@ export async function render(main, params = []) {
         h("p", { class: "muted" }, t("web.sw_teaser"))),
       h("button", { class: "primary big", onclick: async () => {
         (await import("./swipe.js")).openSwipe();
-      } }, icon("users"), t("web.sw_start")));
+      } }, icon("users"), t("web.sw_start"))));
     const persons = h("div");
     const faces = h("div");
     const emergency = h("div");
