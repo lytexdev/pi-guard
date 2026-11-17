@@ -6,8 +6,10 @@
 # Its folder belongs to root: pi-guard must not be able to leave a link where root writes.
 set -eu
 IFACE="${1:-wg0}"
-# A Linux interface name; it ends up in paths under /etc/wireguard.
-[[ "$IFACE" =~ ^[A-Za-z0-9_-]{1,15}$ ]] || { echo "${0##*/}: bad interface name" >&2; exit 2; }
+# A Linux interface name. This is plain sh, so a case pattern, not bash tests.
+case "$IFACE" in
+    ""|*[!A-Za-z0-9_-]*|????????????????*) echo "${0##*/}: bad interface name" >&2; exit 2 ;;
+esac
 DIR=/run/pi-guard-status
 install -d -m 0750 -o root -g pi-guard "$DIR"
 OUT="$DIR/wireguard.status"
