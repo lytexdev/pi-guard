@@ -42,28 +42,28 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   und wieder stoppen.
 - **Notfallkontakte:** Nach einem SOS vom Handy oder wenn Meldungen
   unbestätigt bleiben, bekommen Kontakte eine Nachricht und, was du für jeden
-  wählst: Standort, Fotos und Ton, Ereignisse und die Notfalldaten als Link oder PDF.
-- **Web-Dashboard (optional):** Live-Bild und -Ton, Sprechen über den
+  wählst: Standort, Fotos und Ton, Ereignisse und die Notfalldaten als PDF oder
+  nur als Hinweis, dass Daten existieren.
+- **Web-Dashboard:** Live-Bild und -Ton, Sprechen über den
   Lautsprecher, Bildwerkzeuge, vertraute Personen, Geräteauswahl,
-  Einstellungen, Statistik und Logs; als App installierbar mit
+  Einstellungen und Logs; als App installierbar mit
   Push-Meldungen; Anmeldung mit Passwort oder Schlüsseldatei, optional mit
-  Zwei-Faktor-Code oder Hardware-Schlüssel; mehrere Benutzer (Admins und Betrachter);
+  Zwei-Faktor-Code oder Hardware-Schlüssel; mehrere Benutzer (Admins, Mitglieder und Betrachter);
   eigene Farben, Schrift und Logo; Wochenplan, Sicherheitscheck, Speicher-Bereinigung und
   WLAN-QR-Codes; Barrierefreiheit mit Lupe, Farbfiltern, Vorlesen, sichtbaren Alarmen für Gehörlose,
-  Text sprechen für Menschen, die nicht sprechen können, und Befehlen per Sprache oder Chat; ein Tutorial mit Rundgang,
+  Text sprechen für Menschen, die nicht sprechen können, und Befehlen per Sprache oder Chat;
+  Einrichtungsassistent bei der ersten Anmeldung und Tutorial mit Rundgang,
   auch in den Apps, per Assistent und mit `/tutorial` im Chat. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
 - **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-VPN, ein getarnter Weg für
   Netze, die WireGuard sperren (AmneziaWG),
   optionaler Privacy-Upstream (Multi-Hop / Mullvad / Tor),
   feste IP-Adresse, Hilfe beim Umzug in ein neues Zuhause, an einen neuen Router oder
   Pi ([Umzug](docs/de/backup.md#umzug)). Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
-- **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md), [Handy-App](docs/de/mobile.md), Personenerkennung,
+- **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md), Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
-  Home Assistant.
+  Home Assistant. Die [Handy-App](docs/de/mobile.md) ist standardmäßig an.
 - **Keine Cloud.** Kein Benutzerkonto bei einem Anbieter, keine offenen Ports,
   keine Telemetrie. Nur die Nachrichten, die Sie anfordern, verlassen das Gerät.
-  Wer helfen will, kann einen wöchentlichen Bericht mit anonymen Zahlen
-  einschalten; vorher zeigt pi-guard genau, was gesendet würde.
 
 ## Alles drumherum
 
@@ -76,7 +76,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 | **Add-ons** | Server, Notfalldaten mit PDF, Medikationsplan (BMP oder Markdown-Tabelle) und einer Karte, die sich angemeldet ohne Passwort öffnet, Kid Protect mit Filtern und Zeiten ohne Internet für Kindergeräte, Netzwerk-Analyse, Smart Home, Fernbefehle, KI-Assistent mit Kostenanzeige, der auch Einstellungen erklärt und mit Rückgängig ändert, den Sicherheitscheck prüft und als Notfallkontakt Alarmbilder einschätzen kann, Sprachsteuerung offline mit Weckwort ([Sprache](docs/de/sprache.md)), ein Reverse-Proxy wie frp ([Proxy](docs/de/proxy.md)), weitere Sprachen sowie Alarme nach Slack, Matrix, Rocket.Chat und Mastodon. Jedes lässt sich ausschalten oder samt Daten entfernen. |
 | **Plugins** | Eigene Add-ons mit Befehlen, Seiten und API-Routen, als ZIP oder Git-Link, geprüft vor dem Start. |
 | **Wege von unterwegs** | IPv4, IPv6, Mietserver oder Tailscale, für jeden Internetanschluss. |
-| **Training** | `pgtrain` auf einem Computer mit NVIDIA-Grafikkarte: Bin ich das, ähnliche Fotos, Schwellen aus deinen Fotos und den anonymen Statistiken der Pis, und eine Personenerkennung, die an Bildern von Räumen lernt. Die Bilder bleiben auf diesem Computer. Siehe [Training](docs/de/training.md). |
+| **Training** | `pgtrain` auf einem Computer mit NVIDIA-Grafikkarte: Bin ich das, ähnliche Fotos, Schwellen aus deinen eigenen Fotos und eine Personenerkennung, die an Bildern von Räumen lernt. Die Bilder bleiben auf diesem Computer. Siehe [Training](docs/de/training.md). |
 | **Updates** | Agents und Apps aktualisieren sich selbst mit signierten Versionen, die auch ein gehackter Pi nicht fälschen kann. Auch der Pi installiert nur signierte Versionen, ein gehacktes GitHub-Konto kommt also nicht an ihn heran. Ein Befehl, `scripts/ship.sh`, veröffentlicht alles; neue Haupt- und Unterversionen installieren sich selbst, Korrekturen werden angeboten. |
 
 ### Die Apps bekommen
@@ -99,7 +99,11 @@ cd pi-guard
 sudo ./scripts/install.sh
 ```
 
-Schritt für Schritt: [docs/de/installation.md](docs/de/installation.md).
+Das Installationsprogramm richtet das Dashboard unter `https://<pi>:8443` ein und
+zeigt ein einmaliges Erstpasswort. Danach Zertifikat von `/ca.crt` installieren,
+anmelden, den Einrichtungsassistenten durchgehen und *Hilfe & Tutorial* öffnen.
+Schritt für Schritt: [docs/de/installation.md](docs/de/installation.md),
+[Dashboard](docs/de/dashboard.md#erste-anmeldung-und-einrichtungsassistent).
 Bedienung im Alltag: [docs/de/bedienung.md](docs/de/bedienung.md).
 
 ## Datenschutz

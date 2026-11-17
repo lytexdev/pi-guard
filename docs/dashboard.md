@@ -1,12 +1,12 @@
-# Web dashboard (optional)
+# Web dashboard
 
-The dashboard runs inside pi-guard and is off by default. It is meant for the
-home network or for access through a VPN (WireGuard) — never expose it to the
-internet with a port forwarding.
+The dashboard runs inside pi-guard. It and the phone app are on by default; the
+installer sets them up. It is meant for the home network or for access through
+a VPN (WireGuard) — never expose it to the internet with a port forwarding.
 
 ## Enable
 
-The dashboard and the phone app are on by default, and the installer sets them up. To switch them off:
+To switch the dashboard or the phone app off:
 
 ```dotenv
 PI_GUARD_DASHBOARD_ENABLED=false
@@ -26,25 +26,31 @@ dashboard asks for your own user name and password (at least 10 characters,
 not the default). It then offers two-factor codes: scan the QR code with an
 authenticator app (Google Authenticator, Aegis, 2FAS, …) and confirm one code.
 
-The setup assistant continues with — every step can be skipped and opened
-again later under *More → Setup assistant*:
+The setup assistant continues with — every step except login can be skipped and
+opened again later under *More → Setup assistant*. Steps the installer already
+finished show as *Already set up*:
 
 1. Welcome and language
-2. Login and two-factor codes
-3. Cameras, microphone and speaker (selection fields)
-4. Telegram: bot token, administrator and viewer IDs, group chats
+2. Login and two-factor codes (required while the first password is still in use)
+3. Cameras, microphone and speaker
+4. Messengers: Telegram, and Discord, e-mail, WhatsApp or Signal if you want them
 5. Alerts and modes: alerts also while at home, video instead of photo,
    quiet hours, presence detection
 6. Emergency contacts
-7. Trusted people: switch recognition on (the two model files are only
-   downloaded after you press the button, with size and source shown), then
-   enroll people
-8. Design: dark, light or high contrast, normal or large text (per device)
-9. Finish: restart pi-guard if settings changed
+7. Trusted people: switch recognition on (the model files are only downloaded
+   after you press the button, with size and source shown), then enroll people
+8. Add-ons: which optional parts to switch on
+9. Design: dark, light or high contrast, normal or large text (per device)
+10. Finish: restart pi-guard if settings changed
 
 Until the default password has been changed, the default login is the only
 way in; keep the dashboard off the internet until then. While pi-guard still
 uses it, the log says so at every start.
+
+**Members and viewers** do not get the setup assistant. After their first login
+they can change their own password and two-factor codes under *Access*. The
+tutorial under *Help & tutorial* shows only the pages their role may open
+(overview, live and events for viewers).
 
 ## Login methods
 
@@ -265,7 +271,9 @@ tapped text or the whole page aloud, and a guided tour.
 ## Help and tutorial
 
 *Help & tutorial* in the navigation explains every part of pi-guard in a few sentences, each with a button to it, and
-*Start the tour* walks through them one page at a time; viewers see only their pages. The same tutorial is everywhere:
+*Start the tour* walks through them one page at a time; viewers see only their pages. The chapters are: overview, live,
+events, people, network, VPN, Kid Protect, emergency contacts, emergency data, apps, assistant, moving, and settings.
+The same tutorial is everywhere:
 
 - in the **desktop app** under *PiGuard › Help & tutorial* (F1), and in the **phone app** as the *Tutorial* quick
   action; both open this page with the tour;
@@ -444,10 +452,8 @@ The Telegram bot token can be entered in the dashboard (write-only, stored in
 The compose file publishes port 8443. Certificates and keys live in the
 `data` volume. Inside a container pi-guard only sees the container's own
 addresses, so add the names and addresses you open the dashboard with:
-`PI_GUARD_DASHBOARD_TLS_NAMES=192.168.178.10,raspberrypi.local`. Set `PI_GUARD_DASHBOARD_ENABLED=true` and the password hash in
-`.env`.
-
-## Later
-
-A native app with built-in WireGuard is a possible next step; the dashboard's
-JSON API is the interface it would use.
+`PI_GUARD_DASHBOARD_TLS_NAMES=192.168.178.10,raspberrypi.local`. Set
+`PI_GUARD_DASHBOARD_ENABLED=true`. Without `PI_GUARD_DASHBOARD_FIRST_PASSWORD`
+the first login is **admin** / **admin123**, then the setup assistant. The
+Android and desktop apps use this same dashboard; see [mobile.md](mobile.md)
+and [desktop.md](desktop.md).

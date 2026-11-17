@@ -1,15 +1,16 @@
 # Handy-App (Android)
 
-PiGuard ist das Dashboard als Android-App, mit dem, was nur ein Handy kann. Sie ist optional: Schalte **Handy-App**
-unter *Add-ons* ein und starte neu.
+PiGuard ist das Dashboard als Android-App, mit dem, was nur ein Handy kann. Die Handy-App ist standardmäßig an
+(`PI_GUARD_MOBILE_ENABLED`); Downloads und gekoppelte Handys stehen unter *Einstellungen → Apps*.
 
 ## Installieren
 
 1. Öffne auf dem Handy im Heimnetz *Einstellungen → Apps* und drücke **App herunterladen**, oder öffne einen
    Einladungslink von dort (sieben Tage gültig, nur Downloads).
 2. Öffne PiGuard im Heimnetz. Die App sucht pi-guard im Netzwerk, oder du trägst die Adresse ein.
-3. Prüfe den Zertifikats-Fingerabdruck und melde dich an. Das Handy bekommt einen eigenen Schlüssel und bleibt
-   angemeldet.
+3. Prüfe den Zertifikats-Fingerabdruck und melde dich mit einem Dashboard-Konto an. Das Handy bekommt einen
+   eigenen Schlüssel und bleibt angemeldet. Admins mit dem Erstpasswort kommen in den Einrichtungsassistenten;
+   Mitglieder und Betrachter ändern nur ihre eigene Anmeldung unter *Zugang*.
 
 Neue Handys lassen sich nur im Heimnetz oder über das VPN verbinden. Einen VPN-Zugang bekommen nur Admins: Er reicht ins
 ganze Heimnetz, und Betrachter dürfen nur zuschauen. Unter *Einstellungen → Apps* entfernst du ein

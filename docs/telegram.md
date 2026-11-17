@@ -1,7 +1,9 @@
 # Telegram
 
-Telegram is pi-guard's main interface. The bot uses long polling: it connects
-out to Telegram, so no port has to be opened and no public address is needed.
+Telegram is an optional chat interface beside the [dashboard](dashboard.md) and
+the apps. The bot uses long polling: it connects out to Telegram, so no port
+has to be opened and no public address is needed. You can leave the token empty
+at install time and set it later in the setup assistant.
 
 ## Create the bot
 

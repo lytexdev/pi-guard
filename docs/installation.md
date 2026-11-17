@@ -9,8 +9,9 @@ systemd service that runs as an unprivileged `pi-guard` user.
 1. Flash **Raspberry Pi OS Lite (64-bit)**, Bookworm or newer, and enable SSH.
    Python 3.11 or newer is required.
 2. Plug in the USB camera (and audio devices, if you want them).
-3. Create a Telegram bot and find your user ID — see [telegram.md](telegram.md).
-   You need the **bot token** and **your numeric user ID**.
+3. Optional: create a Telegram bot and find your user ID — see
+   [telegram.md](telegram.md). You can leave the token empty and set Telegram
+   up later in the dashboard assistant.
 
 ## Install
 
@@ -29,17 +30,20 @@ What the installer does, in order:
 3. lists the detected cameras and sound cards
 4. creates the `pi-guard` system user (groups `video`, `audio`)
 5. installs pi-guard into `/opt/pi-guard/venv` and links `/usr/local/bin/pi-guard`
-6. asks for language, time zone, bot token, admin user ID, optional Signal,
-   optional presence detection, recording location and retention, and writes
-   `/etc/pi-guard/pi-guard.env` (mode `0640 root:pi-guard`)
-7. writes `/etc/pi-guard/config.yaml` for the detected hardware
+6. asks for language, time zone, optional bot token and admin user ID, optional
+   Signal, optional presence detection, recording location and retention, and
+   writes `/etc/pi-guard/pi-guard.env` (mode `0640 root:pi-guard`)
+7. turns the dashboard and phone app on by default, prints a one-time first
+   login (`admin` / random password) and the address `https://<pi>:8443`
+8. writes `/etc/pi-guard/config.yaml` for the detected hardware
    (`pi-guard config init`)
-8. installs and starts `pi-guard.service`
-9. runs `pi-guard doctor` and waits for the service to report healthy
+9. installs and starts `pi-guard.service`
+10. runs `pi-guard doctor` and waits for the service to report healthy
 
 Running it again is safe: an existing `pi-guard.env`, `config.yaml` and all
-recordings are kept. `--yes` skips all questions (requires an existing env
-file).
+recordings are kept. A second run does not invent a new first password when
+`pi-guard.db` already exists. `--yes` skips all questions (requires an existing
+env file).
 
 ## After installation
 
@@ -49,7 +53,21 @@ pi-guard status
 sudo journalctl -u pi-guard -f
 ```
 
-Open the bot in Telegram and press **Start**. You should see the menu.
+### First steps (dashboard)
+
+1. On each device, install the certificate from `https://<pi>:8443/ca.crt`
+   (see [dashboard.md](dashboard.md#https-and-the-certificate)).
+2. Open `https://<pi>:8443` and sign in as **admin** with the password the
+   installer printed.
+3. Choose your own user name and password (at least 10 characters). The setup
+   assistant then walks through cameras, messengers, alerts, emergency
+   contacts, trusted people, add-ons and design. Skip any step and reopen it
+   under *More → Setup assistant*.
+4. Optional: install the [Android](mobile.md) or [desktop](desktop.md) app from
+   *Settings → Apps*, or invite household members under *Access*.
+5. Open *Help & tutorial* (or F1 in the desktop app) for the guided tour.
+
+If you set a Telegram token, open the bot and press **Start** as well.
 
 To change settings, edit `/etc/pi-guard/pi-guard.env` or
 `/etc/pi-guard/config.yaml` and restart:

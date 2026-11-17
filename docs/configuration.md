@@ -45,7 +45,7 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 | `UPDATE_CHANNEL` | `stable` | `beta` also takes beta-* releases and pre-releases |
 | `UPDATE_AUTO` | `true` | install new major and minor releases by themselves, see [updates.md](updates.md#one-release-of-everything) |
 | `BACKUP_ENABLED`, `BACKUP_TARGET`, `BACKUP_PASSPHRASE`, … | off | encrypted backups to Nextcloud, rsync or Borg, see [backup.md](backup.md) |
-| `SUPPORT_URL` | – | `https://` receiver of the anonymous statistics; sent only after an admin switches them on under Settings → Updates, see [training.md](training.md#anonymous-statistics) |
+| `SUPPORT_URL` | – | unused for now (anonymous statistics are off since 1.10); kept so an older env file still loads |
 
 ### Telegram
 

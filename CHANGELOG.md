@@ -11,6 +11,12 @@ All notable changes are documented here. The format follows
 - Shared SQLite schema versioning: every dashboard and add-on table in `pi-guard.db` is created by numbered
   migrations (`storage/schema.py`); stores no longer create tables on their own. The same migration helper versions
   `biometrics.db`, `medical.db` and `knowledge.db`. A failed step rolls back without bumping `user_version`.
+
+### Changed
+
+- Setup and first-login docs: installation and dashboard pages describe the ten-step assistant, certificate, members
+  and viewers, and the tutorial chapters; READMEs no longer promise anonymous weekly statistics or rescue links;
+  medical and tutorial texts match sheet/note sharing; the installer ends with the dashboard address when it is on.
 - Kid Protect: a profile's dialog picks its devices from the home network (search, all, none), each by its MAC address
   or its local IPv4/IPv6, and takes devices typed in by MAC or IP. A device chosen by IPv4 is cut at the router by it.
 - Members: a third role that watches like a viewer and uses only what the owner ticks (areas, single add-ons, single

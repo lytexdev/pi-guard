@@ -9,7 +9,7 @@ verbinden können.
 - Raspberry Pi 4 (2 GB reichen) mit Netzteil
 - microSD-Karte mit 128–256 GB, möglichst „High Endurance“
 - eine USB-Kamera (Webcam)
-- ein Telegram-Konto auf Ihrem Handy
+- optional: ein Telegram-Konto (kann auch später im Dashboard eingerichtet werden)
 
 ## 1. Raspberry Pi vorbereiten
 
@@ -20,7 +20,10 @@ verbinden können.
 3. Karte einlegen, Kamera anstecken, Pi einschalten.
 4. Verbinden Sie sich: `ssh benutzer@raspberrypi.local`
 
-## 2. Telegram-Bot anlegen
+## 2. Optional: Telegram-Bot anlegen
+
+Telegram ist nicht Pflicht. Ohne Bot nutzen Sie das Dashboard im Browser oder
+die Apps. Wenn Sie Telegram wollen:
 
 1. Öffnen Sie in Telegram **@BotFather** und schicken Sie `/newbot`.
 2. Geben Sie einen Namen ein (z. B. „Haus Müller“) und einen Benutzernamen,
@@ -28,7 +31,7 @@ verbinden können.
 3. BotFather schickt Ihnen einen **Token** (`123456789:AAH…`). Das ist ein
    Passwort für den Bot – geben Sie ihn nicht weiter.
 4. Öffnen Sie **@userinfobot** und drücken Sie auf Start. Er zeigt Ihnen Ihre
-   **Benutzer-ID** (eine Zahl). Diese brauchen Sie gleich.
+   **Benutzer-ID** (eine Zahl).
 5. Öffnen Sie Ihren neuen Bot und drücken Sie auf **Start**.
 
 ## 3. pi-guard installieren
@@ -44,20 +47,32 @@ Das Installationsprogramm fragt nach:
 
 - **Sprache**: `de`
 - **Zeitzone**: normalerweise `Europe/Berlin` (vorgeschlagen)
-- **Bot-Token**: aus Schritt 2 (wird beim Eintippen nicht angezeigt)
-- **Ihre Telegram-Benutzer-ID**: die Zahl von @userinfobot
+- **Bot-Token**: aus Schritt 2, oder leer lassen und später im Dashboard setzen
+- **Ihre Telegram-Benutzer-ID**: nur wenn ein Token gesetzt ist
 - **Signal**: einfach mit `n` überspringen
 - **Anwesenheitserkennung über das WLAN-Handy**: optional, siehe unten
 - **Speicherort und Aufbewahrungsdauer** der Aufnahmen: Vorschläge übernehmen
 
-Danach prüft pi-guard alles selbst. Am Ende sollte stehen:
-`pi-guard is running. Open your bot in Telegram and press Start.`
+Dashboard und Handy-App sind standardmäßig an. Notieren Sie die Zeile
+`first login: admin / …` und die Adresse `https://<pi>:8443`. Am Ende sollte
+stehen, dass pi-guard läuft und das Dashboard geöffnet werden kann (oder der
+Telegram-Bot, wenn Sie einen Token gesetzt haben).
 
-## 4. Ausprobieren
+Ein erneutes `install.sh` behält Einstellungen und Aufnahmen und vergibt kein
+neues Erstpasswort, wenn die Datenbank schon existiert.
 
-Schreiben Sie Ihrem Bot `menü` oder drücken Sie auf **Start**. Es erscheinen
-die Knöpfe **Foto ansehen**, **Video ansehen**, **Kamerastatus**,
-**Benachrichtigungen** und **Hilfe**.
+## 4. Erste Schritte im Dashboard
+
+1. Zertifikat von `https://<pi>:8443/ca.crt` auf dem Gerät installieren
+   (siehe [Dashboard](dashboard.md#zertifikat-installieren-einmal-pro-gerät)).
+2. `https://<pi>:8443` öffnen und als **admin** mit dem Erstpasswort anmelden.
+3. Eigenen Benutzernamen und eigenes Passwort wählen (mindestens 10 Zeichen).
+   Der Einrichtungsassistent führt durch Kameras, Messenger, Meldungen,
+   Notfallkontakte, vertraute Personen, Add-ons und Design. Schritte
+   überspringen und später unter *Mehr → Einrichtungsassistent* nachholen.
+4. Optional: Android- oder Desktop-App unter *Einstellungen → Apps*, oder
+   Haushaltsmitglieder unter *Zugang* anlegen.
+5. *Hilfe & Tutorial* (oder F1 in der Desktop-App) für den Rundgang.
 
 Falls etwas nicht funktioniert:
 
@@ -69,9 +84,10 @@ zeigt, was fehlt. Weitere Hilfe: [Fehlersuche](../troubleshooting.md) (Englisch)
 
 ## 5. Angehörige einladen
 
-Tippen Sie auf **Weitere Funktionen → Jemanden einladen**. Der Bot schickt
-einen Link. Schicken Sie diesen Link der Person (z. B. per SMS). Sie öffnet ihn,
-drückt in Telegram auf **Start** und kann dann Fotos und Videos ansehen.
+Im Dashboard unter *Zugang → Dashboard-Benutzer* legst du Personen mit Rolle
+Admin, Mitglied oder Betrachter an. Per Telegram: **Weitere Funktionen →
+Jemanden einladen**; der Bot schickt einen Link. Die Person öffnet ihn und
+drückt auf **Start**.
 
 ## Anwesenheitserkennung (optional)
 

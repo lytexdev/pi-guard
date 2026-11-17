@@ -1,7 +1,8 @@
 # Bedienung
 
-pi-guard wird über Telegram bedient. Sie müssen sich keine Befehle merken:
-Alles geht über Knöpfe.
+Den Alltag erledigt meist das [Dashboard](dashboard.md) oder die Apps. Telegram
+bleibt ein optionaler Weg mit denselben Funktionen. Sie müssen sich keine Befehle
+merken: Alles geht über Knöpfe.
 
 ## Das Menü
 

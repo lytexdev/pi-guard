@@ -1,15 +1,17 @@
 # Mobile app (Android)
 
-PiGuard is the dashboard as an Android app, with what only a phone can do. It is optional: switch on
-**Mobile app** under *Add-ons* and restart. The server side does not depend on Android, so an iOS app could
-use the same add-on.
+PiGuard is the dashboard as an Android app, with what only a phone can do. The phone app is on by
+default (`PI_GUARD_MOBILE_ENABLED`); manage downloads and paired phones under *Settings → Apps*. The
+server side does not depend on Android, so an iOS app could use the same APIs.
 
 ## Install
 
 1. Under *Settings → Apps*, open the page on your phone in the home network and press **Download app**, or open an
    invitation link from there (valid seven days, downloads only).
 2. Open PiGuard while in the home network. It searches the network for pi-guard, or you type the address.
-3. Check the certificate fingerprint and log in. The phone then has its own token and stays logged in.
+3. Check the certificate fingerprint and log in with a dashboard account. The phone then has its own token and
+   stays logged in. Admins who still use the first password are sent through the setup assistant; members and
+   viewers only change their own login under *Access*.
 
 New phones can only be connected from the home network or the VPN. Only admins get a VPN access: it reaches the whole
 home network, and viewers may only watch. Remove a phone under *Settings → Apps* and its token stops working at once.

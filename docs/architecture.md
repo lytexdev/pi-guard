@@ -12,7 +12,7 @@ pi-guard is one Python process (asyncio) plus one FFmpeg process per camera. Aro
 | `proxy/` | `pgproxy`, the optional reverse proxy in Rust, see [proxy.md](proxy.md) |
 | `desktop/` | Electron app: shows the dashboard, drives the VPN service |
 | `android/` | phone app: shows the dashboard, has its own WireGuard client |
-| `training/` | `pgtrain` for a computer with a GPU: faces, thresholds, training the person detector, receiving statistics, see [training.md](training.md) |
+| `training/` | `pgtrain` for a computer with a GPU: faces, thresholds, training the person detector, see [training.md](training.md) |
 
 Settings changed in the dashboard live in `DATA_DIR/dashboard.env` and `DATA_DIR/dashboard.yaml`, and win over
 `.env` and `config.yaml`. Every change of `dashboard.env` is kept in the `settings_history` table, without secret
@@ -56,8 +56,8 @@ values, so it can be undone.
 | `backup.py` | encrypted backups to Nextcloud, rsync or Borg |
 | `storage` | SQLite state, numbered schema migrations, no ORM |
 | `security` | file permissions, redaction, rate limiting |
-| `diagnostics` | `pi-guard doctor`, host metrics, the optional anonymous statistics |
-| `web` | optional dashboard: aiohttp server, auth, security middleware, JSON API, static single-page app, Web Push |
+| `diagnostics` | `pi-guard doctor`, host metrics (anonymous statistics exist in code but are not wired since 1.10) |
+| `web` | dashboard (on by default): aiohttp server, auth, setup assistant, tutorial, security middleware, JSON API, static single-page app, Web Push |
 | `network` | Pi-hole client, LAN inventory, WireGuard status |
 | `privacy` | optional upstream multi-hop, providers, DNS and kill-switch plans for root jobs |
 | `i18n` | English and German texts |
@@ -85,6 +85,11 @@ values, so it can be undone.
   `knowledge.db`). `PRAGMA user_version` is the only counter; a failed step
   rolls back and leaves the version unchanged. Stores read and write rows; they
   do not create tables. There is no ORM.
+- **First login and help share one path.** The setup assistant
+  (`web/static/js/views/setup.js`) runs for admins until finished; the tutorial
+  chapters live once in `tutorial.py` and `web/static/js/views/help.js` (a test
+  keeps them equal) and feed the dashboard tour, `/tutorial` in chats and the
+  assistant.
 
 ## Mode selection
 

@@ -40,14 +40,16 @@ movement, and lets you look at your home with two buttons: **View photo** and
   it, from the chat.
 - **Emergency contacts.** After an SOS from a phone, or if alerts stay
   unconfirmed, contacts get a message, and what you chose for each: the place,
-  photos and sound, events, and the emergency medical data as a link or PDF.
+  photos and sound, events, and the emergency medical data as a PDF or only a
+  note that data exist.
 - **Web dashboard.** Live picture and sound, talk through the
-  speaker, image tools, trusted people, device selection, settings,
-  statistics and logs; installable as an app with push notifications; login
-  by password or key file with optional two-factor codes, hardware keys, several users
-  (admins and viewers) and your own colours, font and logo. Also a weekly plan, a security
-  scan, storage clean-up and Wi-Fi QR codes. A tutorial with a guided tour, also in the apps,
-  through the assistant and with `/tutorial` in chats.
+  speaker, image tools, trusted people, device selection, settings and logs;
+  installable as an app with push notifications; login by password or key file
+  with optional two-factor codes, hardware keys, several users (admins, members
+  and viewers) and your own colours, font and logo. Also a weekly plan, a security
+  scan, storage clean-up and Wi-Fi QR codes. A setup assistant on first login and
+  a tutorial with a guided tour, also in the apps, through the assistant and with
+  `/tutorial` in chats.
 - **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
   a WireGuard VPN with your own devices, a disguised way for networks that block
   WireGuard (AmneziaWG), optional privacy upstream (multi-hop / Mullvad / Tor), a safe fixed-IP script, and help with moving to a new home,
@@ -56,8 +58,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
 - **Nothing leaves the device** except the messages you ask for. No cloud
-  account, no open ports, no telemetry. If you want to help, you can switch on
-  a weekly report of anonymous counts, shown to you before anything is sent.
+  account, no open ports, no telemetry.
 
 ## Everything around it
 
@@ -71,7 +72,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | **Add-ons** | Server, emergency medical data with PDF, medication plan (BMP or a Markdown table) and a card that opens when logged in, Kid Protect with filters and times without internet for children's devices, network analysis, smart home, remote commands, AI assistant with its costs that also explains settings and changes them with an undo, reviews the security check, and can look at alarm pictures as an emergency contact, offline voice control with a wake phrase, a reverse proxy like frp, more languages, and alerts into Slack, Matrix, Rocket.Chat and Mastodon. Each can be switched off or removed with its data. |
 | **Plugins** | Your own add-ons with commands, pages and API routes, from a ZIP or a Git link, checked before they run. See [plugins](docs/plugins.md). |
 | **Ways home** | IPv4, IPv6, a rented server or Tailscale, for every kind of internet connection. See [network](docs/network.md#ways-home-from-outside). |
-| **Training** | `pgtrain` on a computer with an NVIDIA GPU: is this me, similar photos, thresholds from your photos and the Pis' anonymous statistics, and a person detector trained on pictures of rooms. Pictures stay on that computer. See [training](docs/training.md). |
+| **Training** | `pgtrain` on a computer with an NVIDIA GPU: is this me, similar photos, thresholds from your own photos, and a person detector trained on pictures of rooms. Pictures stay on that computer. See [training](docs/training.md). |
 | **Updates** | Agents and apps update themselves with signed releases, which a compromised Pi cannot fake. The Pi installs only signed releases too, so a hacked GitHub account cannot reach it. One command, `scripts/ship.sh`, releases everything; new minor and major versions install themselves, patches are offered. See [updates](docs/updates.md). |
 
 ### Getting the apps
@@ -93,7 +94,7 @@ Build them with `scripts/build-desktop.sh` and `scripts/build-android.sh`, see [
 - Raspberry Pi 4 (2 GB is enough) or Pi 5 with Raspberry Pi OS Lite 64-bit
   (Bookworm or newer); other Debian/Ubuntu ARM64 or x86_64 machines work too
 - a USB (UVC) camera; a High Endurance microSD card or a USB SSD
-- a Telegram account
+- optional: a Telegram account (the dashboard works without it)
 
 See [docs/hardware.md](docs/hardware.md) for tested and expected hardware.
 
@@ -105,10 +106,14 @@ cd pi-guard
 sudo ./scripts/install.sh
 ```
 
-The installer asks for the Telegram bot token and your Telegram user ID,
+The installer asks for language, time zone and optionally a Telegram bot token,
 creates a `pi-guard` system user, writes `/etc/pi-guard/pi-guard.env` and a
-`config.yaml` for the detected camera, installs a systemd service, and runs
-`pi-guard doctor`. Details: [docs/installation.md](docs/installation.md).
+`config.yaml` for the detected camera, turns the dashboard on at
+`https://<pi>:8443`, prints a one-time first login, installs a systemd service
+and runs `pi-guard doctor`. Then: install the certificate from `/ca.crt`, sign
+in, finish the setup assistant, and open *Help & tutorial*. Details:
+[docs/installation.md](docs/installation.md) and
+[docs/dashboard.md](docs/dashboard.md#first-login-and-setup-assistant).
 
 Docker Compose is available as an alternative: [docs/docker.md](docs/docker.md).
 

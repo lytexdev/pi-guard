@@ -1,13 +1,13 @@
-# Web-Dashboard (optional)
+# Web-Dashboard
 
-Das Dashboard läuft in pi-guard mit und ist standardmäßig aus. Es ist für das
-Heimnetz gedacht oder für den Zugriff über ein VPN (WireGuard) – bitte nicht
-per Portfreigabe ins Internet stellen.
+Das Dashboard läuft in pi-guard mit. Es und die Handy-App sind standardmäßig an;
+die Installation richtet sie ein. Es ist für das Heimnetz gedacht oder für den
+Zugriff über ein VPN (WireGuard) – bitte nicht per Portfreigabe ins Internet
+stellen.
 
 ## Einschalten
 
-Dashboard und Handy-App sind standardmäßig an, die Installation richtet sie ein. Ausschalten in
-`/etc/pi-guard/pi-guard.env`:
+Ausschalten in `/etc/pi-guard/pi-guard.env`:
 
 ```
 PI_GUARD_DASHBOARD_ENABLED=false
@@ -27,11 +27,24 @@ Zeichen) und bietet einen Zwei-Faktor-Code an: QR-Code mit einer
 Authenticator-App scannen (z. B. Google Authenticator, Aegis, 2FAS) und einen
 Code bestätigen.
 
-Der Assistent führt dann durch: Kameras, Mikrofon und Lautsprecher –
-Telegram (Bot-Token, Ihre Benutzer-ID, weitere Benutzer) – Meldungen und
-Ruhezeiten – Notfallkontakte – vertraute Personen – Design (dunkel, hell,
-hoher Kontrast, große Schrift). Jeder Schritt außer der Anmeldung lässt sich
-überspringen und später unter *Mehr → Einrichtungsassistent* wieder öffnen.
+Der Assistent führt dann durch (jeder Schritt außer der Anmeldung lässt sich
+überspringen und später unter *Mehr → Einrichtungsassistent* wieder öffnen;
+was die Installation schon erledigt hat, erscheint als *Bereits eingerichtet*):
+
+1. Willkommen und Sprache
+2. Anmeldung und Zwei-Faktor-Codes (Pflicht, solange das erste Passwort gilt)
+3. Kameras, Mikrofon und Lautsprecher
+4. Messenger: Telegram, und bei Bedarf Discord, E-Mail, WhatsApp oder Signal
+5. Meldungen und Modi: auch zuhause, Video statt Foto, Ruhezeiten, Anwesenheit
+6. Notfallkontakte
+7. Vertraute Personen: Erkennung einschalten, Modelle laden, Personen eintragen
+8. Add-ons: optionale Teile einschalten
+9. Design: dunkel, hell oder hoher Kontrast, normale oder große Schrift
+10. Fertig: Neustart, wenn sich Einstellungen geändert haben
+
+**Mitglieder und Betrachter** bekommen den Assistenten nicht. Nach der ersten
+Anmeldung ändern sie Passwort und Zwei-Faktor unter *Zugang*. *Hilfe & Tutorial*
+zeigt nur die Seiten ihrer Rolle (für Betrachter: Übersicht, Live und Ereignisse).
 
 **Ausgesperrt?** `sudo -u pi-guard pi-guard dashboard reset-password` setzt
 die Anmeldung auf admin mit einem neuen Passwort zurück, das der Befehl anzeigt.
@@ -252,7 +265,9 @@ Text oder der ganzen Seite und eine Tour.
 ## Hilfe und Tutorial
 
 *Hilfe & Tutorial* in der Navigation erklärt jeden Teil von pi-guard in wenigen Sätzen, jeweils mit Knopf dorthin, und
-*Rundgang starten* geht sie Seite für Seite durch; Betrachter sehen nur ihre Seiten. Dasselbe Tutorial gibt es überall:
+*Rundgang starten* geht sie Seite für Seite durch; Betrachter sehen nur ihre Seiten. Die Kapitel sind: Übersicht, Live,
+Ereignisse, Personen, Netzwerk, VPN, Kid Protect, Notfallkontakte, Notfalldaten, Apps, Assistent, Umzug und
+Einstellungen. Dasselbe Tutorial gibt es überall:
 
 - in der **Desktop-App** unter *PiGuard › Hilfe & Tutorial* (F1) und in der **Handy-App** als Schnellaktion *Tutorial*;
   beide öffnen diese Seite mit dem Rundgang;
@@ -272,7 +287,7 @@ Text oder der ganzen Seite und eine Tour.
   aus“, „Rot-Grün“, „Sichtbare Alarme an“, „zurücksetzen“. Das passiert im Browser und wird nirgends hingeschickt. Mit
   dem Pi selbst sprechen: [sprache.md](sprache.md).
 
-## Zertifikat installieren (einmal pro Gerät)
+## Normal- und Expertenansicht
 
 In den Einstellungen wechselt ein Schalter neben Überschrift und Suche zwischen **Normal** und **Experte**. Normal zeigt, was die meisten
 brauchen, Experte alles. Das gilt pro Gerät, auch in der Handy-App, und versteckte Einstellungen behalten ihre Werte.
@@ -280,8 +295,6 @@ brauchen, Experte alles. Das gilt pro Gerät, auch in der Handy-App, und verstec
 Im Expertenmodus endet *Messenger* mit *Testnachrichten*: eine Testnachricht über jeden eingerichteten Messenger, an
 jeden Admin dort oder in den Kanal von Slack, Matrix, Rocket.Chat oder Mastodon. Add-ons, die zu pi-guard gehören,
 tragen ein Häkchen; Darüberfahren, Fokus oder Antippen zeigt *Verifiziert*.
-
-## Aufbau der Einstellungen
 
 Die Einstellungen sind in Grundlagen, Benachrichtigen, Geräte & Zugang und System gruppiert. Jeder Bereich beginnt
 mit einer Zeile, was er enthält, und jede Einstellung zeigt ihre Erklärung direkt unter dem Namen. Ein/Aus ist ein
@@ -315,6 +328,8 @@ Neustart.
 
 Unter Einstellungen › Benachrichtigungen legst du bei jeder Nachricht fest, **wohin** sie geht: unter *Alle Wege*
 kannst du zum Beispiel nur Signal wählen, oder Telegram und die PiGuard-App. Das wirkt sofort.
+
+## Zertifikat installieren (einmal pro Gerät)
 
 Mikrofon, App-Installation und Push-Benachrichtigungen funktionieren nur über
 eine vertrauenswürdige HTTPS-Verbindung. pi-guard erstellt dafür ein eigenes

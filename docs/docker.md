@@ -7,11 +7,17 @@ is useful on machines that already run Docker, or for trying pi-guard out.
 
 ```bash
 git clone https://github.com/lytexdev/pi-guard.git && cd pi-guard
-cp .env.example .env                        # fill in token and admin ID
+cp .env.example .env                        # dashboard is on; Telegram token optional
 mkdir -p config data recordings
 cp config/config.example.yaml config/config.yaml   # edit cameras: device paths, names
 sudo chown -R 10001:10001 data recordings          # the container runs as uid 10001
 ```
+
+Set `PI_GUARD_DASHBOARD_TLS_NAMES` to the addresses you open (for example
+`192.168.178.10,raspberrypi.local`). Without `PI_GUARD_DASHBOARD_FIRST_PASSWORD`
+the first login is **admin** / **admin123**, then the setup assistant at
+`https://<host>:8443`. Install `/ca.crt` on each device. Telegram can stay
+empty and be set later in the assistant.
 
 Point the camera at a stable path:
 
