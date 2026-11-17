@@ -185,8 +185,10 @@ Only the numbers of a face are stored, as with any enrollment. Viewers do not se
 
 ## Contacts
 
-*Settings → Contacts* is the place for one person record: display name, roles (trusted camera person, emergency,
-alert recipient), and links to a face name, a dashboard account, messenger addresses and an emergency-contact entry.
+*Settings → Contacts* is the place for one person record: display name, roles (household, trusted camera person,
+emergency, alert recipient, viewer), and links to a face name, a dashboard account, messenger addresses and an
+emergency-contact entry. Tick the roles to say who lives here, whom the cameras should know, and who gets SOS or
+everyday alerts. Linking a face suggests household + trusted; linking an emergency entry suggests the emergency role.
 *Link existing* matches faces, profiles and emergency contacts by name; you can fix mismatches by hand. The *People*
 page stays for camera learning and enrollment. Escalation timing stays under *Settings → Emergency*.
 

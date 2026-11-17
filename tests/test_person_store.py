@@ -11,13 +11,15 @@ from pi_guard.storage.persons import Persons
 def test_person_crud_and_links(tmp_path: Path) -> None:
     db = Database(tmp_path / "p.db")
     store = Persons(db)
-    pid = store.save(None, {"display_name": "Alex", "roles": ["trusted", "emergency"]})
+    pid = store.save(
+        None, {"display_name": "Alex", "roles": ["household", "trusted", "emergency"]}
+    )
     store.link(pid, "face", "Alex")
     store.link(pid, "web_account", "alex")
     person = store.get(pid)
     assert person is not None
     assert person.display_name == "Alex"
-    assert set(person.roles) == {"trusted", "emergency"}
+    assert set(person.roles) == {"household", "trusted", "emergency"}
     assert ("face", "Alex") in person.links
     assert store.find_by_link("face", "Alex").id == pid
     store.unlink("face", "Alex")
@@ -41,7 +43,7 @@ def test_migrate_existing_by_name(tmp_path: Path) -> None:
     assert "web_account:sam" in links
     assert "emergency_contact:7" in links
     assert "messenger:telegram:123" in links
-    assert "emergency" in people[0].roles
+    assert {"household", "trusted", "emergency"} <= set(people[0].roles)
     store.migrate_existing(face_names=["Sam"], contacts=[{"id": 7, "name": "Sam"}])
     assert len(store.all()) == 1
     db.close()

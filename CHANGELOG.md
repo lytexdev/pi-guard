@@ -9,7 +9,8 @@ All notable changes are documented here. The format follows
 ### Added
 
 - Settings → Contacts: central person records linking faces, dashboard accounts, messengers and emergency contacts
-  (schema `_v4`), with name-based migration and adapters for existing contact APIs.
+  (schema `_v4`), with roles for household, trusted camera person, emergency, alerts and viewer; name-based migration
+  and adapters for existing contact APIs.
 - Assistant: fallback providers, sealed extra keys, optional chat images/link fetch and admin system or open-alert
   context (password for alerts); chat UI can attach or paste images when vision is allowed.
 - Messenger delivery mode per channel (`alerts` / `emergency` / `both`); Signal replies when commands are off;

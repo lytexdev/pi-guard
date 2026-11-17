@@ -183,8 +183,10 @@ Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer s
 
 ## Kontakte
 
-*Einstellungen → Kontakte* ist der Ort für eine Person: Name, Rollen (vertraute Kamera-Person, Notfall,
-Alarm-Empfänger) und Verknüpfungen zu Gesicht, Dashboard-Konto, Messenger und Notfallkontakt-Eintrag.
+*Einstellungen → Kontakte* ist der Ort für eine Person: Name, Rollen (Haushalt, vertraute Kamera-Person, Notfall,
+Alarm-Empfänger, Betrachter) und Verknüpfungen zu Gesicht, Dashboard-Konto, Messenger und Notfallkontakt-Eintrag.
+Über die Rollen legst du fest, wer zum Haushalt gehört, wen die Kameras kennen sollen und wer SOS oder Alltagsalarme
+bekommt. Ein verknüpftes Gesicht schlägt Haushalt + vertraut vor; ein Notfallkontakt-Eintrag die Notfall-Rolle.
 *Bestehende verknüpfen* ordnet Gesichter, Profile und Notfallkontakte nach Name zu; Abweichungen korrigierst du
 von Hand. Die Seite *Personen* bleibt fürs Lernen an der Kamera. Eskalationszeiten bleiben unter
 *Einstellungen → Notfall*.

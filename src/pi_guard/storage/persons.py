@@ -10,7 +10,8 @@ from pi_guard.core.timeutil import utcnow
 from pi_guard.storage.db import Database
 
 KINDS = ("face", "web_account", "messenger", "emergency_contact", "medical")
-ROLES = ("trusted", "emergency", "viewer", "alert")
+# household: lives here; trusted: cameras know them; emergency/alert/viewer: who gets what
+ROLES = ("household", "trusted", "emergency", "alert", "viewer")
 MAX_PERSONS = 80
 
 
@@ -147,7 +148,11 @@ class Persons:
         created = 0
         for face in face_names or []:
             before = len(self.all())
-            self.ensure_named(face, kind="face", ref=face)
+            person_id = self.ensure_named(face, kind="face", ref=face)
+            person = self.get(person_id)
+            roles = set(person.roles if person else [])
+            roles.update(("household", "trusted"))
+            self.save(person_id, {"display_name": face, "roles": list(roles)})
             if len(self.all()) > before:
                 created += 1
         for profile in profiles or []:
@@ -162,6 +167,16 @@ class Persons:
                 address = _line(profile.get(provider), 120)
                 if address:
                     self.link(person_id, "messenger", f"{provider}:{address}")
+            person = self.get(person_id)
+            roles = set(person.roles if person else [])
+            roles.add("household")
+            if face:
+                roles.add("trusted")
+            self.save(
+                person_id,
+                {"display_name": (person.display_name if person else face or username),
+                 "roles": list(roles)},
+            )
         for contact in contacts or []:
             name = _line(contact.get("name"), 60)
             contact_id = contact.get("id")

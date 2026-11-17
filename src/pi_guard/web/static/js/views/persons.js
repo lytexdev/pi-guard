@@ -1,12 +1,27 @@
 // Central contacts: one person with face, account, messenger and emergency links.
 import { askDialog, api, attempt, confirmDialog, fill, h, icon, t } from "../api.js";
 
+const ROLE_ICONS = {
+  household: "home",
+  trusted: "user-check",
+  emergency: "alert-triangle",
+  alert: "bell",
+  viewer: "eye",
+};
+
 function modal(...children) {
   const dialog = h("dialog", { class: "editor wide" }, ...children);
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();
   return dialog;
+}
+
+function roleBadges(roles) {
+  if (!(roles || []).length) return h("small", { class: "muted" }, t("web.person_no_roles"));
+  return h("div", { class: "row wrap person-roles" }, roles.map((r) =>
+    h("span", { class: `badge person-role-${r}`, title: t(`web.person_role_${r}_hint`) },
+      icon(ROLE_ICONS[r] || "user"), " ", t(`web.person_role_${r}`))));
 }
 
 function editor(data, person, onSave) {
@@ -23,13 +38,27 @@ function editor(data, person, onSave) {
     data.contacts.map((c) => h("option", { value: String(c.id), selected: (person.links || []).some((l) => l.kind === "emergency_contact" && l.ref === String(c.id)) }, c.name)));
   const messengers = (person.links || []).filter((l) => l.kind === "messenger").map((l) => l.ref).join(", ");
   const messenger = h("input", { value: messengers, placeholder: "telegram:123, signal:+49…" });
+  // Linking a face usually means household + trusted for the cameras.
+  face.addEventListener("change", () => {
+    if (!face.value) return;
+    roleBoxes.household.checked = true;
+    roleBoxes.trusted.checked = true;
+  });
+  emergency.addEventListener("change", () => {
+    if (emergency.value) roleBoxes.emergency.checked = true;
+  });
   const dialog = modal(h("h2", {}, person.display_name || t("web.person_new")),
     h("p", { class: "muted" }, t("web.person_form_hint")),
     h("div", { class: "stack" },
       h("div", { class: "field" }, h("label", {}, t("web.name")), name),
       h("div", { class: "field" }, h("label", {}, t("web.person_note")), note),
-      h("div", { class: "stack" }, h("strong", {}, t("web.person_roles")),
-        data.roles.map((r) => h("label", { class: "check" }, roleBoxes[r], t(`web.person_role_${r}`)))),
+      h("section", { class: "panel stack tight" },
+        h("h3", {}, t("web.person_roles")),
+        h("p", { class: "muted" }, t("web.person_roles_hint")),
+        h("div", { class: "stack person-role-picks" }, data.roles.map((r) =>
+          h("label", { class: "check person-role-pick" }, roleBoxes[r],
+            h("span", {}, h("strong", {}, t(`web.person_role_${r}`)),
+              h("small", { class: "muted block" }, t(`web.person_role_${r}_hint`))))))),
       h("div", { class: "field" }, h("label", {}, t("web.person_face")), face),
       h("div", { class: "field" }, h("label", {}, t("web.person_account")), account),
       h("div", { class: "field" }, h("label", {}, t("web.person_emergency")), emergency),
@@ -70,13 +99,11 @@ export async function personsPanel(box) {
           } }, icon("link"), t("web.person_migrate")),
           h("button", { class: "primary", onclick: () => editor(data, {}, draw) }, icon("plus"), t("web.person_new")))),
       h("p", { class: "muted" }, t("web.set_contacts_hint")),
-      h("ul", { class: "list" }, data.persons.length ? data.persons.map((p) => h("li", {},
+      h("ul", { class: "list" }, data.persons.length ? data.persons.map((p) => h("li", { class: "person-row" },
         icon("user"),
         h("div", { class: "grow" }, h("div", {}, p.display_name),
-          h("small", { class: "muted" }, [
-            ...(p.roles || []).map((r) => t(`web.person_role_${r}`)),
-            ...(p.links || []).map((l) => `${l.kind}:${l.ref}`),
-          ].join(" · ") || t("web.nothing"))),
+          roleBadges(p.roles),
+          h("small", { class: "muted block" }, (p.links || []).map((l) => `${l.kind}:${l.ref}`).join(" · ") || t("web.person_no_links"))),
         h("button", { class: "icon-only", title: t("web.edit"), onclick: () => editor(data, p, draw) }, icon("edit")),
         h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
           if (!await confirmDialog(t("web.person_delete_confirm", { name: p.display_name }), t("web.delete"), true)) return;

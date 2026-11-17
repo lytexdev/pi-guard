@@ -651,6 +651,12 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .quality-tips { margin: 2px 0 0; padding-left: 18px; }
 .person-row { flex-wrap: wrap; }
 .person-row .quality { flex: 1 1 100%; max-width: none; }
+.person-roles { gap: 6px; margin-top: 4px; }
+.person-role-picks .person-role-pick { align-items: flex-start; }
+.person-role-picks .person-role-pick strong { display: block; }
+.badge.person-role-household { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.badge.person-role-trusted { background: color-mix(in srgb, var(--ok, #2f9e44) 18%, transparent); }
+.badge.person-role-emergency { background: color-mix(in srgb, var(--danger) 18%, transparent); }
 .quality-tips li { display: list-item; padding: 0; border: 0; min-height: 0; }
 
 /* Folding panels, add-ons, donations */

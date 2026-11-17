@@ -3306,7 +3306,7 @@
   "web.as_emergency_ctx": "Offene Alarme im Admin-Chat zusammenfassen (jedes Mal Passwort)",
   "web.as_emergency_ctx_confirm": "Offene Alarme dürfen für die KI zusammengefasst werden. Medizin und Gesichtsbilder bleiben draußen. Weiter?",
   "web.set_contacts": "Kontakte",
-  "web.set_contacts_hint": "Eine Person für Gesicht, Dashboard-Konto, Messenger-IDs und Notfallrollen.",
+  "web.set_contacts_hint": "Eine Person für Haushaltszugehörigkeit, vertraute Kameras, Dashboard-Konto, Messenger und Notfallrollen.",
   "web.person_new": "Neue Person",
   "web.person_note": "Notiz",
   "web.person_roles": "Rollen",
@@ -3331,5 +3331,14 @@
   "web.person_limit": "Zu viele Personen.",
   "web.person_missing": "Person nicht gefunden.",
   "web.person_bad_link": "Ungültige Verknüpfung.",
-  "web.emergency_contacts_moved": "Menschen und Notfallkontakte sind unter Einstellungen → Kontakte. Hier stellst du nur ein, wann unbeantwortete Alarme eskalieren."
+  "web.emergency_contacts_moved": "Menschen und Notfallkontakte sind unter Einstellungen → Kontakte. Hier stellst du nur ein, wann unbeantwortete Alarme eskalieren.",
+  "web.person_roles_hint": "Hake an, wie die Person zum Haushalt gehört. Mehrere Rollen sind möglich.",
+  "web.person_role_household": "Haushalt",
+  "web.person_role_household_hint": "Wohnt hier oder gehört zur Familie. Zählt als Teil des Haushalts.",
+  "web.person_role_trusted_hint": "Kameras sollen diese Person als bekannt erkennen. Gesichtsproben unter Personen verknüpfen.",
+  "web.person_role_emergency_hint": "Bekommt SOS und Eskalation bei unbeantworteten Alarmen, wenn der Kontakt-Eintrag gesetzt ist.",
+  "web.person_role_alert_hint": "Soll Alltagsalarme über einen verknüpften Messenger bekommen (wenn der Kanal Alarme erlaubt).",
+  "web.person_role_viewer_hint": "Darf das Dashboard als Betrachter sehen, wenn ein Konto verknüpft ist.",
+  "web.person_no_roles": "Noch keine Rollen – bearbeiten und Haushalt, vertraut, Notfall, … zuordnen",
+  "web.person_no_links": "Noch kein Gesicht, Konto oder Messenger verknüpft"
 }

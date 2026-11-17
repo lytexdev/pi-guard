@@ -3306,7 +3306,7 @@
   "web.as_emergency_ctx": "Allow open-alert summary in admin chat (password each time)",
   "web.as_emergency_ctx_confirm": "Open alerts may be summarised for the AI. Medical data and face pictures stay out. Continue?",
   "web.set_contacts": "Contacts",
-  "web.set_contacts_hint": "One person for face, dashboard account, messenger IDs and emergency roles.",
+  "web.set_contacts_hint": "One person for household membership, trusted cameras, dashboard account, messengers and emergency roles.",
   "web.person_new": "New person",
   "web.person_note": "Note",
   "web.person_roles": "Roles",
@@ -3331,5 +3331,14 @@
   "web.person_limit": "Too many people.",
   "web.person_missing": "Person not found.",
   "web.person_bad_link": "Invalid link.",
-  "web.emergency_contacts_moved": "People and emergency contacts are under Settings → Contacts. Here you only set when unanswered alerts escalate."
+  "web.emergency_contacts_moved": "People and emergency contacts are under Settings → Contacts. Here you only set when unanswered alerts escalate.",
+  "web.person_roles_hint": "Tick how this person belongs to the home. You can combine several roles.",
+  "web.person_role_household": "Household",
+  "web.person_role_household_hint": "Lives here or belongs to the family. Shown as part of the household.",
+  "web.person_role_trusted_hint": "Cameras should recognise this person as known. Link face samples under People.",
+  "web.person_role_emergency_hint": "Gets SOS and unanswered-alert escalation when their contact entry is set up.",
+  "web.person_role_alert_hint": "Should receive everyday alarms on a linked messenger (when that channel allows alerts).",
+  "web.person_role_viewer_hint": "May watch the dashboard as a viewer when a linked account exists.",
+  "web.person_no_roles": "No roles yet – open edit to assign household, trusted, emergency, …",
+  "web.person_no_links": "No face, account or messenger linked yet"
 }
