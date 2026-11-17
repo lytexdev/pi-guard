@@ -9,7 +9,7 @@ from typing import Any
 from pi_guard.core.timeutil import utcnow
 from pi_guard.storage.db import Database
 
-KINDS = ("face", "web_account", "messenger", "emergency_contact", "medical")
+KINDS = ("face", "web_account", "messenger", "emergency_contact", "medical", "vpn")
 # household: lives here; trusted: cameras know them; emergency/alert/viewer: who gets what
 ROLES = ("household", "trusted", "emergency", "alert", "viewer")
 MAX_PERSONS = 80

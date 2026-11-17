@@ -12,7 +12,8 @@ Netzwerkkarte, was andere sehen, und Umzug.
 
 **Netzwerk › VPN** zeigt zuerst, ob das Heim-VPN läuft und wie viele Geräte verbunden sind, danach optionale
 **Schichten** als Karten: Heim-VPN (Basis), quantenresistente Schlüssel, AmneziaWG-Tarnung und Mullvad / Multi-Hop.
-Jede Schicht ist wahlfrei; keine, eine oder mehrere. Darunter die Bereiche *Geräte*, *Unterwegs / Amnezia*,
+Jede Schicht ist wahlfrei; keine, eine oder mehrere. Die AmneziaWG-Karte wirkt auf dem Pi selbst: Aus nimmt `awg0` herunter, und die Apps bekommen
+den getarnten Weg nicht mehr; An bringt beides zurück. Darunter die Bereiche *Geräte*, *Unterwegs / Amnezia*,
 *Mullvad / Hop* und *Quanten*. Geräte-Karten zeigen Zustand und Datenmenge; *Zugang* zeigt den QR-Code erneut;
 *Gerät hinzufügen* öffnet ein kurzes Formular. In den Details eines Geräts kannst du es umbenennen, den
 **Internetweg** wählen (nur Heimanschluss, wie der Pi, oder über Mullvad / Multi-Hop) und den Verkehr des letzten

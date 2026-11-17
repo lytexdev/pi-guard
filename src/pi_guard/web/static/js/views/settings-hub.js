@@ -429,16 +429,13 @@ export async function render(main, params = []) {
     body.addEventListener("change", showSave);
     body.addEventListener("click", (e) => { if (e.target.closest("button")) showSave(); });
   } else if (current === "contacts") {
-    const swipe = h("section", { class: "panel sw-teaser" }, h("div", { class: "row between wrap" },
-      h("div", { class: "grow" }, h("h2", {}, icon("photo"), " ", t("web.sw_title")),
-        h("p", { class: "muted" }, t("web.sw_teaser"))),
-      h("button", { class: "primary big", onclick: async () => {
-        (await import("./swipe.js")).openSwipe();
-      } }, icon("users"), t("web.sw_start"))));
+    // One list of people; the detailed face and emergency views fold away below it.
     const persons = h("div");
     const faces = h("div");
     const emergency = h("div");
-    body.append(swipe, persons, faces, emergency);
+    const more = (titleKey, iconName, inner) => h("details", { class: "panel hub-more" },
+      h("summary", {}, icon(iconName), " ", t(titleKey)), inner);
+    body.append(persons, more("web.pc_more_faces", "user-check", faces), more("web.pc_more_emergency", "alert-triangle", emergency));
     await (await import("./persons.js")).personsPanel(persons);
     await (await import("./people.js")).render(faces, [], { embedded: true });
     await (await import("./contacts.js")).contactsPanel(emergency);
