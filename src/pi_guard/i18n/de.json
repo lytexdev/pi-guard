@@ -3470,5 +3470,6 @@
   "web.cw_review_medical": "Notfallkarte wird verknüpft",
   "web.cw_review_no_reach": "Noch kein Messenger-Kanal",
   "web.cw_review_save": "Speichern schreibt die Person, optional Notfallkontakt, Messenger und Verknüpfungen.",
-  "web.cw_full_setup": "Volles Personen-Setup"
+  "web.cw_full_setup": "Volles Personen-Setup",
+  "web.reach_awg_disabled": "Ausgeschaltet unter Netzwerk › VPN › Schichten"
 }

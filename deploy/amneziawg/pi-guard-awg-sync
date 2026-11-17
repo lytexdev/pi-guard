@@ -17,6 +17,20 @@ ONCE="${PI_GUARD_AWG_ONCE:-}"
 KEY_RE='^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$'
 IP_RE='^10\.8\.0\.([2-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-4])/32$'
 NUM_RE='^[0-9]{1,12}$'
+# Left by pi-guard when AmneziaWG is switched off in the dashboard: only its presence counts.
+OFF_FLAG="${PI_GUARD_AWG_OFF_FLAG:-/var/lib/pi-guard/amneziawg/off}"
+
+# awg0 down while switched off (its socket closes, nothing answers on the port), up otherwise.
+follow_switch() {
+    local state
+    state="$("$tool_ip" -o link show "$AWG" 2>/dev/null)" || return 1
+    if [[ -e "$OFF_FLAG" ]]; then
+        [[ "$state" == *",UP"* || "$state" == *"<UP"* ]] && "$tool_ip" link set "$AWG" down
+        return 1
+    fi
+    [[ "$state" == *",UP"* || "$state" == *"<UP"* ]] || "$tool_ip" link set "$AWG" up
+    return 0
+}
 
 # "key<TAB>value" lines of `wg show IFACE WHAT` into the named array.
 load() {
@@ -66,7 +80,7 @@ tool_awg="${PI_GUARD_AWG_TOOL:-awg}"
 tool_wg="${PI_GUARD_WG_TOOL:-wg}"
 tool_ip="${PI_GUARD_IP_TOOL:-ip}"
 while true; do
-    sync_once
+    follow_switch && sync_once
     [[ -n "$ONCE" ]] && exit 0
     sleep "$EVERY"
 done

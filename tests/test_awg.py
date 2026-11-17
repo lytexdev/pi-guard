@@ -88,10 +88,12 @@ esac""",
         tmp_path,
         "ip",
         """[[ "$2" == show && "$3" == 10.8.0.3 ]] && echo "10.8.0.3 dev awg0"
+[[ "$2" == link ]] && echo "5: awg0: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420"
 exit 0""",
     )
     tools = {f"PI_GUARD_{n.upper()}_TOOL": str(tmp_path / n) for n in ("wg", "awg", "ip")}
-    env = {**os.environ, "PI_GUARD_AWG_ONCE": "1", **tools}
+    env = {**os.environ, "PI_GUARD_AWG_ONCE": "1", **tools,
+           "PI_GUARD_AWG_OFF_FLAG": str(tmp_path / "off")}  # fmt: skip
     result = subprocess.run(["bash", str(SYNC)], env=env, capture_output=True, text=True, timeout=9)
     assert result.returncode == 0, result.stderr
     calls = (tmp_path / "calls").read_text()
@@ -102,6 +104,15 @@ exit 0""",
     assert "ip route replace 10.8.0.2/32 dev awg0" in calls  # greeted awg0 last
     assert "ip route del 10.8.0.3/32 dev awg0" in calls  # back on wg0
     assert f"awg set awg0 peer {c} remove" in calls and "ip route del 10.8.0.9/32 dev awg0" in calls
+    assert "ip link set awg0" not in calls  # on, and already up
+
+    # Switched off in the dashboard: awg0 goes down, and nothing is synced while it is.
+    (tmp_path / "calls").write_text("")
+    (tmp_path / "off").touch()
+    result = subprocess.run(["bash", str(SYNC)], env=env, capture_output=True, text=True, timeout=9)
+    assert result.returncode == 0, result.stderr
+    calls = (tmp_path / "calls").read_text()
+    assert "ip link set awg0 down" in calls and "awg set" not in calls
 
 
 async def test_the_app_gets_obfuscated_ways(tmp_path: Path, monkeypatch: Any) -> None:
@@ -116,6 +127,12 @@ async def test_the_app_gets_obfuscated_ways(tmp_path: Path, monkeypatch: Any) ->
         body = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
         assert body["ways"][0]["endpoint"] == "home.example:51820"  # untouched for older apps
         assert body["obfuscated"][0]["endpoint"] == "home.example:443"
+        awg.set_enabled(app.settings.data_dir, False)  # the layer switched off
+        body = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
+        assert body["obfuscated"] == [] and body["ways"]
+        awg.set_enabled(app.settings.data_dir, True)
+        body = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
+        assert body["obfuscated"]
     finally:
         await client.close()
         app.db.close()

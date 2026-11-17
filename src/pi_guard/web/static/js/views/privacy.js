@@ -143,7 +143,8 @@ function modulesPanel(cfg, caps, redraw) {
   const multiOn = mullvadOn && Boolean(mullvad.selected?.entry_hostname);
   const multiReady = !multiOn && Boolean(mullvad.selected?.entry_hostname);
   const torOn = Boolean(cfg.tor?.enabled);
-  const awgOn = (cfg.obfuscation?.mode || "off") === "amneziawg";
+  // The real state: installed by scripts/amneziawg.sh, and not switched off here.
+  const awgOn = cfg.amneziawg ? Boolean(cfg.amneziawg.on) : (cfg.obfuscation?.mode || "off") === "amneziawg";
   const awgCap = caps.features?.amneziawg || caps.obfuscation?.modes?.find((m) => m.id === "amneziawg");
   const ensureMullvadServer = async (wantEntry) => {
     if (!mullvad.has_account) { toast(t("web.priv_mullvad_need_account"), true); return false; }

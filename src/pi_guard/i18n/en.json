@@ -3470,5 +3470,6 @@
   "web.cw_review_medical": "Emergency medical sheet will be linked",
   "web.cw_review_no_reach": "No messenger channel yet",
   "web.cw_review_save": "Save writes the person, optional emergency contact, messengers and links.",
-  "web.cw_full_setup": "Full person setup"
+  "web.cw_full_setup": "Full person setup",
+  "web.reach_awg_disabled": "Switched off under Network › VPN › Layers"
 }
