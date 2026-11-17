@@ -5,16 +5,26 @@ certificate warning. It shows what runs on your Pi, so it never needs its own up
 
 ## Install
 
+Quickest path — downloads the newest `apps-*` release from GitHub; afterwards the app updates itself from your Pi:
+
+```bash
+./scripts/install-desktop.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-desktop.ps1
+```
+
 | System | File | Note |
 | --- | --- | --- |
-| Arch Linux | `.pacman`: `sudo pacman -U FILE` | or the tar.gz below |
-| Debian, Ubuntu, Linux Mint | `.deb`: `sudo apt install ./FILE` | |
+| Arch Linux | `.pacman`: `sudo pacman -U FILE` | or `install-desktop.sh` above |
+| Debian, Ubuntu, Linux Mint | `.deb`: `sudo apt install ./FILE` | or `install-desktop.sh` |
 | Fedora | `.rpm`: `sudo dnf install ./FILE` | |
 | openSUSE | `.rpm`: `sudo zypper install ./FILE` | |
-| Any Linux, updates itself | `./scripts/install-desktop.sh` | downloads the newest release, no root; or pass a `.tar.gz` / URL |
+| Any Linux, updates itself | `./scripts/install-desktop.sh` | no root; or pass a `.tar.gz` / URL |
 | Any Linux | `.AppImage` | no entry in the menu; start it by hand |
 | Flatpak | `.flatpak`: `flatpak install --user FILE` | sandboxed, updates through Flatpak, no VPN |
-| Windows | `powershell -ExecutionPolicy Bypass -File .\scripts\install-desktop.ps1` | downloads the newest `.exe`, or pass `-Installer` / `-Url`; unsigned warning: *More info › Run anyway* |
+| Windows | `install-desktop.ps1` or `PiGuard-*-win-x64.exe` | unsigned warning: *More info › Run anyway* |
 | macOS | `PiGuard-*-mac-*.zip` | not signed or notarized, see below |
 
 Build them yourself with:
@@ -37,8 +47,10 @@ On Linux and, as a preview, on Windows the app is a VPN client too, see [vpn.md]
 
 ## Updates
 
-The app updates itself, signed and verified, from your pi-guard, which fetches new versions from GitHub. Every release
-is also on GitHub to download by hand, with `SHA256SUMS`. See [updates.md](updates.md).
+After an install from `install-desktop.sh` or the Windows installer, the app updates itself, signed and verified, from
+your pi-guard (which fetches new versions from GitHub). Minor and major versions install on their own; a patch is
+offered under *Check for updates*. AppImage, `.deb`, `.rpm` and Flatpak only announce a new version. Every release is
+also on GitHub to download by hand, with `SHA256SUMS`. See [updates.md](updates.md).
 
 ## Performance
 

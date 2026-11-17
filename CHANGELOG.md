@@ -21,7 +21,8 @@ All notable changes are documented here. The format follows
 - VPN page: optional layers (home VPN, quantum-safe keys, AmneziaWG, Mullvad/multi-hop) as clear cards; per-device
   internet path as choice buttons instead of a cryptic select. Rename no longer returns 500 (`Session` has no `.role`).
 - Desktop install: `scripts/install-desktop.sh` and `scripts/install-desktop.ps1` download the newest apps release when
-  run without a file. More/language UI and Android settings layout tightened against overflow.
+  run without a file. More/language UI and Android settings layout tightened against overflow. READMEs and docs
+  (`vpn.md`, `network.md`, `desktop.md`, `updates.md`, installation) describe layers, per-device path and the installers.
 
 ### Changed
 

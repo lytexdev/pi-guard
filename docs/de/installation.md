@@ -71,7 +71,9 @@ neues Erstpasswort, wenn die Datenbank schon existiert.
    Notfallkontakte, vertraute Personen, Add-ons und Design. Schritte
    überspringen und später unter *Mehr → Einrichtungsassistent* nachholen.
 4. Optional: Android- oder Desktop-App unter *Einstellungen → Apps*, oder
-   Haushaltsmitglieder unter *Zugang* anlegen.
+   Haushaltsmitglieder unter *Zugang* anlegen. Am Computer geht auch
+   `./scripts/install-desktop.sh` (Linux) bzw. `scripts/install-desktop.ps1` (Windows) ohne Datei: sie laden die
+   neueste Version; danach aktualisiert sich die App über diesen Pi. Details: [desktop.md](../desktop.md).
 5. *Hilfe & Tutorial* (oder F1 in der Desktop-App) für den Rundgang.
 
 Falls etwas nicht funktioniert:

@@ -10,13 +10,15 @@ Stunden pro Stunde (erlaubt und blockiert, auch als Tabelle), Geräte ohne Namen
 Tages, Pi-hole mit Pause, die WLANs mit QR-Codes und schnelle Wege zu Seite sperren, Kid Protect, Gäste-WLAN,
 Netzwerkkarte, was andere sehen, und Umzug.
 
-**Netzwerk › VPN** zeigt oben, ob das VPN läuft, wie viele Geräte verbunden sind, den Weg von unterwegs und ob der
-quantensichere Schlüsseltausch an ist. Darunter die Bereiche *Geräte* (Karten mit Zustand und Datenmenge, *Zugang* zeigt
-den QR-Code erneut, *Gerät hinzufügen* öffnet ein kurzes Formular), *Von unterwegs*, *Privatsphäre* und *Quantensicher*.
-Jedes Gerät zeigt, was es ist (Android, iPhone, Windows, Linux, Mac, Tablet, Computer): Mit der App verbundene Geräte
-sagen es selbst, andere nehmen den im Formular oder in den Details gewählten Typ oder einen aus dem Namen geratenen.
-Unter *Privatsphäre* zeigt die Multi-Hop-Kette jeden Hop, und das (i) neben *Strikte DNS-Privatsphäre* erklärt, was es
-ändert.
+**Netzwerk › VPN** zeigt zuerst, ob das Heim-VPN läuft und wie viele Geräte verbunden sind, danach optionale
+**Schichten** als Karten: Heim-VPN (Basis), quantenresistente Schlüssel, AmneziaWG-Tarnung und Mullvad / Multi-Hop.
+Jede Schicht ist wahlfrei; keine, eine oder mehrere. Darunter die Bereiche *Geräte*, *Unterwegs / Amnezia*,
+*Mullvad / Hop* und *Quanten*. Geräte-Karten zeigen Zustand und Datenmenge; *Zugang* zeigt den QR-Code erneut;
+*Gerät hinzufügen* öffnet ein kurzes Formular. In den Details eines Geräts kannst du es umbenennen, den
+**Internetweg** wählen (nur Heimanschluss, wie der Pi, oder über Mullvad / Multi-Hop) und den Verkehr des letzten
+Tages sehen. Jedes Gerät zeigt, was es ist (Android, iPhone, Windows, Linux, Mac, Tablet, Computer): Mit der App
+verbundene Geräte sagen es selbst, andere nehmen den gewählten Typ oder einen aus dem Namen geratenen. Unter
+*Mullvad / Hop* zeigt die Multi-Hop-Kette jeden Hop; Details: [vpn.md](../vpn.md).
 
 ## Feste IP-Adresse
 
@@ -79,6 +81,9 @@ Danach in der FRITZ!Box **UDP 51820** an den Pi freigeben (*Internet ›
 Freigaben › Portfreigaben › Gerät für Freigaben hinzufügen*).
 
 ### Geräte verwalten
+
+Unter **Netzwerk › VPN › Geräte**: Gerät tippen → umbenennen, Typ wählen, Internetweg (drei klare Optionen) und
+Nutzung der letzten Stunden. *Zugang* zeigt QR-Code und Konfigurationsdatei erneut.
 
 ### Wege von unterwegs
 

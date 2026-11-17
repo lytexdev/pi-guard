@@ -113,8 +113,10 @@ always asks before installing an app that does not come from a store, so updates
 ## Look and versions
 
 The native screens (settings, VPN, setup) use the dashboard's colours, light or dark as Android is; the dashboard in the
-app follows the system too unless a theme was chosen. The app settings show the app's version and build. Alerts arrive
-over the app's own connection, so the dashboard in the app does not offer browser push.
+app follows the system too unless a theme was chosen. Under *More* in the dashboard you pick language and design (with
+icons); under *Network › VPN* the optional layers and devices without sideways scrolling. The app settings show the
+app's version and build. Alerts arrive over the app's own connection, so the dashboard in the app does not offer
+browser push.
 
 The anonymous statistics are off for now: the app no longer asks for crash reports or usage data.
 
