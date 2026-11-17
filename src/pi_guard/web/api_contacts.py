@@ -1,7 +1,7 @@
 """Emergency contacts in the dashboard: who they are and what each gets on which occasion.
 
-Admins only, like everything not opened to viewers. Saving asks for the password, because a
-contact can be set to get pictures, the place of a phone and emergency medical data.
+Admins only, like everything not opened to viewers. Saving uses the admin session (CSRF);
+medical sheet sharing is confirmed in the UI, not by retyping the password every edit.
 Contacts from the older settings are listed, but changed in the settings only.
 """
 
@@ -19,7 +19,7 @@ from pi_guard.notifications.contacts import (
     ContactError,
     Contacts,
 )
-from pi_guard.web.server import confirm_password, current, dashboard, read_json
+from pi_guard.web.server import current, dashboard, read_json
 
 
 def routes() -> list[web.RouteDef]:
@@ -68,7 +68,6 @@ async def save(request: web.Request) -> web.Response:
     from pi_guard.storage.persons import Persons
 
     data = await read_json(request)
-    confirm_password(request, str(data.get("password", "")))
     contact_id = int(request.match_info["id"]) if "id" in request.match_info else None
     contact = dict(data.get("contact") or {})
     try:

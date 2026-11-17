@@ -8,6 +8,8 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Settings → Contacts: full person setup wizard (roles, messengers that are running, emergency share, optional
+  dashboard account, optional face photo) and Tinder-style face swipe at the top of the page.
 - Updates page shows recent CHANGELOG sections; security AI review shows live steps while it runs.
 - Saved Wi-Fi profiles (home/guest) with one-tap QR codes without a FRITZ!Box; privacy modules toggles for Mullvad,
   multi-hop and Tor.
@@ -24,8 +26,12 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- Security check lives under Settings → Data & backup → Security (old `#/settings/security` still opens it); no longer
+  its own settings nav item.
+- Contact and emergency editors: messenger channels as on/off cards for running services; no password re-entry on every
+  save (admin session + CSRF); edit uses the pencil icon; medical sheet still asks for confirmation.
 - People moved out of the primary nav into Settings → Contacts (faces embedded); Dashboard settings under General;
-  Security next to Data & backup; Add-ons as a settings category; Network “block websites” under Block lists.
+  Add-ons as a settings category; Network “block websites” under Block lists.
 - More menu: text size/design only under Settings → Appearance; Android quick-actions button and launcher shortcuts
   removed.
 

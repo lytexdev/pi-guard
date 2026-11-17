@@ -1,5 +1,6 @@
 // Emergency contacts: who they are, how to reach them, and what each gets on which occasion.
-import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast } from "../api.js";
+import { api, attempt, confirmDialog, fill, h, icon, t, toast } from "../api.js";
+import { openContactWizard } from "./contact-wizard.js";
 
 const BRAND = { telegram: "brand-telegram", signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail" };
 const SHARE_ICON = { location: "map-pin", phone_photo: "device-mobile", phone_audio: "microphone-off", pi_photo: "camera", events: "list-details", home_audio: "volume", medical: "user-check" };
@@ -14,27 +15,49 @@ function modal(...children) {
   return dialog;
 }
 
-function channelRows(data, channels) {
-  const list = h("div", { class: "stack" });
-  const rows = [];
-  const add = (c = { provider: data.providers[0] || "telegram", address: "" }) => {
-    const provider = h("select", { "aria-label": t("web.ec_service") }, data.all_providers.map((p) =>
-      h("option", { value: p, selected: p === c.provider }, `${t(`web.ec_p_${p}`)}${data.providers.includes(p) ? "" : ` (${t("web.ec_not_running")})`}`)));
-    const address = h("input", { value: c.address, maxlength: 200, "aria-label": t("web.ec_address") });
-    const hint = () => { address.placeholder = t(`web.ec_hint_${provider.value}`); };
-    provider.addEventListener("change", hint);
-    hint();
-    const row = h("div", { class: "row" }, provider, address, h("button", { type: "button", class: "icon-only danger", title: t("web.delete"), onclick: () => { rows.splice(rows.indexOf(entry), 1); row.remove(); } }, icon("trash")));
-    const entry = { provider, address };
-    rows.push(entry);
-    list.append(row);
+function channelCards(data, channels) {
+  // Running messengers first as toggles; others stay folded so the form stays short.
+  const byProvider = Object.fromEntries((channels || []).map((c) => [c.provider, c.address]));
+  const rows = {};
+  const card = (provider, ready) => {
+    const on = h("input", { type: "checkbox", checked: Boolean(byProvider[provider]) });
+    const address = h("input", {
+      value: byProvider[provider] || "",
+      maxlength: 200,
+      placeholder: t(`web.ec_hint_${provider}`),
+      "aria-label": t("web.ec_address"),
+    });
+    const body = h("div", { class: on.checked ? "cw-channel-body" : "cw-channel-body hidden" },
+      address, h("small", { class: "muted" }, t(`web.ec_hint_${provider}`)));
+    on.addEventListener("change", () => {
+      body.classList.toggle("hidden", !on.checked);
+      if (on.checked) address.focus();
+    });
+    rows[provider] = { on, address };
+    return h("label", { class: `cw-channel${ready ? " ready" : " muted-card"}` },
+      h("div", { class: "row between" },
+        h("span", { class: "row" }, icon(BRAND[provider] || "message"), h("strong", {}, t(`web.ec_p_${provider}`)),
+          ready ? null : h("span", { class: "badge" }, t("web.ec_not_running"))),
+        on),
+      body);
   };
-  (channels.length ? channels : [undefined]).forEach((c) => add(c));
-  return { list, add: () => add(), values: () => rows.map((r) => ({ provider: r.provider.value, address: r.address.value.trim() })).filter((r) => r.address) };
+  const running = data.providers || [];
+  const rest = (data.all_providers || []).filter((p) => !running.includes(p));
+  const list = h("div", { class: "stack cw-channels" },
+    running.length ? null : h("p", { class: "notice" }, t("web.cw_no_messenger")),
+    running.map((p) => card(p, true)),
+    rest.length ? h("details", { class: "cw-more" },
+      h("summary", {}, t("web.cw_more_messengers")),
+      h("div", { class: "stack" }, rest.map((p) => card(p, false)))) : null);
+  return {
+    list,
+    values: () => Object.entries(rows)
+      .filter(([, r]) => r.on.checked && r.address.value.trim())
+      .map(([provider, r]) => ({ provider, address: r.address.value.trim() })),
+  };
 }
 
 function shareMatrix(data, contact) {
-  // Columns are occasions; a switch in the head says whether the contact takes part at all.
   const boxes = {};
   const takes = {};
   const head = h("tr", {}, h("th", {}, t("web.ec_gets")), data.occasions.map((o) => {
@@ -69,7 +92,7 @@ function editor(data, contact, onSave) {
   const [noteField, note] = line("note", "text", 300);
   const account = h("select", { id: "ec_account" }, h("option", { value: "" }, t("web.md_no_account")),
     data.accounts.map((a) => h("option", { value: a, selected: a === contact.account }, a)));
-  const channels = channelRows(data, contact.channels || []);
+  const channels = channelCards(data, contact.channels || []);
   const matrix = shareMatrix(data, contact);
   const mode = h("select", { id: "ec_mode" }, data.medical_modes.map((m) => h("option", { value: m, selected: m === contact.medical_mode }, t(`web.ec_mode_${m}`))));
   const modeHint = h("p", { class: "muted" }, h("small", {}));
@@ -81,8 +104,8 @@ function editor(data, contact, onSave) {
       h("fieldset", { class: "md-section" }, h("legend", {}, t("web.ec_sec_person")),
         h("div", { class: "grid two" }, nameField, relationField, phoneField, emailField),
         h("div", { class: "field" }, h("label", { for: "ec_account" }, t("web.ec_f_account")), account, h("small", { class: "muted" }, t("web.ec_account_hint"))), noteField),
-      h("fieldset", { class: "md-section" }, h("legend", {}, t("web.ec_sec_reach")), h("p", { class: "muted" }, h("small", {}, t("web.ec_reach_hint"))),
-        channels.list, h("div", {}, h("button", { type: "button", onclick: channels.add }, icon("plus"), t("web.ec_add_channel")))),
+      h("fieldset", { class: "md-section" }, h("legend", {}, t("web.ec_sec_reach")), h("p", { class: "muted" }, h("small", {}, t("web.cw_reach_hint"))),
+        channels.list),
       h("fieldset", { class: "md-section" }, h("legend", {}, t("web.ec_sec_share")), h("p", { class: "muted" }, h("small", {}, t("web.ec_share_intro"))), matrix.table,
         data.medical ? h("div", { class: "field" }, h("label", { for: "ec_mode" }, t("web.ec_f_mode")), mode, modeHint) : null)),
     h("div", { class: "row end sticky-actions" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
@@ -104,9 +127,7 @@ export async function contactsPanel(box) {
     const data = await attempt(() => api("/api/contacts"));
     if (!data) return;
     const save = async (id, contact) => {
-      const password = await askDialog(t("web.confirm_password"), { type: "password" });
-      if (!password) return false;
-      const done = await attempt(() => api(id ? `/api/contacts/${id}` : "/api/contacts", { method: id ? "PUT" : "POST", body: { contact, password } }), t("web.saved"));
+      const done = await attempt(() => api(id ? `/api/contacts/${id}` : "/api/contacts", { method: id ? "PUT" : "POST", body: { contact } }), t("web.saved"));
       if (done) draw();
       return Boolean(done);
     };
@@ -114,9 +135,16 @@ export async function contactsPanel(box) {
       const r = await attempt(() => api(`/api/contacts/${c.id}/test`, { method: "POST" }));
       if (r) toast(r.results.map((x) => `${t(`web.ec_p_${x.provider}`)}: ${x.ok ? "✓" : "✗"}`).join(" · "), r.results.some((x) => !x.ok));
     };
+    const fullSetup = async () => {
+      const persons = await attempt(() => api("/api/persons"));
+      if (!persons) return;
+      await openContactWizard(persons, data, { roles: ["emergency"] }, draw);
+    };
     fill(box, h("section", { class: "panel stack" },
-      h("div", { class: "row between" }, h("h2", {}, icon("alert-triangle"), " ", t("web.ec_title")),
-        h("button", { class: "primary", onclick: () => editor(data, { share: { sos: FITS.sos.filter((s) => !["events", "medical"].includes(s)), escalation: ["events", "pi_photo"] }, medical_mode: "note", channels: [] }, (v) => save(null, v)) }, icon("plus"), t("web.ec_add"))),
+      h("div", { class: "row between wrap" }, h("h2", {}, icon("alert-triangle"), " ", t("web.ec_title")),
+        h("div", { class: "row wrap" },
+          h("button", { onclick: fullSetup }, icon("user-plus"), t("web.cw_full_setup")),
+          h("button", { class: "primary", onclick: () => editor(data, { share: { sos: FITS.sos.filter((s) => !["events", "medical"].includes(s)), escalation: ["events", "pi_photo"] }, medical_mode: "note", channels: [] }, (v) => save(null, v)) }, icon("plus"), t("web.ec_add")))),
       h("p", { class: "muted" }, t("web.ec_intro", { alerts: data.after_alerts, minutes: data.after_minutes })),
       h("ul", { class: "list" }, data.contacts.length ? data.contacts.map((c) => h("li", {},
         h("div", { class: "row" }, c.channels.map((ch) => icon(BRAND[ch.provider] || "message"))),

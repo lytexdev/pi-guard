@@ -6,9 +6,9 @@ import { searchToggle, skeleton, supportNote } from "../widgets.js";
 import { restartPrompt } from "./settings.js";
 
 // Moved into other tabs; old links keep working.
-const MOVED = { plan: "modes", api: "access", apps: "updates", dashboard: "general", people: "contacts" };
+const MOVED = { plan: "modes", api: "access", apps: "updates", dashboard: "general", people: "contacts", security: "data" };
 // Data & backup holds what used to be four tabs; their old links open the right part.
-const DATA_TABS = [["backup", "upload"], ["storage", "database"], ["move", "map-pin"], ["export", "download"]];
+const DATA_TABS = [["backup", "upload"], ["storage", "database"], ["security", "shield-check"], ["move", "map-pin"], ["export", "download"]];
 const dataTabs = () => DATA_TABS.filter(([id]) => id !== "export" || expertMode());
 // What is on the pages without settings fields, so the search finds it too.
 const TOPICS = {
@@ -19,7 +19,7 @@ const TOPICS = {
   messaging: ["web.discord_status", "web.signal_status"],
   contacts: ["web.set_contacts", "web.person_roles", "web.person_face", "web.nav_people"],
   addons: ["web.nav_addons"],
-  security: ["web.scan_firewall", "web.scan_updates", "web.scan_rootkits", "web.scan_ports", "web.scan_ssh"],
+  "data/security": ["web.scan_firewall", "web.scan_updates", "web.scan_rootkits", "web.scan_ports", "web.scan_ssh"],
   "data/storage": ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
   "data/export": ["web.ex_data", "web.ex_config", "web.ex_import"],
   "data/backup": ["web.bk_title", "web.bk_ssh_title"],
@@ -39,14 +39,14 @@ const SECTIONS = [
   ["emergency", "alert-triangle", ["emergency"], "alerts"],
   ["devices", "camera", null, "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
   ["addons", "cpu", null, "home"],
-  ["data", "database", ["backup"], "system"], ["security", "shield-check", null, "system"], ["integrations", "router", ["integrations", "network"], "system"],
+  ["data", "database", ["backup"], "system"], ["integrations", "router", ["integrations", "network"], "system"],
   ["updates", "refresh", ["updates", "mobile"], "system"],
   ["logs", "list-details", null, "system"], ["support", "headset", null, "system"],
 ];
 const NAV_GROUPS = ["basics", "alerts", "home", "system"];
 
 // Sections for people who know what they are looking for.
-const EXPERT_SECTIONS = ["integrations", "security"];
+const EXPERT_SECTIONS = ["integrations"];
 // A member sees the sections the owner granted (web/permissions.py); appearance is per device.
 const MEMBER_NEEDS = { devices: "devices", notifications: "contacts", contacts: "contacts", updates: "apps", logs: "logs", appearance: null };
 function memberMay(id) {
@@ -371,6 +371,7 @@ export async function render(main, params = []) {
   if (current === "data" && tab !== "backup") {
     if (tab === "storage") await (await import("./storage.js")).render(body);
     else if (tab === "move") await (await import("./move.js")).render(body);
+    else if (tab === "security") stop = await (await import("./scan.js")).render(body);
     else dataSection(body);
   } else if (section[2]) {
     const view = await import("./settings.js");
@@ -426,10 +427,16 @@ export async function render(main, params = []) {
     body.addEventListener("change", showSave);
     body.addEventListener("click", (e) => { if (e.target.closest("button")) showSave(); });
   } else if (current === "contacts") {
+    const swipe = h("section", { class: "panel sw-teaser" }, h("div", { class: "row between wrap" },
+      h("div", { class: "grow" }, h("h2", {}, icon("photo"), " ", t("web.sw_title")),
+        h("p", { class: "muted" }, t("web.sw_teaser"))),
+      h("button", { class: "primary big", onclick: async () => {
+        (await import("./swipe.js")).openSwipe();
+      } }, icon("users"), t("web.sw_start")));
     const persons = h("div");
     const faces = h("div");
     const emergency = h("div");
-    body.append(persons, faces, emergency);
+    body.append(swipe, persons, faces, emergency);
     await (await import("./persons.js")).personsPanel(persons);
     await (await import("./people.js")).render(faces, [], { embedded: true });
     await (await import("./contacts.js")).contactsPanel(emergency);
@@ -440,8 +447,6 @@ export async function render(main, params = []) {
     await (await import("./notifications.js")).render(body);
   } else if (current === "appearance") {
     (await import("./appearance.js")).render(body);
-  } else if (current === "security") {
-    stop = await (await import("./scan.js")).render(body);
   } else if (current === "logs") {
     stop = await (await import("./logs.js")).render(body, { embedded: true });
   } else if (current === "support") {

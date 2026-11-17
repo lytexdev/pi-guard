@@ -95,13 +95,19 @@ export async function openSwipe(onDone = () => {}) {
     };
     card.addEventListener("pointerup", release);
     card.addEventListener("pointercancel", release);
-    const names = h("div", { class: "row wrap sw-names" }, h("small", { class: "muted" }, t("web.sw_it_is")),
-      queue.people.filter((p) => p !== face.name || !named).map((p, i) => h("button", { class: "small", title: i < 9 ? `${i + 1}` : "", onclick: () => act("name", p) }, p)));
+    const picks = queue.people.filter((p) => p !== face.name || !named);
+    const names = h("div", { class: "row wrap sw-names" },
+      h("small", { class: "muted" }, t("web.sw_it_is")),
+      picks.map((p, i) => h("button", { class: "small", title: i < 9 ? `${i + 1}` : "", onclick: () => act("name", p) }, p)),
+      h("button", { class: "small sw-stranger-pick", title: t("web.sw_stranger_hint"), onclick: () => act("no") },
+        icon("user-x"), " ", t("web.sw_stranger")));
     stage.replaceChildren(card,
       h("div", { class: "sw-buttons" },
-        h("button", { class: "sw-no", title: `${t(named ? "web.sw_no" : "web.sw_stranger")} (←)`, onclick: () => act("no") }, icon("x"), t(named ? "web.sw_no_short" : "web.sw_stranger")),
+        h("button", { class: "sw-no", title: `${t(named ? "web.sw_no" : "web.sw_stranger")} (←)`, onclick: () => act("no") },
+          icon("x"), t(named ? "web.sw_no_short" : "web.sw_stranger")),
         h("button", { class: "sw-skip", title: `${t("web.sw_skip")} (↑)`, onclick: () => act("skip") }, t("web.sw_skip")),
-        named ? h("button", { class: "sw-yes primary", title: `${t("web.sw_yes", { name: face.name })} (→)`, onclick: () => act("yes") }, icon("check"), t("web.sw_yes", { name: face.name })) : null),
+        named ? h("button", { class: "sw-yes primary", title: `${t("web.sw_yes", { name: face.name })} (→)`, onclick: () => act("yes") },
+          icon("check"), t("web.sw_yes", { name: face.name })) : null),
       names);
     card.focus();
   }

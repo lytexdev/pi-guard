@@ -185,13 +185,12 @@ Only the numbers of a face are stored, as with any enrollment. Viewers do not se
 
 ## Contacts
 
-*Settings → Contacts* is the place for one person record: display name, roles (household, trusted camera person,
-emergency, alert recipient, viewer), and links to a face name, a dashboard account, messenger addresses and an
-emergency-contact entry. Tick the roles to say who lives here, whom the cameras should know, and who gets SOS or
-everyday alerts. Linking a face suggests household + trusted; linking an emergency entry suggests the emergency role.
-*Link existing* matches faces, profiles and emergency contacts by name; you can fix mismatches by hand. Face
-enrollment lives on the same page (the old *People* nav entry redirects here). Escalation timing stays under
-*Settings → Emergency*.
+*Settings → Contacts* is the place for one person: *New person* opens a short setup (who they are, roles, messengers
+that are running on this Pi, what they get on SOS or unanswered alerts, optional dashboard account, optional face
+photo). Saving uses the admin session; medical sheet sharing still asks for confirmation. Messenger channels are
+on/off cards for services that are set up. *Teach by swiping* at the top assigns faces from recent events to a person
+or marks a stranger. Face enrollment stays on the same page (the old *People* nav entry redirects here). Escalation
+timing stays under *Settings → Emergency*. The security check is under *Settings → Data & backup → Security*.
 
 ## Updates and versions
 
@@ -235,7 +234,7 @@ off for now.
 
 ## Security scan and storage
 
-*Settings → Security scan* checks the login, HTTPS, pi-guard's own files against their checksums, open
+*Settings → Data & backup → Security* checks the login, HTTPS, pi-guard's own files against their checksums, open
 ports, system updates, the firewall, SSH, system files against their packages, unknown programs with
 root rights, programs in temporary folders, and accounts. It changes nothing by itself and can send a summary to
 admins by messenger (also `/securityscan` in chat). A rootkit scan runs if `rkhunter` or `chkrootkit`

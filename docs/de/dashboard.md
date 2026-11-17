@@ -183,13 +183,13 @@ Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer s
 
 ## Kontakte
 
-*Einstellungen → Kontakte* ist der zentrale Ort für Personen und Gesichter: Name, Rollen (Haushalt, vertraute Kamera-Person, Notfall,
-Alarm-Empfänger, Betrachter) und Verknüpfungen zu Gesicht, Dashboard-Konto, Messenger und Notfallkontakt-Eintrag.
-Über die Rollen legst du fest, wer zum Haushalt gehört, wen die Kameras kennen sollen und wer SOS oder Alltagsalarme
-bekommt. Ein verknüpftes Gesicht schlägt Haushalt + vertraut vor; ein Notfallkontakt-Eintrag die Notfall-Rolle.
-*Bestehende verknüpfen* ordnet Gesichter, Profile und Notfallkontakte nach Name zu; Abweichungen korrigierst du
-von Hand. Das Lernen an der Kamera liegt auf derselben Seite (der alte Navigationspunkt *Personen* leitet hierhin um).
-Eskalationszeiten bleiben unter *Einstellungen → Notfall*.
+*Einstellungen → Kontakte* ist der Ort für eine Person: *Neue Person* öffnet ein kurzes Setup (wer, Rollen, laufende
+Messenger, was bei SOS oder unbeantworteten Alarmen ankommt, optional Dashboard-Konto, optional Gesichtsfoto).
+Speichern nutzt die Admin-Sitzung; die Notfallkarte als PDF braucht weiterhin eine Bestätigung. Messenger-Kanäle sind
+An/Aus-Karten für eingerichtete Dienste. *Per Wischen lernen* oben ordnet Gesichter aus Ereignissen einer Person zu
+oder markiert Fremde. Das Lernen an der Kamera bleibt auf derselben Seite (der alte Punkt *Personen* leitet hierhin).
+Eskalationszeiten bleiben unter *Einstellungen → Notfall*. Der Sicherheitscheck liegt unter *Einstellungen → Daten &
+Sicherung → Sicherheitscheck*.
 
 ## Updates und Versionen
 
@@ -232,7 +232,7 @@ Die alte Adresse *Einstellungen → Apps* leitet hierhin um.
 
 ## Sicherheitscheck und Speicher
 
-*Einstellungen → Sicherheitscheck* prüft Anmeldung, HTTPS, die pi-guard-Dateien gegen ihre Prüfsummen, offene
+*Einstellungen → Daten & Sicherung → Sicherheitscheck* prüft Anmeldung, HTTPS, die pi-guard-Dateien gegen ihre Prüfsummen, offene
 Ports, System-Updates, Firewall, SSH, Systemdateien gegen ihre Pakete, unbekannte Programme mit Root-Rechten,
 Programme in temporären Ordnern und Konten. Er ändert von sich aus nichts und kann eine Zusammenfassung per Messenger an
 Admins schicken (im Chat auch `/sicherheitscheck`). Ein Rootkit-Scan läuft, wenn `rkhunter` oder `chkrootkit`
