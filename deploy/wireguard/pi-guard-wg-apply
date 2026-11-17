@@ -9,6 +9,8 @@
 # influenced by pi-guard.
 set -euo pipefail
 IFACE="${1:-wg0}"
+# A Linux interface name; it ends up in paths under /etc/wireguard.
+[[ "$IFACE" =~ ^[A-Za-z0-9_-]{1,15}$ ]] || { echo "${0##*/}: bad interface name" >&2; exit 2; }
 SRC="${PI_GUARD_WG_PEERS:-/var/lib/pi-guard/wireguard/peers}"
 DIR="${PI_GUARD_WG_DIR:-/etc/wireguard}"
 BASE="$DIR/$IFACE.base"

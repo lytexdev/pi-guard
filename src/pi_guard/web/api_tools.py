@@ -4,7 +4,9 @@ navigation, security scan and storage. Everything here is for admins, see VIEWER
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
+import hashlib
 import ipaddress
 import logging
 import re
@@ -524,15 +526,58 @@ WIFI_PROFILES_KEY = "network.wifi_profiles"
 WIFI_PROFILE_MAX = 8
 
 
-def _wifi_profiles(app: Any) -> list[dict[str, Any]]:
-    raw = app.db.get(WIFI_PROFILES_KEY) or []
-    return raw if isinstance(raw, list) else []
+_WIFI_AAD = b"pi-guard-wifi"
+
+
+def _wifi_cipher(d: Any) -> Any:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    return AESGCM(hashlib.sha256(b"pi-guard wifi key\0" + d._secret_key()).digest())
+
+
+def _seal_wifi(d: Any, key: str) -> str:
+    nonce = secrets.token_bytes(12)
+    return base64.b64encode(
+        nonce + _wifi_cipher(d).encrypt(nonce, key.encode(), _WIFI_AAD)
+    ).decode()
+
+
+def _open_wifi(d: Any, sealed: str) -> str:
+    from cryptography.exceptions import InvalidTag
+
+    try:
+        raw = base64.b64decode(sealed)
+        return str(_wifi_cipher(d).decrypt(raw[:12], raw[12:], _WIFI_AAD).decode())
+    except (InvalidTag, ValueError):
+        return ""  # the dashboard secret key changed: the key has to be typed again
+
+
+def _save_wifi(d: Any, profiles: list[dict[str, Any]]) -> None:
+    """Stored with the Wi-Fi key sealed, like other secrets on the Pi."""
+    stored = [{**{k: v for k, v in p.items() if k != "key"}, "key_sealed": _seal_wifi(d, p["key"])}
+              for p in profiles]  # fmt: skip
+    d.app.db.set(WIFI_PROFILES_KEY, stored)
+
+
+def _wifi_profiles(d: Any) -> list[dict[str, Any]]:
+    """Saved profiles with their keys opened. Profiles from before 1.13 kept the key in plain
+    text: they are sealed the first time they are read."""
+    raw = d.app.db.get(WIFI_PROFILES_KEY) or []
+    if not isinstance(raw, list):
+        return []
+    profiles = [p for p in raw if isinstance(p, dict)]
+    opened = [{**{k: v for k, v in p.items() if k != "key_sealed"},
+               "key": str(p["key"]) if "key" in p else _open_wifi(d, str(p.get("key_sealed", "")))}
+              for p in profiles]  # fmt: skip
+    if any("key" in p for p in profiles):
+        _save_wifi(d, opened)
+    return opened
 
 
 async def wifi_profiles_get(request: web.Request) -> web.Response:
     """Saved SSIDs for guest/home QR codes; keys are never returned in the list."""
     profiles = []
-    for p in _wifi_profiles(dashboard(request).app):
+    for p in _wifi_profiles(dashboard(request)):
         if not isinstance(p, dict) or not p.get("ssid"):
             continue
         profiles.append(
@@ -555,7 +600,7 @@ async def wifi_profiles_put(request: web.Request) -> web.Response:
     wanted = data.get("profiles")
     if not isinstance(wanted, list):
         raise web.HTTPBadRequest(text="web.wifi_bad_input")
-    existing = {str(p.get("id")): p for p in _wifi_profiles(d.app) if isinstance(p, dict)}
+    existing = {str(p.get("id")): p for p in _wifi_profiles(d)}
     cleaned: list[dict[str, Any]] = []
     for raw in wanted[:WIFI_PROFILE_MAX]:
         if not isinstance(raw, dict):
@@ -580,7 +625,7 @@ async def wifi_profiles_put(request: web.Request) -> web.Response:
                 "guest": bool(raw.get("guest")),
             }
         )
-    d.app.db.set(WIFI_PROFILES_KEY, cleaned)
+    _save_wifi(d, cleaned)
     d.app.db.audit(_actor(request), "network.wifi_profiles", str(len(cleaned)))
     return await wifi_profiles_get(request)
 
@@ -594,11 +639,7 @@ async def wifi_qr(request: web.Request) -> web.Response:
     profile_id = str(data.get("profile") or "").strip()
     if profile_id:
         match = next(
-            (
-                p
-                for p in _wifi_profiles(d.app)
-                if isinstance(p, dict) and str(p.get("id")) == profile_id
-            ),
+            (p for p in _wifi_profiles(d) if str(p.get("id")) == profile_id),
             None,
         )
         if match is None:

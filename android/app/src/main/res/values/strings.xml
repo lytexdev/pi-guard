@@ -143,7 +143,6 @@
     <string name="lost_title">This phone is reported lost</string>
     <string name="lost_text">Its place goes to pi-guard every minute until it is found.</string>
     <string name="channel_emergency">Emergency and lost phone</string>
-    <string name="qa_title">Quick actions</string>
     <string name="qa_ack">All fine</string>
     <string name="qa_call">Call home</string>
     <string name="qa_tutorial">Tutorial</string>

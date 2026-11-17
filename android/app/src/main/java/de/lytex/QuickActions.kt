@@ -34,10 +34,6 @@ object QuickActions {
         context.getSystemService(ShortcutManager::class.java)?.removeAllDynamicShortcuts()
     }
 
-    fun sheet(activity: Activity) {
-        // Kept for older call sites; the toolbar button is gone.
-    }
-
     /** Runs an action; the alarm asks first, since it is loud for everyone at home. */
     fun start(activity: Activity, id: String, done: () -> Unit = {}) {
         val action = all.firstOrNull { it.id == id } ?: return done()

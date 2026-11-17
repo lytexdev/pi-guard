@@ -231,7 +231,8 @@ Die alte Adresse *Einstellungen → Apps* leitet hierhin um.
 
 - **WLAN-QR-Code:** Der Code-Knopf neben jedem WLAN liest den Schlüssel aus der FRITZ!Box. Du kannst den
   Code als Bild speichern; wer ihn hat, kommt ins WLAN. Ohne FRITZ!Box trägst du Name und Schlüssel ein.
-  Der Schlüssel wird nicht gespeichert.
+  Ein eingetippter Schlüssel wird nicht gespeichert. Gespeicherte WLAN-Profile (Zuhause, Gast; mit Passwort)
+  liegen mit dem geheimen Schlüssel des Dashboards versiegelt, und die Liste zeigt den Schlüssel nie.
 - **Was andere von dir sehen können** erklärt, was dein Anbieter, andere im Netzwerk und der Betreiber
   sehen können, mit dem, was dieser Pi über dein aktuelles Gerät weiß.
 - **Ein Gerät aussperren:** Die Schnittstelle der FRITZ!Box kann kein einzelnes Gerät aus dem WLAN werfen.

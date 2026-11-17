@@ -5,7 +5,11 @@ certificate warning. It shows what runs on your Pi, so it never needs its own up
 
 ## Install
 
-Quickest path — downloads the newest `apps-*` release from GitHub; afterwards the app updates itself from your Pi:
+Quickest path — downloads the newest `apps-*` release from GitHub; afterwards the app updates itself from your Pi.
+On Linux the script installs only what carries the release key's signature (needs `openssl` 1.1.1 or newer and
+`python3`), like the app's own updates. Windows PowerShell has no Ed25519, so there the script compares the checksum
+from the signed manifest; the installed app then checks every update's signature. A file or link you pass yourself
+is not checked against the release.
 
 ```bash
 ./scripts/install-desktop.sh

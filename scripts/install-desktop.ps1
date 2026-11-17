@@ -11,6 +11,7 @@ param(
     [string]$Url = "",
     [string]$Repo = "lytexdev/pi-guard"
 )
+$manifestUrl = ""
 
 $ErrorActionPreference = "Stop"
 $temp = Join-Path $env:TEMP ("pi-guard-desktop-" + [guid]::NewGuid().ToString("N"))
@@ -25,8 +26,8 @@ try {
                 if ($asset.name -like "PiGuard-*-win-x64.exe") {
                     $Url = $asset.browser_download_url
                     $name = $asset.name
-                    break
                 }
+                if ($asset.name -eq "desktop-win-x64.json") { $manifestUrl = $asset.browser_download_url }
             }
             if ($Url) { break }
         }
@@ -34,6 +35,12 @@ try {
         $Installer = Join-Path $temp $name
         Write-Host "Downloading $name …"
         Invoke-WebRequest -Uri $Url -OutFile $Installer
+        # Windows PowerShell has no Ed25519, so only the checksum from the signed manifest is
+        # compared here; the installed app checks the full signature of every later update.
+        if (-not $manifestUrl) { throw "the release has no manifest for win-x64: not installing" }
+        $manifest = Invoke-RestMethod -Uri $manifestUrl
+        $sum = (Get-FileHash -Algorithm SHA256 -LiteralPath $Installer).Hash.ToLower()
+        if ($sum -ne $manifest.sha256) { throw "the download does not match its manifest: not installing" }
     } elseif ($Url) {
         $name = [IO.Path]::GetFileName(($Url -split "\?")[0])
         $Installer = Join-Path $temp $name

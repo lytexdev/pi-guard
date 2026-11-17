@@ -232,7 +232,8 @@ off for now.
 
 - **Wi-Fi QR codes:** the code button beside each Wi-Fi reads its key from the FRITZ!Box. The code
   can be saved as a picture; anyone who has it can join. Without a FRITZ!Box, type the name and key.
-  The key is not stored.
+  A typed key is not stored. Saved Wi-Fi profiles (home, guest; with the password) keep their key sealed
+  with the dashboard's secret key, and the list never shows it.
 - **What others can see of you** explains what your provider, others in the network and the operator
   of the network can see, using what this Pi knows about the device you are on.
 - **Locking a device out:** TR-064 has no call to throw one device out of the Wi-Fi. There are two

@@ -8,21 +8,30 @@ $("retry").textContent = de ? "Noch einmal versuchen" : "Try again";
 $("change").textContent = de ? "Adresse ändern" : "Change address";
 window.piguard.address().then((address) => { $("where").textContent = address; });
 
-let wait = 2000;
-let timer = null;
+// Each failed retry loads this page again, so the growing wait is kept in sessionStorage:
+// otherwise it would start at 2 s every time and knock every 2 s for good.
+const FIRST_WAIT = 2000;
 const MAX_WAIT = 30000;
+const stored = (() => { try { return JSON.parse(sessionStorage.getItem("pg-wait") || "{}"); } catch { return {}; } })();
+// A wait from an outage long ago does not count: a new outage starts quick again.
+const recent = Date.now() - Number(stored.at || 0) < 2 * MAX_WAIT;
+const wait = recent && stored.wait >= FIRST_WAIT ? Math.min(stored.wait, MAX_WAIT) : FIRST_WAIT;
+let timer = null;
+const remember = (value) => {
+  try { sessionStorage.setItem("pg-wait", JSON.stringify({ wait: value, at: Date.now() })); } catch { /* storage off */ }
+};
 
 function schedule() {
   clearTimeout(timer);
   timer = setTimeout(() => {
-    wait = Math.min(wait * 1.5, MAX_WAIT);
+    remember(Math.min(Math.round(wait * 1.5), MAX_WAIT));
     window.piguard.retry();
   }, wait);
 }
 
 $("retry").addEventListener("click", () => {
   clearTimeout(timer);
-  wait = 2000;
+  remember(FIRST_WAIT);
   window.piguard.retry();
 });
 $("change").addEventListener("click", () => {

@@ -24,6 +24,12 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Security: `install-desktop.sh` installed what it downloaded from GitHub without checking it; now only with the
+  release key's signature. `install-desktop.ps1` compares the manifest's checksum.
+- Security: saved Wi-Fi profiles kept their keys in plain text in the database; they are sealed now, older ones on
+  first read. The WireGuard root helpers refuse odd interface names.
+- The desktop app's offline page retried every 2 seconds forever; the wait now grows to 30 seconds.
+- The READMEs still offered the phone app's quick actions on the app icon, removed in 1.12; the dead menu code is gone.
 - Security: a member with only the *Contacts* area could send app invitations and create VPN accesses; now *Apps* and
   *Network* are needed too, and the emergency card names need the medical add-on.
 - Security: the assistant's link fetch could read pages from the home network (router, Pi-hole, the dashboard) and

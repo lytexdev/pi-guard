@@ -156,3 +156,45 @@ def test_the_release_script_signs_what_the_pi_accepts(tmp_path: Path) -> None:
     refused = subprocess.run([script, "android", "apk", "1.4.0", str(apk), str(out)], env=env,
                              capture_output=True)  # fmt: skip
     assert refused.returncode != 0  # a phone app without its version code is not signed
+
+
+def test_the_desktop_installer_takes_only_signed_downloads(tmp_path: Path) -> None:
+    import shutil
+    import subprocess
+
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives.serialization import (
+        Encoding,
+        NoEncryption,
+        PrivateFormat,
+        PublicFormat,
+    )
+
+    if not shutil.which("openssl"):
+        pytest.skip("openssl missing")
+    root = Path(__file__).parents[1]
+    installer = root / "scripts/install-desktop.sh"
+    assert app_updates.UPDATE_KEY.hex() in installer.read_text()  # the same key as everywhere
+    private = Ed25519PrivateKey.generate()
+    key = tmp_path / "key.pem"
+    key.write_bytes(private.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()))
+    public = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
+    archive = tmp_path / "PiGuard-1.4.0-linux-x64.tar.gz"
+    archive.write_bytes(b"desktop app")
+    out = tmp_path / "out"
+    env = {"PATH": "/usr/bin:/bin", "PI_GUARD_UPDATE_KEY": str(key)}
+    subprocess.run([str(root / "scripts/sign-update.sh"), "desktop", "linux-x64", "1.4.0",
+                    str(archive), str(out)], check=True, env=env, capture_output=True)  # fmt: skip
+    work = tmp_path / "work"
+    work.mkdir()
+
+    def verify(trusted: str) -> subprocess.CompletedProcess[str]:
+        script = (f'source "{installer}"; UPDATE_KEY={trusted}; TMP="{work}"; '
+                  f'verify "{archive}" "{out}/desktop-linux-x64.json" linux-x64')  # fmt: skip
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
+        return subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)
+
+    assert verify(public).returncode == 0
+    assert verify(app_updates.UPDATE_KEY.hex()).returncode != 0  # signed with another key
+    archive.write_bytes(b"something else")
+    assert "does not match" in verify(public).stderr

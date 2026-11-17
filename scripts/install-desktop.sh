@@ -41,30 +41,63 @@ want = f"-linux-{arch}.tar.gz"
 for release in json.load(sys.stdin):
     if not (release.get("tag_name") or "").startswith("apps-"):
         continue
-    for asset in release.get("assets") or []:
-        name = asset.get("name") or ""
+    assets = {a.get("name") or "": a.get("browser_download_url") for a in release.get("assets") or []}
+    for name, url in assets.items():
         if name.startswith("PiGuard-") and name.endswith(want):
-            print(asset["browser_download_url"])
+            print(url)
             print(name)
+            print(assets.get(f"desktop-linux-{arch}.json") or "")
             raise SystemExit(0)
 sys.stderr.write("no PiGuard linux tar.gz in apps-* releases\n")
 raise SystemExit(1)
 '
 }
 
+# The release key's public half, as in core/app_updates.py, desktop/updates.js and agent/src/update.rs.
+UPDATE_KEY=7cdf1b203f7747803d04eaf7cdc52350c684f6e5b3b0ea64cd1636b593b8b716
+
+unhex() { python3 -c 'import sys; sys.stdout.buffer.write(bytes.fromhex(sys.argv[1]))' "$1"; }
+
+verify() {
+    # A download from GitHub counts only with the release key's signature, as the app checks
+    # its own updates: a broken-into GitHub account must not reach this computer.
+    local file="$1" manifest="$2" platform="$3" fields version sum signature
+    need openssl
+    fields="$(python3 -c '
+import json, re, sys
+m = json.load(open(sys.argv[1]))
+v, s, g = str(m.get("version", "")), str(m.get("sha256", "")), str(m.get("signature", ""))
+ok = re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", v) and re.fullmatch(r"[0-9a-f]{64}", s) and re.fullmatch(r"[0-9a-f]{128}", g)
+print(v, s, g) if ok else sys.exit("bad manifest")
+' "$manifest")" || die "the signature file is not valid"
+    read -r version sum signature <<<"$fields"
+    [[ "$(sha256sum "$file" | cut -d' ' -f1)" == "$sum" ]] || die "the download does not match its signature file"
+    unhex "302a300506032b6570032100$UPDATE_KEY" | openssl pkey -pubin -inform DER -out "$TMP/key.pem" 2>/dev/null \
+        || die "openssl cannot read Ed25519 keys (needs OpenSSL 1.1.1 or newer)"
+    unhex "$signature" > "$TMP/signature"
+    printf 'pi-guard-update|desktop|%s|%s|%s' "$platform" "$version" "$sum" > "$TMP/message"
+    openssl pkeyutl -verify -pubin -inkey "$TMP/key.pem" -rawin -in "$TMP/message" -sigfile "$TMP/signature" >/dev/null 2>&1 \
+        || die "the signature does not check out: not installing"
+    echo "Signature checks out (version $version)."
+}
+
 resolve_archive() {
-    local source="${1:-}" url name
+    local source="${1:-}" url name manifest
     if [[ -z "$source" ]]; then
         mapfile -t lines < <(latest_asset)
-        url="${lines[0]-}" name="${lines[1]-}"
+        url="${lines[0]-}" name="${lines[1]-}" manifest="${lines[2]-}"
         [[ -n "$url" && -n "$name" ]] || die "could not find a desktop release"
+        [[ -n "$manifest" ]] || die "the release has no signature for linux-$(arch_name); build with scripts/build-desktop.sh"
         TMP="$(mktemp -d)"
         echo "Downloading $name …"
         curl -fsSL "$url" -o "$TMP/$name"
+        curl -fsSL "$manifest" -o "$TMP/manifest.json"
+        verify "$TMP/$name" "$TMP/manifest.json" "linux-$(arch_name)"
         ARCHIVE="$TMP/$name"
         return
     fi
     if [[ "$source" =~ ^https?:// ]]; then
+        echo "Note: a file from a link of your own is not checked against the release signature." >&2
         need curl
         name="$(basename "${source%%\?*}")"
         TMP="$(mktemp -d)"
@@ -76,6 +109,9 @@ resolve_archive() {
     [[ -f "$source" ]] || die "file not found: $source"
     ARCHIVE="$(cd "$(dirname "$source")" && pwd)/$(basename "$source")"
 }
+
+# Sourced by the tests for `verify` only.
+[[ "${BASH_SOURCE[0]}" == "$0" ]] || return 0
 
 resolve_archive "${1:-}"
 VERSION="$(basename "$ARCHIVE" | sed -E 's/^PiGuard-([0-9.]+)-.*/\1/')"
