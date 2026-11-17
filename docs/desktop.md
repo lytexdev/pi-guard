@@ -11,10 +11,10 @@ certificate warning. It shows what runs on your Pi, so it never needs its own up
 | Debian, Ubuntu, Linux Mint | `.deb`: `sudo apt install ./FILE` | |
 | Fedora | `.rpm`: `sudo dnf install ./FILE` | |
 | openSUSE | `.rpm`: `sudo zypper install ./FILE` | |
-| Any Linux, updates itself | `.tar.gz`: `./scripts/install-desktop.sh FILE` | for your user, no root, starts fastest |
+| Any Linux, updates itself | `./scripts/install-desktop.sh` | downloads the newest release, no root; or pass a `.tar.gz` / URL |
 | Any Linux | `.AppImage` | no entry in the menu; start it by hand |
 | Flatpak | `.flatpak`: `flatpak install --user FILE` | sandboxed, updates through Flatpak, no VPN |
-| Windows | `PiGuard-*-win-x64.exe` | Windows warns because the file is not signed: *More info › Run anyway* |
+| Windows | `powershell -ExecutionPolicy Bypass -File .\scripts\install-desktop.ps1` | downloads the newest `.exe`, or pass `-Installer` / `-Url`; unsigned warning: *More info › Run anyway* |
 | macOS | `PiGuard-*-mac-*.zip` | not signed or notarized, see below |
 
 Build them yourself with:
@@ -52,9 +52,11 @@ pi-guard's certificate is what this app is for.
 
 ## Icon and search on Linux
 
-`scripts/install-desktop.sh` adds the entry for your applications menu and search, and the icon. The taskbar finds them
-through the app id `pi-guard-desktop`, so the file must be called `pi-guard-desktop.desktop`. An AppImage started by hand
-has no such entry, which is why it shows the Electron icon and cannot be found.
+`scripts/install-desktop.sh` (Linux) and `scripts/install-desktop.ps1` (Windows) install for your user. With no file they
+fetch the newest `apps-*` release from GitHub. On Linux the script also adds the applications-menu entry and icon. The
+taskbar finds them through the app id `pi-guard-desktop`, so the file must be called `pi-guard-desktop.desktop`. An
+AppImage started by hand has no such entry, which is why it shows the Electron icon and cannot be found. After the first
+install, minor and major versions install themselves from your Pi; a patch is offered under *Check for updates*.
 
 ## Logging in
 

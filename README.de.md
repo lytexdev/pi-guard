@@ -83,11 +83,11 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 
 | System | Paket |
 | --- | --- |
-| Arch Linux | `.pacman`, oder `scripts/install-desktop.sh` mit automatischen Updates |
-| Debian, Ubuntu, Linux Mint | `.deb` |
-| Fedora, openSUSE | `.rpm` |
-| Andere Linux-Systeme | `.AppImage`, Flatpak |
-| Windows | `.exe`-Installer |
+| Arch Linux | `.pacman`, oder `./scripts/install-desktop.sh` (lädt die neueste Version, danach Selbst-Updates) |
+| Debian, Ubuntu, Linux Mint | `.deb`, oder `./scripts/install-desktop.sh` |
+| Fedora, openSUSE | `.rpm`, oder `./scripts/install-desktop.sh` |
+| Andere Linux-Systeme | `./scripts/install-desktop.sh`, `.AppImage`, Flatpak |
+| Windows | `scripts/install-desktop.ps1`, oder der `.exe`-Installer |
 | macOS | `.zip` |
 | Android | `.apk` im Dashboard unter Einstellungen › Apps, oder per Einladungslink von dort |
 
