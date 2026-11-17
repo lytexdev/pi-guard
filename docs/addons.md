@@ -128,7 +128,9 @@ reached the AI pauses until the next day; weather and time keep working.
 
 Privacy: questions go to the chosen provider. By default the assistant receives no camera
 pictures, no names, no device or presence data and no secrets. Each of those needs its own
-tick below.
+tick below (chat images, link fetch, compact system status, open-alert summary with password).
+Voice stays answers-only without private documents. Fallback providers are tried after the
+primary fails; extra provider keys are sealed on the Pi.
 
 ### Doing things by asking
 
@@ -156,7 +158,8 @@ undo, see [the dashboard page](dashboard.md#asking-about-settings-and-undoing-ch
 With "The AI may look at camera pictures" ticked, "Was siehst du im Wohnzimmer?" sends one
 picture to the provider after you confirm, each time. It needs a model that can see, e.g. a
 vision model in Ollama for keeping pictures at home. The provider then has a picture of the
-inside of your home, so use this with care.
+inside of your home, so use this with care. With *Allow images in the dashboard chat* you can
+also attach or paste a picture in the chat (still needs vision).
 
 ### As an emergency contact
 

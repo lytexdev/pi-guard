@@ -122,8 +122,9 @@ Telegram, Signal, Discord, WhatsApp, email and the chat services are modules und
 disappears from *Settings → Messenger* and stops at the next restart; its entries are kept. Modules that are part of
 pi-guard carry a *Verified* badge. Each card's menu (three dots) pins it to the navigation, shows help and a way to the
 tour, and removes it. The plus beside the search adds your own add-ons, see [plugins](plugins.md). The phone app is no
-module: it is on by default, under *Settings → Apps*, with the versions this Pi hands out and invitation links (seven
-days, downloads only, kept as a hash) for people who should get the Android or desktop app.
+module: it is on by default, under *Settings → Updates*, with the versions this Pi hands out and invitation links (seven
+days, downloads only, kept as a hash) for people who should get the Android or desktop app. The old *Settings → Apps*
+address redirects there.
 
 Panels in the settings fold by clicking their headline, and stay that way in this browser. Messengers that
 are off start folded.
@@ -182,11 +183,19 @@ recognition needs a face in the picture, roughly facing the camera and at least 
 
 Only the numbers of a face are stored, as with any enrollment. Viewers do not see the buttons.
 
+## Contacts
+
+*Settings → Contacts* is the place for one person record: display name, roles (trusted camera person, emergency,
+alert recipient), and links to a face name, a dashboard account, messenger addresses and an emergency-contact entry.
+*Link existing* matches faces, profiles and emergency contacts by name; you can fix mismatches by hand. The *People*
+page stays for camera learning and enrollment. Escalation timing stays under *Settings → Emergency*.
+
 ## Updates and versions
 
 *Settings → Updates* shows the Pi's version (it is also next to the credit in the navigation), the newest release,
-where updates come from (repository and channel, see [updates.md](updates.md)), this installation's instance ID and
-every app version the Pi hands out, with *Check for app updates*. The anonymous statistics are off for now.
+where updates come from (repository and channel, see [updates.md](updates.md)), this installation's instance ID,
+every app version the Pi hands out (*Check for app updates*), invitations and phones. The anonymous statistics are
+off for now.
 
 ## Everyday tools
 
@@ -195,13 +204,16 @@ every app version the Pi hands out, with *Check for app updates*. The anonymous 
   not kept; the test is logged and announced with the chime, like listening in.
 
 - **Tooltips** explain buttons and entries on hover and keyboard focus.
-- **Navigation:** *Appearance → Navigation* sets your own order by dragging, per account. The camera
-  room is a switch at the top of Live.
+- **Navigation:** *Appearance → Navigation* sets your own order by dragging, per account. *Network* is in the
+  primary bar by default (with Overview, Live, Events). *Logs* live under *Settings → Logs* (`#/logs` redirects).
+  The camera room is a switch at the top of Live.
 - **Weekly plan** (*Settings → Home & Away*): drag in a day to mark when nobody is usually home. pi-guard switches
   to Away and back at those times. What you set by hand stays until the next change in the plan. If
   presence detection is on, it stays at Home while someone is detected at home.
 - **Support** (*Settings*): optional name, phone, email and address, shown small on the overview, in
   settings, logs and the assistant. The assistant answers with them when asked for help.
+- **Logs:** *Settings → Logs* filters the service log by exact level (INFO does not include WARNING). Known noisy
+  “SSL connection is closed” lines from aiohttp are rate-limited to once a minute.
 
 ## Network tools
 

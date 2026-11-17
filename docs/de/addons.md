@@ -47,7 +47,9 @@ nur, wenn sie verschlüsselt ist.
 **KI-Assistent:** Alles, was kein Befehl ist, gilt als Frage. Wetter, Uhrzeit und Datum
 kosten keine Tokens, ebenso Fragen zu pi-guard selbst („Wie funktioniert das VPN?“, „Tutorial“), die aus dem
 eingebauten Tutorial kommen; gleiche Fragen kommen eine Stunde lang aus dem Zwischenspeicher, und
-ein Tageslimit begrenzt die Kosten. Fragen gehen an den gewählten Anbieter. Der Assistent
+ein Tageslimit begrenzt die Kosten. Fragen gehen an den gewählten Anbieter. Optional (alles aus):
+Bilder im Chat, Abruf von Links, kompakter Systemstatus und Alarm-Zusammenfassung für Admins (mit Passwort).
+Sprache bleibt ohne private Dokumente. Ersatz-Anbieter und versiegelte Zusatz-Keys sind möglich. Der Assistent
 bekommt keine Bilder, Namen oder Daten aus Ihrem Zuhause und kann nichts schalten.
 Einstellungen erklärt und ändert er unter *Einstellungen → Allgemein → Frag zu Einstellungen*, immer mit Bestätigung und
 Rückgängig, siehe [Dashboard](dashboard.md#fragen-zu-einstellungen-und-änderungen-rückgängig-machen).
