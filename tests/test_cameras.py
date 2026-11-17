@@ -9,7 +9,14 @@ import pytest
 
 from pi_guard.cameras import ffmpeg, pipeline
 from pi_guard.cameras.discovery import VideoDevice, VideoFormat, parse_formats
-from pi_guard.cameras.ffmpeg import CaptureChoice, build_command, choose_capture, detection_size
+from pi_guard.cameras.ffmpeg import (
+    CaptureChoice,
+    build_command,
+    choose_capture,
+    detection_size,
+    face_capture_preset,
+    input_args,
+)
 from pi_guard.cameras.pipeline import CameraPipeline, CameraState, SnapshotUnavailableError
 from pi_guard.config.files import CameraConfig
 from pi_guard.core.events import EventBus, EventType
@@ -62,11 +69,11 @@ def test_copying_stays_possible_on_request(monkeypatch: pytest.MonkeyPatch) -> N
     assert choice == CaptureChoice("h264", "copy")
 
 
-def test_mjpeg_preferred_and_hardware_encoder_probed(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mjpeg_uses_software_encoder_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Hardware encode stays available when chosen explicitly; auto must not pick it.
     monkeypatch.setattr(ffmpeg, "encoder_works", lambda name: name == "h264_v4l2m2m")
-    assert choose_capture(cam(), device(YUYV, MJPEG)) == CaptureChoice("mjpeg", "h264_v4l2m2m")
-    monkeypatch.setattr(ffmpeg, "encoder_works", lambda name: False)
-    assert choose_capture(cam(), device(YUYV, MJPEG)).encoder == "libx264"
+    assert choose_capture(cam(), device(YUYV, MJPEG)) == CaptureChoice("mjpeg", "libx264")
+    assert choose_capture(cam(codec="h264_v4l2m2m"), device(YUYV, MJPEG)).encoder == "h264_v4l2m2m"
 
 
 def test_yuyv_fallback_warns_for_large_sizes(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -84,6 +91,24 @@ def test_copy_requires_h264_input() -> None:
 def test_detection_size_keeps_aspect() -> None:
     assert detection_size(cam(resolution="1920x1080")) == (320, 180)
     assert detection_size(cam(resolution="640x480")) == (320, 240)
+
+
+def test_face_capture_preset_prefers_yuyv() -> None:
+    preset = face_capture_preset(device(YUYV, MJPEG, H264))
+    assert preset["input_format"] == "yuyv422"
+    assert preset["codec"] == "libx264"
+    assert preset["resolution"] == "1280x720"
+
+
+def test_likely_ir_from_device_name() -> None:
+    assert VideoDevice(Path("/dev/video0"), Path("/dev/video0"), "ELP IR Camera", ()).likely_ir
+    assert not VideoDevice(Path("/dev/video0"), Path("/dev/video0"), "HD Webcam", ()).likely_ir
+
+
+def test_input_args_include_v4l_controls() -> None:
+    args = input_args(cam(brightness=10, contrast=32), CaptureChoice("mjpeg", "libx264"))
+    assert args[args.index("-brightness") + 1] == "10"
+    assert args[args.index("-contrast") + 1] == "32"
 
 
 def test_command_with_encoding_has_three_outputs(tmp_path: Path) -> None:

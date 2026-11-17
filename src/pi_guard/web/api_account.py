@@ -202,6 +202,9 @@ async def user_delete(request: web.Request) -> web.Response:
         raise web.HTTPNotFound()
     devices = await forget_devices(request, username)
     d.profiles.delete(username)
+    from pi_guard.storage.persons import Persons
+
+    Persons(d.app.db).unlink("web_account", username)
     # A new account with the same name must not inherit someone's emergency data.
     d.app.escalation.contacts.forget_account(username)
     if d.app.addons.medical is not None:

@@ -189,8 +189,12 @@ class Escalation:
         photos = [p for p in photos if p.is_file()][-PHOTOS:]
         sent = 0
         reached: set[int] = set()
+        from pi_guard.messaging.hub import delivery_allows
+
         for provider, chat, contact in self.contacts.recipients("escalation"):
             if provider not in app.providers:
+                continue
+            if not delivery_allows(app.settings, provider, "emergency"):
                 continue
             lines = head + (events if contact.gets("escalation", "events") else []) + tail
             try:

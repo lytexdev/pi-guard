@@ -2,6 +2,7 @@
 import { api, askDialog, attempt, confirmDialog, fill, h, icon, t, toast, when, whileShown } from "../api.js";
 
 const BADGE = { bad: "danger", warn: "warn", ok: "ok", unknown: "" };
+const STATUS_ICON = { ok: "circle-check", warn: "alert-triangle", bad: "alert-triangle", unknown: "help" };
 let pendingSince = 0;  // a fix was started: look again until its result is there
 
 export async function render(box) {
@@ -11,29 +12,67 @@ export async function render(box) {
     clearTimeout(timer);
     const s = await api("/api/scan");
     const last = s.last;
+    const progress = s.progress;
     fill(box, h("section", { class: "panel stack" }, h("h2", {}, t("web.set_security")), h("p", { class: "muted" }, t("web.scan_intro")),
       s.root_job ? null : h("p", { class: "notice" }, t("web.scan_no_job")),
       h("label", { class: "check", title: t("web.scan_report_tip") }, report, t("web.scan_report")),
       h("button", { class: "primary", disabled: s.running, onclick: async () => {
         if (await attempt(() => api("/api/scan", { method: "POST", body: { report: report.checked } }))) draw();
       } }, icon("shield-check"), s.running ? t("web.scan_running") : t("web.scan_start")),
-      s.running ? h("p", { class: "muted", "aria-live": "polite" }, t("web.scan_wait")) : null),
-    last ? h("section", { class: "panel stack" }, h("h2", {}, t("web.scan_result")),
-      h("p", { class: "muted" }, t("web.scan_summary", { time: when(last.time), bad: last.counts.bad, warn: last.counts.warn, ok: last.counts.ok })),
-      h("ul", { class: "list scan-list" }, last.checks.map((c) => h("li", {},
-        icon(c.status === "ok" ? "circle-check" : "alert-triangle"),
-        h("div", { class: "grow" }, h("div", {}, t(`web.scan_${c.id}`)),
-          c.detail ? h("small", { class: "mono block" }, c.detail) : null,
-          c.status === "ok" ? null : h("small", { class: "block" }, t(c.fix || `web.scan_${c.id}_fix`))),
-        h("span", { class: `badge ${BADGE[c.status]}` }, t(`web.scan_state_${c.status}`)))))) : null,
+      s.running ? progressPanel(progress) : null),
+    last && !s.running ? resultPanel(last) : null,
     last ? fixesPanel(s, draw) : null,
     last && s.review ? reviewPanel(s, draw) : null);
     const waiting = pendingSince && !((s.fixes?.result?.time || 0) >= pendingSince);
     if (!waiting) pendingSince = 0;
-    if (s.running || waiting) timer = whileShown(box, draw, 3000);
+    if (s.running || waiting) timer = whileShown(box, draw, s.running ? 1000 : 3000);
   };
   await draw();
   return () => clearTimeout(timer);
+}
+
+function progressPanel(progress) {
+  const ids = progress?.checks || [];
+  const done = new Set(progress?.done || []);
+  const current = progress?.current || null;
+  const total = ids.length || 1;
+  const pct = Math.min(100, Math.round((done.size / total) * 100));
+  const fillBar = h("i", { class: "scan-bar-fill" });
+  fillBar.style.width = `${pct}%`;
+  return h("div", { class: "scan-progress stack", "aria-live": "polite" },
+    h("p", { class: "muted" }, t("web.scan_wait")),
+    h("div", { class: "scan-bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct) }, fillBar),
+    h("ul", { class: "list scan-list scan-live" }, ids.map((id) => {
+      const state = done.has(id) ? "done" : id === current ? "current" : "pending";
+      return h("li", { class: `scan-step ${state}` },
+        state === "done" ? icon("circle-check") : state === "current" ? h("span", { class: "scan-spinner", "aria-hidden": "true" }) : icon("circle"),
+        h("div", { class: "grow" }, t(`web.scan_${id}`)),
+        state === "current" ? h("span", { class: "badge" }, t("web.scan_checking")) : null);
+    })));
+}
+
+function resultPanel(last) {
+  const counts = last.counts || {};
+  const total = Math.max(1, (counts.bad || 0) + (counts.warn || 0) + (counts.ok || 0) + (counts.unknown || 0));
+  return h("section", { class: "panel stack" }, h("h2", {}, t("web.scan_result")),
+    h("p", { class: "muted" }, t("web.scan_summary", { time: when(last.time), bad: counts.bad || 0, warn: counts.warn || 0, ok: counts.ok || 0 })),
+    h("div", { class: "scan-summary-bar", role: "img", "aria-label": t("web.scan_summary", { time: when(last.time), bad: counts.bad || 0, warn: counts.warn || 0, ok: counts.ok || 0 }) },
+      segment("bad", counts.bad, total), segment("warn", counts.warn, total),
+      segment("ok", counts.ok, total), segment("unknown", counts.unknown, total)),
+    h("ul", { class: "list scan-list" }, (last.checks || []).map((c) => h("li", { class: `scan-result ${c.status}` },
+      icon(STATUS_ICON[c.status] || "help"),
+      h("div", { class: "grow" }, h("div", {}, t(`web.scan_${c.id}`)),
+        c.detail ? h("small", { class: "mono block" }, c.detail) : null,
+        c.status === "ok" ? null : h("small", { class: "block" }, t(c.fix || `web.scan_${c.id}_fix`))),
+      h("span", { class: `badge ${BADGE[c.status]}` }, t(`web.scan_state_${c.status}`))))));
+}
+
+function segment(kind, n, total) {
+  if (!n) return null;
+  const el = h("span", { class: `scan-seg ${kind}` });
+  el.style.flexGrow = String(n);
+  el.style.flexBasis = `${(n / total) * 100}%`;
+  return el;
 }
 
 // A fix from the fixed list: confirmed twice (what it does, then its name typed) and the password.

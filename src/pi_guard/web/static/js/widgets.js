@@ -107,11 +107,22 @@ function panel() {
       input.focus();
     }
   };
-  const ask = async (question) => {
-    say("me", question);
-    const done = accessibilityCommand(question);
+  let pendingImage = null;
+  const preview = h("div", { class: "chat-attach" });
+  const clearImage = () => { pendingImage = null; fill(preview); };
+  const setImage = (dataUrl) => {
+    pendingImage = dataUrl;
+    fill(preview, h("img", { src: dataUrl, alt: "" }),
+      h("button", { type: "button", class: "icon-only ghost", title: t("web.close"), onclick: clearImage }, icon("x")));
+  };
+  const ask = async (question, image = null) => {
+    if (image) say("me", question || t("web.ai_image"), h("img", { class: "chat-thumb", src: image, alt: "" }));
+    else say("me", question);
+    const done = !image && accessibilityCommand(question);
     if (done) { say("bot", done); if (readsAloud()) speak(done); return; }
-    const r = await waiting(() => api("/api/assistant/chat", { method: "POST", body: { text: question } }));
+    const body = { text: question, fetch_links: /https?:\/\//i.test(question) };
+    if (image) body.image = image;
+    const r = await waiting(() => api("/api/assistant/chat", { method: "POST", body }));
     if (r) show(r);
   };
   let recorder = null;
@@ -140,20 +151,42 @@ function panel() {
     mic.classList.add("active");
     input.placeholder = t("web.ai_listening");
   });
-  const form = h("form", { class: "chat-input" }, input, window.MediaRecorder && window.isSecureContext ? mic : null, sendButton);
+  const file = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp", hidden: true });
+  const attach = h("button", { type: "button", class: "icon-only ghost", title: t("web.ai_attach"), "aria-label": t("web.ai_attach"), onclick: () => file.click() }, icon("photo"));
+  file.addEventListener("change", () => {
+    const chosen = file.files?.[0];
+    file.value = "";
+    if (!chosen) return;
+    const reader = new FileReader();
+    reader.onload = () => setImage(String(reader.result || ""));
+    reader.readAsDataURL(chosen);
+  });
+  input.addEventListener("paste", (event) => {
+    const item = [...(event.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+    if (!item) return;
+    const blob = item.getAsFile();
+    if (!blob) return;
+    event.preventDefault();
+    const reader = new FileReader();
+    reader.onload = () => setImage(String(reader.result || ""));
+    reader.readAsDataURL(blob);
+  });
+  const form = h("form", { class: "chat-input" }, input, attach, file, window.MediaRecorder && window.isSecureContext ? mic : null, sendButton);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const question = input.value.trim();
-    if (!question) return;
+    if (!question && !pendingImage) return;
     input.value = "";
-    ask(question);
+    const image = pendingImage;
+    clearImage();
+    ask(question, image);
   });
   const dialog = h("dialog", { class: "chat", "aria-label": t("addons.assistant") },
     h("header", { class: "chat-head" }, assistantIcon(),
       h("div", { class: "grow" }, h("h2", {}, t("addons.assistant")), h("small", { class: "muted" }, t("web.ai_subtitle"))),
       h("button", { class: "icon-only ghost", title: t("web.ai_clear"), "aria-label": t("web.ai_clear"), onclick: reset }, icon("refresh")),
       h("button", { class: "icon-only ghost", title: t("web.close"), "aria-label": t("web.close"), onclick: () => dialog.close() }, icon("x"))),
-    log, h("div", { class: "chat-foot" }, form, supportNote()));
+    log, preview, h("div", { class: "chat-foot" }, form, supportNote()));
   // A click beside the panel closes it, as Escape does.
   dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
   dialog.addEventListener("close", () => document.querySelector(".ai-open")?.classList.remove("hidden"));

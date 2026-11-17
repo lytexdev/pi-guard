@@ -392,10 +392,18 @@ async function assistant(box, data, opts) {
   const share = h("input", { type: "checkbox", checked: section.share_documents });
   const actions = h("input", { type: "checkbox", checked: section.ai_actions });
   const vision = h("input", { type: "checkbox", checked: section.allow_vision });
+  const chatImages = h("input", { type: "checkbox", checked: section.allow_chat_images });
+  const fetchLinks = h("input", { type: "checkbox", checked: section.allow_fetch_links });
+  const sysCtx = h("input", { type: "checkbox", checked: section.admin_system_context });
+  const emCtx = h("input", { type: "checkbox", checked: section.admin_emergency_context });
   const watch = h("input", { type: "checkbox", checked: section.emergency_watch });
   watch.addEventListener("change", async () => {
     if (watch.checked && !await confirmDialog(t("web.as_watch_confirm"), t("web.as_watch"), true)) watch.checked = false;
   });
+  emCtx.addEventListener("change", async () => {
+    if (emCtx.checked && !await confirmDialog(t("web.as_emergency_ctx_confirm"), t("web.as_emergency_ctx"), true)) emCtx.checked = false;
+  });
+  const fallbacks = h("input", { value: (section.fallback_providers || []).join(", "), placeholder: "ollama, openai" });
   const paperless = h("input", { type: "url", value: section.paperless_url || "", placeholder: "http://192.168.178.20:8000" });
   const nextcloud = h("input", { type: "url", value: section.nextcloud_url || "", placeholder: "https://cloud.example.org" });
   const nextUser = h("input", { value: section.nextcloud_user || "" });
@@ -407,29 +415,41 @@ async function assistant(box, data, opts) {
   let saveKeys = null;
   const button = h("button", { class: "primary", onclick: async () => {
     if (saveKeys) saveKeys();
+    const fallback_providers = fallbacks.value.split(/[,\s]+/).map((x) => x.trim()).filter(Boolean);
     await save("assistant", { ...section, provider: provider.value, model: model.value.trim(), base_url: url.value.trim() || null, location: location.value.trim(),
+      fallback_providers,
       price_input: amount(priceIn), price_output: amount(priceOut), budget: amount(budget), currency: currency.value,
       daily_token_limit: Number(limit.value), max_answer_tokens: Number(length.value), history_turns: Number(turns.value), speech_output: speech.checked,
-      share_documents: share.checked, ai_actions: actions.checked, allow_vision: vision.checked, emergency_watch: watch.checked, paperless_url: paperless.value.trim() || null, nextcloud_url: nextcloud.value.trim() || null, nextcloud_user: nextUser.value.trim() }, opts);
+      share_documents: share.checked, ai_actions: actions.checked, allow_vision: vision.checked,
+      allow_chat_images: chatImages.checked, allow_fetch_links: fetchLinks.checked,
+      admin_system_context: sysCtx.checked, admin_emergency_context: emCtx.checked,
+      emergency_watch: watch.checked, paperless_url: paperless.value.trim() || null, nextcloud_url: nextcloud.value.trim() || null, nextcloud_user: nextUser.value.trim() }, opts);
   } }, icon("check"), t("web.save"));
   fill(box,
     info ? askPanel(info) : null,
     info ? usagePanel(info) : null,
     h("section", { class: "panel stack" }, h("h2", {}, t("web.as_usage_prices")), h("p", { class: "muted" }, t("web.as_usage_prices_hint")),
       field(t("web.as_price_input"), priceIn), field(t("web.as_price_output"), priceOut), field(t("web.as_budget"), budget, t("web.as_budget_hint")), field(t("web.as_currency"), currency)),
-    h("section", { class: "panel stack" }, h("h2", {}, t("web.nav_settings")),
+    h("section", { class: "panel stack" }, h("h2", {}, t("web.as_provider_title")),
       field(t("web.as_provider"), provider), field(t("web.as_model"), model, t("web.as_model_hint")), field(t("web.as_base_url"), url),
+      field(t("web.as_fallbacks"), fallbacks, t("web.as_fallbacks_hint")),
+      keys),
+    h("section", { class: "panel stack" }, h("h2", {}, t("web.as_limits_title")),
       field(t("web.as_location"), location, t("web.as_location_hint")), field(t("web.as_limit"), limit, t("web.as_limit_hint")),
       field(t("web.as_length"), length), field(t("web.as_turns"), turns),
-      h("label", { class: "check" }, speech, t("web.as_speech_output")),
-      h("h3", {}, t("web.as_documents")), h("p", { class: "muted" }, t("web.as_documents_hint")),
+      h("label", { class: "check" }, speech, t("web.as_speech_output"))),
+    h("section", { class: "panel stack" }, h("h2", {}, t("web.as_optins_title")), h("p", { class: "muted" }, t("web.as_optins_hint")),
       h("label", { class: "check" }, share, t("web.as_share")),
       h("label", { class: "check" }, actions, t("web.as_actions")),
       h("label", { class: "check" }, vision, t("web.as_vision")),
+      h("label", { class: "check" }, chatImages, t("web.as_chat_images")),
+      h("label", { class: "check" }, fetchLinks, t("web.as_fetch_links")),
+      h("label", { class: "check" }, sysCtx, t("web.as_system_ctx")),
+      h("label", { class: "check" }, emCtx, t("web.as_emergency_ctx")),
       h("h3", {}, icon("alert-triangle"), " ", t("web.as_watch_title")), h("p", { class: "muted" }, t("web.as_watch_hint")),
       h("label", { class: "check" }, watch, t("web.as_watch")),
       field("Paperless-ngx", paperless), field("Nextcloud", nextcloud), field(t("web.as_nextcloud_user"), nextUser),
-      keys, button),
+      button),
     info ? await knowledgePanel(info) : null,
     h("p", { class: "muted" }, h("small", {}, t("web.as_privacy"))));
   const view = await import("./settings.js");
@@ -634,7 +654,7 @@ export async function setEnabled(id, enabled, opts = {}) {
 export async function render(main, params = []) {
   const id = params[0];
   if (id === "plugin") { await pluginPage(main, params[1]); return; }
-  if (id === "mobile") { location.hash = "#/settings/apps"; return; }  // moved: the app is part of pi-guard
+  if (id === "mobile") { location.hash = "#/settings/updates"; return; }  // phones and app versions live under Updates
   if (id in DETAILS) {
     const box = h("div", { class: "stack" });
     fill(main, h("div", { class: "topbar" }, h("h1", {}, t(`addons.${id}`)), h("a", { class: "button", href: "#/addons" }, t("web.back"))), box);

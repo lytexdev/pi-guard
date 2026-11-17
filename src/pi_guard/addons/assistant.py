@@ -84,6 +84,13 @@ MAX_QUESTION = 1000
 TIMEOUT = 60  # local models on small machines need a while
 MAX_PASSAGES = 4
 LANGUAGE_NAMES = {"de": "German", "en": "English"}
+PROVIDER_KEYS = "assistant.provider_keys"
+MAX_CHAT_IMAGE = 2_000_000
+MAX_LINK_BYTES = 40_000
+_URL_RE = re.compile(r"https?://[^\s<>\"']+")
+_RETRYABLE = frozenset({
+    "assistant.unreachable", "assistant.rate_limited", "assistant.failed", "assistant.bad_key",
+})
 
 _WEATHER_RE = re.compile(r"\b(wetter|weather|vorhersage|forecast|regnet|regen|rain)\b")
 _PLACE_RE = re.compile(r"\b(?:in|für|fuer|for)\s+([^\W\d_][\w .-]{1,40}?)\s*(?:\?|$|heute|morgen)")
@@ -164,6 +171,7 @@ class Assistant:
         media_dir: Path,
         knowledge: Knowledge | None = None,
         searchers: tuple[Any, ...] = (),
+        secret_key: bytes | None = None,
     ) -> None:
         self.settings = settings
         self._db = db
@@ -173,10 +181,16 @@ class Assistant:
         self._media = media_dir
         self.knowledge = knowledge
         self._searchers = searchers
+        self._seal_key = (
+            hashlib.sha256(b"pi-guard assistant key\0" + (secret_key or b"")).digest()
+            if secret_key
+            else None
+        )
         base, model, stt, tts = PROVIDERS.get(settings.provider, ("", "", None, None))
         self._base = (settings.base_url or base).rstrip("/")
         self._model = settings.model or model
         self._stt, self._tts = stt, tts
+        self._active_provider = settings.provider
         self._cache: OrderedDict[tuple[str, str], tuple[float, str]] = OrderedDict()
         self._history: dict[str, tuple[float, list[dict[str, str]]]] = {}
         self._weather: dict[str, tuple[float, dict[str, Any]]] = {}
@@ -222,16 +236,18 @@ class Assistant:
 
     @property
     def ready(self) -> bool:
-        keyed = bool(self._api_key) or self.settings.provider in KEYLESS
-        return bool(keyed and self._base and self._model)
+        return any(self._provider_ready(name) for name in self._provider_chain())
 
     @property
     def documents_allowed(self) -> bool:
         return self.settings.provider in KEYLESS or self.settings.share_documents
 
     def status(self) -> dict[str, Any]:
+        sealed = self._sealed_map()
         return {
             "ready": self.ready, "provider": self.settings.provider, "model": self._model,
+            "active_provider": self._active_provider,
+            "fallback_providers": list(self.settings.fallback_providers),
             "tokens_today": self.tokens_today, "daily_limit": self.settings.daily_token_limit,
             "usage": self.usage(),
             "speech_input": bool(self._api_key and self._stt),
@@ -240,7 +256,75 @@ class Assistant:
             "documents_allowed": self.documents_allowed,
             "connectors": len(self._searchers),
             "answers_stored": self.knowledge.answers_stored if self.knowledge else 0,
-        }  # fmt: skip
+            "allow_chat_images": self.settings.allow_chat_images and self.settings.allow_vision,
+            "allow_fetch_links": self.settings.allow_fetch_links,
+            "admin_system_context": self.settings.admin_system_context,
+            "admin_emergency_context": self.settings.admin_emergency_context,
+            "provider_keys": {
+                name: name in sealed or (name == self.settings.provider and bool(self._api_key))
+                for name in PROVIDERS
+            },
+        }
+
+    def _provider_chain(self) -> list[str]:
+        names = [self.settings.provider, *self.settings.fallback_providers]
+        seen: set[str] = set()
+        out: list[str] = []
+        for name in names:
+            if name in seen:
+                continue
+            seen.add(name)
+            out.append(name)
+        return out
+
+    def _provider_ready(self, name: str) -> bool:
+        base, model, _, _ = PROVIDERS.get(name, ("", "", None, None))
+        if name == self.settings.provider and self.settings.base_url:
+            base = self.settings.base_url
+        if name == self.settings.provider and self.settings.model:
+            model = self.settings.model
+        keyed = name in KEYLESS or bool(self._key_for(name))
+        return bool(keyed and base and model)
+
+    def _key_for(self, name: str) -> str | None:
+        if name == self.settings.provider and self._api_key:
+            return self._api_key
+        sealed = self._sealed_map().get(name)
+        return self._open_key(sealed) if sealed else None
+
+    def _sealed_map(self) -> dict[str, str]:
+        raw = self._db.get(PROVIDER_KEYS) or {}
+        return {str(k): str(v) for k, v in raw.items() if v} if isinstance(raw, dict) else {}
+
+    def set_provider_key(self, name: str, value: str) -> None:
+        if name not in PROVIDERS or name in KEYLESS:
+            raise AssistantError("assistant.failed")
+        if not self._seal_key:
+            raise AssistantError("assistant.failed")
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        cleaned = value.strip()
+        keys = self._sealed_map()
+        if not cleaned:
+            keys.pop(name, None)
+        else:
+            nonce = __import__("secrets").token_bytes(12)
+            sealed = AESGCM(self._seal_key).encrypt(nonce, cleaned.encode(), b"pi-guard-assistant")
+            keys[name] = base64.b64encode(nonce + sealed).decode()
+        self._db.set(PROVIDER_KEYS, keys)
+
+    def _open_key(self, value: str | None) -> str | None:
+        if not value or not self._seal_key:
+            return None
+        from cryptography.exceptions import InvalidTag
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        try:
+            raw = base64.b64decode(value)
+            plain = AESGCM(self._seal_key).decrypt(raw[:12], raw[12:], b"pi-guard-assistant")
+            return plain.decode()
+        except (InvalidTag, ValueError):
+            return None
 
     # --- answers ------------------------------------------------------------------------
 
@@ -250,36 +334,57 @@ class Assistant:
         return "\n".join(str(v) for v in contact.values() if v)
 
     async def ask(
-        self, question: str, lang: str, conversation: str, private: bool = False
+        self,
+        question: str,
+        lang: str,
+        conversation: str,
+        private: bool = False,
+        *,
+        image: bytes | None = None,
+        image_mime: str = "image/jpeg",
+        system_context: str | None = None,
+        fetch_links: bool = False,
     ) -> Answer:
-        """`private`: this person may see documents (admins)."""
+        """`private`: this person may see documents (admins). Voice must keep private=False."""
         question = clean(question)
-        if not question:
+        if not question and not image:
             raise AssistantError("assistant.empty")
         lowered = question.casefold()
-        local = self._local(lowered, lang)
-        if local is not None:
-            return local
-        support = self._support() if _SUPPORT_RE.search(lowered) else None
-        if support:
-            return Answer(support, "support")
-        guide = tutorial.answer(question, lang)  # how pi-guard works: from the tutorial, no AI
-        if guide:
-            return Answer(guide, "tutorial")
-        if _WEATHER_RE.search(lowered):
-            return await self._answer_weather(lowered, lang)
-        translation = _TRANSLATE_RE.match(question)
-        if translation and self._deepl_key:
-            return await self._translate(translation.group(1), translation.group(2))
-        if private and self.documents_allowed:
-            answer = await self._from_documents(question, lang, lowered)
-            if answer is not None:
-                return answer
+        if not image:
+            local = self._local(lowered, lang)
+            if local is not None:
+                return local
+            support = self._support() if _SUPPORT_RE.search(lowered) else None
+            if support:
+                return Answer(support, "support")
+            guide = tutorial.answer(question, lang)  # how pi-guard works: from the tutorial, no AI
+            if guide:
+                return Answer(guide, "tutorial")
+            if _WEATHER_RE.search(lowered):
+                return await self._answer_weather(lowered, lang)
+            translation = _TRANSLATE_RE.match(question)
+            if translation and self._deepl_key:
+                return await self._translate(translation.group(1), translation.group(2))
+            if private and self.documents_allowed:
+                answer = await self._from_documents(question, lang, lowered)
+                if answer is not None:
+                    return answer
+        if image and not (self.settings.allow_vision and self.settings.allow_chat_images):
+            raise AssistantError("assistant.no_vision")
+        if image and len(image) > MAX_CHAT_IMAGE:
+            raise AssistantError("assistant.failed")
+        extras = ""
+        if private and fetch_links and self.settings.allow_fetch_links and question:
+            extras = await self._link_excerpts(question)
+        if private and system_context:
+            extras = (extras + "\n\n" if extras else "") + system_context
         key = (lang, lowered)
-        cached = self._cache.get(key)
-        if cached and time.monotonic() - cached[0] < CACHE_SECONDS:
-            return Answer(cached[1], "cache")
-        return await self._ai(question, lang, conversation, key)
+        if not image and not extras:
+            cached = self._cache.get(key)
+            if cached and time.monotonic() - cached[0] < CACHE_SECONDS:
+                return Answer(cached[1], "cache")
+        return await self._ai(question, lang, conversation, key, image=image,
+                              image_mime=image_mime, extras=extras)  # fmt: skip
 
     async def _passages(self, question: str) -> list[dict[str, str]]:
         found = self.knowledge.search(question) if self.knowledge else []
@@ -313,15 +418,40 @@ class Assistant:
         return Answer(text, "documents", used, names)
 
     async def _complete(self, system: str, turns: list[dict[str, Any]]) -> tuple[str, int]:
-        """One answer from the provider; returns (text, tokens used)."""
+        """One answer; tries primary then fallback providers on transient failures."""
+        last: AssistantError | None = None
+        for name in self._provider_chain():
+            if not self._provider_ready(name):
+                continue
+            try:
+                text, used = await self._complete_one(name, system, turns)
+                self._active_provider = name
+                return text, used
+            except AssistantError as exc:
+                if exc.key not in _RETRYABLE:
+                    raise
+                last = exc
+                log.info("assistant provider %s failed (%s); trying next", name, exc.key)
+        raise last or AssistantError("assistant.no_key")
+
+    async def _complete_one(
+        self, name: str, system: str, turns: list[dict[str, Any]]
+    ) -> tuple[str, int]:
         limit = self.settings.max_answer_tokens
-        if self.settings.provider == "anthropic":
-            data = await self._post(
+        base, model, _, _ = PROVIDERS.get(name, ("", "", None, None))
+        if name == self.settings.provider:
+            base = (self.settings.base_url or base).rstrip("/")
+            model = self.settings.model or model
+        else:
+            base = base.rstrip("/")
+        key = self._key_for(name)
+        if name == "anthropic":
+            data = await self._post_to(
+                base,
                 "/messages",
-                headers={"x-api-key": self._api_key or "", "anthropic-version": ANTHROPIC_VERSION},
-                json={"model": self._model, "max_tokens": limit, "system": system,
-                      "messages": turns},
-            )  # fmt: skip
+                headers={"x-api-key": key or "", "anthropic-version": ANTHROPIC_VERSION},
+                json={"model": model, "max_tokens": limit, "system": system, "messages": turns},
+            )
             try:
                 text = "".join(b.get("text", "") for b in data["content"]).strip()
             except (KeyError, TypeError):
@@ -329,10 +459,16 @@ class Assistant:
             usage = data.get("usage") or {}
             read, wrote = int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0)
         else:
-            data = await self._post("/chat/completions", json={
-                "model": self._model, "max_tokens": limit,
-                "messages": [{"role": "system", "content": system}, *turns],
-            })  # fmt: skip
+            data = await self._post_to(
+                base,
+                "/chat/completions",
+                headers={"Authorization": f"Bearer {key}"} if key else {},
+                json={
+                    "model": model,
+                    "max_tokens": limit,
+                    "messages": [{"role": "system", "content": system}, *turns],
+                },
+            )
             try:
                 text = str(data["choices"][0]["message"]["content"]).strip()
             except (KeyError, IndexError, TypeError):
@@ -362,7 +498,15 @@ class Assistant:
         return None
 
     async def _ai(
-        self, question: str, lang: str, conversation: str, key: tuple[str, str]
+        self,
+        question: str,
+        lang: str,
+        conversation: str,
+        key: tuple[str, str],
+        *,
+        image: bytes | None = None,
+        image_mime: str = "image/jpeg",
+        extras: str = "",
     ) -> Answer:
         if not self.ready:
             raise AssistantError("assistant.no_key")
@@ -370,13 +514,36 @@ class Assistant:
             raise AssistantError("assistant.limit_reached")
         turns = self._turns(conversation)
         system = SYSTEM.format(language=LANGUAGE_NAMES.get(lang, "German"))
-        text, used = await self._complete(system, [*turns, {"role": "user", "content": question}])
-        self._remember(conversation, question, text)
-        if not turns:  # answers that depend on the conversation must not be reused
+        if extras:
+            system += CONTEXT_NOTE + extras
+        content: Any = question or "What do you see?"
+        if image:
+            content = [self._image_bytes(image, image_mime), {"type": "text", "text": content}]
+        text, used = await self._complete(system, [*turns, {"role": "user", "content": content}])
+        self._remember(conversation, question or "(image)", text)
+        if not turns and not image and not extras:
             self._cache[key] = (time.monotonic(), text)
             while len(self._cache) > CACHE_SIZE:
                 self._cache.popitem(last=False)
         return Answer(text, "ai", used)
+
+    async def _link_excerpts(self, question: str) -> str:
+        urls = _URL_RE.findall(question)[:2]
+        parts: list[str] = []
+        for url in urls:
+            try:
+                async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+                    response = await client.get(url)
+                if response.status_code >= 400:
+                    continue
+                body = response.text[:MAX_LINK_BYTES]
+                plain = re.sub(r"<[^>]+>", " ", body)
+                plain = " ".join(plain.split())[:MAX_PASSAGE]
+                if plain:
+                    parts.append(_excerpt(url, plain))
+            except httpx.HTTPError:
+                log.info("assistant link fetch skipped: %s", type(url))
+        return "\n\n".join(parts)
 
     def _turns(self, conversation: str) -> list[dict[str, str]]:
         stored = self._history.get(conversation)
@@ -393,9 +560,14 @@ class Assistant:
 
     async def _post(self, path: str, headers: dict[str, str] | None = None, **kwargs: Any) -> Any:
         sent = headers or ({"Authorization": f"Bearer {self._api_key}"} if self._api_key else {})
+        return await self._post_to(self._base, path, headers=sent, **kwargs)
+
+    async def _post_to(
+        self, base: str, path: str, headers: dict[str, str] | None = None, **kwargs: Any
+    ) -> Any:
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-                response = await client.post(self._base + path, headers=sent, **kwargs)
+                response = await client.post(base + path, headers=headers or {}, **kwargs)
         except httpx.HTTPError as exc:
             log.warning("assistant request failed: %s", type(exc).__name__)
             raise AssistantError("assistant.unreachable") from None
@@ -524,11 +696,17 @@ class Assistant:
         return text
 
     def _image(self, picture: Path) -> dict[str, Any]:
-        data = base64.b64encode(picture.read_bytes()).decode()
-        if self.settings.provider == "anthropic":
-            return {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
-                                                "data": data}}  # fmt: skip
-        return {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}}
+        return self._image_bytes(picture.read_bytes(), "image/jpeg")
+
+    def _image_bytes(self, raw: bytes, mime: str) -> dict[str, Any]:
+        data = base64.b64encode(raw).decode()
+        media = mime if mime in ("image/jpeg", "image/png", "image/webp") else "image/jpeg"
+        if self._active_provider == "anthropic" or self.settings.provider == "anthropic":
+            return {
+                "type": "image",
+                "source": {"type": "base64", "media_type": media, "data": data},
+            }
+        return {"type": "image_url", "image_url": {"url": f"data:{media};base64,{data}"}}
 
     async def describe(self, picture: Path, question: str, lang: str) -> str:
         """What the model sees in a picture. Only called after a person confirmed it."""

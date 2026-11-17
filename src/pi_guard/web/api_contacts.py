@@ -41,12 +41,21 @@ def _actor(request: web.Request) -> str:
 
 
 async def listing(request: web.Request) -> web.Response:
+    from pi_guard.storage.persons import Persons
+
     d = dashboard(request)
     app = d.app
     accounts = [d.auth.account()["username"], *(u["username"] for u in d.auth.users())]
+    persons = Persons(app.db)
+    contacts = []
+    for c in _store(request).all():
+        item = c.as_dict()
+        linked = persons.find_by_link("emergency_contact", str(c.id))
+        item["person_id"] = linked.id if linked else None
+        contacts.append(item)
     return web.json_response({
         "accounts": accounts,
-        "contacts": [c.as_dict() for c in _store(request).all()],
+        "contacts": contacts,
         "providers": [p for p in PROVIDERS if p in app.providers],
         "all_providers": list(PROVIDERS), "occasions": list(OCCASIONS), "shares": list(SHARES),
         "medical_modes": list(MEDICAL_MODES), "medical": app.addons.medical is not None,
@@ -56,21 +65,34 @@ async def listing(request: web.Request) -> web.Response:
 
 
 async def save(request: web.Request) -> web.Response:
+    from pi_guard.storage.persons import Persons
+
     data = await read_json(request)
     confirm_password(request, str(data.get("password", "")))
     contact_id = int(request.match_info["id"]) if "id" in request.match_info else None
+    contact = dict(data.get("contact") or {})
     try:
-        saved = _store(request).save(contact_id, dict(data.get("contact") or {}))
+        saved = _store(request).save(contact_id, contact)
     except ContactError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
+    # Keep the central person list in sync by name (and optional person_id).
+    persons = Persons(dashboard(request).app.db)
+    person_id = data.get("person_id") or contact.get("person_id")
+    if person_id:
+        persons.link(int(person_id), "emergency_contact", str(saved))
+    else:
+        persons.ensure_named(contact.get("name") or "", kind="emergency_contact", ref=str(saved))
     dashboard(request).app.db.audit(_actor(request), "contacts.save", str(saved))
     return web.json_response({"id": saved})
 
 
 async def delete(request: web.Request) -> web.Response:
+    from pi_guard.storage.persons import Persons
+
     contact_id = int(request.match_info["id"])
     if not _store(request).delete(contact_id):
         raise web.HTTPNotFound()
+    Persons(dashboard(request).app.db).unlink("emergency_contact", str(contact_id))
     dashboard(request).app.db.audit(_actor(request), "contacts.delete", str(contact_id))
     return web.json_response({"ok": True})
 

@@ -42,6 +42,8 @@ APP_TABLES = frozenset(
         "kid_devices",
         "settings_history",
         "wg_usage",
+        "persons",
+        "person_links",
     }
 )
 
@@ -249,5 +251,32 @@ def _v3(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS wg_usage_hour ON wg_usage (hour)")
 
 
-MIGRATIONS: tuple[Migration, ...] = (_v1, _v2, _v3)
+def _v4(conn: sqlite3.Connection) -> None:
+    """Central person records linking faces, accounts, messengers and emergency contacts."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS persons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            display_name TEXT NOT NULL,
+            note TEXT NOT NULL DEFAULT '',
+            roles TEXT NOT NULL DEFAULT '[]',
+            created TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS person_links (
+            person_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            ref TEXT NOT NULL,
+            PRIMARY KEY (kind, ref),
+            FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS person_links_person ON person_links (person_id)")
+
+
+MIGRATIONS: tuple[Migration, ...] = (_v1, _v2, _v3, _v4)
 VERSION = len(MIGRATIONS)
