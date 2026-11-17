@@ -634,7 +634,8 @@ async def test_modules_can_be_switched_off(tmp_path: Path) -> None:
         state = {m["id"]: m["enabled"] for m in await (await client.get("/api/modules")).json()}
         assert state == {"telegram": app.settings.telegram_enabled, "signal": False,
                          "discord": False, "whatsapp": False, "email": False,
-                         "chatapps": False}  # fmt: skip
+                         "chatapps": False, "vpn": app.settings.wireguard_enabled,
+                         "pihole": app.settings.pihole_enabled}  # fmt: skip
         assert "mobile" not in state  # part of pi-guard, under Settings > Apps
         on = await client.put("/api/modules/whatsapp", json={"enabled": True}, headers=headers)
         assert on.status == 200

@@ -187,4 +187,4 @@ def test_update_refreshes_optional_units_when_installed() -> None:
     assert "First install stays the owner's step" in update
     assert "privacy-server.sh" in update
     # Only refresh when the helper is already present; do not invent privacy.
-    assert '[[ -e /usr/local/sbin/pi-guard-exit-apply' in update
+    assert "[[ -e /usr/local/sbin/pi-guard-exit-apply" in update

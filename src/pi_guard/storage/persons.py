@@ -9,7 +9,7 @@ from typing import Any
 from pi_guard.core.timeutil import utcnow
 from pi_guard.storage.db import Database
 
-KINDS = ("face", "web_account", "messenger", "emergency_contact", "medical")
+KINDS = ("face", "web_account", "messenger", "emergency_contact", "medical", "vpn")
 # household: lives here; trusted: cameras know them; emergency/alert/viewer: who gets what
 ROLES = ("household", "trusted", "emergency", "alert", "viewer")
 MAX_PERSONS = 80
@@ -174,17 +174,17 @@ class Persons:
                 roles.add("trusted")
             self.save(
                 person_id,
-                {"display_name": (person.display_name if person else face or username),
-                 "roles": list(roles)},
+                {
+                    "display_name": (person.display_name if person else face or username),
+                    "roles": list(roles),
+                },
             )
         for contact in contacts or []:
             name = _line(contact.get("name"), 60)
             contact_id = contact.get("id")
             if not name or contact_id is None:
                 continue
-            person_id = self.ensure_named(
-                name, kind="emergency_contact", ref=str(contact_id)
-            )
+            person_id = self.ensure_named(name, kind="emergency_contact", ref=str(contact_id))
             account = _line(contact.get("account"), 60)
             if account:
                 self.link(person_id, "web_account", account)

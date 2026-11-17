@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+from typing import Any
+
 from aiohttp import web
 
 from pi_guard.storage.persons import KINDS, ROLES, PersonError, Persons
 from pi_guard.web.server import current, dashboard, read_json
+
+log = logging.getLogger(__name__)
 
 
 def routes() -> list[web.RouteDef]:
@@ -15,6 +20,7 @@ def routes() -> list[web.RouteDef]:
         web.put("/api/persons/{id:\\d+}", save),
         web.delete("/api/persons/{id:\\d+}", delete),
         web.post("/api/persons/migrate", migrate),
+        web.post("/api/persons/{id:\\d+}/invite", invite),
     ]
 
 
@@ -60,6 +66,7 @@ async def listing(request: web.Request) -> web.Response:
             "kinds": list(KINDS),
             "roles": list(ROLES),
             "faces": faces,
+            "faces_on": d.app.faces is not None,
             "accounts": accounts,
             "contacts": contacts,
             "medical": medical,
@@ -99,3 +106,102 @@ async def migrate(request: web.Request) -> web.Response:
     created = store.migrate_existing(face_names=faces, profiles=profiles, contacts=contacts)
     d.app.db.audit(_actor(request), "persons.migrate", str(created))
     return web.json_response({"ok": True, "created": created, "persons": len(store.all())})
+
+
+def _channels(request: web.Request, person: Any) -> list[tuple[str, str]]:
+    """Where this person can be written to: their messengers and the email of their contact."""
+    d = dashboard(request)
+    found: list[tuple[str, str]] = []
+    for kind, ref in person.links:
+        if kind == "messenger" and ":" in ref:
+            provider, address = ref.split(":", 1)
+            found.append((provider, address))
+        if kind == "emergency_contact" and d.app.escalation is not None:
+            contact = d.app.escalation.contacts.get(int(ref)) if ref.isdigit() else None
+            if contact is not None:
+                found += list(contact.channels)
+                if contact.email:
+                    found.append(("email", contact.email))
+    return list(dict.fromkeys(found))
+
+
+async def invite(request: web.Request) -> web.Response:
+    """The apps, and on request a VPN access of their own, sent to the person.
+
+    Only to one of the person's own channels, never to a typed address. A VPN access is a key to
+    the home network: it needs the password, and the chat service keeps the file it sends.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from pi_guard.messaging.base import ProviderUnavailableError, Reply
+    from pi_guard.network.wgpeers import PeerError
+    from pi_guard.web.api_apps import make_invite
+    from pi_guard.web.api_network import _config
+    from pi_guard.web.api_network import _store as peer_store
+    from pi_guard.web.server import confirm_password
+
+    d = dashboard(request)
+    store = _store(request)
+    person = store.get(int(request.match_info["id"]))
+    if person is None:
+        raise web.HTTPNotFound()
+    data = await read_json(request)
+    channel = (str(data.get("provider", "")), str(data.get("address", "")))
+    if channel not in _channels(request, person):
+        raise web.HTTPBadRequest(text="web.inv_bad_channel")
+    if channel[0] not in d.app.providers:
+        raise web.HTTPConflict(text="web.inv_channel_off")
+    want_app, want_vpn = data.get("app") is not False, data.get("vpn") is True
+    if not (want_app or want_vpn):
+        raise web.HTTPBadRequest(text="web.inv_nothing")
+    lang = d.settings.language
+    base = (d.settings.dashboard_public_url or f"{request.scheme}://{request.host}").rstrip("/")
+    lines = [_t("persons.invite_hello", lang, name=person.display_name)]
+    actor = _actor(request)
+    if want_app:
+        path, _ = make_invite(d, person.display_name[:40], actor)
+        lines.append(_t("persons.invite_app", lang, url=f"{base}{path}"))
+    conf: tuple[str, str] | None = None
+    if want_vpn:
+        confirm_password(request, str(data.get("password", "")))
+        peers = peer_store(request)
+        name = person.display_name[:24]
+        taken = {p["name"].casefold() for p in peers.list()}
+        for n in range(2, 50):
+            if name.casefold() not in taken:
+                break
+            name = f"{person.display_name[:24]} {n}"
+        try:
+            peer_id = peers.add(name, True)
+        except PeerError as exc:
+            raise web.HTTPBadRequest(text=str(exc)) from None
+        conf = _config(request, peer_id)
+        store.link(person.id, "vpn", str(peer_id))
+        lines.append(_t("persons.invite_vpn", lang))
+    with tempfile.TemporaryDirectory(prefix="pg-invite-") as folder:
+        document = None
+        if conf is not None:
+            document = Path(folder) / "pi-guard-vpn.conf"
+            document.write_text(conf[1])
+            document.chmod(0o600)
+        try:
+            await d.app.messenger.send(channel[0], channel[1],
+                                       Reply("\n\n".join(lines), document=document))  # fmt: skip
+        except Exception as exc:  # every messenger fails in its own way
+            reason = (
+                "ProviderUnavailable"
+                if isinstance(exc, ProviderUnavailableError)
+                else type(exc).__name__
+            )
+            log.warning("invitation via %s failed: %s", channel[0], reason)
+            raise web.HTTPBadGateway(text="web.ec_unreachable") from None
+    d.app.db.audit(actor, "persons.invite",
+                   f"{person.id} {channel[0]} app={want_app} vpn={want_vpn}")  # fmt: skip
+    return web.json_response({"ok": True, "vpn": conf is not None})
+
+
+def _t(key: str, lang: str, **values: object) -> str:
+    from pi_guard.i18n import t
+
+    return t(key, lang, **values)

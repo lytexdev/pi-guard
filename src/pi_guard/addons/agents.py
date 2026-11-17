@@ -26,6 +26,8 @@ log = logging.getLogger(__name__)
 REQUEST_SECONDS = 20
 POWER_COMMANDS = ("shutdown", "reboot", "suspend", "lock")
 DOCKER_ACTIONS = ("start", "stop", "restart", "remove")
+
+
 class AgentError(Exception):
     """`key` is a translation key."""
 

@@ -36,6 +36,7 @@ PHOTOS = 3
 # The assistant's emergency watch looks at most this often: alarms come in bursts.
 ASSESS_EVERY = 600
 
+
 @dataclass(frozen=True)
 class OpenAlert:
     id: int

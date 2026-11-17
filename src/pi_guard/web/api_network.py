@@ -644,7 +644,8 @@ async def reach(request: web.Request) -> web.Response:
             ipv4_way(s.wireguard_endpoint, v4, public, used["ipv4"]),
             ipv6_way(s.wireguard_endpoint_v6, v6, own_ipv6(), used["ipv6"]),
             relay_way(s.wireguard_relay, relay, used["relay"]),
-            awg.way(await asyncio.to_thread(awg.read), s.wireguard_endpoint, awg.running()),
+            awg.way(await asyncio.to_thread(awg.read), s.wireguard_endpoint, awg.running(),
+                    awg.enabled(s.data_dir)),
             tailscale_way(await asyncio.to_thread(tailscale)),
         ],
     }, headers={"Cache-Control": "no-store"})  # fmt: skip

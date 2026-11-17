@@ -183,7 +183,17 @@ Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer s
 
 ## Kontakte
 
-*Einstellungen → Kontakte* ist der Ort für eine Person: *Neue Person* öffnet ein kurzes Setup (wer, Rollen, laufende
+*Einstellungen → Kontakte* zeigt alle Personen als Karten: Rollen und Chips für das Verknüpfte (Gesicht mit Anzahl der
+Bilder, Dashboard-Konto, Messenger, Notfallkontakt, Notfallkarte, VPN-Geräte), mit Suche und Rollenfilter. Jede Karte
+hat *Bearbeiten* (das Setup unten), *Fotos & Videos* (Bilder und Videos für die Gesichtserkennung hochladen oder die
+Kamera nutzen, mit Einverständnis der Person; gespeichert werden nur Gesichtsmerkmale) und *Einladen*: Das schickt den
+Download-Link der App (7 Tage) und auf Wunsch einen eigenen VPN-Zugang als WireGuard-Datei an einen Kontaktweg der Person
+(Messenger oder E-Mail, nie an eine eingetippte Adresse). Ein VPN-Zugang braucht das Passwort, wird der Person
+zugeordnet, und der Dialog sagt, welche Dienste die Datei behalten. *Noch nicht zugeordnet* bietet Gesichter, Konten und
+Notfallkontakte ohne Person an, je ein Tipp. Die Gesichtserkennung im Detail und die Notfallkontakt-Liste sind darunter
+eingeklappt.
+
+*Neue Person* öffnet ein kurzes Setup (wer, Rollen, laufende
 Messenger, was bei SOS oder unbeantworteten Alarmen ankommt, optional Dashboard-Konto, Gesichtsproben und optional
 Notfallkarte). Speichern nutzt die Admin-Sitzung; die Notfallkarte als PDF braucht weiterhin eine Bestätigung.
 Messenger-Kanäle sind An/Aus-Karten für eingerichtete Dienste. *Per Wischen lernen* oben ordnet Gesichter aus

@@ -44,6 +44,7 @@ MIN_ANSWER = 2
 # web_sessions.pending: what is still missing before a session counts.
 PENDING_NONE, PENDING_ALL, PENDING_CODEWORD = 0, 1, 2
 
+
 def _normal(answer: str) -> str:
     """Answers count without case and extra spaces: "Berlin " is "berlin"."""
     return " ".join(answer.split()).casefold()

@@ -185,7 +185,16 @@ Only the numbers of a face are stored, as with any enrollment. Viewers do not se
 
 ## Contacts
 
-*Settings → Contacts* is the place for one person: *New person* opens a short setup (who they are, roles, messengers
+*Settings → Contacts* lists everyone as cards: role badges and chips for what is linked (face with its number of
+pictures, dashboard account, messengers, emergency contact, emergency card, VPN devices), with search and role filters.
+Each card has *Edit* (the setup below), *Photos & videos* (upload pictures and videos for face recognition, or the live
+camera, with the person's consent; only face features are stored) and *Invite*: it sends the app download link (7
+days) and, if wanted, a VPN access of their own as a WireGuard file to one of the person's own ways to reach them
+(messenger or email, never a typed address). A VPN access asks for the password, is linked to the person, and the
+dialog says which services keep the file. *Not linked yet* offers faces, accounts and emergency contacts that belong
+to nobody, one tap each. The detailed face view and the emergency contact list fold away below.
+
+*New person* opens a short setup (who they are, roles, messengers
 that are running on this Pi, what they get on SOS or unanswered alerts, optional dashboard account, face samples, and
 optional emergency medical sheet). Saving uses the admin session; medical sheet sharing still asks for confirmation.
 Messenger channels are on/off cards for services that are set up. *Teach by swiping* at the top assigns faces from

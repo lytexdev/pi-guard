@@ -48,6 +48,24 @@ def read(path: Path | None = None) -> dict[str, int] | None:
     return values
 
 
+# Switched off in the dashboard (Network > VPN > layers): pi-guard leaves this file, and the root
+# job pi-guard-awg-sync takes awg0 down while it is there. Absent means on, as after installing.
+OFF_FLAG = Path("amneziawg") / "off"
+
+
+def enabled(data_dir: Path) -> bool:
+    return not (data_dir / OFF_FLAG).exists()
+
+
+def set_enabled(data_dir: Path, on: bool) -> None:
+    flag = data_dir / OFF_FLAG
+    if on:
+        flag.unlink(missing_ok=True)
+        return
+    flag.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+    flag.touch()
+
+
 def running() -> bool:
     return INTERFACE.exists()
 
@@ -68,11 +86,15 @@ def ways(plain: list[dict[str, Any]], params: dict[str, int] | None) -> list[dic
     return hidden
 
 
-def way(params: dict[str, int] | None, host: str | None, up: bool) -> dict[str, Any]:
+def way(
+    params: dict[str, int] | None, host: str | None, up: bool, on: bool = True
+) -> dict[str, Any]:
     """The obfuscated way for the dashboard's list of ways home."""
     item: dict[str, Any] = {"id": "awg", "host": None, "used": 0}
     if not params:
         return {**item, "state": "off", "key": "web.reach_awg_off"}
+    if not on:
+        return {**item, "state": "off", "port": params["port"], "key": "web.reach_awg_disabled"}
     item["port"] = params["port"]
     item["host"] = with_port(host_of(host), params["port"]) if host else None
     if not up:

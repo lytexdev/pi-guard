@@ -99,17 +99,23 @@ async def apps_check(request: web.Request) -> web.Response:
     return web.json_response({**versions(d.settings.data_dir), "last": d.app.app_updates.last})
 
 
-async def invite_create(request: web.Request) -> web.Response:
-    d = dashboard(request)
-    data = await read_json(request)
-    note = " ".join(str(data.get("note", "")).split())[:40]
+def make_invite(d: Any, note: str, actor: str) -> tuple[str, float]:
+    """A new download link: (path, expires). Only its hash is kept."""
     token = secrets.token_urlsafe(24)
     invites = _live(d)[-(MAX_INVITES - 1) :]
     expires = time.time() + INVITE_DAYS * 86400
     invites.append({"hash": _digest(token), "expires": expires, "note": note})
     d.app.db.set(INVITES, invites)
-    d.app.db.audit(f"web:{current(request).username}", "apps.invite", note)
-    return web.json_response({"path": f"/get/{token}", "expires": expires})
+    d.app.db.audit(actor, "apps.invite", note)
+    return f"/get/{token}", expires
+
+
+async def invite_create(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await read_json(request)
+    note = " ".join(str(data.get("note", "")).split())[:40]
+    path, expires = make_invite(d, note, f"web:{current(request).username}")
+    return web.json_response({"path": path, "expires": expires})
 
 
 async def invite_clear(request: web.Request) -> web.Response:

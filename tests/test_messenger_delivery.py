@@ -8,7 +8,9 @@ from pi_guard.messaging.hub import delivery_allows
 
 
 def test_delivery_allows_modes() -> None:
-    s = SimpleNamespace(telegram_delivery="alerts", signal_delivery="emergency", email_delivery="both")
+    s = SimpleNamespace(
+        telegram_delivery="alerts", signal_delivery="emergency", email_delivery="both"
+    )
     assert delivery_allows(s, "telegram", "alerts")
     assert not delivery_allows(s, "telegram", "emergency")
     assert not delivery_allows(s, "signal", "alerts")

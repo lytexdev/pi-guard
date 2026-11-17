@@ -8,6 +8,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Contacts in one place: person cards with roles and what is linked (face, account, messengers, emergency role and
+  card, VPN devices), search and role filters, photos and videos for face recognition from the card, an invitation that
+  sends the app link and optionally an own VPN access to the person's own messenger or email (password for VPN), and a
+  list of faces, accounts and emergency contacts not linked to anyone yet.
 - Settings → Contacts: full person setup wizard (roles, messengers that are running, emergency share, optional
   dashboard account, optional face photo) and Tinder-style face swipe at the top of the page.
 - Updates page shows recent CHANGELOG sections; security AI review shows live steps while it runs.
@@ -20,6 +24,8 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- The AmneziaWG layer switch only changed a setting; now off takes awg0 down and stops offering the disguised ways.
+- The assistant's admin status context crashed on every question; Signal with commands off answered strangers again.
 - Privacy modules: “On” only when the exit is in the chain; “Configured” when a Mullvad server is chosen but not
   switched on (multi-hop no longer looks on while Mullvad is off).
 - Contact wizard: pick existing faces as cards (also when recognition is off); optional emergency medical sheet step.

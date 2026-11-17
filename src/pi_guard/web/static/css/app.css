@@ -1109,3 +1109,25 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .warn-text { color: var(--warn); }
 .md-section .row.wrap > .grow > input[type=search] { width: 100%; }
 .md-section .row.wrap:has(> input + input) > input { flex: 1 1 180px; width: auto; }
+/* contacts */
+.person-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--gap); }
+.person-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.person-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+.person-head h3 { margin: 0; font-size: 1.05rem; color: var(--text); }
+.person-avatar { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff; background: hsl(var(--hue, 210) 45% 42%); }
+.person-roles { margin-top: 6px; gap: 4px; }
+.person-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.person-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); font-size: .82rem; }
+.person-chip .icon { width: 15px; height: 15px; }
+.person-chip.ok { border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.person-chip.warn { border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); }
+.person-actions { display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; margin-top: auto; }
+.empty-state { align-items: center; text-align: center; padding: 24px 12px; color: var(--muted); }
+.hub-more > summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; align-items: center; gap: 6px; }
+.hub-more[open] > summary { margin-bottom: 12px; }
+.hub-more > summary::-webkit-details-marker { display: none; }
+.hub-more .panel { border: 0; padding: 0; box-shadow: none; background: none; }
+.person-tools input[type=search] { width: 100%; }
+.chip-filter { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-filter button { min-height: 34px; padding: 0 12px; border-radius: 999px; font-size: .88rem; font-weight: 500; }
+.chip-filter button.on { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); border-color: var(--accent); color: var(--accent); }

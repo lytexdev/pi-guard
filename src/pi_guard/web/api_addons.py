@@ -364,9 +364,9 @@ async def _chat(
                 return web.json_response({"question": text, **_shown(outcome)})
         context_parts: list[str] = []
         if is_admin and assistant.settings.admin_system_context:
-            mode = d.app.modes.current.value if d.app.modes else "?"
+            mode = d.app.modes.effective.value if d.app.modes else "?"
             open_n = len(d.app.escalation.open_alerts()) if d.app.escalation else 0
-            cams = ", ".join(c.name or cid for cid, c in list(d.app.cameras.items())[:8])
+            cams = ", ".join(p.camera.name or cid for cid, p in list(d.app.cameras.items())[:8])
             context_parts.append(
                 f'<document source="system-status">mode={mode}; open_alerts={open_n}; '
                 f"cameras={cams or 'none'}</document>"
@@ -376,9 +376,7 @@ async def _chat(
             lines = []
             for alert in (d.app.escalation.open_alerts() if d.app.escalation else [])[:5]:
                 lines.append(f"{alert.type} camera={alert.camera or '-'} at={alert.ts.isoformat()}")
-            context_parts.append(
-                _excerpt_status("open-alerts", "\n".join(lines) or "none")
-            )
+            context_parts.append(_excerpt_status("open-alerts", "\n".join(lines) or "none"))
         answer = await assistant.ask(
             text,
             lang,

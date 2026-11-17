@@ -504,7 +504,8 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
     const medicalRef = await maybeSaveMedical(medical.value(), accountName);
 
     // Person first so emergency save can attach person_id (avoids a duplicate by name).
-    const links = [];
+    // Links this wizard does not edit (VPN devices from an invitation) stay.
+    const links = (person.links || []).filter((l) => l.kind === "vpn");
     if (faceRef) links.push({ kind: "face", ref: faceRef });
     if (accountName) links.push({ kind: "web_account", ref: accountName });
     if (medicalRef) links.push({ kind: "medical", ref: medicalRef });

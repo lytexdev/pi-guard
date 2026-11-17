@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 from aiohttp import web
 
+from pi_guard.network import awg
 from pi_guard.privacy.errors import PrivacyError
 from pi_guard.privacy.service import PrivacyService
 from pi_guard.web.server import confirm_password, current, dashboard, read_json
@@ -61,8 +63,17 @@ async def capabilities(request: web.Request) -> web.Response:
     return web.json_response(_svc(request).capabilities())
 
 
+def _with_layers(request: web.Request, cfg: dict[str, Any]) -> dict[str, Any]:
+    """The real state of the AmneziaWG layer: installed on this Pi, and switched on or off."""
+    data_dir = dashboard(request).settings.data_dir
+    installed = awg.read() is not None
+    return {**cfg, "amneziawg": {"installed": installed,
+                                 "on": installed and awg.enabled(data_dir)}}  # fmt: skip
+
+
 async def config_get(request: web.Request) -> web.Response:
-    return web.json_response(_svc(request).config(), headers={"Cache-Control": "no-store"})
+    cfg = await asyncio.to_thread(_with_layers, request, _svc(request).config())
+    return web.json_response(cfg, headers={"Cache-Control": "no-store"})
 
 
 async def diagnostics(request: web.Request) -> web.Response:
@@ -315,6 +326,9 @@ async def modules_put(request: web.Request) -> web.Response:
             svc.set_obfuscation({"mode": "amneziawg" if on else "off"})
         except PrivacyError as exc:
             raise _err(exc) from None
+        # The switch acts: the root sync job takes awg0 down or up, and the apps stop or start
+        # getting the disguised ways.
+        await asyncio.to_thread(awg.set_enabled, dashboard(request).settings.data_dir, on)
         changed.append(f"amneziawg={'on' if on else 'off'}")
 
     # Turning the last exit off must deactivate, not fail with "enable Tor first".
@@ -332,7 +346,7 @@ async def modules_put(request: web.Request) -> web.Response:
     dashboard(request).app.db.audit(
         f"web:{current(request).username}", "privacy.modules", ",".join(changed)
     )
-    return web.json_response(svc.config())
+    return web.json_response(await asyncio.to_thread(_with_layers, request, svc.config()))
 
 
 async def custom_add(request: web.Request) -> web.Response:

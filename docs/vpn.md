@@ -41,7 +41,9 @@ independently:
 The page shows those layers as cards, then the parts *Devices*, *Outside / Amnezia*, *Mullvad / hop* and *Quantum*.
 Under *Modules*, tap Mullvad, multi-hop, Tor or AmneziaWG to turn each on or off (with a confirm dialog). A card shows
 *On* only while that hop is in the chain; *Configured* means a Mullvad server is chosen but not switched on yet.
-Turning the last exit off deactivates privacy instead of asking for Tor. Profiles, the multi-hop chain, providers, DNS,
+Turning the last exit off deactivates privacy instead of asking for Tor. The AmneziaWG card acts on the Pi itself: off
+takes `awg0` down (the root sync job follows a flag pi-guard leaves) and the apps no longer get the disguised ways; on
+brings both back. Any mix works: none, only the disguise, only the Mullvad exit, the exit with multi-hop, or all. Profiles, the multi-hop chain, providers, DNS,
 the Pi-side kill switch, Tor details and diagnostics live under the same privacy part. The
 chain always shows the home VPN hop first (devices → Pi-Guard → optional exits → internet). **Check** under Diagnostics
 asks for the public/exit IP once and keeps it for a few minutes. Signed updates refresh already-installed helpers and

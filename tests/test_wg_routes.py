@@ -71,9 +71,7 @@ async def test_dashboard_renames_vpn_device(tmp_path: Path) -> None:
 
 
 def test_firewall_lets_home_only_bypass_exit() -> None:
-    text = render(
-        Plan(mode="strict", exit_up=True, home_only=("10.8.0.5", "10.8.0.6"))
-    )
+    text = render(Plan(mode="strict", exit_up=True, home_only=("10.8.0.5", "10.8.0.6")))
     assert "ip saddr { 10.8.0.5, 10.8.0.6 } accept" in text
     assert 'oifname "pgexit" accept' in text
 
