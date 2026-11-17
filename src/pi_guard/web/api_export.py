@@ -76,6 +76,9 @@ def collect_all(d: Any) -> dict[str, list[dict[str, Any]]]:
     labels = app.db.execute("SELECT key, value FROM kv WHERE key LIKE 'lan.label.%'").fetchall()
     data["device_names"] = [{"mac": r["key"].rsplit(".", 1)[-1], **json.loads(r["value"])}
                             for r in labels]  # fmt: skip
+    from pi_guard.storage.persons import Persons
+
+    data["persons"] = [p.as_dict() for p in Persons(app.db).all()]
     return data
 
 
@@ -103,6 +106,8 @@ def as_csv_zip(data: dict[str, list[dict[str, Any]]]) -> bytes:
 
 def _safe_cell(value: Any) -> Any:
     """Spreadsheets run cells starting with these as formulas; events can contain foreign text."""
+    if isinstance(value, (dict, list, tuple)):
+        value = json.dumps(value, ensure_ascii=False)
     if isinstance(value, str) and value[:1] in ("=", "+", "-", "@"):
         return "'" + value
     return value

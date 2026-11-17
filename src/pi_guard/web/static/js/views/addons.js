@@ -382,6 +382,8 @@ async function assistant(box, data, opts) {
   const section = data.config.assistant;
   const info = await status("/api/addons/assistant/status");
   const provider = providerChoice(section.provider);
+  const asName = h("input", { value: section.name || "pi-guard", maxlength: 40, placeholder: "pi-guard" });
+  const extra = h("textarea", { rows: 4, maxlength: 800, placeholder: t("web.as_extra_placeholder") }, section.extra_prompt || "");
   const model = h("input", { value: section.model, placeholder: t("web.as_model_placeholder") });
   const url = h("input", { value: section.base_url || "", placeholder: "https://…/v1" });
   const location = h("input", { value: section.location, placeholder: "Berlin" });
@@ -412,11 +414,15 @@ async function assistant(box, data, opts) {
   const currency = h("select", {}, ["USD", "EUR"].map((c) => h("option", { value: c, selected: c === section.currency }, c)));
   const amount = (input) => (input.value === "" ? null : Number(input.value));
   const keys = h("div");
+  const wake = h("div");
   let saveKeys = null;
+  let saveWake = null;
   const button = h("button", { class: "primary", onclick: async () => {
     if (saveKeys) saveKeys();
+    if (saveWake) saveWake();
     const fallback_providers = fallbacks.value.split(/[,\s]+/).map((x) => x.trim()).filter(Boolean);
-    await save("assistant", { ...section, provider: provider.value, model: model.value.trim(), base_url: url.value.trim() || null, location: location.value.trim(),
+    await save("assistant", { ...section, name: asName.value.trim() || "pi-guard", extra_prompt: extra.value.trim(),
+      provider: provider.value, model: model.value.trim(), base_url: url.value.trim() || null, location: location.value.trim(),
       fallback_providers,
       price_input: amount(priceIn), price_output: amount(priceOut), budget: amount(budget), currency: currency.value,
       daily_token_limit: Number(limit.value), max_answer_tokens: Number(length.value), history_turns: Number(turns.value), speech_output: speech.checked,
@@ -428,6 +434,10 @@ async function assistant(box, data, opts) {
   fill(box,
     info ? askPanel(info) : null,
     info ? usagePanel(info) : null,
+    h("section", { class: "panel stack" }, h("h2", {}, icon("sparkles"), " ", t("web.as_persona_title")), h("p", { class: "muted" }, t("web.as_persona_hint")),
+      field(t("web.as_name"), asName, t("web.as_name_hint")),
+      field(t("web.as_extra"), extra, t("web.as_extra_hint")),
+      h("h3", {}, t("web.as_wake_title")), h("p", { class: "muted" }, t("web.as_wake_hint")), wake),
     h("section", { class: "panel stack" }, h("h2", {}, t("web.as_usage_prices")), h("p", { class: "muted" }, t("web.as_usage_prices_hint")),
       field(t("web.as_price_input"), priceIn), field(t("web.as_price_output"), priceOut), field(t("web.as_budget"), budget, t("web.as_budget_hint")), field(t("web.as_currency"), currency)),
     h("section", { class: "panel stack" }, h("h2", {}, t("web.as_provider_title")),
@@ -454,6 +464,7 @@ async function assistant(box, data, opts) {
     h("p", { class: "muted" }, h("small", {}, t("web.as_privacy"))));
   const view = await import("./settings.js");
   await view.render(keys, [], { embedded: true, groups: ["assistant"], register: (fn) => { saveKeys = fn; }, onSaved: () => {} });
+  await view.render(wake, [], { embedded: true, groups: ["audio"], keys: ["voice_wake_enabled", "voice_wake_phrases"], register: (fn) => { saveWake = fn; }, onSaved: () => {} });
 }
 
 function agentDialog(agent) {
@@ -651,13 +662,13 @@ export async function setEnabled(id, enabled, opts = {}) {
   return save(id, { ...data.config[id], enabled }, opts);
 }
 
-export async function render(main, params = []) {
+export async function render(main, params = [], opts = {}) {
   const id = params[0];
   if (id === "plugin") { await pluginPage(main, params[1]); return; }
   if (id === "mobile") { location.hash = "#/settings/updates"; return; }  // phones and app versions live under Updates
   if (id in DETAILS) {
     const box = h("div", { class: "stack" });
-    fill(main, h("div", { class: "topbar" }, h("h1", {}, t(`addons.${id}`)), h("a", { class: "button", href: "#/addons" }, t("web.back"))), box);
+    fill(main, opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t(`addons.${id}`)), h("a", { class: "button", href: "#/addons" }, t("web.back"))), box);
     await renderDetail(id, box);
     return;
   }
@@ -805,8 +816,12 @@ export async function render(main, params = []) {
   };
   addEventListener("click", closeMenus);
   addEventListener("keydown", closeMenus);
-  fill(main, h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_addons")), search,
-    h("button", { class: "icon-only", title: t("web.pm_add_tip"), "aria-label": t("web.pm_add_tip"), onclick: () => { ownPanel.classList.toggle("hidden"); ownPanel.scrollIntoView({ block: "nearest" }); } }, icon("plus")))), h("div", { class: "row" }, filters), cards, ownPanel);
+  const head = opts.embedded
+    ? h("div", { class: "row between" }, search,
+      h("button", { class: "icon-only", title: t("web.pm_add_tip"), "aria-label": t("web.pm_add_tip"), onclick: () => { ownPanel.classList.toggle("hidden"); ownPanel.scrollIntoView({ block: "nearest" }); } }, icon("plus")))
+    : h("div", { class: "topbar" }, h("div", { class: "title-row" }, h("h1", {}, t("web.nav_addons")), search,
+      h("button", { class: "icon-only", title: t("web.pm_add_tip"), "aria-label": t("web.pm_add_tip"), onclick: () => { ownPanel.classList.toggle("hidden"); ownPanel.scrollIntoView({ block: "nearest" }); } }, icon("plus"))));
+  fill(main, head, h("div", { class: "row" }, filters), cards, ownPanel);
 }
 
 // "?" on a card: what the add-on does and how to start, with a way to the tutorial or its docs.

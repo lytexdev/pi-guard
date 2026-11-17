@@ -161,6 +161,23 @@ input[type="file"] { padding: 10px; }
 .list li:last-child { border-bottom: 0; }
 .list .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .thumb { width: 72px; height: 48px; object-fit: cover; border-radius: 6px; background: var(--surface-2); flex: none; }
+.thumb.event-icon { display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
+.thumb.event-icon svg { width: 1.5rem; height: 1.5rem; }
+.event-row { cursor: pointer; }
+.event-detail-shot { width: 100%; max-height: 280px; object-fit: contain; border-radius: 8px; background: var(--surface-2); }
+.event-detail-icon { display: flex; align-items: center; justify-content: center; min-height: 120px; color: var(--muted); }
+.event-detail-icon svg { width: 3rem; height: 3rem; }
+.changelog-body { max-height: 16rem; overflow: auto; white-space: pre-wrap; font-size: 0.85rem; }
+.secret-field { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+.secret-field input { flex: 1; min-width: 0; }
+.settings-panel .notif-list .notif { flex-wrap: wrap; align-items: flex-start; gap: 0.5rem 0.75rem; }
+.settings-panel .notif-main { display: flex; align-items: center; gap: 0.75rem; flex: 1 1 12rem; min-width: 0; }
+.settings-panel .notif-meta { flex: 1 1 14rem; justify-content: flex-end; }
+.hub-body .panel { gap: 0.85rem; }
+.hub-extra .panel + .panel { margin-top: 0.25rem; }
+.hub-body .switch-row { padding: 0.55rem 0; border-bottom: 1px solid var(--line); }
+.hub-body .switch-row:last-child { border-bottom: none; }
+.messaging-status .row { flex-wrap: wrap; gap: 0.5rem; }
 table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 500; }

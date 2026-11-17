@@ -183,13 +183,13 @@ Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer s
 
 ## Kontakte
 
-*Einstellungen → Kontakte* ist der Ort für eine Person: Name, Rollen (Haushalt, vertraute Kamera-Person, Notfall,
+*Einstellungen → Kontakte* ist der zentrale Ort für Personen und Gesichter: Name, Rollen (Haushalt, vertraute Kamera-Person, Notfall,
 Alarm-Empfänger, Betrachter) und Verknüpfungen zu Gesicht, Dashboard-Konto, Messenger und Notfallkontakt-Eintrag.
 Über die Rollen legst du fest, wer zum Haushalt gehört, wen die Kameras kennen sollen und wer SOS oder Alltagsalarme
 bekommt. Ein verknüpftes Gesicht schlägt Haushalt + vertraut vor; ein Notfallkontakt-Eintrag die Notfall-Rolle.
 *Bestehende verknüpfen* ordnet Gesichter, Profile und Notfallkontakte nach Name zu; Abweichungen korrigierst du
-von Hand. Die Seite *Personen* bleibt fürs Lernen an der Kamera. Eskalationszeiten bleiben unter
-*Einstellungen → Notfall*.
+von Hand. Das Lernen an der Kamera liegt auf derselben Seite (der alte Navigationspunkt *Personen* leitet hierhin um).
+Eskalationszeiten bleiben unter *Einstellungen → Notfall*.
 
 ## Updates und Versionen
 
@@ -283,7 +283,7 @@ Text oder der ganzen Seite und eine Tour.
 Ereignisse, Personen, Netzwerk, VPN, Kid Protect, Notfallkontakte, Notfalldaten, Apps, Assistent, Umzug und
 Einstellungen. Dasselbe Tutorial gibt es überall:
 
-- in der **Desktop-App** unter *PiGuard › Hilfe & Tutorial* (F1) und in der **Handy-App** als Schnellaktion *Tutorial*;
+- in der **Desktop-App** unter *PiGuard › Hilfe & Tutorial* (F1) und in der **Handy-App** unter *Mehr → Hilfe*;
   beide öffnen diese Seite mit dem Rundgang;
 - im **Assistenten**: „Tutorial“ oder „Rundgang“ im Chat des Dashboards, getippt oder gesprochen, startet den Rundgang,
   und Fragen wie „Wie funktioniert Kid Protect?“ beantwortet er aus dem Tutorial, ohne KI-Anbieter und kostenlos;

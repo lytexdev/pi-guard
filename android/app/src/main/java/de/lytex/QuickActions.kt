@@ -3,17 +3,15 @@ package de.lytex
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
-import android.graphics.drawable.Icon
 import android.widget.Toast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.json.JSONObject
 import kotlin.concurrent.thread
 
 /**
- * Quick actions: from the bolt in the app bar, and from a long press on the app icon. The Pi
- * decides whether this phone's owner may do them (admins only), as for the buttons under alerts.
+ * Legacy quick actions and launcher shortcuts. The in-app menu is gone; publish() only clears
+ * leftover shortcuts. Deep links from older shortcuts still work through QuickActionActivity.
  */
 object QuickActions {
     class Action(val id: String, val label: Int, val icon: Int, val confirm: Boolean = false)
@@ -31,30 +29,13 @@ object QuickActions {
     const val EXTRA = "de.lytex.QUICK"
     const val ROUTE = "de.lytex.ROUTE"
 
-    /** The four on the app icon. Not while the app looks like something else: they would give it away. */
+    /** Clears dynamic shortcuts; the quick-actions menu is no longer offered. */
     fun publish(context: Context) {
-        val manager = context.getSystemService(ShortcutManager::class.java) ?: return
-        if (!Disguise.isDefault(context) || Store(context).token == null) {
-            manager.removeAllDynamicShortcuts()
-            return
-        }
-        val icons = mapOf("ack" to R.drawable.sc_ack, "call" to R.drawable.sc_call, "away" to R.drawable.sc_away, "home" to R.drawable.sc_home)
-        val shortcuts = all.filter { it.id in icons }.mapIndexed { rank, action ->
-            ShortcutInfo.Builder(context, "quick_${action.id}")
-                .setShortLabel(context.getString(action.label))
-                .setIcon(Icon.createWithResource(context, icons.getValue(action.id)))
-                .setRank(rank)
-                .setIntent(Intent(context, QuickActionActivity::class.java).setAction(Intent.ACTION_VIEW).putExtra(EXTRA, action.id))
-                .build()
-        }
-        runCatching { manager.dynamicShortcuts = shortcuts }
+        context.getSystemService(ShortcutManager::class.java)?.removeAllDynamicShortcuts()
     }
 
     fun sheet(activity: Activity) {
-        val labels = all.map { activity.getString(it.label) }.toTypedArray()
-        MaterialAlertDialogBuilder(activity).setTitle(R.string.qa_title).setItems(labels) { _, index ->
-            start(activity, all[index].id)
-        }.setNegativeButton(R.string.cancel, null).show()
+        // Kept for older call sites; the toolbar button is gone.
     }
 
     /** Runs an action; the alarm asks first, since it is loud for everyone at home. */

@@ -86,6 +86,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/signal/link", signal_link),
         web.post("/api/signal/test", signal_test),
         web.post("/api/network/wifi/qr", wifi_qr),
+        web.get("/api/network/wifi/profiles", wifi_profiles_get),
+        web.put("/api/network/wifi/profiles", wifi_profiles_put),
         web.post("/api/network/wifi/{index:[123]}/renew", wifi_renew),
         web.get("/api/network/internet/{ip}", internet_state),
         web.post("/api/network/internet/{ip}", internet_set),
@@ -344,14 +346,12 @@ async def messenger_test(request: web.Request) -> web.Response:
     app, name = d.app, request.match_info["name"]
     if name not in app.providers:
         raise web.HTTPConflict(text="web.messenger_off")
+    # Email uses the same path as /api/email/test (recipients, not linked admins).
     if name == "email":
-        chats = list(d.settings.email_recipients)
-        if not chats:
-            raise web.HTTPConflict(text="web.email_no_recipients")
-    else:
-        chats = [u.user_id for u in app.users.all(name) if u.role is Role.ADMIN]
-        if not chats and name in CHAT_APPS:
-            chats = [""]  # a chat app posts into its one channel
+        return await email_test(request)
+    chats = [u.user_id for u in app.users.all(name) if u.role is Role.ADMIN]
+    if not chats and name in CHAT_APPS:
+        chats = [""]  # a chat app posts into its one channel
     text = t("web.messenger_test_message", d.settings.language)
     sent = 0
     for chat in chats:
@@ -514,13 +514,81 @@ def _fritz(request: web.Request) -> Any:
     return fritz
 
 
+WIFI_PROFILES_KEY = "network.wifi_profiles"
+WIFI_PROFILE_MAX = 8
+
+
+def _wifi_profiles(app: Any) -> list[dict[str, Any]]:
+    raw = app.db.get(WIFI_PROFILES_KEY) or []
+    return raw if isinstance(raw, list) else []
+
+
+async def wifi_profiles_get(request: web.Request) -> web.Response:
+    """Saved SSIDs for guest/home QR codes; keys are never returned in the list."""
+    profiles = []
+    for p in _wifi_profiles(dashboard(request).app):
+        if not isinstance(p, dict) or not p.get("ssid"):
+            continue
+        profiles.append({
+            "id": str(p.get("id") or ""),
+            "name": str(p.get("name") or p["ssid"])[:40],
+            "ssid": str(p["ssid"])[:32],
+            "guest": bool(p.get("guest")),
+            "has_key": bool(p.get("key")),
+        })
+    return web.json_response({"profiles": profiles})
+
+
+async def wifi_profiles_put(request: web.Request) -> web.Response:
+    """Replace saved Wi-Fi profiles (SSID + key) after password confirm."""
+    d = dashboard(request)
+    data = await read_json(request)
+    _confirm(request, data)
+    wanted = data.get("profiles")
+    if not isinstance(wanted, list):
+        raise web.HTTPBadRequest(text="web.wifi_bad_input")
+    existing = {str(p.get("id")): p for p in _wifi_profiles(d.app) if isinstance(p, dict)}
+    cleaned: list[dict[str, Any]] = []
+    for raw in wanted[:WIFI_PROFILE_MAX]:
+        if not isinstance(raw, dict):
+            continue
+        ssid = str(raw.get("ssid", "")).strip()[:32]
+        key = str(raw.get("key", ""))
+        profile_id = str(raw.get("id") or secrets.token_hex(4))
+        if not ssid:
+            continue
+        if key and not 8 <= len(key) <= 63:
+            raise web.HTTPBadRequest(text="web.wifi_bad_input")
+        if not key and profile_id in existing:
+            key = str(existing[profile_id].get("key") or "")
+        if not key:
+            raise web.HTTPBadRequest(text="web.wifi_bad_input")
+        cleaned.append({
+            "id": profile_id,
+            "name": str(raw.get("name") or ssid).strip()[:40] or ssid,
+            "ssid": ssid,
+            "key": key,
+            "guest": bool(raw.get("guest")),
+        })
+    d.app.db.set(WIFI_PROFILES_KEY, cleaned)
+    d.app.db.audit(_actor(request), "network.wifi_profiles", str(len(cleaned)))
+    return await wifi_profiles_get(request)
+
+
 async def wifi_qr(request: web.Request) -> web.Response:
-    """From the FRITZ!Box, or typed in. The key is only passed on, never stored."""
+    """From a saved profile, the FRITZ!Box, or typed in."""
     d = dashboard(request)
     data = await read_json(request)
     ssid, key = str(data.get("ssid", "")).strip(), str(data.get("key", ""))
     index = data.get("index")
-    if index in (1, 2, 3):
+    profile_id = str(data.get("profile") or "").strip()
+    if profile_id:
+        match = next((p for p in _wifi_profiles(d.app)
+                      if isinstance(p, dict) and str(p.get("id")) == profile_id), None)
+        if match is None:
+            raise web.HTTPNotFound(text="web.wifi_no_profile")
+        ssid, key = str(match.get("ssid") or ""), str(match.get("key") or "")
+    elif index in (1, 2, 3):
         fritz = _fritz(request)
         try:
             wlans = {w.index: w for w in await fritz.wlans()}

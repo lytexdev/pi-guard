@@ -31,6 +31,7 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/privacy/chain/reorder", chain_reorder),
         web.post("/api/privacy/activate", activate),
         web.post("/api/privacy/deactivate", deactivate),
+        web.put("/api/privacy/modules", modules_put),
         web.post("/api/privacy/providers/custom", custom_add),
         web.post("/api/privacy/providers/custom/import", custom_import),
         web.delete("/api/privacy/providers/custom/{id}", custom_remove),
@@ -221,6 +222,91 @@ async def deactivate(request: web.Request) -> web.Response:
     result = await asyncio.to_thread(_svc(request).deactivate)
     dashboard(request).app.db.audit(f"web:{current(request).username}", "privacy.deactivate", "")
     return web.json_response(result)
+
+
+async def modules_put(request: web.Request) -> web.Response:
+    """Turn Mullvad exit, Mullvad multi-hop entry, or Tor on or off without a full deactivate."""
+    data = await read_json(request)
+    svc = _svc(request)
+    store = svc.store
+    cfg = store.data
+    changed: list[str] = []
+
+    if "tor" in data:
+        on = bool(data["tor"])
+        try:
+            mode = "vpn_then_tor" if on else "off"
+            svc.set_tor({**cfg.get("tor", {}), "enabled": on, "mode": mode})
+        except PrivacyError as exc:
+            raise _err(exc) from None
+        changed.append(f"tor={'on' if on else 'off'}")
+
+    if "mullvad" in data:
+        on = bool(data["mullvad"])
+        hops = list(cfg["chain"].get("hops") or [])
+        if on:
+            mullvad = cfg["providers"].get("mullvad") or {}
+            selected = mullvad.get("selected") or {}
+            if not mullvad.get("account_sealed"):
+                raise web.HTTPConflict(text="web.priv_mullvad_need_account")
+            if not selected.get("hostname"):
+                raise web.HTTPConflict(text="web.priv_mullvad_need_server")
+            if not any(h.get("provider") == "mullvad" for h in hops):
+                hops.append({
+                    "id": "mullvad",
+                    "provider": "mullvad",
+                    "name": selected.get("hostname") or "Mullvad",
+                    "server_id": selected.get("hostname"),
+                    "enabled": True,
+                    "params": {},
+                })
+                try:
+                    svc.set_chain(hops)
+                except PrivacyError as exc:
+                    raise _err(exc) from None
+        else:
+            hops = [h for h in hops if h.get("provider") != "mullvad"]
+            try:
+                svc.set_chain(hops)
+            except PrivacyError as exc:
+                raise _err(exc) from None
+            selected = (cfg["providers"].get("mullvad") or {}).get("selected")
+            if isinstance(selected, dict) and selected.get("entry_hostname"):
+                selected = {**selected, "entry_hostname": None}
+                cfg["providers"]["mullvad"]["selected"] = selected
+                store.save()
+        changed.append(f"mullvad={'on' if on else 'off'}")
+
+    if "multi_hop" in data:
+        on = bool(data["multi_hop"])
+        selected = (cfg["providers"].get("mullvad") or {}).get("selected")
+        if not isinstance(selected, dict) or not selected.get("hostname"):
+            raise web.HTTPConflict(text="web.priv_mullvad_need_server")
+        if on and not selected.get("entry_hostname"):
+            raise web.HTTPConflict(text="web.priv_mullvad_need_entry")
+        if not on and selected.get("entry_hostname"):
+            cfg["providers"]["mullvad"]["selected"] = {**selected, "entry_hostname": None}
+            store.save()
+            # Rebuild exit peer without entry hop when privacy is active.
+            if cfg.get("enabled") and any(
+                h.get("provider") == "mullvad" for h in (cfg["chain"].get("hops") or [])
+            ):
+                try:
+                    await asyncio.to_thread(svc.activate)
+                except PrivacyError as exc:
+                    raise _err(exc) from None
+        changed.append(f"multi_hop={'on' if on else 'off'}")
+
+    if cfg.get("enabled"):
+        try:
+            await asyncio.to_thread(svc.activate)
+        except PrivacyError as exc:
+            raise _err(exc) from None
+
+    dashboard(request).app.db.audit(
+        f"web:{current(request).username}", "privacy.modules", ",".join(changed)
+    )
+    return web.json_response(svc.config())
 
 
 async def custom_add(request: web.Request) -> web.Response:

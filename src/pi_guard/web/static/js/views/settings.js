@@ -48,13 +48,17 @@ function listEditor(field, values, id) {
   return box;
 }
 
-function control(field, value) {
+function control(field, value, secrets = {}) {
   const id = `s_${field.key}`;
   if (field.kind === "list") return listEditor(field, value, id);
   if (field.kind === "multi") return multiChoice(field, value || [], id);
   if (field.kind === "bool") return h("input", { id, type: "checkbox", class: "toggle", role: "switch", checked: Boolean(value) });
   if (field.kind === "secret") {
-    return h("input", { id, type: "password", autocomplete: "off", placeholder: t("web.secret_placeholder") });
+    const set = Boolean(secrets[field.key]);
+    return h("div", { class: "secret-field" },
+      h("input", { id, type: "password", autocomplete: "off", placeholder: set ? t("web.secret_kept") : t("web.secret_placeholder") }),
+      h("span", { class: `badge ${set ? "ok" : ""}`, title: set ? t("web.secret_saved_tip") : t("web.secret_empty_tip") },
+        set ? t("web.secret_saved") : t("web.secret_empty")));
   }
   if (field.kind === "choice") return h("select", { id }, field.options.map((o) => h("option", { value: o, selected: o === value }, optionLabel(field, o))));
   if (field.kind === "int") return h("input", { id, type: "number", min: field.min, max: field.max, value, inputmode: "numeric" });
@@ -62,10 +66,11 @@ function control(field, value) {
 }
 
 function read(field, el) {
-  if (field.kind === "bool") return el.checked;
-  if (field.kind === "int") return Number(el.value);
+  const input = field.kind === "secret" ? (el.querySelector?.("input") || el) : el;
+  if (field.kind === "bool") return input.checked;
+  if (field.kind === "int") return Number(input.value);
   if (field.kind === "list" || field.kind === "multi") return el.values();
-  return el.value;
+  return input.value;
 }
 
 // opts.groups limits the groups shown; opts.onSaved replaces the restart prompt (setup assistant).
@@ -73,7 +78,12 @@ export async function render(main, params = [], opts = {}) {
   const data = await api("/api/settings");
   const inputs = new Map();
   const wanted = (group) => state.session?.modules?.[group] !== false;  // switched off under Add-ons
-  const fields = data.fields.filter((f) => (!opts.groups || opts.groups.includes(f.group)) && wanted(f.group) && (!f.expert || expertMode()));
+  const fields = data.fields.filter((f) => {
+    if (opts.secretsOnly) return f.kind === "secret" && wanted(f.group);
+    return (!opts.groups || opts.groups.includes(f.group))
+      && (!opts.keys || opts.keys.includes(f.key))
+      && wanted(f.group) && (!f.expert || expertMode());
+  });
   const groups = [...new Set(fields.map((f) => f.group))];
   const save = h("button", { class: "primary big", onclick: async () => {
     const changed = {};
@@ -96,14 +106,15 @@ export async function render(main, params = [], opts = {}) {
     h("div", { class: "grid wide" }, groups.map((group) => h("section", { class: "panel", dataset: { foldDefault: data.values[`${group}_enabled`] === false ? "closed" : "open" } },
       h("h2", {}, GROUP_ICONS[group] ? [icon(GROUP_ICONS[group]), " "] : null, t(`web.group_${group}`)),
       fields.filter((f) => f.group === group).map((field) => {
-        const el = control(field, data.values[field.key]);
+        const el = control(field, data.values[field.key], data.secrets || {});
         inputs.set(field.key, el);
         // The explanation stands under the name, where it is read, not only in a tooltip.
         const hint = tip(`web.tip_${field.key}`);
-        if (hint) el.setAttribute("aria-describedby", `${el.id}_hint`);
+        const input = field.kind === "secret" ? el.querySelector("input") : el;
+        if (hint && input) input.setAttribute("aria-describedby", `${input.id}_hint`);
         return h("div", { class: `switch-row${field.kind === "bool" ? " is-bool" : ""}` },
-          h("div", { class: "switch-label" }, h("label", { for: el.id }, fieldIcon(field.key) ? [icon(fieldIcon(field.key)), " "] : null, t(`web.setting_${field.key}`)),
-            hint ? h("small", { class: "muted", id: `${el.id}_hint` }, hint) : null),
+          h("div", { class: "switch-label" }, h("label", { for: input?.id || el.id }, fieldIcon(field.key) ? [icon(fieldIcon(field.key)), " "] : null, t(`web.setting_${field.key}`)),
+            hint ? h("small", { class: "muted", id: `${input?.id || el.id}_hint` }, hint) : null),
           h("div", { class: "control" }, el));
       })))),
     opts.embedded ? null : h("section", { class: "panel" }, h("h2", {}, t("web.secrets")),

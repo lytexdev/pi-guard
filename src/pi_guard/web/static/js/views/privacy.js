@@ -25,6 +25,7 @@ export function privacyPanels() {
       installNotice(caps),
       profilesPanel(cfg, draw),
       connectionPanel(cfg, diag, draw),
+      modulesPanel(cfg, caps, draw),
       chainPanel(cfg, caps, draw, diag),
       providersPanel(cfg, caps, draw),
       dnsPanel(cfg, caps, draw),
@@ -94,6 +95,34 @@ function connectionPanel(cfg, diag, redraw) {
         } }, icon("player-stop"), t("web.priv_deactivate")))),
     h("p", { class: "muted" }, t("web.priv_conn_layers", { layers: (diag?.layers || []).join(", ") || "—" })),
     h("p", { class: "muted" }, h("small", {}, t("web.priv_recovery"))));
+}
+
+function modulesPanel(cfg, caps, redraw) {
+  const mullvad = cfg.providers?.mullvad || {};
+  const mullvadOn = (cfg.chain?.hops || []).some((h) => h.provider === "mullvad" && h.enabled !== false);
+  const multiOn = Boolean(mullvad.selected?.entry_hostname);
+  const torOn = Boolean(cfg.tor?.enabled);
+  const row = (id, label, hint, checked, disabled) => {
+    const on = h("input", { type: "checkbox", class: "toggle", role: "switch", checked, disabled: Boolean(disabled), id: `priv_mod_${id}` });
+    on.addEventListener("change", async () => {
+      const body = { [id]: on.checked };
+      if (!await attempt(() => api("/api/privacy/modules", { method: "PUT", body }), t("web.saved"))) {
+        on.checked = !on.checked;
+        return;
+      }
+      redraw();
+    });
+    return h("li", {},
+      h("label", { class: "switch-row", for: `priv_mod_${id}` },
+        h("div", { class: "grow" }, h("div", {}, label), h("small", { class: "muted" }, hint)), on));
+  };
+  return section("web.priv_modules_title", "web.priv_modules_intro",
+    h("ul", { class: "list" },
+      row("mullvad", t("web.priv_mod_mullvad"), t("web.priv_mod_mullvad_hint"), mullvadOn,
+        !caps.features?.mullvad?.available || !mullvad.has_account),
+      row("multi_hop", t("web.priv_mod_multihop"), t("web.priv_mod_multihop_hint"), multiOn,
+        !mullvadOn || !caps.features?.multi_hop?.available),
+      row("tor", t("web.priv_mod_tor"), t("web.priv_mod_tor_hint"), torOn, !caps.features?.tor?.available)));
 }
 
 function chainPath(cfg, diag) {

@@ -29,7 +29,7 @@ def _actor(request: web.Request) -> str:
 async def listing(request: web.Request) -> web.Response:
     d = dashboard(request)
     store = _store(request)
-    faces = [name for name, *_ in d.app.faces.people()] if d.app.faces is not None else []
+    faces = [name for name, *_ in d.app.faces.store.people()] if d.app.faces is not None else []
     accounts = [d.auth.account()["username"], *(u["username"] for u in d.auth.users())]
     contacts = [c.as_dict() for c in d.app.escalation.contacts.all()] if d.app.escalation else []
     return web.json_response({
@@ -67,7 +67,7 @@ async def migrate(request: web.Request) -> web.Response:
     confirm_password(request, str((await read_json(request)).get("password", "")))
     d = dashboard(request)
     store = _store(request)
-    faces = [name for name, *_ in d.app.faces.people()] if d.app.faces is not None else []
+    faces = [name for name, *_ in d.app.faces.store.people()] if d.app.faces is not None else []
     profiles = [{"username": u, **data} for u, data in d.profiles.all().items()]
     contacts = [c.as_dict() for c in d.app.escalation.contacts.all()] if d.app.escalation else []
     created = store.migrate_existing(face_names=faces, profiles=profiles, contacts=contacts)
