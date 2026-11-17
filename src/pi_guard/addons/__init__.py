@@ -69,9 +69,17 @@ class Addons:
 
             api_key = s.assistant_api_key.get_secret_value() if s.assistant_api_key else None
             deepl = s.assistant_deepl_key.get_secret_value() if s.assistant_deepl_key else None
+            secret: bytes | None = None
+            if s.dashboard_secret_key and s.dashboard_secret_key.get_secret_value():
+                secret = s.dashboard_secret_key.get_secret_value().encode()
+            else:
+                secret_path = s.data_dir / "dashboard.secret"
+                if secret_path.is_file():
+                    secret = secret_path.read_bytes().strip()
             self.assistant = Assistant(
                 settings.assistant, app.db, s.tz, api_key or None, deepl or None, app.media_dir,
                 Knowledge(s.data_dir / "knowledge.db"), _searchers(settings.assistant, s),
+                secret_key=secret,
             )  # fmt: skip
         self.agents: AgentHub | None = None
         if settings.agents.enabled:

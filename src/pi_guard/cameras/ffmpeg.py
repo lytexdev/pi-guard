@@ -137,8 +137,8 @@ def choose_capture(camera: CameraConfig, device: VideoDevice | None) -> CaptureC
         return CaptureChoice(input_format, "copy", warning)
     if camera.codec != "auto":
         return CaptureChoice(input_format, camera.codec, warning)
-    encoder = HARDWARE_ENCODER if encoder_works(HARDWARE_ENCODER) else SOFTWARE_ENCODER
-    return CaptureChoice(input_format, encoder, warning)
+    # Software encode by default: h264_v4l2m2m hung capture on the Pi (AGENTS).
+    return CaptureChoice(input_format, SOFTWARE_ENCODER, warning)
 
 
 def _network_capture(camera: CameraConfig) -> CaptureChoice:
@@ -147,8 +147,49 @@ def _network_capture(camera: CameraConfig) -> CaptureChoice:
         return CaptureChoice("rtsp", "copy")
     if camera.codec not in ("auto", "copy"):
         return CaptureChoice(camera.source, camera.codec)
-    encoder = HARDWARE_ENCODER if encoder_works(HARDWARE_ENCODER) else SOFTWARE_ENCODER
-    return CaptureChoice(camera.source, encoder)
+    return CaptureChoice(camera.source, SOFTWARE_ENCODER)
+
+
+def face_capture_preset(device: VideoDevice | None) -> dict[str, object]:
+    """Values that keep analysis JPEGs sharp enough for faces (no hardware encoder)."""
+    preferred = ((1280, 720), (1920, 1080), (1024, 576), (800, 600), (640, 480))
+    if device is None:
+        return {
+            "resolution": "1280x720",
+            "fps": 5,
+            "input_format": "mjpeg",
+            "codec": "libx264",
+            "bitrate": "1.5M",
+        }
+    for fmt_name in ("yuyv422", "mjpeg"):
+        fmt = device.format(fmt_name)
+        if not fmt:
+            continue
+        for size in preferred:
+            if fmt.supports(size):
+                return {
+                    "resolution": f"{size[0]}x{size[1]}",
+                    "fps": 5 if fmt_name == "yuyv422" else 10,
+                    "input_format": fmt_name,
+                    "codec": "libx264",
+                    "bitrate": "1M" if fmt_name == "yuyv422" else "1.5M",
+                }
+        if fmt.sizes:
+            width, height = fmt.sizes[0]
+            return {
+                "resolution": f"{width}x{height}",
+                "fps": 5,
+                "input_format": fmt_name,
+                "codec": "libx264",
+                "bitrate": "1M",
+            }
+    return {
+        "resolution": "1280x720",
+        "fps": 15,
+        "input_format": "auto",
+        "codec": "auto",
+        "bitrate": "2M",
+    }
 
 
 def input_args(camera: CameraConfig, choice: CaptureChoice) -> list[str]:
@@ -163,9 +204,14 @@ def input_args(camera: CameraConfig, choice: CaptureChoice) -> list[str]:
     if camera.source == "picamera":  # JPEG from rpicam-vid on stdin
         return ["-f", "mjpeg", "-use_wallclock_as_timestamps", "1",
                 "-thread_queue_size", "64", "-i", "pipe:0"]
-    return ["-f", "v4l2", "-thread_queue_size", "64", "-input_format", choice.input_format,
-            "-video_size", f"{width}x{height}", "-framerate", str(camera.fps),
-            "-i", camera.device]
+    args = ["-f", "v4l2", "-thread_queue_size", "64", "-input_format", choice.input_format,
+            "-video_size", f"{width}x{height}", "-framerate", str(camera.fps)]
+    if camera.brightness is not None:
+        args += ["-brightness", str(camera.brightness)]
+    if camera.contrast is not None:
+        args += ["-contrast", str(camera.contrast)]
+    args += ["-i", camera.device]
+    return args
     # fmt: on
 
 
@@ -221,7 +267,11 @@ def build_command(
     chains = [
         f"[0:v]split={len(branches)}" + "".join(f"[{b}_in]" for b in branches),
         f"[det_in]fps={analysis_fps:g},scale={det_w}:{det_h},format=gray[det]",
-        f"[snap_in]fps=1/{camera.snapshot_interval_seconds:g}[snap]",
+        (
+            f"[snap_in]fps=1/{camera.snapshot_interval_seconds:g},format=gray[snap]"
+            if camera.night
+            else f"[snap_in]fps=1/{camera.snapshot_interval_seconds:g}[snap]"
+        ),
     ]
     if encode:
         chains.append("[rec_in]format=yuv420p[rec]")

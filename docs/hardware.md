@@ -50,10 +50,18 @@ Two identical cameras without serial numbers get the same by-id name; use
 
 ### CSI cameras (Raspberry Pi Camera Module)
 
-CSI cameras are not V4L2 capture devices on current Raspberry Pi OS (they use
-libcamera). They are not supported directly. A workaround is to expose the
-camera as a V4L2 loopback device or as a UVC gadget; this is outside pi-guard's
-scope for now.
+CSI modules can be used with source `picamera` (JPEG from `rpicam-vid` on stdin). Plain
+libcamera V4L2 nodes without that path are still not treated as USB capture devices.
+
+### USB-A / USB-C and IR / night cameras
+
+USB webcams on USB-A or USB-C work the same through UVC. Names that look like IR or night
+vision (for example ELP IR) are flagged in discovery as a hint only. Gray snapshots and
+optional V4L2 brightness/contrast help when the driver offers them; face recognition at night
+still depends on the lens and IR lighting — software cannot promise every IR camera will
+recognise faces after dark. Prefer MJPEG or YUYV with software encode (*Sharper for faces*
+in Devices) over soft camera H.264 for recognition. Do not rely on `h264_v4l2m2m` for capture;
+it hung on the Pi and stays available only when chosen explicitly.
 
 ## Audio
 

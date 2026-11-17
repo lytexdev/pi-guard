@@ -78,6 +78,7 @@ export async function signalPanel() {
     fill(panel, h("h2", {}, t("web.signal_status")),
       problem ? h("p", { class: "notice danger" }, t(problem)) : null,
       h("p", { class: state === "ready" ? "" : "notice" }, t(`web.signal_${state}`)),
+      state === "ready" && !s.commands ? h("p", { class: "notice" }, t("web.signal_commands_off_hint")) : null,
       s.version ? h("small", { class: "muted" }, `signal-cli ${s.version}`) : null,
       state === "missing" ? h("pre", { class: "mono wrap" }, "sudo ./scripts/signal.sh install") : null,
       state === "stopped" ? h("pre", { class: "mono wrap" }, "cd ~/pi-guard && sudo ./scripts/signal.sh install") : null,

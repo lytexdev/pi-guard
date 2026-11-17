@@ -115,7 +115,7 @@ function auditLog(box) {
   return { load };
 }
 
-export async function render(main) {
+export async function render(main, { embedded = false } = {}) {
   const body = h("div", { class: "stack" });
   const tabs = h("nav", { class: "tabs", "aria-label": t("web.nav_logs") });
   let timer = null;
@@ -123,7 +123,7 @@ export async function render(main) {
     tab = name;
     try { localStorage.setItem("logs.tab", name); } catch { /* private window */ }
     clearInterval(timer);
-    fill(tabs, TABS.map(([id, ic]) => h("a", { href: "#/logs", class: id === tab ? "active" : "", "aria-current": id === tab ? "page" : null,
+    fill(tabs, TABS.map(([id, ic]) => h("a", { href: "#/settings/logs", class: id === tab ? "active" : "", "aria-current": id === tab ? "page" : null,
       onclick: (e) => { e.preventDefault(); open(id); } }, icon(ic), " ", t(`web.logs_tab_${id}`))));
     if (tab === "overview") {
       fill(body, overview(await api("/api/security").catch(() => null)));
@@ -136,7 +136,9 @@ export async function render(main) {
       await view.load();
     }
   };
-  fill(main, h("div", { class: "topbar" }, h("h1", {}, t("web.nav_logs"))), tabs, body, supportNote());
+  fill(main, embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t("web.nav_logs"))),
+    embedded ? h("h2", {}, icon("list-details"), " ", t("web.nav_logs")) : null,
+    tabs, body, embedded ? null : supportNote());
   await open(TABS.some(([id]) => id === tab) ? tab : "overview");
   return () => clearInterval(timer);
 }

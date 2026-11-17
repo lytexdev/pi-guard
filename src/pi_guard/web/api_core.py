@@ -166,9 +166,10 @@ async def stats(request: web.Request) -> web.Response:
 
 async def logs(request: web.Request) -> web.Response:
     level = request.query.get("level", "").upper()
-    order = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40, "CRITICAL": 50}
-    minimum = order.get(level, 0)
-    records = [r for r in RECENT.records if order.get(r["level"], 0) >= minimum]
+    known = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+    records = list(RECENT.records)
+    if level in known:
+        records = [r for r in records if r["level"] == level]
     return web.json_response(records[-int(request.query.get("limit", "300")) :][::-1])
 
 

@@ -47,30 +47,35 @@ async function pushPanel() {
 }
 
 function designPanel() {
-  const panel = h("section", { class: "panel" });
-  const draw = () => fill(panel, h("h2", {}, t("web.design")),
+  const panel = h("section", { class: "panel stack more-choice" });
+  const draw = () => fill(panel, h("h2", {}, icon("palette"), " ", t("web.design")),
     h("div", { class: "segmented" }, THEMES.map((theme) => h("button", {
       class: chosenTheme() === theme ? "on" : "",
-      onclick: () => { setDesign(theme); draw(); } }, t(`web.theme_${theme}`)))),
-    h("p", {}),
+      onclick: () => { setDesign(theme); draw(); } },
+      icon(({ auto: "refresh", dark: "eye-off", light: "sun", contrast: "accessible" })[theme] || "palette"),
+      t(`web.theme_${theme}`)))),
     h("div", { class: "segmented" }, SIZES.map((size) => h("button", {
       class: (localStorage.getItem("text") || "normal") === size ? "on" : "",
-      onclick: () => { setDesign(null, size); draw(); } }, t(`web.text_${size}`)))));
+      onclick: () => { setDesign(null, size); draw(); } },
+      icon(size === "large" ? "zoom-in" : "check"),
+      t(`web.text_${size}`)))));
   draw();
   return panel;
 }
 
 export async function render(main) {
-  const entries = [["setup/welcome", "settings", "web.setup_open"], ["network", "network", "web.nav_network"], ["addons", "cpu", "web.nav_addons"], ["monitor", "camera", "web.nav_monitor"],
+  const entries = [["setup/welcome", "settings", "web.setup_open"], ["addons", "cpu", "web.nav_addons"], ["monitor", "camera", "web.nav_monitor"],
     ["settings", "settings", "web.nav_settings"],
-    ["logs", "list-details", "web.nav_logs"], ["logout", "logout", "web.logout"]];
+    ["settings/logs", "list-details", "web.nav_logs"], ["settings/updates", "refresh", "web.set_updates"],
+    ["logout", "logout", "web.logout"]];
   fill(main,
     h("div", { class: "topbar" }, h("h1", {}, t("web.nav_more"))),
     h("section", { class: "panel" }, h("ul", { class: "list" }, entries.map(([route, i, label]) =>
       h("li", { class: "link-row" }, icon(i), h("a", { class: "grow", href: `#/${route}` }, t(label)), icon("chevron-right"))))),
-    h("section", { class: "panel" }, h("h2", {}, t("web.language")),
+    h("section", { class: "panel stack more-choice" },
+      h("h2", {}, icon("world"), " ", t("web.language")),
       h("div", { class: "segmented" }, [["de", "Deutsch"], ["en", "English"]].map(([code, name]) =>
-        h("button", { class: lang === code ? "on" : "", onclick: () => switchLanguage(code) }, name)))),
+        h("button", { class: lang === code ? "on" : "", onclick: () => switchLanguage(code) }, icon("world"), name)))),
     designPanel(),
     await pushPanel(),
     h("p", { class: "muted" }, h("small", {}, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex"))));

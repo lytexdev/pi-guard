@@ -106,10 +106,14 @@ class Notifier:
         return True
 
     def recipients(self, rule: Rule, exclude: str | None = None) -> list[Recipient]:
+        from pi_guard.messaging.hub import delivery_allows
+
         app = self._app
         result = []
         for user in app.users.all():
             if user.provider not in app.providers or user.provider not in rule.providers:
+                continue
+            if not delivery_allows(app.settings, user.provider, "alerts"):
                 continue
             if not user.notifications or user.key == exclude:
                 continue

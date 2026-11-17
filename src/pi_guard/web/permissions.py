@@ -17,7 +17,7 @@ AREAS: dict[str, tuple[str, ...]] = {
     "people": ("/api/people", "/api/people-", "/api/faces/", "/api/image/"),
     "network": ("/api/network", "/api/privacy/", "/api/topology"),
     "logs": ("/api/logs", "/api/audit", "/api/security"),
-    "contacts": ("/api/contacts", "/api/notifications"),
+    "contacts": ("/api/contacts", "/api/persons", "/api/notifications"),
     "devices": ("/api/devices", "/api/sounds", "/api/calendars"),
     "apps": ("/api/apps", "/api/mobile/devices", "/api/mobile/app"),
 }  # fmt: skip

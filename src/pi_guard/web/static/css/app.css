@@ -527,6 +527,9 @@ dialog.chat::backdrop { background: rgba(0, 0, 0, .25); }
 @keyframes chat-in { from { opacity: 0; transform: translateY(12px); } }
 .chat-foot { padding: 10px 12px 12px; border-top: 1px solid var(--line); }
 .chat-foot .support-note { margin: 8px 4px 0; font-size: .8rem; }
+.chat-attach { display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+.chat-attach:empty { display: none; }
+.chat-attach img, .chat-thumb { max-height: 72px; border-radius: 8px; }
 .chat-input { display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); }
 .chat-input:focus-within { border-color: var(--accent); }
 .chat-input input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 8px 0; outline: none; box-shadow: none; }
@@ -619,6 +622,24 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 /* Scan and storage */
 .scan-list li { align-items: flex-start; }
 .scan-list .badge { flex: none; }
+.scan-progress { gap: 10px; }
+.scan-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.scan-bar-fill { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+.scan-live .scan-step.pending { opacity: .55; }
+.scan-live .scan-step.current { outline: 1px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.scan-live .scan-step.done { opacity: .85; }
+.scan-spinner {
+  flex: none; width: 1.1em; height: 1.1em; border: 2px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: scan-spin .8s linear infinite;
+}
+@keyframes scan-spin { to { transform: rotate(360deg); } }
+.scan-summary-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--border); gap: 1px; }
+.scan-seg.bad { background: var(--danger); }
+.scan-seg.warn { background: var(--warn, #c9a227); }
+.scan-seg.ok { background: var(--ok, #2f9e44); }
+.scan-seg.unknown { background: var(--muted); }
+.scan-result.bad .badge, .scan-result.warn .badge { flex: none; }
 .storage-row { display: grid; gap: 4px; flex: 1; min-width: 0; }
 .device-test { display: grid; gap: 6px; justify-items: start; margin-bottom: 12px; }
 .device-test audio { width: min(320px, 100%); height: 36px; }
@@ -630,6 +651,12 @@ dialog.lightbox.map { width: 96vw; max-width: 96vw; }
 .quality-tips { margin: 2px 0 0; padding-left: 18px; }
 .person-row { flex-wrap: wrap; }
 .person-row .quality { flex: 1 1 100%; max-width: none; }
+.person-roles { gap: 6px; margin-top: 4px; }
+.person-role-picks .person-role-pick { align-items: flex-start; }
+.person-role-picks .person-role-pick strong { display: block; }
+.badge.person-role-household { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.badge.person-role-trusted { background: color-mix(in srgb, var(--ok, #2f9e44) 18%, transparent); }
+.badge.person-role-emergency { background: color-mix(in srgb, var(--danger) 18%, transparent); }
 .quality-tips li { display: list-item; padding: 0; border: 0; min-height: 0; }
 
 /* Folding panels, add-ons, donations */

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import ipaddress
 import logging
 import shutil
@@ -337,21 +338,67 @@ def _shown(outcome: Any) -> dict[str, Any]:
     return {"reply": outcome.text, "pending": outcome.pending, "photo": photo}
 
 
-async def _chat(request: web.Request, text: str) -> web.Response:
+async def _chat(
+    request: web.Request,
+    text: str,
+    *,
+    image: bytes | None = None,
+    image_mime: str = "image/jpeg",
+    fetch_links: bool = False,
+    emergency_context: bool = False,
+    password: str = "",
+) -> web.Response:
+    from pi_guard.web.server import confirm_password
+
     d = dashboard(request)
     assistant = _running(request, "assistant")
     lang = d.settings.language
     commander = d.app.addons.commander
     assert commander is not None  # exists whenever the assistant does
+    role = d.auth.role_of(current(request).username) if d.auth else "admin"
+    is_admin = role == "admin"
     try:
-        outcome = await commander.propose(text, lang, _actor(request))
-        if outcome is not None:
-            return web.json_response({"question": text, **_shown(outcome)})
-        answer = await assistant.ask(text, lang, _actor(request), private=True)
+        if not image:
+            outcome = await commander.propose(text, lang, _actor(request))
+            if outcome is not None:
+                return web.json_response({"question": text, **_shown(outcome)})
+        context_parts: list[str] = []
+        if is_admin and assistant.settings.admin_system_context:
+            mode = d.app.modes.current.value if d.app.modes else "?"
+            open_n = len(d.app.escalation.open_alerts()) if d.app.escalation else 0
+            cams = ", ".join(c.name or cid for cid, c in list(d.app.cameras.items())[:8])
+            context_parts.append(
+                f'<document source="system-status">mode={mode}; open_alerts={open_n}; '
+                f"cameras={cams or 'none'}</document>"
+            )
+        if is_admin and emergency_context and assistant.settings.admin_emergency_context:
+            confirm_password(request, password)
+            lines = []
+            for alert in (d.app.escalation.open_alerts() if d.app.escalation else [])[:5]:
+                lines.append(f"{alert.type} camera={alert.camera or '-'} at={alert.ts.isoformat()}")
+            context_parts.append(
+                _excerpt_status("open-alerts", "\n".join(lines) or "none")
+            )
+        answer = await assistant.ask(
+            text,
+            lang,
+            _actor(request),
+            private=True,
+            image=image,
+            image_mime=image_mime,
+            system_context="\n".join(context_parts) or None,
+            fetch_links=fetch_links and is_admin,
+        )
     except AssistantError as exc:
         raise web.HTTPConflict(text=exc.key) from None
     return web.json_response({"question": text, "reply": answer.text, "pending": None,
-                              "documents": list(answer.documents)})  # fmt: skip
+                              "documents": list(answer.documents),
+                              "provider": assistant.status().get("active_provider")})  # fmt: skip
+
+
+def _excerpt_status(source: str, text: str) -> str:
+    safe = text.replace("<", "‹").replace(">", "›")[:1500]
+    return f'<document source="{source}">{safe}</document>'
 
 
 def examples(app: Any, lang: str) -> list[str]:
@@ -389,7 +436,26 @@ async def assistant_examples(request: web.Request) -> web.Response:
 
 
 async def assistant_chat(request: web.Request) -> web.Response:
-    return await _chat(request, str((await read_json(request)).get("text", "")))
+    data = await read_json(request)
+    image = None
+    mime = "image/jpeg"
+    raw = data.get("image")
+    if isinstance(raw, str) and raw.startswith("data:"):
+        header, _, b64 = raw.partition(",")
+        mime = header.removeprefix("data:").split(";")[0] or "image/jpeg"
+        try:
+            image = base64.b64decode(b64, validate=True)
+        except ValueError:
+            raise web.HTTPBadRequest(text="web.error") from None
+    return await _chat(
+        request,
+        str(data.get("text", "")),
+        image=image,
+        image_mime=mime,
+        fetch_links=data.get("fetch_links") is True,
+        emergency_context=data.get("emergency_context") is True,
+        password=str(data.get("password", "")),
+    )
 
 
 async def assistant_chat_voice(request: web.Request) -> web.Response:

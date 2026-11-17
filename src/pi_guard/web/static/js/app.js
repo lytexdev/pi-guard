@@ -16,7 +16,6 @@ const VIEWS = {
   settings: () => import("./views/settings-hub.js"),
   monitor: () => import("./views/monitor.js"),
   account: () => import("./views/account.js"),
-  logs: () => import("./views/logs.js"),
   login: () => import("./views/login.js"),
   setup: () => import("./views/setup.js"),
   help: () => import("./views/help.js"),
@@ -25,13 +24,12 @@ const PRIMARY = [
   ["overview", "home", "web.nav_overview"],
   ["live", "video", "web.nav_live"],
   ["events", "bell", "web.nav_events"],
+  ["network", "network", "web.nav_network"],
   ["people", "users", "web.nav_people"],
 ];
 const SECONDARY = [
-  ["network", "network", "web.nav_network"],
   ["addons", "cpu", "web.nav_addons"],
   ["settings", "settings", "web.nav_settings"],
-  ["logs", "list-details", "web.nav_logs"],
   ["help", "bulb", "web.nav_help"],
 ];
 
@@ -43,9 +41,9 @@ export function memberRoutes(session = state.session) {
   const routes = [...VIEWER_ROUTES, "more"];
   if (granted.includes("people")) routes.push("people");
   if (granted.includes("network")) routes.push("network");
-  if (granted.includes("logs")) routes.push("logs");
   if (granted.some((p) => p.startsWith("addon:"))) routes.push("addons");
-  if (granted.some((p) => p.startsWith("settings:")) || granted.some((p) => ["contacts", "devices", "apps"].includes(p))) routes.push("settings");
+  if (granted.includes("logs") || granted.some((p) => p.startsWith("settings:"))
+      || granted.some((p) => ["contacts", "devices", "apps"].includes(p))) routes.push("settings");
   return routes;
 }
 
@@ -151,7 +149,7 @@ function keep(turn, stop) {
 async function show(turn) {
   if (cleanup) { cleanup(); cleanup = null; }
   let [name, ...params] = (location.hash.replace(/^#\/?/, "") || "overview").split("/");
-  if (["devices", "notifications", "access"].includes(name)) { params = [name]; name = "settings"; }
+  if (["devices", "notifications", "access", "logs"].includes(name)) { params = [name]; name = "settings"; }
   if (name === "addons" && params[0] === "analytics") { name = "network"; params = []; }
   const root = document.getElementById("app");
   if (name === "logout") {

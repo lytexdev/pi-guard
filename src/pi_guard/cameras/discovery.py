@@ -15,6 +15,11 @@ from pathlib import Path
 _FORMAT_RE = re.compile(r"(Raw|Compressed)\s*:\s*(\S+)\s*:\s*(.+?)\s*:\s*(.*)$")
 _SIZE_RE = re.compile(r"^(\d+)x(\d+)$")
 _V4L_DIRS = (Path("/dev/v4l/by-id"), Path("/dev/v4l/by-path"))
+# Typical USB IR / night cameras: name hints only; the driver does not say "IR".
+_IR_NAME = re.compile(
+    r"\b(ir|infrared|night[\s_-]?vision|nachtsicht|elp|svpro|arducam[\s_-]?ir)\b",
+    re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -41,6 +46,10 @@ class VideoDevice:
     def slug(self) -> str:
         base = re.sub(r"[^a-z0-9]+", "_", self.name.lower()).strip("_")
         return (base or self.node.name)[:32]
+
+    @property
+    def likely_ir(self) -> bool:
+        return bool(_IR_NAME.search(self.name))
 
 
 def parse_formats(output: str) -> tuple[VideoFormat, ...]:

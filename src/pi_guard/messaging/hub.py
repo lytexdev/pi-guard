@@ -70,7 +70,12 @@ class Messenger:
         app = self._app
         sender = f"{msg.provider}:{msg.sender_id}"
         if msg.provider == "signal" and not app.settings.signal_commands:
-            # Alerts only: often the owner's own number, so whatever people write stays unread.
+            # Alerts only: often the owner's own number. Reply rarely; never run commands.
+            if msg.text.strip() and self._limiter.allow(f"signal-commands-off:{msg.sender_id}"):
+                lang = app.settings.language
+                await self._send_safely(
+                    msg.provider, msg.sender_id, Reply(t("signal.commands_off", lang))
+                )
             return
         if msg.is_group and not self._group_allowed(msg):
             return
@@ -297,6 +302,8 @@ class Messenger:
         for user in self._app.users.all():
             if user.role is not Role.ADMIN or user.provider not in self._app.providers:
                 continue
+            if not delivery_allows(self._app.settings, user.provider, "alerts"):
+                continue
             first = photos[0] if photos else None
             reply = Reply(text, photo=first, audio=None if first else audio, tone=tone)
             sent = await self._send_safely(user.provider, user.user_id, reply)
@@ -306,6 +313,18 @@ class Messenger:
                 await self._send_safely(
                     user.provider, user.user_id, Reply(photo.stem, photo=photo, tone=tone)
                 )
+
+
+def delivery_allows(settings: object, provider: str, kind: str) -> bool:
+    """kind is 'alerts' or 'emergency'. Default both keeps previous behaviour."""
+    mode = getattr(settings, f"{provider}_delivery", "both")
+    if mode not in ("alerts", "emergency", "both"):
+        mode = "both"
+    if kind == "alerts":
+        return mode in ("alerts", "both")
+    if kind == "emergency":
+        return mode in ("emergency", "both")
+    return True
 
 
 def _transient(exc: Exception) -> bool:

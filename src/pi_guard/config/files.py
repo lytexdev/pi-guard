@@ -79,6 +79,11 @@ class CameraConfig(_Model):
     motion_detection: bool = True
     motion: MotionSettings = Field(default_factory=MotionSettings)
     snapshot_interval_seconds: float = Field(1.0, ge=0.5, le=10)
+    # Optional V4L2 controls when the driver offers them (see v4l2-ctl --list-ctrls).
+    brightness: int | None = Field(None, ge=-64, le=64)
+    contrast: int | None = Field(None, ge=0, le=64)
+    # Gray analysis JPEGs: useful for IR/night cameras; motion is already gray.
+    night: bool = False
     microphone: str | None = None
     speaker: str | None = None
 
@@ -349,13 +354,18 @@ class RemoteAddon(_Model):
     actions: list[RemoteAction] = Field(default_factory=list)
 
 
+_ASSISTANT_PROVIDER = Literal[
+    "openai", "mistral", "anthropic", "gemini", "grok", "ollama", "custom"
+]
+
+
 class AssistantAddon(_Model):
     enabled: bool = False
-    provider: Literal["openai", "mistral", "anthropic", "gemini", "grok", "ollama", "custom"] = (
-        "mistral"
-    )
+    provider: _ASSISTANT_PROVIDER = "mistral"
     model: str = ""  # empty: the provider's small default
     base_url: str | None = None  # own server: Ollama elsewhere, or any OpenAI-compatible API
+    # Tried in order after the primary fails (unreachable, rate limit, bad answer).
+    fallback_providers: list[_ASSISTANT_PROVIDER] = Field(default_factory=list)
     # Passages from your files and documents may be sent to a cloud provider.
     # Local models (Ollama) always may use them; nothing leaves the network then.
     share_documents: bool = False
@@ -364,6 +374,14 @@ class AssistantAddon(_Model):
     ai_actions: bool = False
     # Camera pictures may be sent to the provider, each time after confirmation.
     allow_vision: bool = False
+    # Dashboard chat may attach or paste an image (still needs allow_vision).
+    allow_chat_images: bool = False
+    # Dashboard chat may fetch http(s) links as short text excerpts (opt-in).
+    allow_fetch_links: bool = False
+    # Admin dashboard chat may include compact mode/alert status (not medical, not faces).
+    admin_system_context: bool = False
+    # Admin dashboard chat may include a short open-alert summary after password confirm.
+    admin_emergency_context: bool = False
     # As an emergency contact: after an alarm the alarm picture goes to the provider without
     # asking, with what the Pi's own face recognition found, and the admins get its view.
     # Reference pictures of trusted people never leave the Pi.
