@@ -252,14 +252,16 @@ async def modules_put(request: web.Request) -> web.Response:
             if not selected.get("hostname"):
                 raise web.HTTPConflict(text="web.priv_mullvad_need_server")
             if not any(h.get("provider") == "mullvad" for h in hops):
-                hops.append({
-                    "id": "mullvad",
-                    "provider": "mullvad",
-                    "name": selected.get("hostname") or "Mullvad",
-                    "server_id": selected.get("hostname"),
-                    "enabled": True,
-                    "params": {},
-                })
+                hops.append(
+                    {
+                        "id": "mullvad",
+                        "provider": "mullvad",
+                        "name": selected.get("hostname") or "Mullvad",
+                        "server_id": selected.get("hostname"),
+                        "enabled": True,
+                        "params": {},
+                    }
+                )
                 try:
                     svc.set_chain(hops)
                 except PrivacyError as exc:
@@ -287,19 +289,25 @@ async def modules_put(request: web.Request) -> web.Response:
         if not on and selected.get("entry_hostname"):
             cfg["providers"]["mullvad"]["selected"] = {**selected, "entry_hostname": None}
             store.save()
-            # Rebuild exit peer without entry hop when privacy is active.
-            if cfg.get("enabled") and any(
-                h.get("provider") == "mullvad" for h in (cfg["chain"].get("hops") or [])
-            ):
-                try:
-                    await asyncio.to_thread(svc.activate)
-                except PrivacyError as exc:
-                    raise _err(exc) from None
         changed.append(f"multi_hop={'on' if on else 'off'}")
 
+    if "amneziawg" in data:
+        on = bool(data["amneziawg"])
+        try:
+            svc.set_obfuscation({"mode": "amneziawg" if on else "off"})
+        except PrivacyError as exc:
+            raise _err(exc) from None
+        changed.append(f"amneziawg={'on' if on else 'off'}")
+
+    # Turning the last exit off must deactivate, not fail with "enable Tor first".
+    hops_left = [h for h in (cfg["chain"].get("hops") or []) if h.get("enabled") is not False]
+    tor_on = bool(cfg.get("tor", {}).get("enabled"))
     if cfg.get("enabled"):
         try:
-            await asyncio.to_thread(svc.activate)
+            if hops_left or tor_on:
+                await asyncio.to_thread(svc.activate)
+            else:
+                await asyncio.to_thread(svc.deactivate)
         except PrivacyError as exc:
             raise _err(exc) from None
 

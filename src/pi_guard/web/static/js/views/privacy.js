@@ -97,32 +97,78 @@ function connectionPanel(cfg, diag, redraw) {
     h("p", { class: "muted" }, h("small", {}, t("web.priv_recovery"))));
 }
 
+async function toggleModule(id, wantOn, redraw, beforeOn) {
+  const label = t(`web.priv_mod_${id === "multi_hop" ? "multihop" : id}`);
+  const ok = await confirmDialog(
+    t(wantOn ? "web.priv_mod_confirm_on" : "web.priv_mod_confirm_off", { name: label }),
+    t(wantOn ? "web.priv_mod_turn_on" : "web.priv_mod_turn_off"),
+    !wantOn);
+  if (!ok) return;
+  if (wantOn && beforeOn) {
+    const ready = await beforeOn();
+    if (ready === false) return;
+  }
+  if (await attempt(() => api("/api/privacy/modules", { method: "PUT", body: { [id]: wantOn } }), t("web.saved"))) redraw();
+}
+
+function moduleCard({ id, iconName, on, hint, blocked, blockedHint, redraw, beforeOn }) {
+  const label = t(`web.priv_mod_${id === "multi_hop" ? "multihop" : id}`);
+  return h("button", {
+    type: "button",
+    class: `priv-mod${on ? " on" : ""}${blocked ? " blocked" : ""}`,
+    disabled: Boolean(blocked),
+    title: blocked ? (blockedHint || "") : t(on ? "web.priv_mod_tap_off" : "web.priv_mod_tap_on"),
+    onclick: () => { if (!blocked) toggleModule(id, !on, redraw, beforeOn); },
+  },
+    h("span", { class: "priv-mod-icon" }, icon(iconName)),
+    h("span", { class: "grow" },
+      h("strong", {}, label),
+      h("small", { class: "muted block" }, blocked ? (blockedHint || hint) : hint)),
+    h("span", { class: `badge ${on ? "ok" : ""}` }, t(on ? "web.priv_active" : "web.priv_inactive")));
+}
+
 function modulesPanel(cfg, caps, redraw) {
   const mullvad = cfg.providers?.mullvad || {};
   const mullvadOn = (cfg.chain?.hops || []).some((h) => h.provider === "mullvad" && h.enabled !== false);
   const multiOn = Boolean(mullvad.selected?.entry_hostname);
   const torOn = Boolean(cfg.tor?.enabled);
-  const row = (id, label, hint, checked, disabled) => {
-    const on = h("input", { type: "checkbox", class: "toggle", role: "switch", checked, disabled: Boolean(disabled), id: `priv_mod_${id}` });
-    on.addEventListener("change", async () => {
-      const body = { [id]: on.checked };
-      if (!await attempt(() => api("/api/privacy/modules", { method: "PUT", body }), t("web.saved"))) {
-        on.checked = !on.checked;
-        return;
-      }
-      redraw();
-    });
-    return h("li", {},
-      h("label", { class: "switch-row", for: `priv_mod_${id}` },
-        h("div", { class: "grow" }, h("div", {}, label), h("small", { class: "muted" }, hint)), on));
+  const awgOn = (cfg.obfuscation?.mode || "off") === "amneziawg";
+  const awgCap = caps.features?.amneziawg || caps.obfuscation?.modes?.find((m) => m.id === "amneziawg");
+  const ensureMullvadServer = async (wantEntry) => {
+    if (!mullvad.has_account) { toast(t("web.priv_mullvad_need_account"), true); return false; }
+    if (mullvad.selected?.hostname && (!wantEntry || mullvad.selected?.entry_hostname)) return true;
+    await mullvadPick(redraw, mullvad.selected || {}, { wantMulti: wantEntry });
+    return false;  // picker saves itself; avoid a second modules PUT with stale state
   };
   return section("web.priv_modules_title", "web.priv_modules_intro",
-    h("ul", { class: "list" },
-      row("mullvad", t("web.priv_mod_mullvad"), t("web.priv_mod_mullvad_hint"), mullvadOn,
-        !caps.features?.mullvad?.available || !mullvad.has_account),
-      row("multi_hop", t("web.priv_mod_multihop"), t("web.priv_mod_multihop_hint"), multiOn,
-        !mullvadOn || !caps.features?.multi_hop?.available),
-      row("tor", t("web.priv_mod_tor"), t("web.priv_mod_tor_hint"), torOn, !caps.features?.tor?.available)));
+    h("div", { class: "priv-mods" },
+      moduleCard({
+        id: "mullvad", iconName: "world", on: mullvadOn, hint: t("web.priv_mod_mullvad_hint"),
+        blocked: !caps.features?.mullvad?.available,
+        blockedHint: t(caps.features?.mullvad?.reason || "web.priv_need_wg"),
+        redraw,
+        beforeOn: () => ensureMullvadServer(false),
+      }),
+      moduleCard({
+        id: "multi_hop", iconName: "network", on: multiOn, hint: t("web.priv_mod_multihop_hint"),
+        blocked: !caps.features?.multi_hop?.available || !mullvad.has_account,
+        blockedHint: !mullvad.has_account ? t("web.priv_mullvad_need_account") : t(caps.features?.multi_hop?.reason || "web.priv_need_wg"),
+        redraw,
+        beforeOn: () => ensureMullvadServer(true),
+      }),
+      moduleCard({
+        id: "tor", iconName: "shield-lock", on: torOn, hint: t("web.priv_mod_tor_hint"),
+        blocked: !caps.features?.tor?.available,
+        blockedHint: t(caps.features?.tor?.reason || "web.priv_need_tor"),
+        redraw,
+      }),
+      moduleCard({
+        id: "amneziawg", iconName: "eye-off", on: awgOn, hint: t("web.priv_mod_amneziawg_hint"),
+        blocked: !(awgCap?.available ?? caps.features?.amneziawg?.available),
+        blockedHint: t(awgCap?.reason || caps.features?.amneziawg?.reason || "web.priv_need_amnezia"),
+        redraw,
+      })),
+    h("p", { class: "muted" }, h("small", {}, t("web.priv_modules_tap"))));
 }
 
 function chainPath(cfg, diag) {
@@ -244,7 +290,7 @@ function providersPanel(cfg, caps, redraw) {
 
 // Country, city and server from Mullvad's list; an entry server makes it Mullvad's own
 // multi-hop (in at one server, out at another). The Pi takes keys and ports from the list.
-async function mullvadPick(redraw, current = {}) {
+async function mullvadPick(redraw, current = {}, opts = {}) {
   const data = await attempt(() => api("/api/privacy/providers/mullvad/relays"));
   if (!data?.countries?.length) { toast(t("web.priv_mullvad_no_relay"), true); return; }
   const byName = (a, b) => a.name.localeCompare(b.name);
@@ -274,7 +320,8 @@ async function mullvadPick(redraw, current = {}) {
       h("label", { class: "field" }, t("web.priv_mullvad_server_pick"), server)) };
   };
   const exitPick = picker("exit", { country: current.country, city: current.city, hostname: current.hostname });
-  const entryWanted = h("input", { type: "checkbox", class: "toggle", role: "switch", id: "mv_multihop", checked: Boolean(current.entry_hostname) });
+  const entryWanted = h("input", { type: "checkbox", class: "toggle", role: "switch", id: "mv_multihop",
+    checked: Boolean(current.entry_hostname) || Boolean(opts.wantMulti) });
   const entryRelay = current.entry_hostname ? findRelay(countries, current.entry_hostname) : {};
   const entryPick = picker("entry", entryRelay);
   const entryBox = h("div", { class: `stack ${entryWanted.checked ? "" : "hidden"}` }, h("h3", {}, t("web.priv_mullvad_entry")), entryPick.box);

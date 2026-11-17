@@ -289,6 +289,45 @@ async def test_api_privacy_config_and_profile(tmp_path: Path) -> None:
         app.db.close()
 
 
+async def test_api_modules_off_last_exit_deactivates(tmp_path: Path) -> None:
+    """Turning Mullvad off must deactivate, not fail with 'enable Tor first'."""
+    client, app = await _client(tmp_path)
+    try:
+        csrf = await _login(client)
+        headers = {"X-CSRF-Token": csrf}
+        # Touch the API so the privacy service exists, then seed an active Mullvad exit.
+        assert (await client.get("/api/privacy/config", headers=headers)).status == 200
+        svc = app.dashboard.privacy
+        assert svc is not None
+        (svc.store._dir / "installed").write_text("1\n", encoding="utf-8")
+        svc.store.data["chain"]["hops"] = [
+            {
+                "id": "mullvad",
+                "provider": "mullvad",
+                "name": "de-fra",
+                "server_id": "de-fra-wg-001",
+                "enabled": True,
+                "params": {},
+            }
+        ]
+        svc.store.data["providers"]["mullvad"]["selected"] = {
+            "hostname": "de-fra-wg-001",
+            "entry_hostname": "se-sto-wg-001",
+        }
+        svc.store.data["enabled"] = True
+        svc.store.data["chain"]["active"] = True
+        svc.store.save()
+        answer = await client.put("/api/privacy/modules", json={"mullvad": False}, headers=headers)
+        assert answer.status == 200, await answer.text()
+        body = await answer.json()
+        assert body["enabled"] is False
+        assert body["chain"]["hops"] == []
+        assert not (body["providers"]["mullvad"].get("selected") or {}).get("entry_hostname")
+    finally:
+        await client.close()
+        app.db.close()
+
+
 def _run_exit_apply(tmp_path: Path, line: str) -> tuple[int, Path]:
     import os
     import subprocess

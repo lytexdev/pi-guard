@@ -20,12 +20,15 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Network → VPN: turning off the last privacy exit (e.g. Mullvad) deactivates cleanly instead of asking to enable Tor.
 - Settings → Contacts HTTP 500 (`FaceRecognizer.people` → `faces.store.people`).
 - Expert messenger “Test” for email uses the same path as the email panel; clearer export/test toasts.
 - Android alert “All fine” no longer posts a second confirmation notification.
 
 ### Changed
 
+- Network → VPN privacy modules: tap cards (Mullvad, multi-hop, Tor, AmneziaWG) with a confirm dialog instead of bare
+  checkboxes.
 - Security check lives under Settings → Data & backup → Security (old `#/settings/security` still opens it); no longer
   its own settings nav item.
 - Contact and emergency editors: messenger channels as on/off cards for running services; no password re-entry on every

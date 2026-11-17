@@ -931,6 +931,15 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .sw-teaser h2 { margin-bottom: 4px; }
 .sw-stranger-pick { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
 
+/* Privacy module cards: tap to toggle with a confirm dialog. */
+.priv-mods { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); }
+.priv-mod { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
+.priv-mod.on { border-color: color-mix(in srgb, var(--ok, #2f9e44) 45%, var(--line)); background: color-mix(in srgb, var(--ok, #2f9e44) 8%, var(--surface)); }
+.priv-mod.blocked { opacity: .55; cursor: not-allowed; }
+.priv-mod:not(.blocked):hover { border-color: var(--accent); }
+.priv-mod-icon { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--surface-2); }
+.priv-mod.on .priv-mod-icon { background: color-mix(in srgb, var(--ok, #2f9e44) 18%, var(--surface-2)); }
+
 /* Contact setup wizard and messenger channel cards. */
 .cw-dialog { width: min(640px, calc(100vw - 16px)); max-height: min(92vh, 900px); }
 .cw-pane { min-height: 220px; }

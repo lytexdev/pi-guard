@@ -39,7 +39,9 @@ independently:
 | Mullvad / multi-hop | Exit through Mullvad, another VPN or Tor | `privacy-server.sh install` |
 
 The page shows those layers as cards, then the parts *Devices*, *Outside / Amnezia*, *Mullvad / hop* and *Quantum*.
-Profiles, multi-hop chain, providers, DNS, Pi-side kill switch, Tor and diagnostics live under the privacy part. The
+Under *Modules*, tap Mullvad, multi-hop, Tor or AmneziaWG to turn each on or off (with a confirm dialog). Turning the
+last exit off deactivates privacy instead of asking for Tor. Profiles, the multi-hop chain, providers, DNS, the Pi-side
+kill switch, Tor details and diagnostics live under the same privacy part. The
 chain always shows the home VPN hop first (devices → Pi-Guard → optional exits → internet). **Check** under Diagnostics
 asks for the public/exit IP once and keeps it for a few minutes. Signed updates refresh already-installed helpers and
 units; first install of each layer stays the owner's script once.
