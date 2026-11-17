@@ -3331,7 +3331,7 @@
   "web.addon_pihole_help": "Pi-hole sperrt Werbung und Tracker im ganzen Heimnetz. Kid Protect und Netzwerkanalyse brauchen es. Ausschalten trennt nur pi-guard von Pi-hole.",
   "web.wg_exit_default_hint": "Nutzt den Privacy-Exit des Pi, wenn er an ist, sonst den Heim-Provider.",
   "web.wg_exit_home_hint": "Bleibt beim Heim-Provider, auch wenn andere Geräte über Mullvad gehen.",
-  "web.wg_exit_exit_hint": "Immer über den Privacy-Exit. Dafür muss Mullvad oder Multi-Hop laufen.",
+  "web.wg_exit_exit_hint": "Über den Privacy-Exit, solange er läuft; einschalten geht nur, während er an ist. Fällt er später aus, geht dieses Gerät wie die anderen über den Heimanschluss, außer der Kill-Switch des Pi ist an.",
   "web.vpn_layers_intro": "Heim-VPN ist die Basis. Optionale Schichten nur einschalten, wenn du sie willst.",
   "web.vpn_layer_home": "Heim-VPN",
   "web.vpn_layer_home_hint": "Geräte kommen über WireGuard nach Hause.",

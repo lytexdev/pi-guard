@@ -191,15 +191,15 @@ Each card has *Edit* (the setup below), *Photos & videos* (upload pictures and v
 camera, with the person's consent; only face features are stored) and *Invite*: it sends the app download link (7
 days) and, if wanted, a VPN access of their own as a WireGuard file to one of the person's own ways to reach them
 (messenger or email, never a typed address). A VPN access asks for the password, is linked to the person, and the
-dialog says which services keep the file. *Not linked yet* offers faces, accounts and emergency contacts that belong
+dialog says which services keep the file; if sending fails, the access is removed again. Members need the *Apps* area
+for the app link and the *Network* area for a VPN access, besides *Contacts*. *Not linked yet* offers faces, accounts and emergency contacts that belong
 to nobody, one tap each. The detailed face view and the emergency contact list fold away below.
 
 *New person* opens a short setup (who they are, roles, messengers
 that are running on this Pi, what they get on SOS or unanswered alerts, optional dashboard account, face samples, and
 optional emergency medical sheet). Saving uses the admin session; medical sheet sharing still asks for confirmation.
-Messenger channels are on/off cards for services that are set up. *Teach by swiping* at the top assigns faces from
-recent events to a person or marks a stranger. Face enrollment stays on the same page (the old *People* nav entry
-redirects here). Who may use Telegram/Signal/… for commands is managed here; the old admin/viewer ID lists under
+Messenger channels are on/off cards for services that are set up. *Who is this?* at the top assigns faces from
+recent events to a person or marks a stranger by swiping. The old *People* address redirects here. Who may use Telegram/Signal/… for commands is managed here; the old admin/viewer ID lists under
 Messaging stay in expert mode only. Escalation timing stays under *Settings → Emergency*. The security check is under
 *Settings → Data & backup → Security*.
 

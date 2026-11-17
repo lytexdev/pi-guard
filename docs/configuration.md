@@ -188,11 +188,11 @@ cameras:
 - Use `/dev/v4l/by-id/…` paths (`pi-guard cameras` lists them). `/dev/video0`
   can point to a different device after a reboot.
 - `input_format: auto` prefers the camera's own H.264, then MJPEG, then raw
-  YUYV. `codec: auto` copies camera H.264 or encodes with the Pi's hardware
-  encoder (`h264_v4l2m2m`), falling back to `libx264`. A copied stream ignores `bitrate`: such a camera decides itself,
+  YUYV. `codec: auto` copies camera H.264, otherwise it encodes with `libx264`.
+  The Pi's hardware encoder (`h264_v4l2m2m`) is only used when set by hand. A copied stream ignores `bitrate`: such a camera decides itself,
   one wrote 8 Mbit/s, 80 GB a day at 1080p. Lower its resolution, or thin out recordings with `RECORDING_FULL_HOURS`.
-  Do not force `h264_v4l2m2m` on such a camera: on a Raspberry Pi 4 the encoder hung the capture until a reboot when it
-  was used twice at once, and the first file after a start could not be played.
+  Setting `h264_v4l2m2m` is at your own risk: on a Raspberry Pi 4 the encoder hung the capture in the kernel until a
+  reboot when it was used twice at once, and the first file after a start could not be played.
 - Zone points are fractions of the image (0 = left/top, 1 = right/bottom), so
   they keep working when the resolution changes. Without include zones the
   whole image is watched; exclude zones are cut out afterwards.

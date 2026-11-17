@@ -235,6 +235,20 @@ async def deactivate(request: web.Request) -> web.Response:
     return web.json_response(result)
 
 
+def _ensure_mullvad_hop(svc: Any, selected: dict[str, Any]) -> None:
+    """Put the Mullvad exit into the chain if it is not there yet."""
+    hops = list(svc.store.data["chain"].get("hops") or [])
+    if any(h.get("provider") == "mullvad" for h in hops):
+        return
+    hops.append({"id": "mullvad", "provider": "mullvad", "enabled": True, "params": {},
+                 "name": selected.get("hostname") or "Mullvad",
+                 "server_id": selected.get("hostname")})  # fmt: skip
+    try:
+        svc.set_chain(hops)
+    except PrivacyError as exc:
+        raise _err(exc) from None
+
+
 async def modules_put(request: web.Request) -> web.Response:
     """Turn Mullvad exit, Mullvad multi-hop entry, or Tor on or off without a full deactivate."""
     data = await read_json(request)
@@ -244,7 +258,7 @@ async def modules_put(request: web.Request) -> web.Response:
     changed: list[str] = []
 
     if "tor" in data:
-        on = bool(data["tor"])
+        on = data["tor"] is True
         try:
             mode = "vpn_then_tor" if on else "off"
             svc.set_tor({**cfg.get("tor", {}), "enabled": on, "mode": mode})
@@ -253,7 +267,7 @@ async def modules_put(request: web.Request) -> web.Response:
         changed.append(f"tor={'on' if on else 'off'}")
 
     if "mullvad" in data:
-        on = bool(data["mullvad"])
+        on = data["mullvad"] is True
         hops = list(cfg["chain"].get("hops") or [])
         if on:
             mullvad = cfg["providers"].get("mullvad") or {}
@@ -262,21 +276,7 @@ async def modules_put(request: web.Request) -> web.Response:
                 raise web.HTTPConflict(text="web.priv_mullvad_need_account")
             if not selected.get("hostname"):
                 raise web.HTTPConflict(text="web.priv_mullvad_need_server")
-            if not any(h.get("provider") == "mullvad" for h in hops):
-                hops.append(
-                    {
-                        "id": "mullvad",
-                        "provider": "mullvad",
-                        "name": selected.get("hostname") or "Mullvad",
-                        "server_id": selected.get("hostname"),
-                        "enabled": True,
-                        "params": {},
-                    }
-                )
-                try:
-                    svc.set_chain(hops)
-                except PrivacyError as exc:
-                    raise _err(exc) from None
+            _ensure_mullvad_hop(svc, selected)
         else:
             hops = [h for h in hops if h.get("provider") != "mullvad"]
             try:
@@ -291,37 +291,21 @@ async def modules_put(request: web.Request) -> web.Response:
         changed.append(f"mullvad={'on' if on else 'off'}")
 
     if "multi_hop" in data:
-        on = bool(data["multi_hop"])
+        on = data["multi_hop"] is True
         selected = (cfg["providers"].get("mullvad") or {}).get("selected")
         if not isinstance(selected, dict) or not selected.get("hostname"):
             raise web.HTTPConflict(text="web.priv_mullvad_need_server")
         if on and not selected.get("entry_hostname"):
             raise web.HTTPConflict(text="web.priv_mullvad_need_entry")
-        if on:
-            # Multi-hop only applies while the Mullvad exit hop is in the chain.
-            hops = list(cfg["chain"].get("hops") or [])
-            if not any(h.get("provider") == "mullvad" for h in hops):
-                hops.append(
-                    {
-                        "id": "mullvad",
-                        "provider": "mullvad",
-                        "name": selected.get("hostname") or "Mullvad",
-                        "server_id": selected.get("hostname"),
-                        "enabled": True,
-                        "params": {},
-                    }
-                )
-                try:
-                    svc.set_chain(hops)
-                except PrivacyError as exc:
-                    raise _err(exc) from None
+        if on:  # multi-hop only applies while the Mullvad exit hop is in the chain
+            _ensure_mullvad_hop(svc, selected)
         if not on and selected.get("entry_hostname"):
             cfg["providers"]["mullvad"]["selected"] = {**selected, "entry_hostname": None}
             store.save()
         changed.append(f"multi_hop={'on' if on else 'off'}")
 
     if "amneziawg" in data:
-        on = bool(data["amneziawg"])
+        on = data["amneziawg"] is True
         try:
             svc.set_obfuscation({"mode": "amneziawg" if on else "off"})
         except PrivacyError as exc:

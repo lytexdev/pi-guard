@@ -13,8 +13,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
 
 ## What it does
 
-- **Records 24/7** to five-minute MP4 segments, using the camera's own H.264
-  or the Pi's hardware encoder. Old footage is deleted after a retention
+- **Records 24/7** to five-minute MP4 segments, copying the camera's own H.264
+  or encoding with libx264. Old footage is deleted after a retention
   period, or earlier when the disk fills up: oldest footage without motion
   first, so there is always room for new recordings.
 - **Detects motion** on small low-resolution frames, with zones, schedules and
@@ -57,14 +57,15 @@ movement, and lets you look at your home with two buttons: **View photo** and
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
-- **Nothing leaves the device** except the messages you ask for. No cloud
-  account, no open ports, no telemetry.
+- **Nothing leaves the device** except the messages you ask for and what an
+  optional part you turn on needs (an AI provider for the assistant, Mullvad,
+  update checks on GitHub). No cloud account, no open ports, no telemetry.
 
 ## Everything around it
 
 | | |
 | --- | --- |
-| **Web dashboard** | Live picture and sound, people, events, weekly plan with calendars, network, settings in a normal and an expert view, a security check with fixes that can be undone, logs in tabs, and members who get only the areas, add-ons and settings you grant. Light, dark or as the system. On by default at `https://<pi>:8443`. |
+| **Web dashboard** | Live picture and sound, contacts in one place (face, account, messengers, emergency role, VPN, and an invitation with the app and a VPN access), events, weekly plan with calendars, network, settings in a normal and an expert view, a security check with fixes that can be undone, logs in tabs, and members who get only the areas, add-ons and settings you grant. Light, dark or as the system. On by default at `https://<pi>:8443`. |
 | **Accessibility** | Text size, magnifier, colour-blind filters, reading aloud, visible alerts for deaf people, typed speech for people who cannot talk, screen-reader labels, and commands by voice or chat. See [dashboard](docs/dashboard.md#accessibility). |
 | **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, quick actions such as all fine or away from the app icon, SOS with camera pictures, photos and sound from the phone and a followed place, finding and tracking lost phones, and an inconspicuous look if you want one. |
 | **Desktop app** | The dashboard in its own window for Linux, Windows and macOS, trusting only your pi-guard's certificate. On Linux also a VPN with kill switch, lockdown, split tunneling and a quantum-resistant tunnel. |
@@ -189,8 +190,11 @@ pi-guard logs -f
 
 German: [Installation](docs/de/installation.md) ·
 [Bedienung](docs/de/bedienung.md) · [Dashboard](docs/de/dashboard.md) ·
-[Netzwerk](docs/de/netzwerk.md) · [Datenschutz](docs/de/datenschutz.md) ·
-[Training](docs/de/training.md) · [Backup](docs/de/backup.md)
+[Add-ons](docs/de/addons.md) · [Handy-App](docs/de/mobile.md) ·
+[Netzwerk](docs/de/netzwerk.md) · [Sprache](docs/de/sprache.md) ·
+[Datenschutz](docs/de/datenschutz.md) · [Training](docs/de/training.md) ·
+[Backup](docs/de/backup.md) · [Discord](docs/de/discord.md) · [E-Mail](docs/de/email.md) ·
+[WhatsApp](docs/de/whatsapp.md) · [Reverse-Proxy](docs/de/proxy.md)
 
 ## Privacy
 

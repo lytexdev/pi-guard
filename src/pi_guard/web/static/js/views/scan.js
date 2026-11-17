@@ -34,7 +34,7 @@ export async function render(box) {
 function progressPanel(progress) {
   const ids = progress?.checks || [];
   const done = new Set(progress?.done || []);
-  const current = progress?.current || null;
+  const current = new Set([].concat(progress?.current || []));
   const total = ids.length || 1;
   const pct = Math.min(100, Math.round((done.size / total) * 100));
   const fillBar = h("i", { class: "scan-bar-fill" });
@@ -43,7 +43,7 @@ function progressPanel(progress) {
     h("p", { class: "muted" }, t("web.scan_wait")),
     h("div", { class: "scan-bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct) }, fillBar),
     h("ul", { class: "list scan-list scan-live" }, ids.map((id) => {
-      const state = done.has(id) ? "done" : id === current ? "current" : "pending";
+      const state = done.has(id) ? "done" : current.has(id) ? "current" : "pending";
       return h("li", { class: `scan-step ${state}` },
         state === "done" ? icon("circle-check") : state === "current" ? h("span", { class: "scan-spinner", "aria-hidden": "true" }) : icon("circle"),
         h("div", { class: "grow" }, t(`web.scan_${id}`)),

@@ -58,7 +58,7 @@ card → details → three clear choices):
 |---|---|
 | Home connection only | stay on your home ISP even if the Pi sends others through Mullvad |
 | Same as the Pi | use the privacy exit when it is on, otherwise the home ISP |
-| Through Mullvad / multi-hop | require the exit; refused while the exit is down, so the device is not locked out |
+| Through Mullvad / multi-hop | can only be chosen while the exit is up; if the exit goes down later, the device leaves through the home connection like the others, unless the Pi's kill switch is on |
 
 This is Pi-side policy routing (`privacy/device-routes`), not a second Mullvad account on the phone. You can also rename
 a device there.

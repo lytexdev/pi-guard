@@ -41,8 +41,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 - **Alarm:** Alarmton (auch einen eigenen) über einen Lautsprecher auslösen
   und wieder stoppen.
 - **Notfallkontakte:** Nach einem SOS vom Handy oder wenn Meldungen
-  unbestätigt bleiben, bekommen Kontakte eine Nachricht und, was du für jeden
-  wählst: Standort, Fotos und Ton, Ereignisse und die Notfalldaten als PDF oder
+  unbestätigt bleiben, bekommen Kontakte eine Nachricht und, was Sie für jeden
+  wählen: Standort, Fotos und Ton, Ereignisse und die Notfalldaten als PDF oder
   nur als Hinweis, dass Daten existieren.
 - **Web-Dashboard:** Live-Bild und -Ton, Sprechen über den
   Lautsprecher, Bildwerkzeuge, vertraute Personen, Geräteauswahl,
@@ -63,20 +63,22 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
   Home Assistant. Die [Handy-App](docs/de/mobile.md) ist standardmäßig an.
 - **Keine Cloud.** Kein Benutzerkonto bei einem Anbieter, keine offenen Ports,
-  keine Telemetrie. Nur die Nachrichten, die Sie anfordern, verlassen das Gerät.
+  keine Telemetrie. Das Gerät verlassen nur die Nachrichten, die Sie anfordern, und was ein
+  optionaler Teil braucht, den Sie einschalten (KI-Anbieter für den Assistenten, Mullvad,
+  Update-Prüfung auf GitHub).
 
 ## Alles drumherum
 
 | | |
 | --- | --- |
-| **Web-Dashboard** | Livebild und Ton, Personen, Ereignisse, Wochenplan mit Kalendern, Netzwerk, Einstellungen in einer Normal- und einer Experten-Ansicht, ein Sicherheitscheck mit rückgängig machbaren Korrekturen, Logs in Reitern und Mitglieder, die nur die freigegebenen Bereiche, Add-ons und Einstellungen bekommen. Hell, dunkel oder wie das System. Standardmäßig an unter `https://<pi>:8443`. |
+| **Web-Dashboard** | Livebild und Ton, Kontakte an einem Ort (Gesicht, Konto, Messenger, Notfallrolle, VPN und eine Einladung mit App und VPN-Zugang), Ereignisse, Wochenplan mit Kalendern, Netzwerk, Einstellungen in einer Normal- und einer Experten-Ansicht, ein Sicherheitscheck mit rückgängig machbaren Korrekturen, Logs in Reitern und Mitglieder, die nur die freigegebenen Bereiche, Add-ons und Einstellungen bekommen. Hell, dunkel oder wie das System. Standardmäßig an unter `https://<pi>:8443`. |
 | **Android-App** | Das Dashboard mit Alarmen ohne Google, ein VPN wie bei Mullvad mit Split-Tunneling und automatischem Verbinden, Schnellaktionen wie Alles in Ordnung oder Abwesend am App-Symbol, SOS mit Kamerabildern, Foto und Ton vom Handy und mitverfolgtem Standort, Handy finden und vermisste Handys verfolgen und auf Wunsch ein unauffälliges Aussehen. |
-| **Desktop-App** | Das Dashboard im eigenen Fenster für Linux, Windows und macOS, vertraut nur dem Zertifikat deines pi-guard. Unter Linux auch ein VPN mit Kill Switch, Lockdown, Split-Tunneling und quantenresistentem Tunnel. |
+| **Desktop-App** | Das Dashboard im eigenen Fenster für Linux, Windows und macOS, vertraut nur dem Zertifikat Ihres pi-guard. Unter Linux auch ein VPN mit Kill Switch, Lockdown, Split-Tunneling und quantenresistentem Tunnel. |
 | **Server** | Ein kleiner Rust-Agent verbindet PC oder NAS: Status, Sicherheitsprüfung, Updates, Docker, Compose und Git, sicheres Herunterfahren; dazu Dienste, die auf Ausfälle überwacht werden. |
 | **Add-ons** | Server, Notfalldaten mit PDF, Medikationsplan (BMP oder Markdown-Tabelle) und einer Karte, die sich angemeldet ohne Passwort öffnet, Kid Protect mit Filtern und Zeiten ohne Internet für Kindergeräte, Netzwerk-Analyse, Smart Home, Fernbefehle, KI-Assistent mit Kostenanzeige, der auch Einstellungen erklärt und mit Rückgängig ändert, den Sicherheitscheck prüft und als Notfallkontakt Alarmbilder einschätzen kann, Sprachsteuerung offline mit Weckwort ([Sprache](docs/de/sprache.md)), ein Reverse-Proxy wie frp ([Proxy](docs/de/proxy.md)), weitere Sprachen sowie Alarme nach Slack, Matrix, Rocket.Chat und Mastodon. Jedes lässt sich ausschalten oder samt Daten entfernen. |
 | **Plugins** | Eigene Add-ons mit Befehlen, Seiten und API-Routen, als ZIP oder Git-Link, geprüft vor dem Start. |
 | **Wege von unterwegs** | IPv4, IPv6, Mietserver oder Tailscale, für jeden Internetanschluss. |
-| **Training** | `pgtrain` auf einem Computer mit NVIDIA-Grafikkarte: Bin ich das, ähnliche Fotos, Schwellen aus deinen eigenen Fotos und eine Personenerkennung, die an Bildern von Räumen lernt. Die Bilder bleiben auf diesem Computer. Siehe [Training](docs/de/training.md). |
+| **Training** | `pgtrain` auf einem Computer mit NVIDIA-Grafikkarte: Bin ich das, ähnliche Fotos, Schwellen aus Ihren eigenen Fotos und eine Personenerkennung, die an Bildern von Räumen lernt. Die Bilder bleiben auf diesem Computer. Siehe [Training](docs/de/training.md). |
 | **Updates** | Agents und Apps aktualisieren sich selbst mit signierten Versionen, die auch ein gehackter Pi nicht fälschen kann. Auch der Pi installiert nur signierte Versionen, ein gehacktes GitHub-Konto kommt also nicht an ihn heran. Ein Befehl, `scripts/ship.sh`, veröffentlicht alles; neue Haupt- und Unterversionen installieren sich selbst, Korrekturen werden angeboten. |
 
 ### Die Apps bekommen

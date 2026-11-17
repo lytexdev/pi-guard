@@ -18,10 +18,13 @@ whatever a document tries to order has nothing to act on anyway.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
+import ipaddress
 import logging
 import re
+import socket
 import time
 import unicodedata
 from collections import OrderedDict
@@ -151,6 +154,47 @@ class Answer:
 
 def clean(question: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", question).split())[:MAX_QUESTION]
+
+
+async def _public_host(host: str, port: int) -> None:
+    """Refuse hosts that are or resolve to anything but the public internet.
+
+    The excerpt goes to the AI provider: a link to the router, Pi-hole or this dashboard must not
+    carry the home network's pages there.
+    """
+    loop = asyncio.get_running_loop()
+    infos = await loop.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    if not infos:
+        raise ValueError("no address")
+    for info in infos:
+        address = ipaddress.ip_address(str(info[4][0]).split("%")[0])
+        if not address.is_global:
+            raise ValueError("not public")
+
+
+async def _fetch_public(url: str) -> str:
+    """The start of a public page as text; each redirect is checked like the first address."""
+    async with httpx.AsyncClient(timeout=8.0, follow_redirects=False) as client:
+        for _ in range(4):
+            target = httpx.URL(url)
+            if target.scheme not in ("http", "https") or not target.host:
+                raise ValueError("bad url")
+            await _public_host(
+                target.host, target.port or (443 if target.scheme == "https" else 80)
+            )
+            async with client.stream("GET", target) as response:
+                if response.is_redirect:
+                    url = str(target.join(response.headers.get("location", "")))
+                    continue
+                if response.status_code >= 400:
+                    return ""
+                data = bytearray()
+                async for chunk in response.aiter_bytes():
+                    data += chunk
+                    if len(data) >= MAX_LINK_BYTES:
+                        break
+                return bytes(data[:MAX_LINK_BYTES]).decode(response.encoding or "utf-8", "replace")
+    return ""
 
 
 def _excerpt(source: str, text: str) -> str:
@@ -552,17 +596,14 @@ class Assistant:
         parts: list[str] = []
         for url in urls:
             try:
-                async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
-                    response = await client.get(url)
-                if response.status_code >= 400:
-                    continue
-                body = response.text[:MAX_LINK_BYTES]
-                plain = re.sub(r"<[^>]+>", " ", body)
-                plain = " ".join(plain.split())[:MAX_PASSAGE]
-                if plain:
-                    parts.append(_excerpt(url, plain))
-            except httpx.HTTPError:
-                log.info("assistant link fetch skipped: %s", type(url))
+                body = await _fetch_public(url)
+            except (httpx.HTTPError, httpx.InvalidURL, OSError, ValueError) as exc:
+                log.info("assistant link fetch skipped: %s", type(exc).__name__)
+                continue
+            plain = re.sub(r"<[^>]+>", " ", body)
+            plain = " ".join(plain.split())[:MAX_PASSAGE]
+            if plain:
+                parts.append(_excerpt(url, plain))
         return "\n\n".join(parts)
 
     def _turns(self, conversation: str) -> list[dict[str, str]]:

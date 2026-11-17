@@ -5,8 +5,8 @@
 - **One FFmpeg process per camera.** It reads the device once and produces the
   recording, the motion-detection frames and the snapshot image. Nothing else
   opens the camera, so photos and clips never interrupt recording.
-- **Encoding stays in FFmpeg.** Camera H.264 is copied; otherwise the Pi's
-  hardware encoder is used. Python never touches full-resolution video.
+- **Encoding stays in FFmpeg.** Camera H.264 is copied; otherwise libx264
+  encodes it (the hardware encoder hung capture, see configuration). Python never touches full-resolution video.
 - **Motion detection on tiny frames**: 320 px wide, grayscale, 4 FPS.
 - **Person detection and recognition only after motion**, on one snapshot,
   in a worker thread, at most once per `faces.min_interval_seconds` per camera.
@@ -89,9 +89,8 @@ Neither benefits measurably from Rust.
 
 Expected, to be confirmed on hardware:
 
-- **1–2 cameras at 720p15** with MJPEG input and the hardware encoder
-- **1 camera at 1080p15**; more cameras at 1080p need H.264 from the camera
-- libx264 fallback: one camera at 720p10 at most
+- **1 camera at 720p10–15** with MJPEG or YUYV input and libx264
+- more cameras, or 1080p, need H.264 from the camera, which is copied without encoding
 - Face recognition adds ~40 MB for the model and a few hundred milliseconds
   per check
 - The systemd unit limits pi-guard (including FFmpeg) to 1.2 GB

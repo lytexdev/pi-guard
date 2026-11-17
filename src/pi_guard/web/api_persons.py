@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
 from aiohttp import web
 
 from pi_guard.storage.persons import KINDS, ROLES, PersonError, Persons
+from pi_guard.web import permissions
 from pi_guard.web.server import current, dashboard, read_json
 
 log = logging.getLogger(__name__)
@@ -30,6 +32,17 @@ def _store(request: web.Request) -> Persons:
 
 def _actor(request: web.Request) -> str:
     return f"web:{current(request).username}"
+
+
+def _may(request: web.Request, path: str) -> bool:
+    """Whether this session may also use another area: the contacts grant alone must not
+    hand out app invitations or VPN accesses."""
+    d = dashboard(request)
+    name = current(request).username
+    role = d.auth.role_of(name)
+    if role == "admin":
+        return True
+    return role == "member" and permissions.allowed(d.auth.permissions_of(name), "POST", path)
 
 
 def _face_names(request: web.Request) -> list[dict[str, object]]:
@@ -58,8 +71,8 @@ async def listing(request: web.Request) -> web.Response:
     accounts = [d.auth.account()["username"], *(u["username"] for u in d.auth.users())]
     contacts = [c.as_dict() for c in d.app.escalation.contacts.all()] if d.app.escalation else []
     medical = []
-    if d.app.addons.medical is not None:
-        medical = d.app.addons.medical.people()
+    if d.app.addons.medical is not None and _may(request, "/api/medical"):
+        medical = d.app.addons.medical.people()  # names only, still not for every member
     return web.json_response(
         {
             "persons": [p.as_dict() for p in store.all()],
@@ -137,7 +150,7 @@ async def invite(request: web.Request) -> web.Response:
     from pi_guard.messaging.base import ProviderUnavailableError, Reply
     from pi_guard.network.wgpeers import PeerError
     from pi_guard.web.api_apps import make_invite
-    from pi_guard.web.api_network import _config
+    from pi_guard.web.api_network import _config, _server
     from pi_guard.web.api_network import _store as peer_store
     from pi_guard.web.server import confirm_password
 
@@ -155,6 +168,16 @@ async def invite(request: web.Request) -> web.Response:
     want_app, want_vpn = data.get("app") is not False, data.get("vpn") is True
     if not (want_app or want_vpn):
         raise web.HTTPBadRequest(text="web.inv_nothing")
+    if (want_app and not _may(request, "/api/apps/invite")) or (
+        want_vpn and not _may(request, "/api/network/wireguard/peers")
+    ):
+        raise web.HTTPForbidden(text="web.member_forbidden")
+    peers = None
+    if want_vpn:
+        # Before anything is made: a wrong password must leave no link or access behind.
+        confirm_password(request, str(data.get("password", "")))
+        peers = peer_store(request)
+        _server(request)
     lang = d.settings.language
     base = (d.settings.dashboard_public_url or f"{request.scheme}://{request.host}").rstrip("/")
     lines = [_t("persons.invite_hello", lang, name=person.display_name)]
@@ -163,9 +186,8 @@ async def invite(request: web.Request) -> web.Response:
         path, _ = make_invite(d, person.display_name[:40], actor)
         lines.append(_t("persons.invite_app", lang, url=f"{base}{path}"))
     conf: tuple[str, str] | None = None
-    if want_vpn:
-        confirm_password(request, str(data.get("password", "")))
-        peers = peer_store(request)
+    peer_id: int | None = None
+    if peers is not None:
         name = person.display_name[:24]
         taken = {p["name"].casefold() for p in peers.list()}
         for n in range(2, 50):
@@ -173,11 +195,16 @@ async def invite(request: web.Request) -> web.Response:
                 break
             name = f"{person.display_name[:24]} {n}"
         try:
-            peer_id = peers.add(name, True)
+            peer_id = await asyncio.to_thread(peers.add, name, True)
         except PeerError as exc:
             raise web.HTTPBadRequest(text=str(exc)) from None
-        conf = _config(request, peer_id)
+        try:
+            conf = _config(request, peer_id)
+        except web.HTTPException:
+            await asyncio.to_thread(peers.remove, peer_id)
+            raise
         store.link(person.id, "vpn", str(peer_id))
+        d.app.db.audit(actor, "wireguard.add", conf[0])
         lines.append(_t("persons.invite_vpn", lang))
     with tempfile.TemporaryDirectory(prefix="pg-invite-") as folder:
         document = None
@@ -195,6 +222,11 @@ async def invite(request: web.Request) -> web.Response:
                 else type(exc).__name__
             )
             log.warning("invitation via %s failed: %s", channel[0], reason)
+            if peers is not None and peer_id is not None:
+                # Nobody got this access: it must not stay open.
+                await asyncio.to_thread(peers.remove, peer_id)
+                store.unlink("vpn", str(peer_id))
+                d.app.db.audit(actor, "wireguard.remove", conf[0] if conf else str(peer_id))
             raise web.HTTPBadGateway(text="web.ec_unreachable") from None
     d.app.db.audit(actor, "persons.invite",
                    f"{person.id} {channel[0]} app={want_app} vpn={want_vpn}")  # fmt: skip

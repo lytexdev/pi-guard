@@ -110,7 +110,9 @@ function panel() {
   let pendingImage = null;
   const preview = h("div", { class: "chat-attach" });
   const clearImage = () => { pendingImage = null; fill(preview); };
-  const setImage = (dataUrl) => {
+  const setImage = async (dataUrl) => {
+    dataUrl = await shrinkPicture(dataUrl);
+    if (!dataUrl) { toast(t("web.error"), true); return; }
     pendingImage = dataUrl;
     fill(preview, h("img", { src: dataUrl, alt: "" }),
       h("button", { type: "button", class: "icon-only ghost", title: t("web.close"), onclick: clearImage }, icon("x")));
@@ -194,6 +196,23 @@ function panel() {
   document.body.append(dialog);
   dialog.focusInput = () => input.focus();
   return dialog;
+}
+
+// Photos from a phone are several MB: send at most 1600 px as JPEG, which the server accepts.
+async function shrinkPicture(dataUrl, longest = 1600) {
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    const scale = Math.min(1, longest / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  } catch {
+    return null;
+  }
 }
 
 export function assistantButton() {

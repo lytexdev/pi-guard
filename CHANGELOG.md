@@ -24,6 +24,18 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Security: a member with only the *Contacts* area could send app invitations and create VPN accesses; now *Apps* and
+  *Network* are needed too, and the emergency card names need the medical add-on.
+- Security: the assistant's link fetch could read pages from the home network (router, Pi-hole, the dashboard) and
+  pass them to the AI provider; now only public addresses, each redirect checked, the size capped.
+- A wrong password on an invitation still made a download link; a failed send left a VPN access nobody got. Removing a
+  VPN device now also unlinks it from its person.
+- Pictures in the assistant chat were refused when larger than about 48 kB; they are now scaled in the browser.
+- The security check ticked off the root job's checks on a timer; now it shows them running until the report is in.
+- The *Through Mullvad* device path promised more than it does; texts say what happens when the exit goes down. Usage
+  pages answer a bad `days` value with 400 instead of 500.
+- Docs: recording uses libx264 unless the camera sends H.264 (the hardware encoder is only used when set by hand);
+  the READMEs name what optional parts send out.
 - The AmneziaWG layer switch only changed a setting; now off takes awg0 down and stops offering the disguised ways.
 - The assistant's admin status context crashed on every question; Signal with commands off answered strangers again.
 - Privacy modules: “On” only when the exit is in the chain; “Configured” when a Mullvad server is chosen but not

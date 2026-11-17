@@ -49,6 +49,9 @@ kosten keine Tokens, ebenso Fragen zu pi-guard selbst („Wie funktioniert das V
 eingebauten Tutorial kommen; gleiche Fragen kommen eine Stunde lang aus dem Zwischenspeicher, und
 ein Tageslimit begrenzt die Kosten. Fragen gehen an den gewählten Anbieter. Optional (alles aus):
 Bilder im Chat, Abruf von Links, kompakter Systemstatus und Alarm-Zusammenfassung für Admins (mit Passwort).
+Links werden nur aus dem öffentlichen Internet gelesen, höchstens zwei pro Frage: Adressen im Heimnetz, im VPN oder
+auf dem Pi selbst werden abgelehnt, auch nach einer Weiterleitung. Bilder im Chat verkleinert der Browser vorher auf
+1600 Pixel.
 Sprache bleibt ohne private Dokumente. Ersatz-Anbieter und versiegelte Zusatz-Keys sind möglich. Der Assistent
 bekommt keine Bilder, Namen oder Daten aus Ihrem Zuhause und kann nichts schalten.
 Einstellungen erklärt und ändert er unter *Einstellungen → Allgemein → Frag zu Einstellungen*, immer mit Bestätigung und

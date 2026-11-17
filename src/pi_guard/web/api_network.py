@@ -732,11 +732,18 @@ async def wg_patch(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "changed": changed})
 
 
+def _days(request: web.Request) -> int:
+    try:
+        return min(30, max(1, int(request.query.get("days") or 7)))
+    except ValueError:
+        raise web.HTTPBadRequest(text="web.error") from None
+
+
 async def wg_usage(request: web.Request) -> web.Response:
     usage = dashboard(request).vpn_usage
     if usage is None:
         raise web.HTTPConflict(text="web.wireguard_off")
-    days = min(30, max(1, int(request.query.get("days") or 7)))
+    days = _days(request)
     return web.json_response({"days": days, "peers": usage.totals(days)})
 
 
@@ -747,7 +754,7 @@ async def wg_peer_usage(request: web.Request) -> web.Response:
     peer_id = _peer_id(request)
     if _store(request).name(peer_id) is None:
         raise web.HTTPNotFound()
-    days = min(30, max(1, int(request.query.get("days") or 7)))
+    days = _days(request)
     return web.json_response({"days": days, "hours": usage.history(peer_id, days)})
 
 
@@ -800,8 +807,13 @@ async def wg_file(request: web.Request) -> web.Response:
 
 
 async def wg_remove(request: web.Request) -> web.Response:
-    name = await asyncio.to_thread(_store(request).remove, _peer_id(request))
+    peer_id = _peer_id(request)
+    name = await asyncio.to_thread(_store(request).remove, peer_id)
     if name is None:
         raise web.HTTPNotFound(text="web.not_found")
+    # A later device may get the same id: it must not show up at this person.
+    from pi_guard.storage.persons import Persons
+
+    Persons(dashboard(request).app.db).unlink("vpn", str(peer_id))
     dashboard(request).app.db.audit(f"web:{current(request).username}", "wireguard.remove", name)
     return web.json_response({"ok": True})

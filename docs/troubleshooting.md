@@ -40,9 +40,9 @@ sudo journalctl -u pi-guard -n 100
   exposure after starting.
 - **Low frame rate**: the camera is delivering raw YUYV. Use a resolution
   available in MJPEG (`pi-guard cameras`) or set `input_format: mjpeg`.
-- **High CPU**: `pi-guard doctor` says `libx264`. On a Pi 4 check that
-  `/dev/video11` exists (hardware encoder); on a Pi 5 lower resolution/FPS or
-  use a camera with H.264.
+- **High CPU**: the camera sends MJPEG or YUYV and libx264 encodes it. Lower
+  resolution or FPS, or use a camera with H.264, which is copied. The hardware
+  encoder (`codec: h264_v4l2m2m`) hung capture on a Pi 4; use it only knowingly.
 - "camera not reachable" alerts at night: check `dmesg` for USB resets;
   try another USB port or a powered hub.
 

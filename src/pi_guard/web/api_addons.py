@@ -32,13 +32,15 @@ from pi_guard.network.pihole import PiholeError
 from pi_guard.network.wgpeers import SUBNET
 from pi_guard.network.wireguard import read_status, status_file
 from pi_guard.web.api_manage import saved_config, write_config
-from pi_guard.web.server import current, dashboard, read_body, read_json
+from pi_guard.web.server import current, dashboard, json_body_limit, read_body, read_json
 
 log = logging.getLogger(__name__)
 
 ADDONS = ("heartbeat", "analytics", "smarthome", "remote", "assistant", "agents", "languages",
           "medical", "proxy", "kids")  # fmt: skip
 # Shown as one add-on, "Server": the agent part carries the switch, the watcher is its section.
+# A chat picture of up to 2 MB (MAX_CHAT_IMAGE) as base64, with its question.
+_read_chat = json_body_limit(3_000_000)
 LISTED = tuple(a for a in ADDONS if a != "heartbeat")
 SERVER_PARTS = ("agents", "heartbeat")
 # What an add-on leaves on the disk.
@@ -434,7 +436,7 @@ async def assistant_examples(request: web.Request) -> web.Response:
 
 
 async def assistant_chat(request: web.Request) -> web.Response:
-    data = await read_json(request)
+    data = await _read_chat(request)
     image = None
     mime = "image/jpeg"
     raw = data.get("image")

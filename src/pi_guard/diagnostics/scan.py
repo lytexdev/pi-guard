@@ -28,14 +28,9 @@ POLL_SECONDS = 3
 EXPECTED_PORTS = {22, 53, 67, 80, 443, 546, 5353, 8443, 51820}
 EPHEMERAL_PORTS = 32768
 ORDER = {"bad": 0, "warn": 1, "unknown": 2, "ok": 3}
-# Stable order for the live progress UI (own checks, then root job).
-PROGRESS_IDS = (
-    "password",
-    "second_factor",
-    "tls",
-    "data_rights",
-    "integrity",
-    "ports",
+# Stable order for the live progress UI: own checks, then those of the root job.
+OWN_IDS = ("password", "second_factor", "tls", "data_rights", "integrity", "ports")
+ROOT_IDS = (
     "updates",
     "reboot",
     "auto_updates",
@@ -47,6 +42,7 @@ PROGRESS_IDS = (
     "accounts",
     "rootkits",
 )
+PROGRESS_IDS = OWN_IDS + ROOT_IDS
 
 
 def check(key: str, status: str, detail: Any = "", fix: str | None = None) -> dict[str, Any]:
@@ -188,7 +184,9 @@ class SecurityScan:
     def __init__(self, app: Any) -> None:
         self._app = app
         self._task: asyncio.Task[None] | None = None
-        self._current: str | None = None
+        # Shown as running: the own checks together, then the root job's together. The root job
+        # reports only at its end, so the page must not pretend to know which of them it is on.
+        self._current: list[str] = []
         self._done: list[str] = []
 
     @property
@@ -213,7 +211,7 @@ class SecurityScan:
     def start(self, report_to_admins: bool) -> bool:
         if self.running:
             return False
-        self._current = PROGRESS_IDS[0]
+        self._current = list(OWN_IDS)
         self._done = []
         self._task = asyncio.create_task(self._guarded(report_to_admins), name="security-scan")
         return True
@@ -224,39 +222,14 @@ class SecurityScan:
         except Exception:
             log.exception("security scan failed")
         finally:
-            self._current = None
+            self._current = []
             self._done = []
-
-    def _mark(self, check_id: str) -> None:
-        if self._current and self._current not in self._done and self._current != check_id:
-            self._done.append(self._current)
-        self._current = check_id
 
     async def _root(self) -> dict[str, Any] | None:
         if not HELPER.exists():
-            self._mark("rootkits")
             return None
         begun = time.time()
         request_root(self._app.settings.data_dir, "scan")
-        for check_id in (
-            "updates",
-            "reboot",
-            "auto_updates",
-            "firewall",
-            "ssh",
-            "system_files",
-            "suid",
-            "suspicious",
-            "accounts",
-            "rootkits",
-        ):
-            self._mark(check_id)
-            await asyncio.sleep(POLL_SECONDS)
-            with contextlib.suppress(OSError):
-                if (REPORTS / "scan.json").stat().st_mtime >= begun:
-                    return read_report("scan")
-            if time.time() - begun >= ROOT_TIMEOUT:
-                break
         while time.time() - begun < ROOT_TIMEOUT:
             await asyncio.sleep(POLL_SECONDS)
             with contextlib.suppress(OSError):
@@ -265,15 +238,11 @@ class SecurityScan:
         return None
 
     async def _run(self, report_to_admins: bool) -> None:
-        for check_id in ("password", "second_factor", "tls", "data_rights", "integrity", "ports"):
-            self._mark(check_id)
-            await asyncio.sleep(0)
         integrity = await asyncio.to_thread(package_integrity)
         ports = await listening_ports()
         own = own_checks(self._app, ports, integrity)
-        for item in own:
-            if item["id"] not in self._done:
-                self._done.append(item["id"])
+        self._done = list(OWN_IDS)
+        self._current = list(ROOT_IDS) if HELPER.exists() else []
         root = await self._root()
         checks = own + root_checks(root)
         checks.sort(key=lambda c: ORDER[c["status"]])

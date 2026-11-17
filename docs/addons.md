@@ -129,6 +129,9 @@ reached the AI pauses until the next day; weather and time keep working.
 Privacy: questions go to the chosen provider. By default the assistant receives no camera
 pictures, no names, no device or presence data and no secrets. Each of those needs its own
 tick below (chat images, link fetch, compact system status, open-alert summary with password).
+Link fetch reads at most two links of a question, only from the public internet: addresses in the home network, the
+VPN or on the Pi itself are refused, also after a redirect, so their pages never reach the provider. Chat pictures
+are scaled to 1600 pixels in the browser before they are sent.
 Voice stays answers-only without private documents. Fallback providers are tried after the
 primary fails; extra provider keys are sealed on the Pi.
 

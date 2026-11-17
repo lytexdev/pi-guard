@@ -3331,7 +3331,7 @@
   "web.addon_pihole_help": "Pi-hole blocks ads and trackers for the whole home network. Kid Protect and network analytics need it. Turning this off only disconnects pi-guard from Pi-hole.",
   "web.wg_exit_default_hint": "Uses the Pi privacy exit when it is on, otherwise your home ISP.",
   "web.wg_exit_home_hint": "Stays on your home ISP even if the Pi sends others through Mullvad.",
-  "web.wg_exit_exit_hint": "Always through the privacy exit. Needs Mullvad or multi-hop running.",
+  "web.wg_exit_exit_hint": "Through the privacy exit while it runs; can only be chosen while it is on. If it goes down later, this device leaves through the home connection like the others, unless the Pi's kill switch is on.",
   "web.vpn_layers_intro": "Home VPN is the base. Turn optional layers on only when you want them.",
   "web.vpn_layer_home": "Home VPN",
   "web.vpn_layer_home_hint": "Devices reach your home through WireGuard.",
