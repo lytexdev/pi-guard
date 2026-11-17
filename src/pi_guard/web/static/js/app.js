@@ -25,7 +25,6 @@ const PRIMARY = [
   ["live", "video", "web.nav_live"],
   ["events", "bell", "web.nav_events"],
   ["network", "network", "web.nav_network"],
-  ["people", "users", "web.nav_people"],
 ];
 const SECONDARY = [
   ["addons", "cpu", "web.nav_addons"],
@@ -150,6 +149,8 @@ async function show(turn) {
   if (cleanup) { cleanup(); cleanup = null; }
   let [name, ...params] = (location.hash.replace(/^#\/?/, "") || "overview").split("/");
   if (["devices", "notifications", "access", "logs"].includes(name)) { params = [name]; name = "settings"; }
+  // People live under Settings → Contacts; keep the faces API and deep links.
+  if (name === "people") { location.hash = "#/settings/contacts"; return; }
   if (name === "addons" && params[0] === "analytics") { name = "network"; params = []; }
   const root = document.getElementById("app");
   if (name === "logout") {

@@ -6,6 +6,24 @@ import { topologyPanel } from "./topology.js";
 import { learnDialog } from "./learn.js";
 
 const PERSON_EVENTS = ["person_detected", "unknown_person", "known_person"];
+const EVENT_ICONS = {
+  motion_detected: "walk",
+  motion_ended: "player-stop",
+  person_detected: "user",
+  known_person: "user-check",
+  unknown_person: "user-x",
+  camera_disconnected: "camera",
+  camera_reconnected: "video",
+  recording_failed: "alert-triangle",
+  storage_low: "database",
+  presence_changed: "home",
+  arrival_detected: "home",
+  emergency_escalated: "alert-triangle",
+  mode_changed: "refresh",
+  system_started: "power",
+  service_down: "ban",
+  service_up: "circle-check",
+};
 
 export function meter(percent, warnAt = 75, dangerAt = 90) {
   const fill = h("i");
@@ -31,13 +49,48 @@ function who(event) {
   return t("web.ev_who_unclear");
 }
 
+function eventThumb(event) {
+  const snap = event.data?.snapshot;
+  if (snap) {
+    return h("img", { class: "thumb", src: `/api/media/snapshots/${encodeURIComponent(snap)}`,
+                      alt: "", loading: "lazy" });
+  }
+  return h("span", { class: "thumb event-icon", "aria-hidden": "true" },
+    icon(EVENT_ICONS[event.type] || "bell"));
+}
+
+function eventDetail(event, cameras = {}, learn = false) {
+  const snap = event.data?.snapshot;
+  const canLearn = learn && snap && event.id != null && PERSON_EVENTS.includes(event.type);
+  const dialog = h("dialog", { class: "editor wide" },
+    h("div", { class: "stack" },
+      h("h2", {}, icon(EVENT_ICONS[event.type] || "bell"), " ", t(`event.${event.type}`)),
+      snap ? h("img", { class: "event-detail-shot", src: `/api/media/snapshots/${encodeURIComponent(snap)}`, alt: "" })
+           : h("div", { class: "event-detail-icon" }, icon(EVENT_ICONS[event.type] || "bell")),
+      h("dl", { class: "kv" },
+        h("dt", {}, t("web.ev_when")), h("dd", {}, when(event.ts)),
+        event.camera ? [h("dt", {}, t("web.camera")), h("dd", {}, cameras[event.camera] || event.camera)] : null,
+        who(event) ? [h("dt", {}, t("web.ev_who")), h("dd", {}, who(event))] : null),
+      event.data && Object.keys(event.data).length
+        ? h("details", {}, h("summary", {}, t("web.ev_more")),
+          h("pre", { class: "mono wrap" }, JSON.stringify(event.data, null, 2)))
+        : null,
+      h("div", { class: "row end" },
+        canLearn ? h("button", { class: "primary", onclick: () => { dialog.close(); learnDialog(event); } }, t("web.lf_button")) : null,
+        h("button", { onclick: () => dialog.close() }, t("web.close")))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 export function eventRow(event, cameras = {}, learn = false) {
   const snap = event.data?.snapshot;
   const canLearn = learn && snap && event.id != null && PERSON_EVENTS.includes(event.type);
-  return h("li", {},
-    snap ? h("img", { class: "thumb", src: `/api/media/snapshots/${encodeURIComponent(snap)}`,
-                      alt: "", loading: "lazy" })
-         : h("span", { class: "thumb row", "aria-hidden": "true" }),
+  return h("li", { class: "event-row link-row", onclick: (e) => {
+    if (e.target.closest("button")) return;
+    eventDetail(event, cameras, learn);
+  }, title: t("web.ev_open") },
+    eventThumb(event),
     h("div", { class: "grow" },
       h("div", {}, t(`event.${event.type}`), who(event) ? h("span", { class: "muted" }, ` · ${who(event)}`) : null),
       h("small", {}, [when(event.ts), event.camera ? ` · ${cameras[event.camera] || event.camera}` : ""]),
@@ -45,7 +98,8 @@ export function eventRow(event, cameras = {}, learn = false) {
       event.data?.hog != null
         ? h("small", { class: "muted" }, ` · ${t("web.ev_detectors", { yolox: event.data.bodies, hog: event.data.hog })}`)
         : null),
-    canLearn ? h("button", { onclick: () => learnDialog(event) }, t("web.lf_button")) : null);
+    canLearn ? h("button", { onclick: () => learnDialog(event) }, t("web.lf_button")) : null,
+    icon("chevron-right"));
 }
 
 let publicCheck = null;  // once per page load: the browser asks for its own public address

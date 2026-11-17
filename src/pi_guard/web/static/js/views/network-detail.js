@@ -546,7 +546,7 @@ function shortcuts(d) {
   const item = (ic, label, hint, href, onclick) => h(href ? "a" : "button", { class: "nm-shortcut", href, onclick }, icon(ic), h("span", {}, h("strong", {}, label), h("small", { class: "muted block" }, hint)));
   return h("section", { class: "panel stack" }, h("h2", {}, t("web.nm_shortcuts")),
     h("div", { class: "nm-shortcuts" },
-      item("ban", t("web.nm_sc_block"), t("web.nm_sc_block_hint"), "#/network/blocks"),
+      item("ban", t("web.nm_sc_block"), t("web.nm_sc_block_hint"), "#/network/lists"),
       d.kids ? item("mood-happy", t("web.nm_sc_kids"), t("web.nm_sc_kids_hint"), "#/addons/kids") : null,
       item("qrcode", t("web.nm_sc_guest"), t("web.nm_sc_guest_hint"), null, () => document.querySelector(".nm-wifi")?.scrollIntoView({ behavior: "smooth" })),
       item("network", t("web.nm_sc_map"), t("web.nm_sc_map_hint"), "#/network/map"),
@@ -556,13 +556,52 @@ function shortcuts(d) {
 
 async function overviewTab(body, d, redraw) {
   const charts = h("div", { class: "stack" });
-  fill(body, statusBanner(d), charts, h("div", { class: "grid wide" }, piholePanel(d.pihole, redraw), wifiPanel(d)), shortcuts(d));
+  fill(body, statusBanner(d), charts, h("div", { class: "grid wide" }, piholePanel(d.pihole, redraw), await wifiPanel(d)), shortcuts(d));
   // Statistics come from Pi-hole and take a moment; the rest of the page does not wait for them.
   const analytics = d.pihole && !d.pihole.error ? await api("/api/addons/analytics/overview").catch(() => null) : null;
   fill(charts, analytics ? historyChart(analytics.history || []) : null, devicesGlance(d, analytics));
 }
 
-function wifiPanel(d) {
+async function wifiProfilesPanel() {
+  const panel = h("div", { class: "stack" });
+  const draw = async () => {
+    const data = await api("/api/network/wifi/profiles").catch(() => ({ profiles: [] }));
+    const profiles = data.profiles || [];
+    const name = h("input", { placeholder: t("web.wifi_profile_name"), "aria-label": t("web.wifi_profile_name"), autocomplete: "off" });
+    const ssid = h("input", { placeholder: t("web.wifi_name"), "aria-label": t("web.wifi_name"), autocomplete: "off" });
+    const key = h("input", { type: "password", placeholder: t("web.wifi_key"), "aria-label": t("web.wifi_key"), autocomplete: "new-password" });
+    const guest = h("input", { type: "checkbox" });
+    fill(panel, h("h3", {}, t("web.wifi_profiles")), h("p", { class: "muted" }, h("small", {}, t("web.wifi_profiles_hint"))),
+      h("ul", { class: "list" }, profiles.length ? profiles.map((p) => h("li", {},
+        icon("wifi"),
+        h("div", { class: "grow" }, h("div", {}, p.name || p.ssid, p.guest ? h("span", { class: "badge accent" }, t("web.nm_guest")) : null),
+          h("small", { class: "muted" }, p.ssid, p.has_key ? "" : ` · ${t("web.wifi_no_key")}`)),
+        h("button", { class: "icon-only", title: t("web.wifi_qr_tip"), disabled: !p.has_key, onclick: async () => {
+          const wifi = await attempt(() => api("/api/network/wifi/qr", { method: "POST", body: { profile: p.id } }));
+          if (wifi) wifiDialog(wifi, null);
+        } }, icon("qrcode")),
+        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+          if (!await confirmDialog(t("web.wifi_profile_delete", { name: p.name || p.ssid }), t("web.delete"), true)) return;
+          const password = await askDialog(t("web.confirm_password"), { type: "password" });
+          if (!password) return;
+          const next = profiles.filter((x) => x.id !== p.id).map((x) => ({ id: x.id, name: x.name, ssid: x.ssid, guest: x.guest }));
+          if (await attempt(() => api("/api/network/wifi/profiles", { method: "PUT", body: { profiles: next, password } }), t("web.saved"))) draw();
+        } }, icon("trash")))) : h("li", { class: "empty" }, t("web.wifi_profiles_empty"))),
+      h("div", { class: "row wrap" }, name, ssid, key, h("label", { class: "check" }, guest, t("web.nm_guest")),
+        h("button", { class: "primary", onclick: async () => {
+          const password = await askDialog(t("web.confirm_password"), { type: "password" });
+          if (!password) return;
+          const next = [...profiles.map((x) => ({ id: x.id, name: x.name, ssid: x.ssid, guest: x.guest })),
+            { name: name.value.trim(), ssid: ssid.value.trim(), key: key.value, guest: guest.checked }];
+          if (await attempt(() => api("/api/network/wifi/profiles", { method: "PUT", body: { profiles: next, password } }), t("web.saved"))) draw();
+        } }, icon("plus"), t("web.wifi_profile_add"))));
+  };
+  await draw();
+  return panel;
+}
+
+async function wifiPanel(d) {
+  const profiles = await wifiProfilesPanel();
   return h("section", { class: "panel stack nm-wifi" }, h("h2", {}, icon("wifi"), " ", t("web.nm_wifi")),
     d.wlans.length ? h("ul", { class: "list" }, d.wlans.map((w) => h("li", {}, h("span", { class: `dot ${w.enabled ? "ok" : ""}` }),
       h("div", { class: "grow" }, h("div", {}, w.ssid || "–", w.guest ? h("span", { class: "badge accent" }, t("web.nm_guest")) : null),
@@ -572,6 +611,7 @@ function wifiPanel(d) {
         if (wifi) wifiDialog(wifi, w.index);
       } }, icon("qrcode")))))
       : [h("p", { class: "muted" }, t("web.nm_no_router")), manualWifi()],
+    profiles,
     d.nearby.length ? h("details", { class: "guide" }, h("summary", {}, t("web.nm_nearby"), ` (${d.nearby.length})`), h("ul", { class: "list" }, d.nearby.map((n) => h("li", {}, icon("wifi"),
       h("div", { class: "grow" }, h("div", {}, n.ssid), h("small", {}, `${n.security || t("web.nm_open")} · ${t("web.nm_channel", { channel: n.channel })}`)),
       h("span", { class: "badge" }, `${n.signal} %`))))) : null);
@@ -600,17 +640,22 @@ async function blocksPanel(d) {
   return panel;
 }
 
-const TABS = ["overview", "devices", "blocks", "lists", "vpn", "map", "analysis"];
+const TABS = ["overview", "devices", "lists", "vpn", "map", "analysis"];
 
 export async function render(main, data, params = []) {
+  // Old "block websites" tab lives under blocklists now.
+  if (params[0] === "blocks") { location.hash = "#/network/lists"; return; }
   const tab = TABS.includes(params[0]) ? params[0] : "overview";
   const body = h("div", { class: "stack" });
   const redraw = () => location.reload();
   main.append(h("nav", { class: "tabs", "aria-label": t("web.nav_network") }, TABS.map((id) => h("a", { href: `#/network/${id}`, class: id === tab ? "active" : "" }, t(`web.nm_tab_${id}`)))), body);
   if (tab === "overview") await overviewTab(body, data, redraw);
   if (tab === "devices") fill(body, devicesPanel(data.devices, redraw));
-  if (tab === "blocks") fill(body, await blocksPanel(data));
-  if (tab === "lists") fill(body, await blockPanel(data.pihole_enabled));
+  if (tab === "lists") {
+    fill(body, await blocksPanel(data));
+    const lists = await blockPanel(data.pihole_enabled);
+    if (lists) body.append(lists);
+  }
   if (tab === "vpn") vpnTab(body, data, params, redraw);
   if (tab === "map") fill(body, await topologyPanel(deviceDialog));
   if (tab === "analysis") {

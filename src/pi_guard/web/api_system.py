@@ -131,6 +131,8 @@ def _available(commit: str | None, remote: dict[str, Any]) -> bool:
 
 
 async def update_status(request: web.Request) -> web.Response:
+    from pi_guard.core.changelog import recent as changelog_recent
+
     directory = _update_dir(request)
     state: dict[str, Any] = {}
     status = UPDATE_REPORT if UPDATE_REPORT.exists() else directory / "status.json"
@@ -150,6 +152,7 @@ async def update_status(request: web.Request) -> web.Response:
         "available": _available(commit, remote),
         "installed_by_script": commit_file.exists(),
         "pending": (directory / "request").exists(),
+        "changelog": changelog_recent(3),
     })  # fmt: skip
 
 

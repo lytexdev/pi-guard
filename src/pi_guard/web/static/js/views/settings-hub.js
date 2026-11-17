@@ -6,7 +6,7 @@ import { searchToggle, skeleton, supportNote } from "../widgets.js";
 import { restartPrompt } from "./settings.js";
 
 // Moved into other tabs; old links keep working.
-const MOVED = { plan: "modes", api: "access", apps: "updates" };
+const MOVED = { plan: "modes", api: "access", apps: "updates", dashboard: "general", people: "contacts" };
 // Data & backup holds what used to be four tabs; their old links open the right part.
 const DATA_TABS = [["backup", "upload"], ["storage", "database"], ["move", "map-pin"], ["export", "download"]];
 const dataTabs = () => DATA_TABS.filter(([id]) => id !== "export" || expertMode());
@@ -17,7 +17,8 @@ const TOPICS = {
   devices: ["web.cameras", "web.speaker", "web.microphone", "web.trusted_devices", "web.quiet_hours_sound"],
   access: ["web.users_title", "web.webauthn_title", "web.recovery_title", "web.codeword", "web.login_security", "web.account", "web.api_tokens", "web.api_docs"],
   messaging: ["web.discord_status", "web.signal_status"],
-  contacts: ["web.set_contacts", "web.person_roles", "web.person_face"],
+  contacts: ["web.set_contacts", "web.person_roles", "web.person_face", "web.nav_people"],
+  addons: ["web.nav_addons"],
   security: ["web.scan_firewall", "web.scan_updates", "web.scan_rootkits", "web.scan_ports", "web.scan_ssh"],
   "data/storage": ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
   "data/export": ["web.ex_data", "web.ex_config", "web.ex_import"],
@@ -31,25 +32,27 @@ const fold = (text) => text.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "o
 
 // [id, icon, settings groups, nav group]. Data & backup shows the backup group only on its backup tab.
 const SECTIONS = [
-  ["general", "settings", ["general"], "basics"], ["recording", "video", ["recording"], "basics"], ["detection", "users", ["detection"], "basics"],
+  ["general", "settings", ["general", "dashboard"], "basics"], ["recording", "video", ["recording"], "basics"], ["detection", "users", ["detection"], "basics"],
   ["modes", "home", ["modes"], "basics"], ["audio", "volume", ["audio"], "basics"],
   ["messaging", "message", ["telegram", "discord", "email", "whatsapp", "signal", "chatapps"], "alerts"], ["notifications", "bell-ringing", null, "alerts"],
   ["contacts", "users", null, "alerts"],
   ["emergency", "alert-triangle", ["emergency"], "alerts"],
   ["devices", "camera", null, "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
+  ["addons", "cpu", null, "home"],
   ["data", "database", ["backup"], "system"], ["security", "shield-check", null, "system"], ["integrations", "router", ["integrations", "network"], "system"],
-  ["dashboard", "world", ["dashboard"], "system"], ["updates", "refresh", ["updates", "mobile"], "system"],
+  ["updates", "refresh", ["updates", "mobile"], "system"],
   ["logs", "list-details", null, "system"], ["support", "headset", null, "system"],
 ];
 const NAV_GROUPS = ["basics", "alerts", "home", "system"];
 
 // Sections for people who know what they are looking for.
-const EXPERT_SECTIONS = ["integrations", "dashboard", "security"];
+const EXPERT_SECTIONS = ["integrations", "security"];
 // A member sees the sections the owner granted (web/permissions.py); appearance is per device.
 const MEMBER_NEEDS = { devices: "devices", notifications: "contacts", contacts: "contacts", updates: "apps", logs: "logs", appearance: null };
 function memberMay(id) {
   if (state.session?.role !== "member") return true;
   const granted = state.session.permissions || [];
+  if (id === "addons") return granted.some((p) => p === "addons" || p.startsWith("addon:"));
   if (id in MEMBER_NEEDS) {
     const need = MEMBER_NEEDS[id];
     return need === null || granted.includes(need) || granted.includes(`settings:${id}`)
@@ -98,9 +101,12 @@ async function download(path, body) {
   const response = await attempt(() => api(path, { method: "POST", body: { ...body, password }, raw: true }));
   if (!response) return;
   const name = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") || "")?.[1] || "pi-guard-export";
-  const url = URL.createObjectURL(await response.blob());
+  const blob = await response.blob();
+  if (!blob.size) { toast(t("web.ex_empty"), true); return; }
+  const url = URL.createObjectURL(blob);
   h("a", { href: url, download: name }).click();
   URL.revokeObjectURL(url);
+  toast(t("web.ex_downloaded", { name }));
 }
 
 function dataSection(box) {
@@ -216,7 +222,12 @@ async function updateSection(root) {
           if (await attempt(() => api("/api/system/update", { method: "POST" }), t("web.up_started"))) whileShown(box, draw, 3000);
         } }, icon("refresh"), u.pending || state === "running" ? t("web.up_running") : t("web.up_now")),
         h("button", { onclick: draw }, t("web.up_check"))),
-      h("p", { class: "muted" }, h("small", {}, t("web.up_hint")))));
+      h("p", { class: "muted" }, h("small", {}, t("web.up_hint"))),
+      (u.changelog || []).length ? h("details", { class: "guide", open: Boolean(u.available) },
+        h("summary", {}, icon("list-details"), " ", t("web.up_changelog")),
+        h("div", { class: "stack changelog" }, u.changelog.map((entry) => h("article", { class: "changelog-entry" },
+          h("h3", {}, entry.title || entry.version),
+          h("pre", { class: "changelog-body mono wrap" }, entry.body))))) : null));
   };
   const drawApps = (info) => {
     const row = (iconName, label, value, note) => h("li", {}, icon(iconName), h("div", { class: "grow" }, h("div", {}, label), note ? h("small", { class: "muted" }, note) : null), h("strong", {}, value || "–"));
@@ -393,6 +404,13 @@ export async function render(main, params = []) {
       await backupPanel(status);
     }
     if (current === "audio") await voicePanel(extra);
+    if (current === "integrations") {
+      const creds = h("div");
+      extra.append(h("section", { class: "panel stack" }, h("h2", {}, icon("key"), " ", t("web.int_credentials")),
+        h("p", { class: "muted" }, t("web.int_credentials_hint")), creds));
+      await view.render(creds, [], { embedded: true, secretsOnly: true, register: (fn) => { const prev = save; save = () => { prev?.(); fn(); }; },
+        onSaved: (changed) => { saveBar.classList.add("hidden"); if (Object.keys(changed || {}).length) restartPrompt(); else toast(t("web.saved")); } });
+    }
     if (current === "general") {
       const { helpPanel, historyPanel } = await import("./settings-help.js");
       const help = h("div");
@@ -409,10 +427,15 @@ export async function render(main, params = []) {
     body.addEventListener("click", (e) => { if (e.target.closest("button")) showSave(); });
   } else if (current === "contacts") {
     const persons = h("div");
+    const faces = h("div");
     const emergency = h("div");
-    body.append(persons, emergency);
+    body.append(persons, faces, emergency);
     await (await import("./persons.js")).personsPanel(persons);
+    await (await import("./people.js")).render(faces, [], { embedded: true });
     await (await import("./contacts.js")).contactsPanel(emergency);
+  } else if (current === "addons") {
+    const view = await import("./addons.js");
+    await view.render(body, [], { embedded: true });
   } else if (current === "notifications") {
     await (await import("./notifications.js")).render(body);
   } else if (current === "appearance") {

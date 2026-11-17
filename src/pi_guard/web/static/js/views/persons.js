@@ -87,7 +87,8 @@ function editor(data, person, onSave) {
 
 export async function personsPanel(box) {
   const draw = async () => {
-    const data = await api("/api/persons");
+    const data = await attempt(() => api("/api/persons"));
+    if (!data) { fill(box, h("p", { class: "empty" }, t("web.error"))); return; }
     fill(box, h("section", { class: "panel stack" },
       h("div", { class: "row between" }, h("h2", {}, t("web.set_contacts")),
         h("div", { class: "row" },
@@ -109,7 +110,7 @@ export async function personsPanel(box) {
           if (!await confirmDialog(t("web.person_delete_confirm", { name: p.display_name }), t("web.delete"), true)) return;
           if (await attempt(() => api(`/api/persons/${p.id}`, { method: "DELETE" }))) draw();
         } }, icon("trash")))) : h("li", { class: "empty" }, t("web.person_empty"))),
-      h("p", { class: "muted" }, h("a", { href: "#/people" }, t("web.person_faces_link")), " · ",
+      h("p", { class: "muted" }, h("a", { href: "#/settings/contacts" }, t("web.person_faces_link")), " · ",
         h("a", { href: "#/settings/emergency" }, t("web.person_emergency_link")))));
   };
   await draw();

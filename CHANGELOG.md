@@ -8,6 +8,29 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Updates page shows recent CHANGELOG sections; security AI review shows live steps while it runs.
+- Saved Wi-Fi profiles (home/guest) with one-tap QR codes without a FRITZ!Box; privacy modules toggles for Mullvad,
+  multi-hop and Tor.
+- Assistant personality: name, extra system prompt, wake phrases on the add-on page; Integrations lists every stored
+  password/API key with a saved/empty badge.
+- Event list icons for types without snapshots; tap opens a detail sheet. Desktop offline page auto-retries after a
+  Pi restart.
+
+### Fixed
+
+- Settings → Contacts HTTP 500 (`FaceRecognizer.people` → `faces.store.people`).
+- Expert messenger “Test” for email uses the same path as the email panel; clearer export/test toasts.
+- Android alert “All fine” no longer posts a second confirmation notification.
+
+### Changed
+
+- People moved out of the primary nav into Settings → Contacts (faces embedded); Dashboard settings under General;
+  Security next to Data & backup; Add-ons as a settings category; Network “block websites” under Block lists.
+- More menu: text size/design only under Settings → Appearance; Android quick-actions button and launcher shortcuts
+  removed.
+
+### Added
+
 - Settings → Contacts: central person records linking faces, dashboard accounts, messengers and emergency contacts
   (schema `_v4`), with roles for household, trusted camera person, emergency, alerts and viewer; name-based migration
   and adapters for existing contact APIs.

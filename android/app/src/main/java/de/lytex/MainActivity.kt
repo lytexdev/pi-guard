@@ -66,8 +66,6 @@ class MainActivity : AppCompatActivity() {
         offline = findViewById(R.id.offline)
         findViewById<Button>(R.id.sos).setOnClickListener { startActivity(Intent(this, EmergencyActivity::class.java)) }
         findViewById<ImageButton>(R.id.settings).setOnClickListener { startActivity(Intent(this, AppSettingsActivity::class.java)) }
-        findViewById<ImageButton>(R.id.quick).setOnClickListener { QuickActions.sheet(this) }
-        QuickActions.publish(this)
         findViewById<Button>(R.id.retry).setOnClickListener { open() }
         findViewById<Button>(R.id.vpn).setOnClickListener { openVpn() }
         findViewById<ImageButton>(R.id.vpn_open).setOnClickListener { openVpn() }

@@ -114,8 +114,9 @@ class GuardService : Service() {
         if (action == "ack") notifications.cancel(alert)
         work.execute {
             val code = runCatching { Net.post(store, "/api/mobile/action", JSONObject().put("action", action)).use { it.code } }.getOrDefault(0)
+            // Ack only clears the alert; no second "marked OK" notification.
+            if (action == "ack" && code == 200) return@execute
             val text = when {
-                code == 200 && action == "ack" -> getString(R.string.action_ack_done)
                 code == 200 -> getString(R.string.action_alarm_done)
                 code == 403 -> getString(R.string.action_admin_only)
                 else -> getString(R.string.action_failed)

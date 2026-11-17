@@ -93,7 +93,8 @@ class EmailProvider:
 
     @property
     def connected(self) -> bool:
-        return self._running
+        # Send-only: ready whenever this provider exists (email is enabled).
+        return True
 
     async def run(self, on_message: MessageHandler) -> None:
         self._running = True

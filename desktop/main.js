@@ -129,8 +129,24 @@ ipcMain.handle("vpn", async (event, command, value) => {
   }
 });
 
+let loadWatch = null;
+
+function showOffline() {
+  if (!window || window.isDestroyed()) return;
+  clearTimeout(loadWatch);
+  window.loadFile(page("offline.html")).catch(() => {});
+}
+
 function open() {
   if (!config) return window.loadFile(page("setup.html"));
+  clearTimeout(loadWatch);
+  // Pi restarts leave the WebView spinning; after 12s treat it as offline and retry.
+  loadWatch = setTimeout(() => {
+    if (!window || window.isDestroyed()) return;
+    const url = window.webContents.getURL();
+    if (!url || url.startsWith("file://")) return;
+    showOffline();
+  }, 12_000);
   return window.loadURL(config.url).catch(() => {}); // did-fail-load below shows what happened
 }
 
@@ -172,7 +188,10 @@ function create() {
   });
   contents.on("did-fail-load", (_event, code, _text, url, mainFrame) => {
     // Not from inside this event: Chromium would abort a navigation started here.
-    if (mainFrame && code !== -3 && sameOrigin(url)) setTimeout(() => window.loadFile(page("offline.html")).catch(() => {}), 100);
+    if (mainFrame && code !== -3 && sameOrigin(url)) setTimeout(showOffline, 100);
+  });
+  contents.on("did-finish-load", () => {
+    clearTimeout(loadWatch);
   });
   open();
 }

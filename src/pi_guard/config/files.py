@@ -361,6 +361,10 @@ _ASSISTANT_PROVIDER = Literal[
 
 class AssistantAddon(_Model):
     enabled: bool = False
+    # How the household addresses the assistant (chat, voice personality).
+    name: str = "pi-guard"
+    # Extra instructions appended to the fixed safety system prompt (never replaces it).
+    extra_prompt: str = ""
     provider: _ASSISTANT_PROVIDER = "mistral"
     model: str = ""  # empty: the provider's small default
     base_url: str | None = None  # own server: Ollama elsewhere, or any OpenAI-compatible API
