@@ -119,9 +119,10 @@ Android fragt vor der Installation immer nach, wenn eine App nicht aus einem Sto
 ## Aussehen und Versionen
 
 Die eigenen Bildschirme der App (Einstellungen, VPN, Einrichtung) nutzen die Farben des Dashboards, hell oder dunkel wie
-Android; das Dashboard in der App folgt ohne eigene Wahl ebenfalls dem System. In den App-Einstellungen steht die
-Version mit Build. Alarme kommen über die eigene Verbindung der App, deshalb bietet das Dashboard in der App keinen
-Browser-Push an.
+Android; das Dashboard in der App folgt ohne eigene Wahl ebenfalls dem System. Unter *Mehr* im Dashboard wählst du
+Sprache und Design (mit Icons); unter *Netzwerk › VPN* die Schichten und Geräte ohne seitliches Wischen. In den
+App-Einstellungen steht die Version mit Build. Alarme kommen über die eigene Verbindung der App, deshalb bietet das
+Dashboard in der App keinen Browser-Push an.
 
 Die anonymen Statistiken sind vorerst aus: Die App fragt nicht mehr nach Absturzberichten oder Nutzungsdaten.
 

@@ -36,6 +36,11 @@ All notable changes are documented here. The format follows
   Pi-hole as add-on cards (still driven by their settings). Desktop VPN page warns how to unlock lockdown and a missing
   handshake. Signed Pi updates refresh privacy/wireguard/amneziawg helpers and systemd units when those are already
   installed, so path-unit changes no longer need a manual `privacy-server.sh install`.
+- VPN page: optional layers (home VPN, quantum-safe keys, AmneziaWG, Mullvad/multi-hop) as clear cards; per-device
+  internet path as choice buttons instead of a cryptic select. Rename no longer returns 500 (`Session` has no `.role`).
+- Desktop install: `scripts/install-desktop.sh` and `scripts/install-desktop.ps1` download the newest apps release when
+  run without a file. More/language UI and Android settings layout tightened against overflow. READMEs and docs
+  (`vpn.md`, `network.md`, `desktop.md`, `updates.md`, installation) describe layers, per-device path and the installers.
 
 ### Changed
 

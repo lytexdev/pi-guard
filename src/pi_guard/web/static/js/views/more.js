@@ -48,12 +48,15 @@ async function pushPanel() {
 
 function designPanel() {
   const panel = h("section", { class: "panel stack more-choice" });
-  const draw = () => fill(panel, h("h2", {}, icon("palette"), " ", t("web.design")),
+  const draw = () => fill(panel,
+    h("h2", {}, icon("palette"), " ", t("web.design")),
+    h("p", { class: "muted" }, h("small", {}, t("web.design_theme"))),
     h("div", { class: "segmented" }, THEMES.map((theme) => h("button", {
       class: chosenTheme() === theme ? "on" : "",
       onclick: () => { setDesign(theme); draw(); } },
       icon(({ auto: "refresh", dark: "eye-off", light: "sun", contrast: "accessible" })[theme] || "palette"),
       t(`web.theme_${theme}`)))),
+    h("p", { class: "muted" }, h("small", {}, t("web.design_text"))),
     h("div", { class: "segmented" }, SIZES.map((size) => h("button", {
       class: (localStorage.getItem("text") || "normal") === size ? "on" : "",
       onclick: () => { setDesign(null, size); draw(); } },
@@ -61,6 +64,15 @@ function designPanel() {
       t(`web.text_${size}`)))));
   draw();
   return panel;
+}
+
+function languagePanel() {
+  return h("section", { class: "panel stack more-choice" },
+    h("h2", {}, icon("world"), " ", t("web.language")),
+    h("p", { class: "muted" }, h("small", {}, t("web.language_hint"))),
+    h("div", { class: "segmented" }, [["de", "Deutsch"], ["en", "English"]].map(([code, name]) =>
+      h("button", { class: lang === code ? "on" : "", onclick: () => switchLanguage(code) },
+        icon("world"), name))));
 }
 
 export async function render(main) {
@@ -72,10 +84,7 @@ export async function render(main) {
     h("div", { class: "topbar" }, h("h1", {}, t("web.nav_more"))),
     h("section", { class: "panel" }, h("ul", { class: "list" }, entries.map(([route, i, label]) =>
       h("li", { class: "link-row" }, icon(i), h("a", { class: "grow", href: `#/${route}` }, t(label)), icon("chevron-right"))))),
-    h("section", { class: "panel stack more-choice" },
-      h("h2", {}, icon("world"), " ", t("web.language")),
-      h("div", { class: "segmented" }, [["de", "Deutsch"], ["en", "English"]].map(([code, name]) =>
-        h("button", { class: lang === code ? "on" : "", onclick: () => switchLanguage(code) }, icon("world"), name)))),
+    languagePanel(),
     designPanel(),
     await pushPanel(),
     h("p", { class: "muted" }, h("small", {}, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex"))));

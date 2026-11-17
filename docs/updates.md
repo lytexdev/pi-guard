@@ -68,8 +68,19 @@ The phone app relies on Android, which installs an update only if it carries the
 | Desktop app (macOS) | every 3 hours | shows the checked file, it must be replaced by hand | |
 | Phone app | every 3 hours | a new minor or major version on Wi-Fi: the first time after a tap, then by itself on Android 12 and newer; a patch after a tap on its notification | after the update |
 
-The desktop app only updates itself in the Linux install from `scripts/install-desktop.sh`, not as AppImage or `.deb`.
-`AUTO_UPDATE=false` in `/etc/pi-guard-agent/agent.conf` switches it off for an agent.
+The desktop app only updates itself in the Linux install from `scripts/install-desktop.sh` (and on Windows after the
+NSIS installer), not as AppImage or `.deb`. First install without a local file:
+
+```bash
+./scripts/install-desktop.sh          # Linux: downloads the newest apps-* tar.gz
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-desktop.ps1   # Windows: newest .exe
+```
+
+Or pass a local archive / installer / URL. See [desktop.md](desktop.md). `AUTO_UPDATE=false` in
+`/etc/pi-guard-agent/agent.conf` switches it off for an agent.
 
 ## Releases on GitHub
 

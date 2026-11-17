@@ -23,6 +23,7 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; font-size: calc(100% * var(--scale, 1)); overflow-x: clip; overscroll-behavior-x: none; }
+body { overflow-x: clip; max-width: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--text); font: 1rem/var(--leading, 1.5) var(--font);
   letter-spacing: var(--letter, 0); min-height: 100dvh;
@@ -133,8 +134,8 @@ button.ghost { background: transparent; }
 button.icon-only { padding: 0; width: var(--tap); }
 button.big { min-height: 64px; font-size: 1.05rem; padding: 0 22px; }
 button.on { border-color: var(--accent); color: var(--accent); }
-.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.segmented button { border: 0; border-radius: 0; background: transparent; }
+.segmented { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.segmented button { border: 0; border-radius: 0; background: transparent; min-width: 0; }
 .segmented button + button { border-left: 1px solid var(--line); }
 .segmented button.on { background: var(--surface-2); color: var(--accent); }
 
@@ -422,8 +423,8 @@ input.toggle:disabled { opacity: .5; cursor: not-allowed; }
   .save-bar { bottom: 72px; }
 }
 /* Tabs */
-.tabs { display: flex; gap: 4px; overflow-x: auto; margin-bottom: var(--gap); border-bottom: 1px solid var(--line); }
-.tabs a { padding: 10px 14px; color: var(--muted); white-space: nowrap; border-bottom: 2px solid transparent; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; max-width: 100%; margin-bottom: var(--gap); border-bottom: 1px solid var(--line); overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.tabs a { padding: 10px 14px; color: var(--muted); white-space: nowrap; border-bottom: 2px solid transparent; flex: none; }
 .tabs a:hover { text-decoration: none; color: var(--text); }
 .tabs a.active { color: var(--text); border-bottom-color: var(--accent); }
 /* Privacy upstream */
@@ -955,29 +956,58 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .nm-shortcut .icon { color: var(--accent); flex: none; margin-top: 2px; }
 
 /* VPN: a summary with its parts, devices as cards. */
-.vpn-summary { display: grid; gap: 14px; }
-.vpn-head { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.vpn-summary { display: grid; gap: 14px; min-width: 0; max-width: 100%; }
+.vpn-head { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; min-width: 0; }
 .vpn-head h2 { margin: 0; } .vpn-head > .badge { margin-left: auto; } .vpn-head p { margin: 2px 0; }
+.vpn-head .grow { min-width: 0; }
 .vpn-ring { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; border: 3px solid var(--line); color: var(--muted); flex: none; }
 .vpn-summary.on .vpn-ring { border-color: var(--ok); color: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 18%, transparent); }
-.vpn-parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-.vpn-parts a { flex: 1 1 auto; text-align: center; text-decoration: none; color: inherit; padding: 8px 12px; }
-.vpn-parts a.on { background: var(--accent); color: var(--accent-ink); }
-.wg-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
-.wg-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); display: grid; }
+.vpn-layers { display: grid; gap: 8px; min-width: 0; }
+.vpn-layer { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); color: inherit; text-decoration: none; min-width: 0; }
+.vpn-layer:hover { border-color: var(--accent); text-decoration: none; }
+.vpn-layer.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.vpn-layer.live { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); }
+.vpn-layer > .icon { color: var(--accent); flex: none; margin-top: 2px; }
+.vpn-layer .grow { min-width: 0; }
+.vpn-layer strong, .vpn-layer small { display: block; overflow-wrap: anywhere; }
+.vpn-layer .badge { flex: none; margin-top: 2px; }
+.vpn-parts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-width: 100%; border: 0; }
+.vpn-parts a { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; text-decoration: none; color: inherit; padding: 10px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: 0; overflow-wrap: anywhere; }
+.vpn-parts a.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.vpn-parts a .icon { flex: none; }
+@media (min-width: 720px) {
+  .vpn-parts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .vpn-layers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.route-pick { display: grid; gap: 8px; min-width: 0; }
+.route-option { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; row-gap: 2px; align-items: start; text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); color: inherit; font: inherit; cursor: pointer; min-width: 0; }
+.route-option > .icon { grid-row: 1 / span 2; color: var(--accent); margin-top: 2px; }
+.route-option strong, .route-option small { min-width: 0; overflow-wrap: anywhere; }
+.route-option.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.wg-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); min-width: 0; }
+.wg-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); display: grid; min-width: 0; }
 .wg-card.on { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); }
-.wg-card-main { display: flex; justify-content: flex-start; width: 100%; min-height: 0; gap: 12px; align-items: flex-start; text-align: left; font-weight: 400; border: 0; background: none; color: inherit; padding: 12px; font: inherit; cursor: pointer; border-radius: var(--radius) var(--radius) 0 0; }
+.wg-card-main { display: flex; justify-content: flex-start; width: 100%; min-height: 0; min-width: 0; gap: 12px; align-items: flex-start; text-align: left; font-weight: 400; border: 0; background: none; color: inherit; padding: 12px; font: inherit; cursor: pointer; border-radius: var(--radius) var(--radius) 0 0; }
 .wg-card-main:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
 .wg-card-main .row { margin-top: 6px; gap: 6px; }
+.wg-card-main .grow { min-width: 0; }
 .wg-avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); flex: none; }
 .wg-card.on .wg-avatar { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
-.wg-card-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 8px 12px; border-top: 1px solid var(--line); }
-.wg-usage { display: flex; align-items: flex-end; gap: 2px; height: 56px; margin-top: 8px; }
+.wg-card-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--line); }
+.wg-usage { display: flex; align-items: flex-end; gap: 2px; height: 56px; margin-top: 8px; max-width: 100%; overflow: hidden; }
 .wg-usage-col { flex: 1; display: flex; align-items: flex-end; min-width: 0; height: 100%; }
 .wg-usage-bar { display: block; width: 100%; background: color-mix(in srgb, var(--accent, #3b82f6) 70%, transparent); border-radius: 2px 2px 0 0; }
 .wg-empty { text-align: center; justify-items: center; padding: 24px 0; }
 .wg-empty .howto { text-align: left; }
-.vpn-parts a + a { border-left: 1px solid var(--line); }
+.wg-dialog { max-width: calc(100vw - 24px); }
+.more-choice { display: grid; gap: 8px; }
+.more-choice .segmented { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); width: 100%; }
+.more-choice .segmented button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 10px; border-left: 0 !important; border-top: 1px solid var(--line); }
+.more-choice .segmented button:first-child { border-top: 0; }
+@media (min-width: 420px) {
+  .more-choice .segmented button { border-top: 0; }
+  .more-choice .segmented button + button { border-left: 1px solid var(--line) !important; }
+}
 
 /* Help and tutorial. */
 .help-hero { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface) 70%); }

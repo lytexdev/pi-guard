@@ -11,14 +11,16 @@ last 24 hours per hour (allowed and blocked, also as a table), devices without a
 of the day, Pi-hole with pause buttons, the Wi-Fi networks with QR codes, and quick ways to block a site, Kid Protect,
 the guest Wi-Fi, the network map, what others can see, and moving.
 
-**Network › VPN** shows on top whether the VPN runs, how many devices are connected, the way from outside and whether
-the quantum-safe key exchange is on. Below are its parts: *Devices* (cards with state and traffic, *Access* shows the
-QR code again, *Add device* opens a short form), *From outside*, *Privacy* and *Quantum-safe*. Each device shows what it
-is (Android, iPhone, Windows, Linux, Mac, tablet, computer): devices paired with the app say so themselves, others take
-the type chosen in the form or in the device's details, or one guessed from their name. In a device's details you can
-rename it, choose its **internet path** while on the Pi VPN (`Follow the Pi`, `Home ISP only`, or `Through privacy
-exit`), and see the last day of traffic. Under *Privacy*, the multi-hop chain shows each hop, and the (i) next to
-*Strict DNS privacy* explains what it changes. VPN and Pi-hole also appear as add-on cards (on when their settings are).
+**Network › VPN** starts with whether the home VPN runs and how many devices are connected, then optional **layers** as
+cards you can open: home VPN (base), quantum-safe keys, AmneziaWG disguise, and Mullvad / multi-hop. Each layer is
+optional; turn on none, one, or several. The parts below are *Devices*, *Outside / Amnezia*, *Mullvad / hop* and
+*Quantum*. Device cards show state and traffic; *Access* shows the QR code again; *Add device* opens a short form. Each
+device shows what it is (Android, iPhone, Windows, Linux, Mac, tablet, computer): devices paired with the app say so
+themselves, others take the type chosen in the form or in the details, or one guessed from their name. In a device's
+details you can rename it, choose its **internet path** while on the Pi VPN (home connection only, same as the Pi, or
+through Mullvad / multi-hop), and see the last day of traffic. Under Mullvad / hop, the multi-hop chain shows each hop,
+and the (i) next to *Strict DNS privacy* explains what it changes. Details: [vpn.md](vpn.md). VPN and Pi-hole also
+appear as add-on cards (on when their settings are).
 
 ## Fixed IP address
 

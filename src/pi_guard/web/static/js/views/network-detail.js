@@ -80,9 +80,19 @@ function addDialog(redraw) {
   name.focus();
 }
 
-function routeSelect(id, value = "default") {
-  return h("select", { id }, ["default", "home", "exit"].map((route) =>
-    h("option", { value: route, selected: route === value }, t(`web.wg_exit_${route}`))));
+const ROUTE_ICONS = { home: "home", default: "share", exit: "world" };
+
+function routePicker(value, onPick) {
+  return h("div", { class: "route-pick", role: "radiogroup", "aria-label": t("web.wg_exit_route") },
+    ["home", "default", "exit"].map((route) => h("button", {
+      type: "button",
+      class: `route-option${route === value ? " on" : ""}`,
+      role: "radio",
+      "aria-checked": String(route === value),
+      onclick: () => onPick(route),
+    }, icon(ROUTE_ICONS[route]),
+      h("strong", {}, t(`web.wg_exit_${route}`)),
+      h("small", { class: "muted" }, t(`web.wg_exit_${route}_hint`)))));
 }
 
 function usageBars(hours) {
@@ -99,18 +109,24 @@ function usageBars(hours) {
 function peerDialog(p, redraw) {
   const row = (label, value) => (value ? [h("dt", {}, label), h("dd", {}, value)] : null);
   const kind = p.id ? kindSelect("wg_kind_edit", p.kind_set || "") : null;
-  const route = p.id ? routeSelect("wg_route_edit", p.route || "default") : null;
   const name = p.id ? h("input", { id: "wg_name_edit", type: "text", maxlength: 32, value: p.name || "" }) : null;
   const usageBox = h("div", { class: "stack" }, h("p", { class: "muted" }, t("web.wg_usage_loading")));
+  let routeValue = p.route || "default";
+  const routeBox = h("div", { class: "stack" });
+  const drawRoute = () => fill(routeBox, routePicker(routeValue, async (route) => {
+    if (route === routeValue) return;
+    if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { route } }), t("web.saved"))) {
+      routeValue = route;
+      drawRoute();
+      redraw();
+    }
+  }));
   kind?.addEventListener("change", async () => {
     if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { kind: kind.value } }), t("web.saved"))) redraw();
   });
-  route?.addEventListener("change", async () => {
-    if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { route: route.value } }), t("web.saved"))) redraw();
-  });
-  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, icon(kindIcon(p.kind)), " ", p.name || p.public_key.slice(0, 10)),
+  const dialog = h("dialog", { class: "wg-dialog wide" }, h("h2", {}, icon(kindIcon(p.kind)), " ", p.name || p.public_key.slice(0, 10)),
     h("p", {}, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline")),
-      p.route ? h("span", { class: "badge" }, t(`web.wg_exit_${p.route || "default"}`)) : null),
+      p.id ? h("span", { class: "badge" }, t(`web.wg_exit_${routeValue}`)) : null),
     h("dl", { class: "kv" },
       row(t("web.wg_address"), p.address || p.allowed_ips),
       row(t("web.wg_tunnel"), p.id ? t(p.full_tunnel ? "web.wg_route_full" : "web.wg_home_only") : null),
@@ -118,21 +134,22 @@ function peerDialog(p, redraw) {
       row(t("web.wg_received"), `${((p.received || 0) / 1e6).toFixed(1)} MB`), row(t("web.wg_sent"), `${((p.sent || 0) / 1e6).toFixed(1)} MB`),
       row(t("web.wg_created"), p.created ? when(p.created) : null), row(t("web.wg_key"), h("span", { class: "mono" }, `${p.public_key.slice(0, 16)}…`))),
     name ? h("div", { class: "field" }, h("label", { for: "wg_name_edit" }, t("web.wg_name")),
-      h("div", { class: "row" }, name, h("button", { onclick: async () => {
+      h("div", { class: "row wrap" }, name, h("button", { class: "primary", onclick: async () => {
         if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { name: name.value } }), t("web.saved"))) {
           dialog.close();
           redraw();
         }
       } }, icon("pencil"), t("web.wg_rename")))) : null,
     kind ? h("div", { class: "field" }, h("label", { for: "wg_kind_edit" }, t("web.wg_kind")), kind) : null,
-    route ? h("div", { class: "field" }, h("label", { for: "wg_route_edit" }, t("web.wg_exit_route")),
-      h("p", { class: "muted" }, h("small", {}, t("web.wg_exit_hint"))), route) : null,
+    p.id ? h("div", { class: "field stack" }, h("label", {}, t("web.wg_exit_route")),
+      h("p", { class: "muted" }, h("small", {}, t("web.wg_exit_hint"))), routeBox) : null,
     p.id ? h("div", { class: "stack" }, h("h3", {}, t("web.wg_usage_title")), usageBox) : null,
     h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();
   if (p.id) {
+    drawRoute();
     api(`/api/network/wireguard/peers/${p.id}/usage?days=1`).then((data) => {
       fill(usageBox, usageBars(data.hours));
     }).catch(() => fill(usageBox, h("p", { class: "muted" }, t("web.wg_usage_empty"))));
@@ -178,21 +195,76 @@ function wireguardPanel(d, redraw) {
 }
 
 const VPN_PARTS = ["devices", "reach", "privacy", "quantum"];
+const LAYER_ICONS = { devices: "brand-wireguard", reach: "eye-off", privacy: "shield-lock", quantum: "lock" };
+
+function vpnLayers(d, part) {
+  const on = d.wireguard_enabled && d.wireguard;
+  const layers = h("div", { class: "vpn-layers" },
+    h("a", { href: "#/network/vpn/devices", class: `vpn-layer${part === "devices" ? " on" : ""}${on ? " live" : ""}` },
+      icon(LAYER_ICONS.devices), h("div", { class: "grow" },
+        h("strong", {}, t("web.vpn_layer_home")),
+        h("small", { class: "muted" }, t("web.vpn_layer_home_hint"))),
+      h("span", { class: `badge ${on ? "ok" : ""}` }, t(on ? "web.vpn_layer_on" : "web.vpn_layer_off"))),
+    h("a", { href: "#/network/vpn/quantum", class: `vpn-layer${part === "quantum" ? " on" : ""}`, "data-layer": "quantum" },
+      icon(LAYER_ICONS.quantum), h("div", { class: "grow" },
+        h("strong", {}, t("web.vpn_layer_quantum")),
+        h("small", { class: "muted" }, t("web.vpn_layer_quantum_hint"))),
+      h("span", { class: "badge", "data-state": "quantum" }, "…")),
+    h("a", { href: "#/network/vpn/reach", class: `vpn-layer${part === "reach" ? " on" : ""}`, "data-layer": "awg" },
+      icon(LAYER_ICONS.reach), h("div", { class: "grow" },
+        h("strong", {}, t("web.vpn_layer_awg")),
+        h("small", { class: "muted" }, t("web.vpn_layer_awg_hint"))),
+      h("span", { class: "badge", "data-state": "awg" }, "…")),
+    h("a", { href: "#/network/vpn/privacy", class: `vpn-layer${part === "privacy" ? " on" : ""}`, "data-layer": "privacy" },
+      icon(LAYER_ICONS.privacy), h("div", { class: "grow" },
+        h("strong", {}, t("web.vpn_layer_privacy")),
+        h("small", { class: "muted" }, t("web.vpn_layer_privacy_hint"))),
+      h("span", { class: "badge", "data-state": "privacy" }, "…")));
+  api("/api/network/quantum").then((q) => {
+    const el = layers.querySelector("[data-state=quantum]");
+    if (!el) return;
+    const live = q.enabled && q.installed;
+    el.className = `badge ${live ? "ok" : ""}`;
+    el.textContent = t(live ? "web.vpn_layer_on" : q.installed ? "web.vpn_layer_off" : "web.vpn_layer_setup");
+    layers.querySelector("[data-layer=quantum]")?.classList.toggle("live", live);
+  }).catch(() => {});
+  api("/api/network/reach").then((r) => {
+    const el = layers.querySelector("[data-state=awg]");
+    if (!el) return;
+    const way = (r.ways || []).find((w) => w.id === "awg");
+    const live = way && way.state === "ok";
+    el.className = `badge ${live ? "ok" : ""}`;
+    el.textContent = t(live ? "web.vpn_layer_on" : way ? "web.vpn_layer_off" : "web.vpn_layer_setup");
+    layers.querySelector("[data-layer=awg]")?.classList.toggle("live", Boolean(live));
+  }).catch(() => {});
+  api("/api/privacy/diagnostics").then((diag) => {
+    const el = layers.querySelector("[data-state=privacy]");
+    if (!el) return;
+    const live = Boolean(diag?.exit?.up || diag?.tor?.enabled);
+    el.className = `badge ${live ? "ok" : ""}`;
+    el.textContent = t(live ? "web.vpn_layer_on" : "web.vpn_layer_off");
+    layers.querySelector("[data-layer=privacy]")?.classList.toggle("live", live);
+  }).catch(() => {
+    const el = layers.querySelector("[data-state=privacy]");
+    if (el) { el.className = "badge"; el.textContent = t("web.vpn_layer_setup"); }
+  });
+  return layers;
+}
 
 function vpnSummary(d, part) {
   const peers = d.wireguard?.peers || [];
   const outside = d.wireguard_endpoint || d.wireguard_endpoint_v6 || d.wireguard_relay;
   const way = h("small", { class: "muted" }, outside ? t("web.vpn_sum_way", { way: outside }) : t("web.vpn_sum_no_way"));
-  const pq = h("span", { class: "badge" }, "…");
-  api("/api/network/quantum").then((q) => { pq.className = `badge ${q.enabled && q.installed ? "ok" : ""}`; pq.textContent = t(q.enabled && q.installed ? "web.vpn_sum_pq_on" : "web.vpn_sum_pq_off"); }).catch(() => pq.remove());
   const on = d.wireguard_enabled && d.wireguard;
   return h("section", { class: `panel vpn-summary ${on ? "on" : ""}` },
     h("div", { class: "vpn-head" }, h("span", { class: "vpn-ring" }, icon("brand-wireguard", "lg")),
       h("div", { class: "grow" }, h("h2", {}, t(on ? "web.vpn_sum_on" : "web.vpn_sum_off")),
-        h("p", {}, on ? t("web.vpn_sum_devices", { active: peers.filter((p) => p.active).length, total: peers.length }) : t("web.wireguard_off"), " "), way),
-      pq),
-    h("nav", { class: "segmented vpn-parts", "aria-label": t("web.nm_tab_vpn") }, VPN_PARTS.map((id) =>
-      h("a", { href: `#/network/vpn/${id}`, class: id === part ? "on" : "" }, t(`web.vpn_part_${id}`)))));
+        h("p", {}, on ? t("web.vpn_sum_devices", { active: peers.filter((p) => p.active).length, total: peers.length }) : t("web.wireguard_off")),
+        way,
+        h("p", { class: "muted" }, h("small", {}, t("web.vpn_layers_intro"))))),
+    vpnLayers(d, part),
+    h("nav", { class: "vpn-parts", "aria-label": t("web.nm_tab_vpn") }, VPN_PARTS.map((id) =>
+      h("a", { href: `#/network/vpn/${id}`, class: id === part ? "on" : "" }, icon(LAYER_ICONS[id]), " ", t(`web.vpn_part_${id}`)))));
 }
 
 function vpnTab(body, d, params, redraw) {

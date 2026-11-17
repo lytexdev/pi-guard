@@ -697,10 +697,11 @@ async def wg_patch(request: web.Request) -> web.Response:
     store = _store(request)
     peer_id = _peer_id(request)
     actor = current(request)
+    role = dashboard(request).auth.role_of(actor.username)
     changed: list[str] = []
     try:
         if "name" in data:
-            if not _may_rename(request, peer_id, actor.username, actor.role):
+            if not _may_rename(request, peer_id, actor.username, role):
                 raise web.HTTPForbidden(text="web.forbidden")
             if not await asyncio.to_thread(store.rename, peer_id, str(data.get("name", ""))):
                 raise web.HTTPNotFound()

@@ -84,8 +84,12 @@ class MainActivity : AppCompatActivity() {
         web.setBackgroundColor(getColor(R.color.bg)) // no white flash before the dashboard paints
         web.overScrollMode = View.OVER_SCROLL_NEVER
         web.isHorizontalScrollBarEnabled = false
+        web.isVerticalScrollBarEnabled = false
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
+        web.settings.setSupportZoom(false)
+        web.settings.builtInZoomControls = false
+        web.settings.displayZoomControls = false
         // The dashboard tells the app from a browser by this: no "install" or "browser push" hints.
         val version = packageManager.getPackageInfo(packageName, 0).versionName
         web.settings.userAgentString = "${web.settings.userAgentString} PiGuardApp/$version"
@@ -105,6 +109,15 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onPageFinished(view: WebView, url: String) {
+                // Keep the dashboard from scrolling sideways on narrow phones (VPN tabs, long rows).
+                view.evaluateJavascript(
+                    "(function(){var s=document.getElementById('pg-overflow');if(s)return;" +
+                        "s=document.createElement('style');s.id='pg-overflow';" +
+                        "s.textContent='html,body{overflow-x:clip!important;max-width:100%!important}" +
+                        "main,.panel,.vpn-summary,.tabs,.segmented{max-width:100%;min-width:0}';" +
+                        "document.documentElement.appendChild(s);})();",
+                    null,
+                )
                 if (store.token == null) pairIfLoggedIn()
             }
 

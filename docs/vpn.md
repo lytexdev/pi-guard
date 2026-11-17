@@ -28,23 +28,35 @@ Everything stays **off** until you turn it on. Install once as root (does not in
 sudo ./scripts/privacy-server.sh install
 ```
 
-Then open **Network › VPN** in the dashboard: profiles, multi-hop chain, providers, DNS, Pi-side kill switch, Tor and
-diagnostics. The chain always shows the home VPN hop on the Pi first (devices → Pi-Guard → optional exits → internet).
-**Check** under Diagnostics asks for the public/exit IP once and keeps it for a few minutes. The network map shows the
-same layers when privacy or the reverse proxy is active.
+Then open **Network › VPN** in the dashboard. Home VPN is the base; optional layers sit on top and can be on or off
+independently:
+
+| Layer | What it does | First install |
+|---|---|---|
+| Home VPN | Devices reach home through WireGuard | `wireguard.sh setup` |
+| Quantum-safe keys | Extra key exchange on the home VPN | `vpn-server.sh install` |
+| AmneziaWG disguise | Alternate path when WireGuard is blocked | `amneziawg.sh install` |
+| Mullvad / multi-hop | Exit through Mullvad, another VPN or Tor | `privacy-server.sh install` |
+
+The page shows those layers as cards, then the parts *Devices*, *Outside / Amnezia*, *Mullvad / hop* and *Quantum*.
+Profiles, multi-hop chain, providers, DNS, Pi-side kill switch, Tor and diagnostics live under the privacy part. The
+chain always shows the home VPN hop first (devices → Pi-Guard → optional exits → internet). **Check** under Diagnostics
+asks for the public/exit IP once and keeps it for a few minutes. Signed updates refresh already-installed helpers and
+units; first install of each layer stays the owner's script once.
 
 ### Per-device internet path
 
-While a phone or computer is connected to the home VPN, each device can choose how its traffic leaves the Pi:
+While a phone or computer is connected to the home VPN, each device can choose how its traffic leaves the Pi (device
+card → details → three clear choices):
 
 | Path | Meaning |
 |---|---|
-| Follow the Pi | today's behaviour: use the privacy exit when it is on |
-| Home ISP only | stay on your home internet (bypass Mullvad / multi-hop) |
-| Through privacy exit | require the exit; refused while the exit is down, so the device is not locked out |
+| Home connection only | stay on your home ISP even if the Pi sends others through Mullvad |
+| Same as the Pi | use the privacy exit when it is on, otherwise the home ISP |
+| Through Mullvad / multi-hop | require the exit; refused while the exit is down, so the device is not locked out |
 
-This is Pi-side policy routing (`privacy/device-routes`), not a second Mullvad account on the phone. After updating
-pi-guard, run `sudo ./scripts/privacy-server.sh install` once so the exit job watches that file.
+This is Pi-side policy routing (`privacy/device-routes`), not a second Mullvad account on the phone. You can also rename
+a device there.
 
 Emergency unlock if the Pi firewall ever blocks you:
 
