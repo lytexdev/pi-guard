@@ -8,6 +8,24 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Settings → Contacts: central person records linking faces, dashboard accounts, messengers and emergency contacts
+  (schema `_v4`), with roles for household, trusted camera person, emergency, alerts and viewer; name-based migration
+  and adapters for existing contact APIs.
+- Assistant: fallback providers, sealed extra keys, optional chat images/link fetch and admin system or open-alert
+  context (password for alerts); chat UI can attach or paste images when vision is allowed.
+- Messenger delivery mode per channel (`alerts` / `emergency` / `both`); Signal replies when commands are off;
+  email test uses recipients (Conflict when empty).
+- Security scan live progress in the dashboard; camera *Sharper for faces* preset, IR discovery hints, optional
+  V4L2 brightness/contrast and gray night snapshots.
+
+### Changed
+
+- Navigation: Network in the primary bar; Logs under Settings; Updates merges former Apps (redirects kept).
+- Log level filter is exact (INFO no longer includes WARNING); aiohttp “SSL connection is closed” is rate-limited.
+- Auto capture encode defaults to `libx264` (hardware `h264_v4l2m2m` only when chosen explicitly).
+
+### Added
+
 - Shared SQLite schema versioning: every dashboard and add-on table in `pi-guard.db` is created by numbered
   migrations (`storage/schema.py`); stores no longer create tables on their own. The same migration helper versions
   `biometrics.db`, `medical.db` and `knowledge.db`. A failed step rolls back without bumping `user_version`.

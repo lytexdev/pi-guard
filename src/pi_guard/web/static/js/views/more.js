@@ -76,9 +76,10 @@ function languagePanel() {
 }
 
 export async function render(main) {
-  const entries = [["setup/welcome", "settings", "web.setup_open"], ["network", "network", "web.nav_network"], ["addons", "cpu", "web.nav_addons"], ["monitor", "camera", "web.nav_monitor"],
+  const entries = [["setup/welcome", "settings", "web.setup_open"], ["addons", "cpu", "web.nav_addons"], ["monitor", "camera", "web.nav_monitor"],
     ["settings", "settings", "web.nav_settings"],
-    ["logs", "list-details", "web.nav_logs"], ["logout", "logout", "web.logout"]];
+    ["settings/logs", "list-details", "web.nav_logs"], ["settings/updates", "refresh", "web.set_updates"],
+    ["logout", "logout", "web.logout"]];
   fill(main,
     h("div", { class: "topbar" }, h("h1", {}, t("web.nav_more"))),
     h("section", { class: "panel" }, h("ul", { class: "list" }, entries.map(([route, i, label]) =>

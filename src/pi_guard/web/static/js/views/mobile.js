@@ -103,10 +103,9 @@ function card(device, draw) {
     } }, icon("trash"))), place);
 }
 
-// Which versions this Pi runs and hands out, and links that let someone download the apps.
-async function appsPanels() {
+// Invitation links to download the apps (versions live on Settings › Updates).
+async function invitePanel({ skipVersions = false } = {}) {
   const info = await api("/api/apps");
-  const row = (iconName, label, value) => h("li", {}, icon(iconName), h("span", { class: "grow" }, label), h("strong", {}, value || t("web.apps_none")));
   const desktop = Object.entries(info.desktop || {});
   const result = h("div", { class: "stack" });
   const share = async (path) => {
@@ -119,15 +118,7 @@ async function appsPanels() {
       h("div", { class: "row" }, h("input", { class: "grow mono", readonly: true, value: url, "aria-label": t("web.apps_invite") }),
         h("button", { onclick: async () => { try { await navigator.clipboard.writeText(text); toast(t("web.copied")); } catch { toast(t("web.error"), true); } } }, icon("copy"), t("web.copy"))));
   };
-  return [
-    h("section", { class: "panel stack" }, h("h2", {}, icon("refresh"), " ", t("web.apps_versions")),
-      h("ul", { class: "list compact" },
-        row("brand-raspberrypi", t("web.apps_pi"), info.pi),
-        row("brand-android", t("web.apps_android"), info.android),
-        desktop.length ? desktop.map(([platform, version]) => row(platform.startsWith("win") ? "brand-windows" : "terminal-2", t("web.apps_desktop", { platform: platform.startsWith("win") ? "Windows" : "Linux" }), version))
-          : row("device-laptop", t("web.apps_desktop", { platform: "" }), null)),
-      h("p", { class: "muted" }, h("small", {}, t("web.apps_versions_hint"))),
-      h("a", { class: "button", href: "#/settings/updates" }, icon("refresh"), t("web.apps_to_updates"))),
+  const panels = [
     h("section", { class: "panel stack" }, h("h2", {}, icon("share"), " ", t("web.apps_invite")), h("p", { class: "muted" }, t("web.apps_invite_hint", { days: info.invite_days })),
       h("div", { class: "row" },
         h("button", { class: "primary", disabled: !info.android && !desktop.length, onclick: async () => {
@@ -140,10 +131,21 @@ async function appsPanels() {
         } }, t("web.apps_invite_clear")) : null),
       result),
   ];
+  if (!skipVersions) {
+    const row = (iconName, label, value) => h("li", {}, icon(iconName), h("span", { class: "grow" }, label), h("strong", {}, value || t("web.apps_none")));
+    panels.unshift(h("section", { class: "panel stack" }, h("h2", {}, icon("refresh"), " ", t("web.apps_versions")),
+      h("ul", { class: "list compact" },
+        row("brand-raspberrypi", t("web.apps_pi"), info.pi),
+        row("brand-android", t("web.apps_android"), info.android),
+        desktop.length ? desktop.map(([platform, version]) => row(platform.startsWith("win") ? "brand-windows" : "terminal-2", t("web.apps_desktop", { platform: platform.startsWith("win") ? "Windows" : "Linux" }), version))
+          : row("device-laptop", t("web.apps_desktop", { platform: "" }), null)),
+      h("p", { class: "muted" }, h("small", {}, t("web.apps_versions_hint")))));
+  }
+  return panels;
 }
 
-export async function render(main, { embedded = false } = {}) {
-  const top = embedded ? await appsPanels() : null;
+export async function render(main, { embedded = false, skipVersions = false } = {}) {
+  const top = embedded ? await invitePanel({ skipVersions }) : null;
   const draw = async () => {
     // Switched off (Settings > Apps above): the versions and invitations still work.
     const data = await api("/api/mobile/devices").catch((error) => {
@@ -154,7 +156,7 @@ export async function render(main, { embedded = false } = {}) {
     const file = h("input", { type: "file", accept: ".apk", "aria-label": t("web.mob_apk") });
     const code = h("input", { type: "number", min: 1, placeholder: t("web.mob_version_code"), "aria-label": t("web.mob_version_code") });
     const version = h("input", { placeholder: t("web.mob_version_name"), "aria-label": t("web.mob_version_name") });
-    fill(main, embedded ? top : h("div", { class: "topbar" }, h("h1", {}, t("addons.mobile")), h("a", { class: "button", href: "#/settings/apps" }, t("web.back"))),
+    fill(main, embedded ? top : h("div", { class: "topbar" }, h("h1", {}, t("addons.mobile")), h("a", { class: "button", href: "#/settings/updates" }, t("web.back"))),
       h("section", { class: "panel stack" }, h("h2", {}, t("web.mob_devices")), h("p", { class: "muted" }, t("web.mob_hint")),
         h("ul", { class: "list" }, data.devices.length ? data.devices.map((d) => card(d, draw)) : h("li", { class: "empty" }, t("web.nothing")))),
       h("section", { class: "panel stack" }, h("h2", {}, t("web.mob_app")),

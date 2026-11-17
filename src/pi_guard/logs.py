@@ -6,6 +6,7 @@ import json
 import logging
 import logging.handlers
 import sys
+import time
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,6 +14,28 @@ from pathlib import Path
 from pi_guard.security.redact import redact
 
 _NOISY = ("httpx", "httpcore", "telegram.ext", "apscheduler", "aiomqtt", "aiohttp.access")
+# aiohttp client logs this on every short-lived HTTPS call; keep one line per minute.
+_SSL_CLOSED = "SSL connection is closed"
+
+
+class _DampenSslClosed(logging.Filter):
+    def __init__(self, every: float = 60.0) -> None:
+        super().__init__()
+        self._every = every
+        self._last = float("-inf")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            message = record.getMessage()
+        except Exception:
+            return True
+        if _SSL_CLOSED not in message:
+            return True
+        now = time.monotonic()
+        if now - self._last < self._every:
+            return False
+        self._last = now
+        return True
 
 
 class MemoryHandler(logging.Handler):
@@ -80,3 +103,6 @@ def setup_logging(
     logging.basicConfig(level=level, handlers=handlers, force=True)
     for name in _NOISY:
         logging.getLogger(name).setLevel(max(logging.WARNING, logging.getLevelName(level)))
+    dampen = _DampenSslClosed()
+    for name in ("asyncio", "aiohttp.client", "aiohttp.connector"):
+        logging.getLogger(name).addFilter(dampen)

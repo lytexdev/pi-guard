@@ -75,6 +75,11 @@ sudo journalctl -u pi-guard -n 100
 
 ## Faces are never recognized, the picture looks soft
 
+For IR / night USB cameras: discovery may mark the name as likely IR. Gray snapshots and V4L2 brightness
+help only when the driver offers them; faces at night still need enough IR light and a usable lens. Use
+*Sharper for faces* under Devices (MJPEG/YUYV + libx264). Software cannot make every IR camera recognise
+faces after dark.
+
 Start with *People → Why recognition works or not*: it shows whether faces are in the pictures at all, how large they
 are and how close they come. If they come close but not over the threshold, use *Learn at the camera* on the person's
 card. If few moments show a face, the camera sees people from the side or behind, and no training helps there.

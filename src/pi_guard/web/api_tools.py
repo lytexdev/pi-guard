@@ -262,13 +262,16 @@ def _email(request: web.Request) -> Any:
 async def email_test(request: web.Request) -> web.Response:
     d = dashboard(request)
     provider = _email(request)
+    recipients = list(d.settings.email_recipients)
+    if not recipients:
+        raise web.HTTPConflict(text="web.email_no_recipients")
     text = t("email.test", d.settings.language)
     try:
-        for recipient in d.settings.email_recipients:
+        for recipient in recipients:
             await provider.send(recipient, Reply(text))
     except ProviderUnavailableError:
         raise web.HTTPBadGateway(text="web.email_failed") from None
-    return web.json_response({"ok": True})
+    return web.json_response({"ok": True, "sent": len(recipients)})
 
 
 async def email_export(request: web.Request) -> web.Response:
@@ -319,23 +322,36 @@ async def discord_test(request: web.Request) -> web.Response:
 
 async def messengers(request: web.Request) -> web.Response:
     """Every messenger that is set up, for test messages in the expert view."""
-    app = dashboard(request).app
-    return web.json_response([
-        {"name": name, "connected": bool(getattr(provider, "connected", True)),
-         "admins": sum(1 for u in app.users.all(name) if u.role is Role.ADMIN)}
-        for name, provider in sorted(app.providers.items())
-    ])  # fmt: skip
+    d = dashboard(request)
+    app = d.app
+    out = []
+    for name, provider in sorted(app.providers.items()):
+        if name == "email":
+            admins = len(d.settings.email_recipients)
+        else:
+            admins = sum(1 for u in app.users.all(name) if u.role is Role.ADMIN)
+        out.append({
+            "name": name,
+            "connected": bool(getattr(provider, "connected", True)),
+            "admins": admins,
+        })
+    return web.json_response(out)
 
 
 async def messenger_test(request: web.Request) -> web.Response:
-    """One test message to each admin there, or to the channel of a chat app."""
+    """One test message to each admin there, email recipients, or a chat-app channel."""
     d = dashboard(request)
     app, name = d.app, request.match_info["name"]
     if name not in app.providers:
         raise web.HTTPConflict(text="web.messenger_off")
-    chats = [u.user_id for u in app.users.all(name) if u.role is Role.ADMIN]
-    if not chats and name in CHAT_APPS:
-        chats = [""]  # a chat app posts into its one channel
+    if name == "email":
+        chats = list(d.settings.email_recipients)
+        if not chats:
+            raise web.HTTPConflict(text="web.email_no_recipients")
+    else:
+        chats = [u.user_id for u in app.users.all(name) if u.role is Role.ADMIN]
+        if not chats and name in CHAT_APPS:
+            chats = [""]  # a chat app posts into its one channel
     text = t("web.messenger_test_message", d.settings.language)
     sent = 0
     for chat in chats:
@@ -372,6 +388,7 @@ async def signal_status(request: web.Request) -> web.Response:
         "linked": s.signal_phone_number in accounts or _links.get("state") == "linked",
         "accounts": len(accounts),
         "connected": bool(provider and provider.connected),
+        "commands": s.signal_commands,
         "link": {k: v for k, v in _links.items() if k != "task"},
     })  # fmt: skip
 
@@ -675,7 +692,8 @@ async def scan_get(request: web.Request) -> web.Response:
     last = app.scanner.last
     assistant = app.addons.assistant
     return web.json_response({
-        "running": app.scanner.running, "last": last, "root_job": HELPER.exists(),
+        "running": app.scanner.running, "progress": app.scanner.progress, "last": last,
+        "root_job": HELPER.exists(),
         "fixes": {"offered": fixes.offered(last), "applied": fixes.applied(),
                   "result": fixes.result()},
         "review": assistant is not None and assistant.ready,

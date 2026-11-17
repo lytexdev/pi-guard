@@ -115,7 +115,7 @@ Telegram, Signal, Discord, WhatsApp, E-Mail und die Chatdienste sind Module unte
 verschwindet aus *Einstellungen → Messenger* und stoppt beim nächsten Neustart; seine Einträge bleiben erhalten. Was zu
 pi-guard gehört, trägt das Abzeichen *Verifiziert*. Das Menü jeder Karte (drei Punkte) heftet sie an die Navigation,
 zeigt Hilfe und den Weg zur Tour und entfernt sie. Das Plus neben der Suche fügt eigene Add-ons hinzu. Die Handy-App
-ist kein Modul: Sie ist standardmäßig an, unter *Einstellungen → Apps*, mit den Versionen, die dieser Pi weitergibt, und
+ist kein Modul: Sie ist standardmäßig an, unter *Einstellungen → Updates*, mit den Versionen, die dieser Pi weitergibt, und
 Einladungslinks (sieben Tage, nur Downloads, gespeichert als Hash) für Leute, die die Android- oder Desktop-App bekommen
 sollen.
 
@@ -181,11 +181,22 @@ zum Lernen 56.
 
 Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer sehen die Knöpfe nicht.
 
+## Kontakte
+
+*Einstellungen → Kontakte* ist der Ort für eine Person: Name, Rollen (Haushalt, vertraute Kamera-Person, Notfall,
+Alarm-Empfänger, Betrachter) und Verknüpfungen zu Gesicht, Dashboard-Konto, Messenger und Notfallkontakt-Eintrag.
+Über die Rollen legst du fest, wer zum Haushalt gehört, wen die Kameras kennen sollen und wer SOS oder Alltagsalarme
+bekommt. Ein verknüpftes Gesicht schlägt Haushalt + vertraut vor; ein Notfallkontakt-Eintrag die Notfall-Rolle.
+*Bestehende verknüpfen* ordnet Gesichter, Profile und Notfallkontakte nach Name zu; Abweichungen korrigierst du
+von Hand. Die Seite *Personen* bleibt fürs Lernen an der Kamera. Eskalationszeiten bleiben unter
+*Einstellungen → Notfall*.
+
 ## Updates und Versionen
 
 *Einstellungen → Updates* zeigt die Version des Pi (sie steht auch neben dem Hinweis unten in der Navigation), die
-neueste Version, woher Updates kommen (Repository und Kanal Stabil/Beta), die Instanz-ID dieser Installation und alle
-App-Versionen, die der Pi weitergibt, mit *Nach App-Updates suchen*. Die anonymen Statistiken sind vorerst aus.
+neueste Version, woher Updates kommen (Repository und Kanal Stabil/Beta), die Instanz-ID dieser Installation, alle
+App-Versionen (*Nach App-Updates suchen*), Einladungen und Telefone. Die anonymen Statistiken sind vorerst aus.
+Die alte Adresse *Einstellungen → Apps* leitet hierhin um.
 
 ## Werkzeuge im Alltag
 
@@ -194,13 +205,16 @@ App-Versionen, die der Pi weitergibt, mit *Nach App-Updates suchen*. Die anonyme
   wird nicht gespeichert; der Test wird protokolliert und wie beim Mithören mit dem Gong angekündigt.
 
 - **Tooltips** erklären Knöpfe und Einträge, wenn du mit der Maus darauf zeigst.
-- **Navigation:** Unter *Erscheinungsbild → Navigation* ziehst du die Einträge in deine Reihenfolge. Sie
-  gilt für dein Konto. Der Kameraraum ist ein Schalter oben auf der Live-Seite.
+- **Navigation:** Unter *Erscheinungsbild → Navigation* ziehst du die Einträge in deine Reihenfolge. *Netzwerk*
+  steht standardmäßig in der Hauptleiste. *Logs* liegen unter *Einstellungen → Logs* (`#/logs` leitet um).
+  Der Kameraraum ist ein Schalter oben auf der Live-Seite.
 - **Wochenplan** (*Einstellungen → Zuhause & Abwesend*): Zieh in einem Tag, wann normalerweise niemand zu Hause ist. pi-guard
   wechselt dann auf Abwesend und zurück. Was du von Hand einstellst, bleibt bis zum nächsten Wechsel im
   Plan. Mit Anwesenheitserkennung bleibt es auf Zuhause, solange jemand erkannt wird.
 - **Support** (*Einstellungen*): Name, Telefon, E-Mail und Adresse, alles optional. Erscheint klein in der
   Übersicht, den Einstellungen, den Logs und beim KI-Assistenten.
+- **Logs:** *Einstellungen → Logs* filtert nach genau einem Level (INFO zeigt keine WARNING). Bekannte
+  aiohttp-Meldungen „SSL connection is closed“ werden auf etwa eine pro Minute gedrosselt.
 
 ## Netzwerk-Werkzeuge
 

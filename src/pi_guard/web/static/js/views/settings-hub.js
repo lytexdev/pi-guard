@@ -6,7 +6,7 @@ import { searchToggle, skeleton, supportNote } from "../widgets.js";
 import { restartPrompt } from "./settings.js";
 
 // Moved into other tabs; old links keep working.
-const MOVED = { plan: "modes", api: "access" };
+const MOVED = { plan: "modes", api: "access", apps: "updates" };
 // Data & backup holds what used to be four tabs; their old links open the right part.
 const DATA_TABS = [["backup", "upload"], ["storage", "database"], ["move", "map-pin"], ["export", "download"]];
 const dataTabs = () => DATA_TABS.filter(([id]) => id !== "export" || expertMode());
@@ -17,12 +17,13 @@ const TOPICS = {
   devices: ["web.cameras", "web.speaker", "web.microphone", "web.trusted_devices", "web.quiet_hours_sound"],
   access: ["web.users_title", "web.webauthn_title", "web.recovery_title", "web.codeword", "web.login_security", "web.account", "web.api_tokens", "web.api_docs"],
   messaging: ["web.discord_status", "web.signal_status"],
-  apps: ["web.mob_devices", "web.mob_app", "web.apps_versions", "web.apps_invite"],
+  contacts: ["web.set_contacts", "web.person_roles", "web.person_face"],
   security: ["web.scan_firewall", "web.scan_updates", "web.scan_rootkits", "web.scan_ports", "web.scan_ssh"],
   "data/storage": ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
   "data/export": ["web.ex_data", "web.ex_config", "web.ex_import"],
   "data/backup": ["web.bk_title", "web.bk_ssh_title"],
-  updates: ["web.up_title"],
+  updates: ["web.up_title", "web.mob_devices", "web.mob_app", "web.apps_versions", "web.apps_invite"],
+  logs: ["web.nav_logs", "web.audit", "web.sec_title"],
   "data/move": ["web.mv_title", "web.mv_before", "web.mv_after", "web.mv_package"],
   support: ["web.support_phone", "web.support_email", "web.support_address"],
 };
@@ -33,21 +34,27 @@ const SECTIONS = [
   ["general", "settings", ["general"], "basics"], ["recording", "video", ["recording"], "basics"], ["detection", "users", ["detection"], "basics"],
   ["modes", "home", ["modes"], "basics"], ["audio", "volume", ["audio"], "basics"],
   ["messaging", "message", ["telegram", "discord", "email", "whatsapp", "signal", "chatapps"], "alerts"], ["notifications", "bell-ringing", null, "alerts"],
+  ["contacts", "users", null, "alerts"],
   ["emergency", "alert-triangle", ["emergency"], "alerts"],
-  ["devices", "camera", null, "home"], ["apps", "device-mobile", ["mobile"], "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
+  ["devices", "camera", null, "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
   ["data", "database", ["backup"], "system"], ["security", "shield-check", null, "system"], ["integrations", "router", ["integrations", "network"], "system"],
-  ["dashboard", "world", ["dashboard"], "system"], ["updates", "refresh", ["updates"], "system"], ["support", "headset", null, "system"],
+  ["dashboard", "world", ["dashboard"], "system"], ["updates", "refresh", ["updates", "mobile"], "system"],
+  ["logs", "list-details", null, "system"], ["support", "headset", null, "system"],
 ];
 const NAV_GROUPS = ["basics", "alerts", "home", "system"];
 
 // Sections for people who know what they are looking for.
 const EXPERT_SECTIONS = ["integrations", "dashboard", "security"];
 // A member sees the sections the owner granted (web/permissions.py); appearance is per device.
-const MEMBER_NEEDS = { devices: "devices", notifications: "contacts", apps: "apps", appearance: null };
+const MEMBER_NEEDS = { devices: "devices", notifications: "contacts", contacts: "contacts", updates: "apps", logs: "logs", appearance: null };
 function memberMay(id) {
   if (state.session?.role !== "member") return true;
   const granted = state.session.permissions || [];
-  if (id in MEMBER_NEEDS) return MEMBER_NEEDS[id] === null || granted.includes(MEMBER_NEEDS[id]) || granted.includes(`settings:${id}`);
+  if (id in MEMBER_NEEDS) {
+    const need = MEMBER_NEEDS[id];
+    return need === null || granted.includes(need) || granted.includes(`settings:${id}`)
+      || (id === "updates" && granted.includes("settings:apps"));
+  }
   return granted.includes(`settings:${id}`);
 }
 const shown = () => SECTIONS.filter(([id]) => (expertMode() || !EXPERT_SECTIONS.includes(id)) && memberMay(id));
@@ -225,7 +232,7 @@ async function updateSection(root) {
       h("div", { class: "row" }, h("button", { onclick: async () => {
         const next = await attempt(() => api("/api/apps/check", { method: "POST", body: {} }), t("web.up_apps_checked"));
         if (next) drawApps(next);
-      } }, icon("refresh"), t("web.up_apps_check")), h("a", { class: "button ghost", href: "#/settings/apps" }, icon("share"), t("web.apps_invite")))));
+      } }, icon("refresh"), t("web.up_apps_check")))));
   };
   await Promise.all([draw(), api("/api/apps").then(drawApps).catch(() => fill(apps))]);
 }
@@ -369,16 +376,16 @@ export async function render(main, params = []) {
       if (expertMode()) extra.append(await messengerTests());
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
-    if (current === "apps") await (await import("./mobile.js")).render(extra, { embedded: true });
-    if (current === "emergency") {  // the contacts first: the fields below are the old way
-      const contacts = h("div");
-      body.before(contacts);
-      await (await import("./contacts.js")).contactsPanel(contacts);
+    if (current === "emergency") {
+      body.before(h("p", { class: "notice" }, t("web.emergency_contacts_moved"), " ",
+        h("a", { href: "#/settings/contacts" }, t("web.set_contacts"))));
     }
-    if (current === "updates") {  // versions and the update button first, the source below
+    if (current === "updates") {
+      // Pi + app versions first, then settings, then invitations and phones.
       const status = h("div");
       body.before(status);
       await updateSection(status);
+      await (await import("./mobile.js")).render(extra, { embedded: true, skipVersions: true });
     }
     if (current === "data") {  // what happened last first, the settings below
       const status = h("div");
@@ -400,12 +407,20 @@ export async function render(main, params = []) {
     body.addEventListener("input", showSave);
     body.addEventListener("change", showSave);
     body.addEventListener("click", (e) => { if (e.target.closest("button")) showSave(); });
+  } else if (current === "contacts") {
+    const persons = h("div");
+    const emergency = h("div");
+    body.append(persons, emergency);
+    await (await import("./persons.js")).personsPanel(persons);
+    await (await import("./contacts.js")).contactsPanel(emergency);
   } else if (current === "notifications") {
     await (await import("./notifications.js")).render(body);
   } else if (current === "appearance") {
     (await import("./appearance.js")).render(body);
   } else if (current === "security") {
     stop = await (await import("./scan.js")).render(body);
+  } else if (current === "logs") {
+    stop = await (await import("./logs.js")).render(body, { embedded: true });
   } else if (current === "support") {
     await supportSection(body);
   } else if (current === "access") {

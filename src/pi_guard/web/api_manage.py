@@ -375,6 +375,7 @@ async def devices(request: web.Request) -> web.Response:
     )
     return web.json_response({
         "cameras": [{"path": str(c.path), "node": str(c.node), "name": c.name, "slug": c.slug,
+                     "likely_ir": c.likely_ir,
                      "formats": [{"name": f.name, "sizes": [f"{w}x{h}" for w, h in f.sizes]}
                                  for f in c.formats]} for c in cameras],
         "audio": [{"device": a.alsa_name, "name": a.name, "playback": a.playback,
