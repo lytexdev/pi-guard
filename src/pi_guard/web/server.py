@@ -68,9 +68,13 @@ VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check", "/api
                "/api/me/profile", "/api/me/profile/vcard",
                "/api/account/totp/begin", "/api/account/totp/confirm",
                "/api/account/totp/disable"}  # fmt: skip
-# Messengers are add-ons: shown only if wanted. The phone app is not one: it is part of pi-guard,
-# on by default, under Settings > Apps.
-MODULES = ("telegram", "signal", "discord", "whatsapp", "email", "chatapps")
+# Optional parts shown as add-on cards. Messengers are off until wanted; VPN and Pi-hole follow
+# their settings (usually on after install). The phone app is not one: Settings › Apps.
+MODULES = ("telegram", "signal", "discord", "whatsapp", "email", "chatapps", "vpn", "pihole")
+MODULE_SETTINGS = {
+    "vpn": "wireguard_enabled",
+    "pihole": "pihole_enabled",
+}
 SETUP_DONE_KEY = "web.setup_done"
 TLS_NAMES_KEY = "web.tls_names"
 MAX_TLS_NAMES = 16
@@ -168,12 +172,16 @@ class Dashboard:
         self._tasks: set[asyncio.Task[None]] = set()
         self._ssl: ssl.SSLContext | None = None
         self.wg_peers = None
+        self.vpn_usage = None
         self.privacy = None
         if s.wireguard_enabled:
+            from pi_guard.network.usage import VpnUsage
             from pi_guard.network.wgpeers import PeerStore
 
             self.wg_peers = PeerStore(app.db, s.data_dir, self._secret_key())
             self.wg_peers.write_file()
+            self.wg_peers.write_routes_file()
+            self.vpn_usage = VpnUsage(app.db, s)
             from pi_guard.web.api_network import apply_quantum
 
             apply_quantum(self)
@@ -401,9 +409,13 @@ class Dashboard:
         return await handler(request)
 
     def modules(self) -> dict[str, bool]:
-        """Optional messengers: shown only if wanted. On by default if already in use."""
+        """Optional messengers and network parts as add-on cards."""
         saved = self.app.db.get("web.modules") or {}
-        return {m: bool(saved.get(m, getattr(self.settings, f"{m}_enabled"))) for m in MODULES}
+        out: dict[str, bool] = {}
+        for module in MODULES:
+            key = MODULE_SETTINGS.get(module, f"{module}_enabled")
+            out[module] = bool(saved.get(module, getattr(self.settings, key)))
+        return out
 
     @staticmethod
     def _viewer_may(request: web.Request) -> bool:

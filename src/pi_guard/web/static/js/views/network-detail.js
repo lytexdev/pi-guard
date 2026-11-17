@@ -80,24 +80,63 @@ function addDialog(redraw) {
   name.focus();
 }
 
+function routeSelect(id, value = "default") {
+  return h("select", { id }, ["default", "home", "exit"].map((route) =>
+    h("option", { value: route, selected: route === value }, t(`web.wg_exit_${route}`))));
+}
+
+function usageBars(hours) {
+  if (!hours?.length) return h("p", { class: "muted" }, t("web.wg_usage_empty"));
+  const max = Math.max(1, ...hours.map((x) => x.rx + x.tx));
+  return h("div", { class: "wg-usage" }, hours.slice(-24).map((x) => {
+    const total = x.rx + x.tx;
+    const bar = h("span", { class: "wg-usage-bar" });
+    bar.style.height = `${Math.max(4, Math.round((total / max) * 48))}px`;
+    return h("span", { class: "wg-usage-col", title: `${(total / 1e6).toFixed(2)} MB` }, bar);
+  }));
+}
+
 function peerDialog(p, redraw) {
   const row = (label, value) => (value ? [h("dt", {}, label), h("dd", {}, value)] : null);
   const kind = p.id ? kindSelect("wg_kind_edit", p.kind_set || "") : null;
+  const route = p.id ? routeSelect("wg_route_edit", p.route || "default") : null;
+  const name = p.id ? h("input", { id: "wg_name_edit", type: "text", maxlength: 32, value: p.name || "" }) : null;
+  const usageBox = h("div", { class: "stack" }, h("p", { class: "muted" }, t("web.wg_usage_loading")));
   kind?.addEventListener("change", async () => {
     if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { kind: kind.value } }), t("web.saved"))) redraw();
   });
+  route?.addEventListener("change", async () => {
+    if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { route: route.value } }), t("web.saved"))) redraw();
+  });
   const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, icon(kindIcon(p.kind)), " ", p.name || p.public_key.slice(0, 10)),
-    h("p", {}, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline"))),
+    h("p", {}, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline")),
+      p.route ? h("span", { class: "badge" }, t(`web.wg_exit_${p.route || "default"}`)) : null),
     h("dl", { class: "kv" },
-      row(t("web.wg_address"), p.address || p.allowed_ips), row(t("web.wg_route"), p.id ? t(p.full_tunnel ? "web.wg_route_full" : "web.wg_home_only") : null),
+      row(t("web.wg_address"), p.address || p.allowed_ips),
+      row(t("web.wg_tunnel"), p.id ? t(p.full_tunnel ? "web.wg_route_full" : "web.wg_home_only") : null),
       row(t("web.wg_last"), p.latest_handshake ? when(p.latest_handshake) : t("web.never_connected")), row(t("web.wg_from"), p.endpoint),
       row(t("web.wg_received"), `${((p.received || 0) / 1e6).toFixed(1)} MB`), row(t("web.wg_sent"), `${((p.sent || 0) / 1e6).toFixed(1)} MB`),
       row(t("web.wg_created"), p.created ? when(p.created) : null), row(t("web.wg_key"), h("span", { class: "mono" }, `${p.public_key.slice(0, 16)}…`))),
+    name ? h("div", { class: "field" }, h("label", { for: "wg_name_edit" }, t("web.wg_name")),
+      h("div", { class: "row" }, name, h("button", { onclick: async () => {
+        if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { name: name.value } }), t("web.saved"))) {
+          dialog.close();
+          redraw();
+        }
+      } }, icon("pencil"), t("web.wg_rename")))) : null,
     kind ? h("div", { class: "field" }, h("label", { for: "wg_kind_edit" }, t("web.wg_kind")), kind) : null,
+    route ? h("div", { class: "field" }, h("label", { for: "wg_route_edit" }, t("web.wg_exit_route")),
+      h("p", { class: "muted" }, h("small", {}, t("web.wg_exit_hint"))), route) : null,
+    p.id ? h("div", { class: "stack" }, h("h3", {}, t("web.wg_usage_title")), usageBox) : null,
     h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();
+  if (p.id) {
+    api(`/api/network/wireguard/peers/${p.id}/usage?days=1`).then((data) => {
+      fill(usageBox, usageBars(data.hours));
+    }).catch(() => fill(usageBox, h("p", { class: "muted" }, t("web.wg_usage_empty"))));
+  }
 }
 
 function peerCard(p, redraw) {
@@ -109,6 +148,7 @@ function peerCard(p, redraw) {
         h("small", { class: "muted block" }, state),
         h("span", { class: "row wrap" }, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline")),
           p.id ? h("span", { class: "badge" }, t(p.full_tunnel ? "web.wg_route_full" : "web.wg_home_only")) : null,
+          p.id && p.route && p.route !== "default" ? h("span", { class: "badge" }, t(`web.wg_exit_${p.route}`)) : null,
           p.received || p.sent ? h("small", { class: "muted" }, `↓${(p.received / 1e6).toFixed(1)} ↑${(p.sent / 1e6).toFixed(1)} MB`) : null))),
     p.id ? h("div", { class: "wg-card-actions" },
       h("button", { class: "small", title: t("web.wg_show"), onclick: async () => {

@@ -12,6 +12,12 @@ All notable changes are documented here. The format follows
   migrations (`storage/schema.py`); stores no longer create tables on their own. The same migration helper versions
   `biometrics.db`, `medical.db` and `knowledge.db`. A failed step rolls back without bumping `user_version`.
 
+### Added
+
+- VPN devices: rename, per-device internet path (`home` / `exit` / follow the Pi), hourly usage chart, and VPN plus
+  Pi-hole as add-on cards (still driven by their settings). Desktop VPN page warns how to unlock lockdown and a missing
+  handshake. Needs an updated `privacy-server.sh` install for per-device routes on the Pi.
+
 ### Changed
 
 - Setup and first-login docs: installation and dashboard pages describe the ten-step assistant, certificate, members

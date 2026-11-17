@@ -41,6 +41,7 @@ APP_TABLES = frozenset(
         "kid_profiles",
         "kid_devices",
         "settings_history",
+        "wg_usage",
     }
 )
 
@@ -230,5 +231,23 @@ def _v2(conn: sqlite3.Connection) -> None:
     add_column(conn, "wg_peers", "kind", "TEXT NOT NULL DEFAULT ''")
 
 
-MIGRATIONS: tuple[Migration, ...] = (_v1, _v2)
+def _v3(conn: sqlite3.Connection) -> None:
+    """Per-device exit route and hourly VPN usage samples."""
+    add_column(conn, "wg_peers", "route", "TEXT NOT NULL DEFAULT 'default'")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS wg_usage (
+            peer_id INTEGER NOT NULL,
+            hour TEXT NOT NULL,
+            rx INTEGER NOT NULL DEFAULT 0,
+            tx INTEGER NOT NULL DEFAULT 0,
+            connected_seconds INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (peer_id, hour)
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS wg_usage_hour ON wg_usage (hour)")
+
+
+MIGRATIONS: tuple[Migration, ...] = (_v1, _v2, _v3)
 VERSION = len(MIGRATIONS)

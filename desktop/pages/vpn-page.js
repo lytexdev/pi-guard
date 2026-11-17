@@ -6,6 +6,8 @@ const T = de ? {
   missing: "Für das VPN braucht dieser Computer einen kleinen Dienst. Führe das einmal aus:", unsupported: "Das VPN gibt es in der Desktop-App für Linux und Windows.", always: "Kill Switch ist immer an: WireGuard sperrt alles, was am Tunnel vorbei ginge.",
   kill: "Kill Switch: Fällt das VPN aus, geht nichts am Tunnel vorbei", lock: "Lockdown: Ohne VPN geht nie etwas ins Internet, auch nach dem Neustart", auto: "Beim Start automatisch verbinden", lan: "Geräte im lokalen Netz bleiben erreichbar", pq: "Quantenresistenter Tunnel (Rosenpass)",
   splitTitle: "Am VPN vorbei (Split-Tunneling)", splitText: "Dieses Programm startet außerhalb des VPN, alles andere bleibt drin.", splitGo: "Starten", login: "Melde dich zuerst im Dashboard an.",
+  unlock: "Festgesessen? Lockdown hier aus, oder im Terminal: sudo systemctl stop pi-guard-vpn && sudo pi-guard-vpn unlock",
+  removed: "Kein Handshake: Wurde dieses Gerät unter Netzwerk › VPN entfernt? Trennen, dann erneut verbinden.",
   way: { ipv4: "direkt über IPv4", ipv6: "direkt über IPv6", relay: "über deinen Mietserver" },
 } : {
   on: "Connected", off: "Not connected", connecting: "Connecting…", connect: "Connect", disconnect: "Disconnect", back: "To the dashboard",
@@ -14,6 +16,8 @@ const T = de ? {
   missing: "The VPN needs a small service on this computer. Run this once:", unsupported: "In the desktop app, the VPN is available on Linux and Windows.", always: "The kill switch is always on: WireGuard blocks everything past the tunnel.",
   kill: "Kill switch: if the VPN fails, nothing goes past the tunnel", lock: "Lockdown: nothing ever reaches the internet without the VPN, also after a restart", auto: "Connect automatically at start", lan: "Devices in the local network stay reachable", pq: "Quantum-resistant tunnel (Rosenpass)",
   splitTitle: "Past the VPN (split tunneling)", splitText: "This program starts outside the VPN, everything else stays inside.", splitGo: "Start", login: "Log in to the dashboard first.",
+  unlock: "Stuck? Turn lockdown off here, or in a terminal: sudo systemctl stop pi-guard-vpn && sudo pi-guard-vpn unlock",
+  removed: "No handshake: was this device removed under Network › VPN? Disconnect, then connect again.",
   way: { ipv4: "directly over IPv4", ipv6: "directly over IPv6", relay: "through your rented server" },
 };
 const $ = (id) => document.getElementById(id);
@@ -37,9 +41,11 @@ function show(s) {
   const lines = [on ? T.onText : s.options.lockdown && s.state === "off" ? T.blocked : T.offText];
   if (on && s.way) lines.push(T.way[s.way] || "");
   if (on) lines.push(s.quantum.active ? T.quantum.replace("{time}", new Date(s.quantum.last * 1000).toLocaleTimeString()) : T.classic);
+  if (!on && s.options.lockdown) lines.push(T.unlock);
   $("detail").textContent = lines.filter(Boolean).join(" ");
   $("toggle").textContent = s.state === "off" ? T.connect : T.disconnect;
-  $("problem").textContent = s.error || "";
+  const err = s.error || "";
+  $("problem").textContent = /NO_ANSWER|handshake|no answer/i.test(err) ? `${err} ${T.removed}` : err;
   OPTIONS.forEach((id) => { $(id).checked = Boolean(s.options[id]); });
 }
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import secrets
 from copy import deepcopy
 from pathlib import Path
@@ -20,7 +21,9 @@ EXIT_PEER = "exit.peer"
 EXIT_CONF = "exit.conf"
 NFT_PLAN = "nft.plan"
 TOR_WANT = "tor.want"
+DEVICE_ROUTES = "device-routes"
 RELAY_CACHE = "mullvad-relays.json"
+_ADDR = re.compile(r"^(?:10\.8\.0\.(?:[2-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-4]))$")
 
 DEFAULT: dict[str, Any] = {
     "version": PRIVACY_CONFIG_VERSION,
@@ -149,6 +152,23 @@ class PrivacyStore:
             atomic_write(path, b"1\n")
         else:
             path.unlink(missing_ok=True)
+
+    def home_only_addresses(self) -> tuple[str, ...]:
+        """Addresses marked route=home in device-routes (written by PeerStore)."""
+        path = self._dir / DEVICE_ROUTES
+        if not path.is_file():
+            return ()
+        found: list[str] = []
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if not line.strip() or line.lstrip().startswith("#"):
+                    continue
+                address, _, route = line.partition("\t")
+                if route.strip() == "home" and _ADDR.fullmatch(address.strip()):
+                    found.append(address.strip())
+        except OSError:
+            return ()
+        return tuple(found)
 
     def relay_cache_path(self) -> Path:
         return self._dir / RELAY_CACHE

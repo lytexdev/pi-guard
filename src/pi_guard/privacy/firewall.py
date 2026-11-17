@@ -25,6 +25,8 @@ class Plan:
     allow_lan_mgmt: bool = True
     home_network: str | None = None
     wan_ifaces: tuple[str, ...] = ()
+    # VPN client addresses that bypass the exit (route=home). Validated elsewhere.
+    home_only: tuple[str, ...] = ()
 
 
 def render(plan: Plan) -> str:
@@ -62,6 +64,9 @@ def render(plan: Plan) -> str:
         f'    iifname {HOME_IFACES} oifname "{EXIT_IFACE}" accept',
         f'    iifname "{EXIT_IFACE}" oifname {HOME_IFACES} ct state established,related accept',
     ]
+    if plan.home_only:
+        addrs = ", ".join(plan.home_only)
+        fwd.append(f"    iifname {HOME_IFACES} ip saddr {{ {addrs} }} accept")
     if plan.home_network:  # the home network stays reachable from the VPN
         fwd.append(f"    iifname {HOME_IFACES} ip daddr {plan.home_network} accept")
     if plan.tor:
@@ -132,6 +137,7 @@ def apply_or_relaxed(plan: Plan, load: Callable[[Plan], None]) -> Plan:
             allow_lan_mgmt=plan.allow_lan_mgmt,
             home_network=plan.home_network,
             wan_ifaces=plan.wan_ifaces,
+            home_only=plan.home_only,
         )
         load(relaxed)
         return relaxed

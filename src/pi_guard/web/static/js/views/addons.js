@@ -649,10 +649,14 @@ export async function render(main, params = []) {
     if (saved) { state.session.pinned = saved.pinned; location.reload(); }
   };
   // Cards in groups, each with its state at a glance. Pinning, help and removing sit in its menu.
-  const GROUPS = [["server", ["agents", "remote"]], ["network", ["analytics", "proxy"]], ["home", ["smarthome"]],
-    ["family", ["kids"]], ["health", ["medical"]], ["assistant", ["assistant", "languages"]],
+  const GROUPS = [["server", ["agents", "remote"]], ["network", ["vpn", "pihole", "analytics", "proxy"]],
+    ["home", ["smarthome"]], ["family", ["kids"]], ["health", ["medical"]], ["assistant", ["assistant", "languages"]],
     ["messages", ["telegram", "signal", "discord", "whatsapp", "email", "chatapps"]]];
-  const MODULE_ICONS = { telegram: "brand-telegram", signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", chatapps: "message" };
+  const MODULE_ICONS = { vpn: "brand-wireguard", pihole: "brand-pihole", telegram: "brand-telegram",
+    signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", chatapps: "message" };
+  const MODULE_OPEN = { vpn: "#/network/vpn", pihole: "#/network", telegram: "#/settings/messaging",
+    signal: "#/settings/messaging", discord: "#/settings/messaging", whatsapp: "#/settings/messaging",
+    email: "#/settings/messaging", chatapps: "#/settings/messaging" };
   const stateBadge = (on, extra) => extra
     ? h("span", { class: "badge warn" }, extra)
     : h("span", { class: `badge ${on ? "ok" : ""}` }, t(on ? "web.ad_on" : "web.ad_off"));
@@ -695,7 +699,7 @@ export async function render(main, params = []) {
     let c;
     c = cardFor[module.id] = card({ id: module.id, title: t(`web.addon_${module.id}`), iconName: MODULE_ICONS[module.id] || "message", text: t(`web.addon_${module.id}_text`),
       help: { text: t(`web.addon_${module.id}_help`) },
-      enabled: module.enabled, badge: stateBadge(module.enabled), open: "#/settings/messaging",
+      enabled: module.enabled, badge: stateBadge(module.enabled), open: MODULE_OPEN[module.id] || "#/settings/messaging",
       onToggle: async (toggle) => {
         const done = await attempt(() => api(`/api/modules/${module.id}`, { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
         if (!done) { toggle.checked = !toggle.checked; return; }

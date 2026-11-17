@@ -33,6 +33,19 @@ diagnostics. The chain always shows the home VPN hop on the Pi first (devices â†
 **Check** under Diagnostics asks for the public/exit IP once and keeps it for a few minutes. The network map shows the
 same layers when privacy or the reverse proxy is active.
 
+### Per-device internet path
+
+While a phone or computer is connected to the home VPN, each device can choose how its traffic leaves the Pi:
+
+| Path | Meaning |
+|---|---|
+| Follow the Pi | today's behaviour: use the privacy exit when it is on |
+| Home ISP only | stay on your home internet (bypass Mullvad / multi-hop) |
+| Through privacy exit | require the exit; refused while the exit is down, so the device is not locked out |
+
+This is Pi-side policy routing (`privacy/device-routes`), not a second Mullvad account on the phone. After updating
+pi-guard, run `sudo ./scripts/privacy-server.sh install` once so the exit job watches that file.
+
 Emergency unlock if the Pi firewall ever blocks you:
 
 ```bash
