@@ -1,9 +1,10 @@
 [Unit]
-Description=Watch pi-guard privacy exit peer file
+Description=Watch pi-guard privacy exit peer and device routes
 
 [Path]
 PathChanged=/var/lib/pi-guard/privacy/exit.peer
 PathExists=/var/lib/pi-guard/privacy/exit.peer
+PathChanged=/var/lib/pi-guard/privacy/device-routes
 Unit=pi-guard-exit-apply.service
 
 [Install]

@@ -15,8 +15,10 @@ the guest Wi-Fi, the network map, what others can see, and moving.
 the quantum-safe key exchange is on. Below are its parts: *Devices* (cards with state and traffic, *Access* shows the
 QR code again, *Add device* opens a short form), *From outside*, *Privacy* and *Quantum-safe*. Each device shows what it
 is (Android, iPhone, Windows, Linux, Mac, tablet, computer): devices paired with the app say so themselves, others take
-the type chosen in the form or in the device's details, or one guessed from their name. Under *Privacy*, the multi-hop
-chain shows each hop, and the (i) next to *Strict DNS privacy* explains what it changes.
+the type chosen in the form or in the device's details, or one guessed from their name. In a device's details you can
+rename it, choose its **internet path** while on the Pi VPN (`Follow the Pi`, `Home ISP only`, or `Through privacy
+exit`), and see the last day of traffic. Under *Privacy*, the multi-hop chain shows each hop, and the (i) next to
+*Strict DNS privacy* explains what it changes. VPN and Pi-hole also appear as add-on cards (on when their settings are).
 
 ## Fixed IP address
 

@@ -123,7 +123,7 @@ def test_add_column_rejects_bad_identifiers() -> None:
 
 
 def test_migration_list_is_the_published_version() -> None:
-    assert len(MIGRATIONS) == VERSION >= 2
+    assert len(MIGRATIONS) == VERSION >= 3
 
 
 def test_biometric_store_migrates_old_file(tmp_path: Path) -> None:

@@ -37,7 +37,14 @@ from pi_guard.network.lan import neighbour_table
 from pi_guard.network.pihole import PiholeError
 from pi_guard.web.api_account import _qr_svg
 from pi_guard.web.api_manage import apply_settings
-from pi_guard.web.server import MODULES, confirm_password, current, dashboard, read_json
+from pi_guard.web.server import (
+    MODULE_SETTINGS,
+    MODULES,
+    confirm_password,
+    current,
+    dashboard,
+    read_json,
+)
 
 log = logging.getLogger(__name__)
 
@@ -47,7 +54,8 @@ DONATIONS = (
     ("bitcoin", "Bitcoin (BTC)", "bitcoin", "3B8PdpJnmL7rQyHhBytKtvUT7NgQfraBEH"),
     ("litecoin", "Litecoin (LTC)", "litecoin", "MShzshtse85i6ZkwiB1VKNGRNmEL5Dc3VX"),
 )  # fmt: skip
-NEEDS_NO_SETUP = ("chatapps",)  # the others start only once their settings are filled in
+# Others start only once their settings are filled in.
+NEEDS_NO_SETUP = ("chatapps", "vpn", "pihole")
 LINK_SECONDS = 300
 LINK_VALID = 110  # signal-cli gives up on a code after 120 s; a new one comes just before
 TEST_SECONDS = 3
@@ -188,12 +196,26 @@ async def test_microphone(request: web.Request) -> web.StreamResponse:
 # --- modules --------------------------------------------------------------------------------
 
 
+def _module_setting(module: str) -> str:
+    return MODULE_SETTINGS.get(module, f"{module}_enabled")
+
+
+def _module_running(d: Any, module: str) -> bool:
+    if module == "vpn":
+        return bool(d.settings.wireguard_enabled and d.wg_peers is not None)
+    if module == "pihole":
+        return d.app.pihole is not None
+    if module == "chatapps":
+        return any(name in d.app.providers for name in CHAT_APPS)
+    return module in d.app.providers
+
+
 async def modules_get(request: web.Request) -> web.Response:
     d = dashboard(request)
-    chat_apps = any(name in d.app.providers for name in CHAT_APPS)
-    return web.json_response([{"id": m, "enabled": on,
-                               "running": m in d.app.providers or (m == "chatapps" and chat_apps)}
-                              for m, on in d.modules().items()])  # fmt: skip
+    return web.json_response([
+        {"id": m, "enabled": on, "running": _module_running(d, m)}
+        for m, on in d.modules().items()
+    ])
 
 
 async def module_set(request: web.Request) -> web.Response:
@@ -203,16 +225,18 @@ async def module_set(request: web.Request) -> web.Response:
     if module not in MODULES:
         raise web.HTTPNotFound()
     enabled = (await read_json(request)).get("enabled") is True
-    running = getattr(d.settings, f"{module}_enabled")
+    setting = _module_setting(module)
+    running = getattr(d.settings, setting)
     if running != enabled and (not enabled or module in NEEDS_NO_SETUP):
-        await apply_settings(d, {f"{module}_enabled": enabled}, _actor(request))
+        await apply_settings(d, {setting: enabled}, _actor(request))
     saved = d.app.db.get("web.modules") or {}
     d.app.db.set("web.modules", {**saved, module: enabled})
     d.app.db.audit(_actor(request), "module", f"{module} {'on' if enabled else 'off'}")
-    chat_apps = module == "chatapps" and any(name in d.app.providers for name in CHAT_APPS)
-    running = module in d.app.providers or chat_apps
-    return web.json_response({"ok": True, "restart": enabled != running
-                              and (not enabled or module in NEEDS_NO_SETUP)})  # fmt: skip
+    return web.json_response({
+        "ok": True,
+        "restart": enabled != _module_running(d, module)
+        and (not enabled or module in NEEDS_NO_SETUP),
+    })
 
 
 # --- donations ------------------------------------------------------------------------------

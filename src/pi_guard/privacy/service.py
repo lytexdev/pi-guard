@@ -135,6 +135,7 @@ class PrivacyService:
             tor=bool(data.get("tor", {}).get("enabled")),
             allow_lan_mgmt=True,
             home_network=self.home_network,
+            home_only=self.store.home_only_addresses(),
         )
         self.store.write_nft_plan(render(plan))
 

@@ -33,6 +33,19 @@ diagnostics. The chain always shows the home VPN hop on the Pi first (devices â†
 **Check** under Diagnostics asks for the public/exit IP once and keeps it for a few minutes. The network map shows the
 same layers when privacy or the reverse proxy is active.
 
+### Per-device internet path
+
+While a phone or computer is connected to the home VPN, each device can choose how its traffic leaves the Pi:
+
+| Path | Meaning |
+|---|---|
+| Follow the Pi | today's behaviour: use the privacy exit when it is on |
+| Home ISP only | stay on your home internet (bypass Mullvad / multi-hop) |
+| Through privacy exit | require the exit; refused while the exit is down, so the device is not locked out |
+
+This is Pi-side policy routing (`privacy/device-routes`), not a second Mullvad account on the phone. After updating
+pi-guard, run `sudo ./scripts/privacy-server.sh install` once so the exit job watches that file.
+
 Emergency unlock if the Pi firewall ever blocks you:
 
 ```bash
@@ -63,8 +76,9 @@ and ports come from Mullvad's relay list on the Pi, never from the browser.
 route first (home network, the VPN itself), then the exit. The privacy table masquerades what leaves through
 `pgexit`, and with the kill switch it drops VPN traffic that would leave another way; other forwarding, such as
 containers, is not touched. With ufw active it also allows `wg0`/`awg0` â†’ `pgexit` (`ufw route`), and it sets the ip
-rules of both VPN interfaces on every run (wg0 10900/10901, awg0 10902/10903). Updates from the dashboard keep the
-installed scripts current; `sudo ./scripts/privacy-server.sh install` installs them and applies the exit at once.
+rules of both VPN interfaces on every run (wg0 10900/10901, awg0 10902/10903). Signed updates keep the installed
+scripts and systemd units current and re-apply the exit; run `sudo ./scripts/privacy-server.sh install` only once
+to add privacy the first time.
 
 On 2026-11-12, with the Mullvad exit up, ufw dropped everything from the VPN devices to `pgexit` (`[UFW BLOCK]
 IN=wg0 OUT=pgexit`): the phone's tunnel stood, but it had no internet and could not reach pi-guard by its public name,
@@ -99,8 +113,9 @@ apps carry the same values. Forward the UDP port on the router to the Pi, then r
 Devices stay those of `wg0`. `pi-guard-awg-sync` copies every device's key, preshared key and address to `awg0`
 each second and routes a device's `10.8.0.N` through the interface it greeted last, so Pi-hole, presence and the
 dashboard see one device whichever way it came. The post-quantum service sets rotating keys on both and counts
-a greeting on either as alive; the privacy exit and its kill switch treat `awg0` like `wg0`. After updating, run
-`vpn-server.sh install` and `privacy-server.sh install` again so their parts know `awg0`.
+a greeting on either as alive; the privacy exit and its kill switch treat `awg0` like `wg0`. After the first
+AmneziaWG install, signed updates refresh the sync unit and privacy helpers; rebuild the `pi-guard-vpn` binary with
+`vpn-server.sh install` when the VPN server itself changes.
 
 The phone app (1.8 and newer) gets the disguised ways next to the normal ones and tries them after those; it
 uses AmneziaWG's tunnel library, which also speaks plain WireGuard. `scripts/build-android.sh` builds that

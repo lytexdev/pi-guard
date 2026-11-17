@@ -17,6 +17,7 @@ import hashlib
 import ipaddress
 import re
 import secrets
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,12 @@ DEFAULT_PORT = 51820
 PEERS_FILE = Path("wireguard") / "peers"
 PQ_FOLDER = Path("wireguard") / "pq"
 MAX_NAME = 32
+# How this device leaves the internet while connected to the Pi VPN.
+# default: follow the Pi's privacy exit when it is on (today's behaviour)
+# home: always use the home ISP (bypass the exit) — "VPN home only"
+# exit: always require the privacy exit (Mullvad / multi-hop) — refuse soft lockout checks
+ROUTES = ("default", "home", "exit")
+ROUTES_FILE = Path("privacy") / "device-routes"
 
 # What a device is, for its icon. "" means not chosen: then the name or the app decides.
 KINDS = ("android", "ios", "windows", "linux", "macos", "phone", "tablet", "computer", "other")
@@ -126,10 +133,17 @@ class PeerStore:
 
     def list(self) -> list[dict[str, Any]]:
         rows = self._db.execute(
-            "SELECT id, name, address, public_key, full_tunnel, created, kind FROM wg_peers "
-            "ORDER BY name"
+            "SELECT id, name, address, public_key, full_tunnel, created, kind, route "
+            "FROM wg_peers ORDER BY name"
         ).fetchall()
-        return [{**dict(r), "full_tunnel": bool(r["full_tunnel"])} for r in rows]
+        return [
+            {
+                **dict(r),
+                "full_tunnel": bool(r["full_tunnel"]),
+                "route": r["route"] if r["route"] in ROUTES else "default",
+            }
+            for r in rows
+        ]
 
     def _free_address(self) -> str:
         taken = {r[0] for r in self._db.execute("SELECT address FROM wg_peers")}
@@ -161,6 +175,41 @@ class PeerStore:
         cursor = self._db.execute("UPDATE wg_peers SET kind = ? WHERE id = ?", (kind, peer_id))
         return bool(cursor.rowcount)
 
+    def rename(self, peer_id: int, name: str) -> bool:
+        name = check_name(name)
+        taken = self._db.execute(
+            "SELECT 1 FROM wg_peers WHERE name = ? AND id != ?", (name, peer_id)
+        ).fetchone()
+        if taken:
+            raise PeerError("web.wg_name_taken")
+        cursor = self._db.execute("UPDATE wg_peers SET name = ? WHERE id = ?", (name, peer_id))
+        return bool(cursor.rowcount)
+
+    def set_route(self, peer_id: int, route: str) -> bool:
+        if route not in ROUTES:
+            raise PeerError("web.wg_bad_route")
+        cursor = self._db.execute("UPDATE wg_peers SET route = ? WHERE id = ?", (route, peer_id))
+        if cursor.rowcount:
+            self.write_routes_file()
+        return bool(cursor.rowcount)
+
+    def home_addresses(self) -> Sequence[str]:
+        """Tunnel addresses that must bypass the privacy exit."""
+        rows = self._db.execute("SELECT address FROM wg_peers WHERE route = 'home'")
+        return [str(r["address"]) for r in rows]
+
+    def write_routes_file(self) -> None:
+        """For the root exit job: `address<TAB>route` per non-default peer."""
+        path = self._file.parent.parent / ROUTES_FILE
+        lines = [
+            f"{row['address']}\t{row['route']}\n"
+            for row in self._db.execute(
+                "SELECT address, route FROM wg_peers WHERE route != 'default' ORDER BY id"
+            )
+        ]
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        atomic_write(path, "".join(lines).encode())
+
     def remove(self, peer_id: int) -> str | None:
         row = self._db.execute("SELECT name FROM wg_peers WHERE id = ?", (peer_id,)).fetchone()
         if row is None:
@@ -170,6 +219,7 @@ class PeerStore:
         ).fetchone()
         self._db.execute("DELETE FROM wg_peers WHERE id = ?", (peer_id,))
         self.write_file()
+        self.write_routes_file()
         if key:
             self.pq_path(key[0]).unlink(missing_ok=True)
         return str(row["name"])

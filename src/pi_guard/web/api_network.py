@@ -38,6 +38,7 @@ from pi_guard.network.reach import (
 )
 from pi_guard.network.wgpeers import (
     PQ_FOLDER,
+    ROUTES,
     SERVER_ADDRESS,
     PeerError,
     PeerStore,
@@ -80,7 +81,9 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/network/wireguard/peers/{id:\\d+}", wg_show),
         web.get("/api/network/wireguard/peers/{id:\\d+}/file", wg_file),
         web.delete("/api/network/wireguard/peers/{id:\\d+}", wg_remove),
-        web.patch("/api/network/wireguard/peers/{id:\\d+}", wg_kind),
+        web.patch("/api/network/wireguard/peers/{id:\\d+}", wg_patch),
+        web.get("/api/network/wireguard/usage", wg_usage),
+        web.get("/api/network/wireguard/peers/{id:\\d+}/usage", wg_peer_usage),
     ]
 
 
@@ -135,16 +138,26 @@ async def overview(request: web.Request) -> web.Response:
         for peer in wireguard["peers"]:
             known = stored.get(peer["public_key"])
             if known:
-                peer.update(name=known["name"], id=known["id"], full_tunnel=known["full_tunnel"],
-                            kind=known["kind"], kind_set=known["kind_set"])  # fmt: skip
+                peer.update(
+                    name=known["name"],
+                    id=known["id"],
+                    full_tunnel=known["full_tunnel"],
+                    kind=known["kind"],
+                    kind_set=known["kind_set"],
+                    route=known.get("route") or "default",
+                )
             else:
                 peer["kind"] = "other"
+                peer["route"] = "default"
         # Devices added a moment ago, before the root job loaded them.
         loaded = {p["public_key"] for p in wireguard["peers"]}
         wireguard["peers"] += [
             {**p, "pending": True, "active": False, "latest_handshake": None, "received": 0,
              "sent": 0} for p in stored.values() if p["public_key"] not in loaded
         ]  # fmt: skip
+        usage = getattr(dashboard(request), "vpn_usage", None)
+        if usage is not None:
+            wireguard["usage"] = usage.totals(7)
     return web.json_response({
         "pihole": pihole,
         "pihole_enabled": app.pihole is not None,
@@ -678,17 +691,90 @@ async def wg_add(request: web.Request) -> web.Response:
     return web.json_response({"id": peer_id, "name": name, "qr": _qr(config)})
 
 
-async def wg_kind(request: web.Request) -> web.Response:
-    """What kind of device it is, for its icon. "" lets the app or the name decide again."""
+async def wg_patch(request: web.Request) -> web.Response:
+    """Rename, set device kind, or choose the exit route for one VPN device."""
     data = await read_json(request)
+    store = _store(request)
+    peer_id = _peer_id(request)
+    actor = current(request)
+    changed: list[str] = []
     try:
-        found = await asyncio.to_thread(_store(request).set_kind, _peer_id(request),
-                                        str(data.get("kind", "")))  # fmt: skip
+        if "name" in data:
+            if not _may_rename(request, peer_id, actor.username, actor.role):
+                raise web.HTTPForbidden(text="web.forbidden")
+            if not await asyncio.to_thread(store.rename, peer_id, str(data.get("name", ""))):
+                raise web.HTTPNotFound()
+            changed.append("name")
+        if "kind" in data:
+            if not await asyncio.to_thread(store.set_kind, peer_id, str(data.get("kind", ""))):
+                raise web.HTTPNotFound()
+            changed.append("kind")
+        if "route" in data:
+            route = str(data.get("route", "default"))
+            if route not in ROUTES:
+                raise PeerError("web.wg_bad_route")
+            if route == "exit":
+                _require_exit_up(request)
+            if not await asyncio.to_thread(store.set_route, peer_id, route):
+                raise web.HTTPNotFound()
+            privacy = dashboard(request).privacy
+            if privacy is not None:
+                await asyncio.to_thread(privacy._write_nft)
+            changed.append("route")
     except PeerError as exc:
         raise web.HTTPBadRequest(text=str(exc)) from None
-    if not found:
+    if not changed:
+        raise web.HTTPBadRequest(text="web.error")
+    name = store.name(peer_id) or str(peer_id)
+    dashboard(request).app.db.audit(f"web:{actor.username}", f"wireguard.{changed[0]}", name)
+    return web.json_response({"ok": True, "changed": changed})
+
+
+async def wg_usage(request: web.Request) -> web.Response:
+    usage = dashboard(request).vpn_usage
+    if usage is None:
+        raise web.HTTPConflict(text="web.wireguard_off")
+    days = min(30, max(1, int(request.query.get("days") or 7)))
+    return web.json_response({"days": days, "peers": usage.totals(days)})
+
+
+async def wg_peer_usage(request: web.Request) -> web.Response:
+    usage = dashboard(request).vpn_usage
+    if usage is None:
+        raise web.HTTPConflict(text="web.wireguard_off")
+    peer_id = _peer_id(request)
+    if _store(request).name(peer_id) is None:
         raise web.HTTPNotFound()
-    return web.json_response({"ok": True})
+    days = min(30, max(1, int(request.query.get("days") or 7)))
+    return web.json_response({"days": days, "hours": usage.history(peer_id, days)})
+
+
+def _may_rename(request: web.Request, peer_id: int, username: str, role: str) -> bool:
+    """Admins and network members may rename any peer; others only their own phone's peer."""
+    if role == "admin":
+        return True
+    d = dashboard(request)
+    # Members with the network area already passed the route gate.
+    if role == "member":
+        return True
+    mobile = d.app.mobile
+    if mobile is None:
+        return False
+    return any(
+        int(m.get("vpn_peer") or 0) == peer_id and m.get("username") == username
+        for m in mobile.list()
+    )
+
+
+def _require_exit_up(request: web.Request) -> None:
+    """Refuse exit-only when the privacy exit is down, so the device is not locked out."""
+    privacy = dashboard(request).privacy
+    if privacy is None:
+        raise PeerError("web.wg_route_needs_exit")
+    diag = privacy.diagnostics()
+    exit_info = (diag.get("exit") or {}) if isinstance(diag, dict) else {}
+    if not exit_info.get("up"):
+        raise PeerError("web.wg_route_needs_exit")
 
 
 async def wg_show(request: web.Request) -> web.Response:

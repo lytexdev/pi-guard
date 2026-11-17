@@ -337,6 +337,8 @@ class App:
             parts["mqtt"] = self.mqtt.run
         if self.dashboard is not None:
             parts["dashboard"] = self.dashboard.run
+            if self.dashboard.vpn_usage is not None:
+                parts["vpn-usage"] = self.dashboard.vpn_usage.run
             if self.settings.blockpage_ip:
                 from pi_guard.addons.blockpage import BlockPage
 
