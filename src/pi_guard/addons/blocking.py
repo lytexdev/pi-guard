@@ -23,6 +23,8 @@ log = logging.getLogger(__name__)
 SWEEP_SECONDS = 30
 MAX_MINUTES = 7 * 24 * 60
 _DOMAIN_RE = re.compile(r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$")
+
+
 class BlockError(Exception):
     """`key` is a translation key."""
 

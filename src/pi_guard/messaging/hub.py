@@ -70,8 +70,11 @@ class Messenger:
         app = self._app
         sender = f"{msg.provider}:{msg.sender_id}"
         if msg.provider == "signal" and not app.settings.signal_commands:
-            # Alerts only: often the owner's own number. Reply rarely; never run commands.
-            if msg.text.strip() and self._limiter.allow(f"signal-commands-off:{msg.sender_id}"):
+            # Alerts only: often the owner's own number. Never run commands, and tell only an admin
+            # why, now and then: a stranger must not learn that a bot listens here.
+            admin = msg.sender_id in {str(n) for n in app.settings.signal_admin_numbers}
+            quiet_key = f"signal-commands-off:{msg.sender_id}"
+            if admin and msg.text.strip() and self._limiter.allow(quiet_key):
                 lang = app.settings.language
                 await self._send_safely(
                     msg.provider, msg.sender_id, Reply(t("signal.commands_off", lang))

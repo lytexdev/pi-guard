@@ -11,9 +11,7 @@ from pi_guard.storage.persons import Persons
 def test_person_crud_and_links(tmp_path: Path) -> None:
     db = Database(tmp_path / "p.db")
     store = Persons(db)
-    pid = store.save(
-        None, {"display_name": "Alex", "roles": ["household", "trusted", "emergency"]}
-    )
+    pid = store.save(None, {"display_name": "Alex", "roles": ["household", "trusted", "emergency"]})
     store.link(pid, "face", "Alex")
     store.link(pid, "web_account", "alex")
     person = store.get(pid)

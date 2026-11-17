@@ -214,10 +214,12 @@ def _module_running(d: Any, module: str) -> bool:
 
 async def modules_get(request: web.Request) -> web.Response:
     d = dashboard(request)
-    return web.json_response([
-        {"id": m, "enabled": on, "running": _module_running(d, m)}
-        for m, on in d.modules().items()
-    ])
+    return web.json_response(
+        [
+            {"id": m, "enabled": on, "running": _module_running(d, m)}
+            for m, on in d.modules().items()
+        ]
+    )
 
 
 async def module_set(request: web.Request) -> web.Response:
@@ -234,11 +236,13 @@ async def module_set(request: web.Request) -> web.Response:
     saved = d.app.db.get("web.modules") or {}
     d.app.db.set("web.modules", {**saved, module: enabled})
     d.app.db.audit(_actor(request), "module", f"{module} {'on' if enabled else 'off'}")
-    return web.json_response({
-        "ok": True,
-        "restart": enabled != _module_running(d, module)
-        and (not enabled or module in NEEDS_NO_SETUP),
-    })
+    return web.json_response(
+        {
+            "ok": True,
+            "restart": enabled != _module_running(d, module)
+            and (not enabled or module in NEEDS_NO_SETUP),
+        }
+    )
 
 
 # --- donations ------------------------------------------------------------------------------
@@ -332,11 +336,13 @@ async def messengers(request: web.Request) -> web.Response:
             admins = len(d.settings.email_recipients)
         else:
             admins = sum(1 for u in app.users.all(name) if u.role is Role.ADMIN)
-        out.append({
-            "name": name,
-            "connected": bool(getattr(provider, "connected", True)),
-            "admins": admins,
-        })
+        out.append(
+            {
+                "name": name,
+                "connected": bool(getattr(provider, "connected", True)),
+                "admins": admins,
+            }
+        )
     return web.json_response(out)
 
 
@@ -529,13 +535,15 @@ async def wifi_profiles_get(request: web.Request) -> web.Response:
     for p in _wifi_profiles(dashboard(request).app):
         if not isinstance(p, dict) or not p.get("ssid"):
             continue
-        profiles.append({
-            "id": str(p.get("id") or ""),
-            "name": str(p.get("name") or p["ssid"])[:40],
-            "ssid": str(p["ssid"])[:32],
-            "guest": bool(p.get("guest")),
-            "has_key": bool(p.get("key")),
-        })
+        profiles.append(
+            {
+                "id": str(p.get("id") or ""),
+                "name": str(p.get("name") or p["ssid"])[:40],
+                "ssid": str(p["ssid"])[:32],
+                "guest": bool(p.get("guest")),
+                "has_key": bool(p.get("key")),
+            }
+        )
     return web.json_response({"profiles": profiles})
 
 
@@ -563,13 +571,15 @@ async def wifi_profiles_put(request: web.Request) -> web.Response:
             key = str(existing[profile_id].get("key") or "")
         if not key:
             raise web.HTTPBadRequest(text="web.wifi_bad_input")
-        cleaned.append({
-            "id": profile_id,
-            "name": str(raw.get("name") or ssid).strip()[:40] or ssid,
-            "ssid": ssid,
-            "key": key,
-            "guest": bool(raw.get("guest")),
-        })
+        cleaned.append(
+            {
+                "id": profile_id,
+                "name": str(raw.get("name") or ssid).strip()[:40] or ssid,
+                "ssid": ssid,
+                "key": key,
+                "guest": bool(raw.get("guest")),
+            }
+        )
     d.app.db.set(WIFI_PROFILES_KEY, cleaned)
     d.app.db.audit(_actor(request), "network.wifi_profiles", str(len(cleaned)))
     return await wifi_profiles_get(request)
@@ -583,8 +593,14 @@ async def wifi_qr(request: web.Request) -> web.Response:
     index = data.get("index")
     profile_id = str(data.get("profile") or "").strip()
     if profile_id:
-        match = next((p for p in _wifi_profiles(d.app)
-                      if isinstance(p, dict) and str(p.get("id")) == profile_id), None)
+        match = next(
+            (
+                p
+                for p in _wifi_profiles(d.app)
+                if isinstance(p, dict) and str(p.get("id")) == profile_id
+            ),
+            None,
+        )
         if match is None:
             raise web.HTTPNotFound(text="web.wifi_no_profile")
         ssid, key = str(match.get("ssid") or ""), str(match.get("key") or "")

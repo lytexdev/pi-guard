@@ -20,6 +20,8 @@ log = logging.getLogger(__name__)
 
 MAX_RECORD_MINUTES = 120
 SWEEP_SECONDS = 20
+
+
 def next_time(text: str, tz: ZoneInfo, after: datetime | None = None) -> datetime:
     """The next time this clock time comes, in UTC."""
     hour, minute = (int(x) for x in text.split(":"))
