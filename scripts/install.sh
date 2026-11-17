@@ -335,7 +335,13 @@ say "waiting for the service to start"
 for _ in $(seq 1 30); do
     if runuser -u "$USER_NAME" -- env PI_GUARD_ENV_FILE="$ENV_FILE" \
         "$PREFIX/venv/bin/pi-guard" health >/dev/null 2>&1; then
-        say "pi-guard is running. Open your bot in Telegram and press Start."
+        if grep -q '^PI_GUARD_DASHBOARD_ENABLED=true' "$ENV_FILE"; then
+            say "pi-guard is running. Open the dashboard at https://<pi>:8443 (first login above)."
+        elif grep -qE '^PI_GUARD_TELEGRAM_BOT_TOKEN=.+' "$ENV_FILE"; then
+            say "pi-guard is running. Open your bot in Telegram and press Start."
+        else
+            say "pi-guard is running."
+        fi
         exit 0
     fi
     sleep 2

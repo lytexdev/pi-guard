@@ -4,8 +4,8 @@ A contact has a name, optionally a relation, phone and email, a dashboard accoun
 to, and one or more ways to reach it (Telegram, Signal, Discord, WhatsApp or email). For
 each occasion (an SOS from a phone, alerts nobody acknowledged) the owner chooses what the
 contact gets: the place, pictures from the phone or from the Pi's cameras, sound, the latest
-events, and the emergency medical data of the person in need, as a rescue link with a PIN or
-as the sheet itself (PDF).
+events, and the emergency medical data of the person in need: a note that data exist, or
+the sheet itself as a PDF.
 
 The older settings (`emergency_telegram_user_ids` and so on) still work: each entry is a
 contact that gets what it got before, and it is shown read only.
