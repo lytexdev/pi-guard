@@ -286,6 +286,24 @@ async def modules_put(request: web.Request) -> web.Response:
             raise web.HTTPConflict(text="web.priv_mullvad_need_server")
         if on and not selected.get("entry_hostname"):
             raise web.HTTPConflict(text="web.priv_mullvad_need_entry")
+        if on:
+            # Multi-hop only applies while the Mullvad exit hop is in the chain.
+            hops = list(cfg["chain"].get("hops") or [])
+            if not any(h.get("provider") == "mullvad" for h in hops):
+                hops.append(
+                    {
+                        "id": "mullvad",
+                        "provider": "mullvad",
+                        "name": selected.get("hostname") or "Mullvad",
+                        "server_id": selected.get("hostname"),
+                        "enabled": True,
+                        "params": {},
+                    }
+                )
+                try:
+                    svc.set_chain(hops)
+                except PrivacyError as exc:
+                    raise _err(exc) from None
         if not on and selected.get("entry_hostname"):
             cfg["providers"]["mullvad"]["selected"] = {**selected, "entry_hostname": None}
             store.save()

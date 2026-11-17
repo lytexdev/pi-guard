@@ -155,9 +155,14 @@ BY_KEY = {f.key: f for f in FIELDS}
 # Only shown in expert mode; everything else is what most people ever need.
 EXPERT = frozenset({
     "log_level", "recording_max_storage_percent", "recording_segment_seconds",
-    "recording_buffer_minutes", "telegram_viewer_user_ids", "telegram_allowed_chat_ids",
-    "discord_viewer_user_ids", "email_port", "email_security", "email_from",
+    "recording_buffer_minutes",
+    # Messenger who-may-command lists live under Settings → Contacts; keep env lists for
+    # experts and older installs.
+    "telegram_admin_user_ids", "telegram_viewer_user_ids", "telegram_allowed_chat_ids",
+    "discord_admin_user_ids", "discord_viewer_user_ids",
     "signal_admin_numbers", "signal_allowed_numbers", "signal_cli_address",
+    "whatsapp_admin_numbers", "whatsapp_allowed_numbers",
+    "email_port", "email_security", "email_from",
     "emergency_after_alerts", "emergency_after_minutes", "whatsapp_phone_number_id",
     "emergency_telegram_user_ids", "emergency_signal_numbers", "emergency_discord_user_ids",
     "whatsapp_app_secret", "whatsapp_verify_token", "whatsapp_alert_template",

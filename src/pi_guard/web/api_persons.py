@@ -26,12 +26,34 @@ def _actor(request: web.Request) -> str:
     return f"web:{current(request).username}"
 
 
+def _face_names(request: web.Request) -> list[dict[str, object]]:
+    """Enrolled face names even when recognition is currently off."""
+    d = dashboard(request)
+    if d.app.faces is not None:
+        return [
+            {"name": name, "samples": int(count)} for name, count, _ in d.app.faces.store.people()
+        ]
+    path = d.settings.data_dir / "biometrics.db"
+    if not path.is_file():
+        return []
+    from pi_guard.detection.faces import BiometricStore
+
+    store = BiometricStore(path)
+    try:
+        return [{"name": name, "samples": int(count)} for name, count, _ in store.people()]
+    finally:
+        store.close()
+
+
 async def listing(request: web.Request) -> web.Response:
     d = dashboard(request)
     store = _store(request)
-    faces = [name for name, *_ in d.app.faces.store.people()] if d.app.faces is not None else []
+    faces = _face_names(request)
     accounts = [d.auth.account()["username"], *(u["username"] for u in d.auth.users())]
     contacts = [c.as_dict() for c in d.app.escalation.contacts.all()] if d.app.escalation else []
+    medical = []
+    if d.app.addons.medical is not None:
+        medical = d.app.addons.medical.people()
     return web.json_response(
         {
             "persons": [p.as_dict() for p in store.all()],
@@ -40,6 +62,8 @@ async def listing(request: web.Request) -> web.Response:
             "faces": faces,
             "accounts": accounts,
             "contacts": contacts,
+            "medical": medical,
+            "medical_available": d.app.addons.medical is not None,
         }
     )
 

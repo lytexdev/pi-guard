@@ -20,6 +20,9 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Privacy modules: “On” only when the exit is in the chain; “Configured” when a Mullvad server is chosen but not
+  switched on (multi-hop no longer looks on while Mullvad is off).
+- Contact wizard: pick existing faces as cards (also when recognition is off); optional emergency medical sheet step.
 - Network → VPN: turning off the last privacy exit (e.g. Mullvad) deactivates cleanly instead of asking to enable Tor.
 - Settings → Contacts HTTP 500 (`FaceRecognizer.people` → `faces.store.people`).
 - Expert messenger “Test” for email uses the same path as the email panel; clearer export/test toasts.
@@ -29,6 +32,7 @@ All notable changes are documented here. The format follows
 
 - Network → VPN privacy modules: tap cards (Mullvad, multi-hop, Tor, AmneziaWG) with a confirm dialog instead of bare
   checkboxes.
+- Messenger admin/viewer ID lists moved to expert mode; Messaging points to Settings → Contacts for who may use chats.
 - Security check lives under Settings → Data & backup → Security (old `#/settings/security` still opens it); no longer
   its own settings nav item.
 - Contact and emergency editors: messenger channels as on/off cards for running services; no password re-entry on every

@@ -184,12 +184,12 @@ Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer s
 ## Kontakte
 
 *Einstellungen → Kontakte* ist der Ort für eine Person: *Neue Person* öffnet ein kurzes Setup (wer, Rollen, laufende
-Messenger, was bei SOS oder unbeantworteten Alarmen ankommt, optional Dashboard-Konto, optional Gesichtsfoto).
-Speichern nutzt die Admin-Sitzung; die Notfallkarte als PDF braucht weiterhin eine Bestätigung. Messenger-Kanäle sind
-An/Aus-Karten für eingerichtete Dienste. *Per Wischen lernen* oben ordnet Gesichter aus Ereignissen einer Person zu
-oder markiert Fremde. Das Lernen an der Kamera bleibt auf derselben Seite (der alte Punkt *Personen* leitet hierhin).
-Eskalationszeiten bleiben unter *Einstellungen → Notfall*. Der Sicherheitscheck liegt unter *Einstellungen → Daten &
-Sicherung → Sicherheitscheck*.
+Messenger, was bei SOS oder unbeantworteten Alarmen ankommt, optional Dashboard-Konto, Gesichtsproben und optional
+Notfallkarte). Speichern nutzt die Admin-Sitzung; die Notfallkarte als PDF braucht weiterhin eine Bestätigung.
+Messenger-Kanäle sind An/Aus-Karten für eingerichtete Dienste. *Per Wischen lernen* oben ordnet Gesichter aus
+Ereignissen einer Person zu oder markiert Fremde. Wer Telegram/Signal/… für Befehle nutzen darf, steuerst du hier; die
+alten Admin-/Betrachter-Listen unter Nachrichten bleiben nur im Expertenmodus. Eskalationszeiten bleiben unter
+*Einstellungen → Notfall*. Der Sicherheitscheck liegt unter *Einstellungen → Daten & Sicherung → Sicherheitscheck*.
 
 ## Updates und Versionen
 

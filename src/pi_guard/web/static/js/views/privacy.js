@@ -111,11 +111,19 @@ async function toggleModule(id, wantOn, redraw, beforeOn) {
   if (await attempt(() => api("/api/privacy/modules", { method: "PUT", body: { [id]: wantOn } }), t("web.saved"))) redraw();
 }
 
-function moduleCard({ id, iconName, on, hint, blocked, blockedHint, redraw, beforeOn }) {
+function moduleBadge(state) {
+  // on = used in the live chain; ready = configured but not switched on; off = neither.
+  if (state === "on") return h("span", { class: "badge ok" }, t("web.priv_mod_state_on"));
+  if (state === "ready") return h("span", { class: "badge accent" }, t("web.priv_mod_state_ready"));
+  return h("span", { class: "badge" }, t("web.priv_mod_state_off"));
+}
+
+function moduleCard({ id, iconName, state, hint, blocked, blockedHint, redraw, beforeOn }) {
   const label = t(`web.priv_mod_${id === "multi_hop" ? "multihop" : id}`);
+  const on = state === "on";
   return h("button", {
     type: "button",
-    class: `priv-mod${on ? " on" : ""}${blocked ? " blocked" : ""}`,
+    class: `priv-mod${on ? " on" : ""}${state === "ready" ? " ready" : ""}${blocked ? " blocked" : ""}`,
     disabled: Boolean(blocked),
     title: blocked ? (blockedHint || "") : t(on ? "web.priv_mod_tap_off" : "web.priv_mod_tap_on"),
     onclick: () => { if (!blocked) toggleModule(id, !on, redraw, beforeOn); },
@@ -124,13 +132,16 @@ function moduleCard({ id, iconName, on, hint, blocked, blockedHint, redraw, befo
     h("span", { class: "grow" },
       h("strong", {}, label),
       h("small", { class: "muted block" }, blocked ? (blockedHint || hint) : hint)),
-    h("span", { class: `badge ${on ? "ok" : ""}` }, t(on ? "web.priv_active" : "web.priv_inactive")));
+    moduleBadge(state));
 }
 
 function modulesPanel(cfg, caps, redraw) {
   const mullvad = cfg.providers?.mullvad || {};
+  // In the chain = switched on. Server chosen but hop removed = only configured ("ready").
   const mullvadOn = (cfg.chain?.hops || []).some((h) => h.provider === "mullvad" && h.enabled !== false);
-  const multiOn = Boolean(mullvad.selected?.entry_hostname);
+  const mullvadReady = Boolean(mullvad.selected?.hostname) && !mullvadOn;
+  const multiOn = mullvadOn && Boolean(mullvad.selected?.entry_hostname);
+  const multiReady = !multiOn && Boolean(mullvad.selected?.entry_hostname);
   const torOn = Boolean(cfg.tor?.enabled);
   const awgOn = (cfg.obfuscation?.mode || "off") === "amneziawg";
   const awgCap = caps.features?.amneziawg || caps.obfuscation?.modes?.find((m) => m.id === "amneziawg");
@@ -143,27 +154,31 @@ function modulesPanel(cfg, caps, redraw) {
   return section("web.priv_modules_title", "web.priv_modules_intro",
     h("div", { class: "priv-mods" },
       moduleCard({
-        id: "mullvad", iconName: "world", on: mullvadOn, hint: t("web.priv_mod_mullvad_hint"),
+        id: "mullvad", iconName: "world",
+        state: mullvadOn ? "on" : mullvadReady ? "ready" : "off",
+        hint: t("web.priv_mod_mullvad_hint"),
         blocked: !caps.features?.mullvad?.available,
         blockedHint: t(caps.features?.mullvad?.reason || "web.priv_need_wg"),
         redraw,
         beforeOn: () => ensureMullvadServer(false),
       }),
       moduleCard({
-        id: "multi_hop", iconName: "network", on: multiOn, hint: t("web.priv_mod_multihop_hint"),
+        id: "multi_hop", iconName: "network",
+        state: multiOn ? "on" : multiReady ? "ready" : "off",
+        hint: t("web.priv_mod_multihop_hint"),
         blocked: !caps.features?.multi_hop?.available || !mullvad.has_account,
         blockedHint: !mullvad.has_account ? t("web.priv_mullvad_need_account") : t(caps.features?.multi_hop?.reason || "web.priv_need_wg"),
         redraw,
         beforeOn: () => ensureMullvadServer(true),
       }),
       moduleCard({
-        id: "tor", iconName: "shield-lock", on: torOn, hint: t("web.priv_mod_tor_hint"),
+        id: "tor", iconName: "shield-lock", state: torOn ? "on" : "off", hint: t("web.priv_mod_tor_hint"),
         blocked: !caps.features?.tor?.available,
         blockedHint: t(caps.features?.tor?.reason || "web.priv_need_tor"),
         redraw,
       }),
       moduleCard({
-        id: "amneziawg", iconName: "eye-off", on: awgOn, hint: t("web.priv_mod_amneziawg_hint"),
+        id: "amneziawg", iconName: "eye-off", state: awgOn ? "on" : "off", hint: t("web.priv_mod_amneziawg_hint"),
         blocked: !(awgCap?.available ?? caps.features?.amneziawg?.available),
         blockedHint: t(awgCap?.reason || caps.features?.amneziawg?.reason || "web.priv_need_amnezia"),
         redraw,
@@ -253,9 +268,17 @@ function providersPanel(cfg, caps, redraw) {
       ? h("div", { class: "stack" },
         h("p", {}, t("web.priv_mullvad_linked", { name: mullvad.device_name || "—" }),
           mullvad.expiry ? h("small", { class: "muted block" }, t("web.priv_mullvad_paid_until", { date: new Date(mullvad.expiry).toLocaleDateString() })) : null),
-        mullvad.selected?.hostname ? h("p", {}, h("span", { class: "badge accent" }, icon("world"), " ",
-          mullvad.selected.entry_hostname ? `${mullvad.selected.entry_hostname} → ${mullvad.selected.hostname}` : mullvad.selected.hostname),
-          mullvad.selected.entry_hostname ? h("small", { class: "muted block" }, t("web.priv_mullvad_multihop_on")) : null) : null,
+        mullvad.selected?.hostname ? (() => {
+          const inChain = (cfg.chain?.hops || []).some((h) => h.provider === "mullvad" && h.enabled !== false);
+          return h("p", {},
+            h("span", { class: `badge ${inChain ? "ok" : "accent"}` }, icon("world"), " ",
+              mullvad.selected.entry_hostname
+                ? `${mullvad.selected.entry_hostname} → ${mullvad.selected.hostname}`
+                : mullvad.selected.hostname),
+            h("small", { class: "muted block" },
+              t(inChain ? "web.priv_mullvad_in_use" : "web.priv_mullvad_configured"),
+              mullvad.selected.entry_hostname ? ` · ${t("web.priv_mullvad_multihop_on")}` : ""));
+        })() : null,
         h("div", { class: "row" },
           h("button", { onclick: () => mullvadPick(redraw, mullvad.selected || {}) }, icon("world"), t("web.priv_mullvad_pick")),
           h("button", { class: "danger", onclick: async () => {

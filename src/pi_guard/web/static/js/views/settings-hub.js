@@ -380,6 +380,8 @@ export async function render(main, params = []) {
     body.addEventListener("input", showSave);
     body.addEventListener("change", showSave);
     if (current === "messaging") {
+      body.before(h("p", { class: "notice" }, t("web.messaging_contacts_note"), " ",
+        h("a", { href: "#/settings/contacts" }, t("web.set_contacts"))));
       const { discordPanel, emailPanel, signalPanel } = await import("./signal.js");
       const modules = state.session.modules || {};
       if (modules.discord) extra.append(await discordPanel());

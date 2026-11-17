@@ -187,31 +187,90 @@ function accessStep(personsData, person) {
   };
 }
 
+function faceEntries(personsData) {
+  // API used to return plain names; now { name, samples }.
+  return (personsData.faces || []).map((f) => (typeof f === "string" ? { name: f, samples: 0 } : f));
+}
+
 function faceStep(personsData, person, nameInput) {
   const linked = (person.links || []).find((l) => l.kind === "face")?.ref || "";
-  const face = h("select", {}, h("option", { value: "" }, t("web.cw_face_later")),
-    (personsData.faces || []).map((n) => h("option", { value: n, selected: n === linked }, n)));
+  let chosen = linked;
   const enroll = h("input", { type: "checkbox", checked: !linked });
-  const photo = h("input", { type: "file", accept: "image/*", "aria-label": t("web.cw_photo") });
+  const photo = h("input", { type: "file", accept: "image/*,video/*", multiple: true, "aria-label": t("web.cw_photo") });
   const preview = h("div", { class: "cw-photo-preview muted" }, t("web.cw_photo_optional"));
+  const faces = faceEntries(personsData);
+  const grid = h("div", { class: "cw-faces" });
+  const paintFaces = () => fill(grid,
+    h("button", { type: "button", class: `cw-face${!chosen ? " on" : ""}`, onclick: () => { chosen = ""; paintFaces(); } },
+      h("strong", {}, t("web.cw_face_later")), h("small", { class: "muted" }, t("web.cw_face_later_hint"))),
+    faces.map((f) => h("button", {
+      type: "button",
+      class: `cw-face${chosen === f.name ? " on" : ""}`,
+      onclick: () => { chosen = f.name; enroll.checked = false; paintFaces(); },
+    }, h("strong", {}, f.name),
+      h("small", { class: "muted" }, t("web.cw_face_samples", { n: f.samples || 0 })))));
+  paintFaces();
   photo.addEventListener("change", () => {
     const file = photo.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    fill(preview, h("img", { src: url, alt: "" }));
+    enroll.checked = true;
+    chosen = "";
+    paintFaces();
+    if (file.type.startsWith("image/")) {
+      fill(preview, h("img", { src: URL.createObjectURL(file), alt: "" }));
+    } else {
+      fill(preview, h("span", {}, t("web.cw_photo_files", { n: photo.files.length })));
+    }
   });
   return {
     node: h("div", { class: "stack" },
       h("p", { class: "muted" }, t("web.cw_face_hint")),
-      h("div", { class: "field" }, h("label", {}, t("web.person_face")), face),
+      faces.length ? h("div", { class: "stack" }, h("strong", {}, t("web.person_face")), grid)
+        : h("p", { class: "notice" }, t("web.cw_face_none")),
       h("label", { class: "check" }, enroll, t("web.cw_face_enroll", { name: nameInput.value.trim() || "…" })),
       h("div", { class: "field" }, h("label", {}, t("web.cw_photo")), photo),
       preview,
       h("p", { class: "muted" }, h("small", {}, t("web.cw_face_swipe")))),
     value: () => ({
-      face: face.value,
-      enroll: enroll.checked,
+      face: chosen,
+      enroll: enroll.checked && !chosen,
       photo: photo.files?.[0] || null,
+      files: [...(photo.files || [])],
+    }),
+  };
+}
+
+function medicalStep(personsData, contactsData, person, nameInput) {
+  const linked = (person.links || []).find((l) => l.kind === "medical")?.ref || "";
+  const existing = (personsData.medical || []).find((m) => String(m.id) === String(linked));
+  const want = h("input", { type: "checkbox", checked: Boolean(linked || existing) });
+  const link = h("select", {},
+    h("option", { value: "" }, t("web.cw_medical_new")),
+    (personsData.medical || []).map((m) => h("option", { value: String(m.id), selected: String(m.id) === String(linked) }, m.name)));
+  const blood = h("select", {}, h("option", { value: "" }, "–"),
+    ["A+", "A-", "B+", "B-", "AB+", "AB-", "0+", "0-"].map((b) => h("option", { value: b }, b)));
+  const allergies = h("textarea", { rows: 2, maxlength: 2000, placeholder: t("web.cw_medical_allergies_ph") });
+  const body = h("div", { class: want.checked ? "stack" : "stack hidden" },
+    h("div", { class: "field" }, h("label", {}, t("web.cw_medical_link")), link),
+    h("div", { class: "field" }, h("label", {}, t("web.md_f_blood_type")), blood),
+    h("div", { class: "field" }, h("label", {}, t("web.md_f_allergies")), allergies),
+    h("p", { class: "muted" }, h("small", {}, t("web.cw_medical_hint"))));
+  want.addEventListener("change", () => body.classList.toggle("hidden", !want.checked));
+  link.addEventListener("change", () => {
+    const locked = Boolean(link.value);
+    blood.disabled = locked;
+    allergies.disabled = locked;
+  });
+  return {
+    available: Boolean(personsData.medical_available || contactsData?.medical),
+    node: h("div", { class: "stack" },
+      h("label", { class: "check" }, want, t("web.cw_medical_want")),
+      body),
+    value: () => (!want.checked ? null : {
+      linkId: link.value ? Number(link.value) : null,
+      blood_type: blood.value,
+      allergies: allergies.value.trim(),
+      name: nameInput.value.trim(),
     }),
   };
 }
@@ -256,18 +315,33 @@ async function maybeCreateAccount(access) {
 
 async function maybeEnrollFace(name, faceOpt) {
   if (faceOpt.face) return faceOpt.face;
-  if (!faceOpt.enroll && !faceOpt.photo) return "";
+  const files = (faceOpt.files || []).length ? faceOpt.files : (faceOpt.photo ? [faceOpt.photo] : []);
+  if (!faceOpt.enroll && !files.length) return "";
   const faceName = name.slice(0, 64);
-  if (faceOpt.photo) {
+  if (files.length) {
     const form = new FormData();
     form.append("consent", "yes");
-    form.append("files", faceOpt.photo, faceOpt.photo.name || "photo.jpg");
+    files.forEach((f) => form.append("files", f, f.name || "photo.jpg"));
     const result = await attempt(() => api(`/api/people/${encodeURIComponent(faceName)}/samples`, {
       method: "POST", body: form,
     }));
     if (!result) return "";
   }
   return faceName;
+}
+
+async function maybeSaveMedical(medicalVal, accountName) {
+  if (!medicalVal) return "";
+  if (medicalVal.linkId) return String(medicalVal.linkId);
+  if (!medicalVal.name) return "";
+  const record = {
+    name: medicalVal.name,
+    blood_type: medicalVal.blood_type || "",
+    allergies: medicalVal.allergies || "",
+    account: accountName || "",
+  };
+  const saved = await attempt(() => api("/api/medical", { method: "POST", body: { record } }));
+  return saved ? String(saved.id) : "";
 }
 
 /**
@@ -305,6 +379,7 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
   const share = shareStep(contactsData, emergencyContact || { share: { ...DEFAULT_SHARE }, medical_mode: "note" });
   const access = accessStep(personsData, person);
   const face = faceStep(personsData, person, name);
+  const medical = medicalStep(personsData, contactsData, person, name);
 
   const STEPS = [
     { id: "who", title: "web.cw_step_who", need: () => true },
@@ -324,6 +399,11 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
       id: "face",
       title: "web.cw_step_face",
       need: () => roles.value().includes("trusted") || roles.value().includes("household"),
+    },
+    {
+      id: "medical",
+      title: "web.cw_step_medical",
+      need: () => medical.available,
     },
     { id: "done", title: "web.cw_step_done", need: () => true },
   ];
@@ -371,6 +451,8 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
       fill(pane, access.node);
     } else if (step.id === "face") {
       fill(pane, face.node);
+    } else if (step.id === "medical") {
+      fill(pane, medical.node);
     } else {
       const picked = roles.value();
       fill(pane, h("div", { class: "stack cw-review" },
@@ -380,6 +462,7 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
         messengers.value().length
           ? h("p", { class: "muted" }, messengers.value().map((c) => `${t(`web.ec_p_${c.provider}`)}: ${c.address}`).join(" · "))
           : h("p", { class: "muted" }, t("web.cw_review_no_reach")),
+        medical.value() ? h("p", { class: "muted" }, t("web.cw_review_medical")) : null,
         h("p", { class: "muted" }, t("web.cw_review_save"))));
     }
 
@@ -418,11 +501,13 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
       const enrolled = await maybeEnrollFace(displayName, faceOpt);
       if (enrolled) faceRef = enrolled;
     }
+    const medicalRef = await maybeSaveMedical(medical.value(), accountName);
 
     // Person first so emergency save can attach person_id (avoids a duplicate by name).
     const links = [];
     if (faceRef) links.push({ kind: "face", ref: faceRef });
     if (accountName) links.push({ kind: "web_account", ref: accountName });
+    if (medicalRef) links.push({ kind: "medical", ref: medicalRef });
     if (emergencyContact?.id) links.push({ kind: "emergency_contact", ref: String(emergencyContact.id) });
     channels.forEach((c) => links.push({ kind: "messenger", ref: `${c.provider}:${c.address}` }));
 
