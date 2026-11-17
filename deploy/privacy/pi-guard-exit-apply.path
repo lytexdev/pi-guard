@@ -2,8 +2,9 @@
 Description=Watch pi-guard privacy exit peer and device routes
 
 [Path]
+# Only PathChanged: exit.peer stays while the exit is up, so PathExists started the job again
+# after every run until systemd gave up, and the watch was dead. Boot runs the service itself.
 PathChanged=/var/lib/pi-guard/privacy/exit.peer
-PathExists=/var/lib/pi-guard/privacy/exit.peer
 PathChanged=/var/lib/pi-guard/privacy/device-routes
 Unit=pi-guard-exit-apply.service
 

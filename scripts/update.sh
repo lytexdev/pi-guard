@@ -89,8 +89,11 @@ refresh_helpers() {
     systemctl daemon-reload
 
     if [[ -e /usr/local/sbin/pi-guard-exit-apply ]]; then
+        # A watch that systemd stopped (the old PathExists loop) must come back.
+        systemctl reset-failed pi-guard-exit-apply.path pi-guard-exit-apply.service 2>/dev/null || true
         systemctl enable --now pi-guard-exit-apply.path pi-guard-privacy-nft.path \
             pi-guard-tor-ctl.path pi-guard-privacy-status.timer 2>/dev/null || true
+        systemctl enable --quiet pi-guard-exit-apply.service 2>/dev/null || true
         # New path units and exit rules take effect now, not only on the next peer change.
         systemctl start pi-guard-exit-apply.service 2>/dev/null || true
         systemctl start pi-guard-privacy-nft.service 2>/dev/null || true
@@ -113,6 +116,12 @@ refresh_helpers() {
     fi
     return 0
 }
+
+# `pi-guard-update --refresh-helpers`: only bring installed root parts up to date, for install.sh.
+if [[ "${1:-}" == "--refresh-helpers" ]]; then
+    refresh_helpers
+    exit $?
+fi
 
 install_code() {
     "$PREFIX/venv/bin/pip" install --quiet "$REPO[vision,mqtt,web]" \

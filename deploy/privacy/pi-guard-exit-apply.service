@@ -2,8 +2,14 @@
 Description=Apply pi-guard privacy upstream WireGuard exit
 After=network-online.target
 Wants=network-online.target
+# A burst of changes (pi-guard writing both files at start) must not end the watch.
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/pi-guard-exit-apply
 Nice=5
+
+[Install]
+# Once at boot; afterwards the .path unit runs it on changes.
+WantedBy=multi-user.target

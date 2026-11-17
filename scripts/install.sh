@@ -297,6 +297,9 @@ printf 'REPO=%q\nOWNER=%q\n' "$REPO" "$OWNER" > "$CONF/update.conf"
 runuser -u "$OWNER" -- git -C "$REPO" rev-parse HEAD > "$PREFIX/commit" 2>/dev/null || true
 install -m 0755 "$REPO/scripts/update.sh" /usr/local/sbin/pi-guard-update
 install -m 0755 "$REPO/deploy/update/pi-guard-release-check" /usr/local/sbin/pi-guard-release-check
+# Optional root parts that are already installed (privacy, WireGuard, AmneziaWG) get this
+# version's helpers and units too, as with a signed update; none is added here.
+/usr/local/sbin/pi-guard-update --refresh-helpers || say "could not refresh optional VPN helpers"
 # Only when there is none: an update must not be able to change whose signature counts.
 if [[ -f "$PREFIX/release-signers" ]]; then
     cmp -s "$REPO/deploy/update/release-signers" "$PREFIX/release-signers" \

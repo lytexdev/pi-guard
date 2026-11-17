@@ -44,8 +44,10 @@ install_all() {
         install -m 0644 "$SRC/$unit" /etc/systemd/system/
     done
     systemctl daemon-reload
+    systemctl reset-failed pi-guard-exit-apply.path pi-guard-exit-apply.service 2>/dev/null || true
     systemctl enable --now pi-guard-exit-apply.path pi-guard-privacy-nft.path \
         pi-guard-tor-ctl.path pi-guard-privacy-status.timer
+    systemctl enable pi-guard-exit-apply.service
     systemctl restart pi-guard-privacy-status.timer
     # An exit already in use takes the new rules now, not only at its next change.
     systemctl start pi-guard-exit-apply.service || true
@@ -54,6 +56,7 @@ install_all() {
 }
 
 remove_all() {
+    systemctl disable pi-guard-exit-apply.service 2>/dev/null || true
     systemctl disable --now pi-guard-exit-apply.path pi-guard-privacy-nft.path \
         pi-guard-tor-ctl.path pi-guard-privacy-status.timer 2>/dev/null || true
     /usr/local/sbin/pi-guard-exit-apply 2>/dev/null || true

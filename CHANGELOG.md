@@ -24,6 +24,11 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- The privacy exit's watch stopped for good shortly after every start: `PathExists` on `exit.peer` ran the job again
+  and again until systemd gave up, so changes to the Mullvad exit and device paths were no longer applied. Now only
+  changes start it, it runs once at boot, and updates bring a stopped watch back.
+- `install.sh` now also brings already installed VPN helpers (privacy, WireGuard, AmneziaWG) up to date, as signed
+  updates do.
 - Security: `install-desktop.sh` installed what it downloaded from GitHub without checking it; now only with the
   release key's signature. `install-desktop.ps1` compares the manifest's checksum.
 - Security: saved Wi-Fi profiles kept their keys in plain text in the database; they are sealed now, older ones on

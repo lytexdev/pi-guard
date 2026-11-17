@@ -32,3 +32,12 @@ def test_sh_helpers_have_no_bash_syntax() -> None:
 def test_sh_helpers_parse_with_dash() -> None:
     for script in _sh_scripts():
         subprocess.run(["dash", "-n", str(script)], check=True)
+
+
+def test_path_units_do_not_loop_on_files_that_stay() -> None:
+    """PathExists starts the job again after every run while the file is there: only request
+    files that the job deletes may use it. exit.peer did, and systemd ended the watch."""
+    for unit in sorted((ROOT / "deploy").rglob("*.path")):
+        for line in unit.read_text().splitlines():
+            if line.startswith("PathExists="):
+                assert line.endswith("/request"), f"{unit.name}: {line}"
