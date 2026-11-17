@@ -1,7 +1,8 @@
 """SQLite persistence for state that must survive restarts.
 
 Every query is small and indexed, so calls run synchronously on the event loop;
-WAL mode lets the CLI read while the service writes.
+WAL mode lets the CLI read while the service writes. Schema steps live in
+``storage.schema`` and run through ``storage.migrate``.
 """
 
 from __future__ import annotations
@@ -15,50 +16,8 @@ from typing import Any
 
 from pi_guard.core.timeutil import utcnow
 from pi_guard.security.files import secure_file
-
-_SCHEMA = [
-    # version 1
-    """
-    CREATE TABLE kv (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-    );
-    CREATE TABLE users (
-        provider TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        name TEXT NOT NULL DEFAULT '',
-        role TEXT NOT NULL,
-        language TEXT,
-        layout TEXT NOT NULL DEFAULT 'simple',
-        notifications INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL,
-        PRIMARY KEY (provider, user_id)
-    );
-    CREATE TABLE invites (
-        code TEXT PRIMARY KEY,
-        role TEXT NOT NULL,
-        created_by TEXT NOT NULL,
-        expires_at TEXT NOT NULL
-    );
-    CREATE TABLE events (
-        id INTEGER PRIMARY KEY,
-        ts TEXT NOT NULL,
-        type TEXT NOT NULL,
-        camera TEXT,
-        data TEXT NOT NULL DEFAULT '{}'
-    );
-    CREATE INDEX events_ts ON events (ts);
-    CREATE TABLE audit (
-        id INTEGER PRIMARY KEY,
-        ts TEXT NOT NULL,
-        actor TEXT NOT NULL,
-        action TEXT NOT NULL,
-        detail TEXT NOT NULL DEFAULT ''
-    );
-    CREATE INDEX audit_ts ON audit (ts);
-    """,
-]
+from pi_guard.storage.migrate import apply_migrations, schema_version
+from pi_guard.storage.schema import MIGRATIONS, VERSION
 
 
 @dataclass(frozen=True)
@@ -84,9 +43,15 @@ class Database:
         self._migrate()
 
     def _migrate(self) -> None:
-        version = self._conn.execute("PRAGMA user_version").fetchone()[0]
-        for number, script in enumerate(_SCHEMA[version:], start=version + 1):
-            self._conn.executescript(f"BEGIN; {script}; PRAGMA user_version={number}; COMMIT;")
+        apply_migrations(self._conn, MIGRATIONS)
+
+    @property
+    def schema_version(self) -> int:
+        return schema_version(self._conn)
+
+    @property
+    def schema_target(self) -> int:
+        return VERSION
 
     def execute(self, sql: str, params: tuple[Any, ...] | dict[str, Any] = ()) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)

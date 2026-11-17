@@ -79,13 +79,6 @@ def device_id(value: str) -> str:
     return str(address)
 
 
-_TABLES = """
-CREATE TABLE IF NOT EXISTS kid_profiles (
-    id INTEGER PRIMARY KEY, data TEXT NOT NULL, created TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS kid_devices (
-    mac TEXT PRIMARY KEY, profile INTEGER NOT NULL REFERENCES kid_profiles(id) ON DELETE CASCADE,
-    name TEXT NOT NULL DEFAULT '');
-"""
 CUT_KEY = "kids.cut"  # IPs whose internet this add-on cut at the router
 
 
@@ -150,7 +143,6 @@ class Kids:
         self._tz = tz
         self._lock = asyncio.Lock()
         self._offline: dict[int, bool] = {}
-        db.executescript(_TABLES)
 
     @property
     def filters(self) -> bool:

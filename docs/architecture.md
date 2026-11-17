@@ -54,7 +54,7 @@ values, so it can be undone.
 | `integrations/mqtt` | optional MQTT bridge |
 | `addons` | optional parts: server agents, analytics, smart home, remote commands, AI assistant and commander, settings help, phones (SOS, lost phones), emergency data, reverse proxy, plugins |
 | `backup.py` | encrypted backups to Nextcloud, rsync or Borg |
-| `storage` | SQLite state |
+| `storage` | SQLite state, numbered schema migrations, no ORM |
 | `security` | file permissions, redaction, rate limiting |
 | `diagnostics` | `pi-guard doctor`, host metrics, the optional anonymous statistics |
 | `web` | optional dashboard: aiohttp server, auth, security middleware, JSON API, static single-page app, Web Push |
@@ -78,8 +78,13 @@ values, so it can be undone.
   time; retention and clip extraction read the directory. There is no database
   of recordings that could disagree with the disk.
 - **State that must survive restarts lives in SQLite** (mode, users, events,
-  invitations, audit log). The CLI writes to the same database; the service
-  picks up mode changes within five seconds.
+  invitations, audit log, dashboard and add-on tables). The CLI writes to the
+  same database; the service picks up mode changes within five seconds.
+- **Schema changes are numbered migrations** (`storage/schema.py` for
+  `pi-guard.db`, the same helper for `biometrics.db`, `medical.db` and
+  `knowledge.db`). `PRAGMA user_version` is the only counter; a failed step
+  rolls back and leaves the version unchanged. Stores read and write rows; they
+  do not create tables. There is no ORM.
 
 ## Mode selection
 

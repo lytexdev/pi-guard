@@ -33,10 +33,6 @@ DEFAULT_SHARE = {
 }
 MAX_CONTACTS = 30
 MAX_CHANNELS = 5
-_TABLE = """
-CREATE TABLE IF NOT EXISTS emergency_contacts (
-    id INTEGER PRIMARY KEY, data TEXT NOT NULL, created TEXT NOT NULL);
-"""
 _ADDRESS = {
     "telegram": re.compile(r"^-?\d{1,20}$"),
     "signal": re.compile(r"^\+\d{6,16}$"),
@@ -154,7 +150,6 @@ class Contacts:
     def __init__(self, db: Database, settings: Any) -> None:
         self._db = db
         self._legacy = from_settings(settings)
-        db.executescript(_TABLE)
 
     def all(self) -> list[Contact]:
         rows = self._db.execute("SELECT id, data FROM emergency_contacts ORDER BY id").fetchall()

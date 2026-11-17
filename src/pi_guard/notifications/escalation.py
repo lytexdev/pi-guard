@@ -36,14 +36,6 @@ PHOTOS = 3
 # The assistant's emergency watch looks at most this often: alarms come in bursts.
 ASSESS_EVERY = 600
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS alerts (
-    id INTEGER PRIMARY KEY, ts TEXT NOT NULL, type TEXT NOT NULL, camera TEXT,
-    snapshot TEXT, acked_at TEXT, acked_by TEXT, escalated_at TEXT);
-CREATE INDEX IF NOT EXISTS alerts_open ON alerts (acked_at);
-"""
-
-
 @dataclass(frozen=True)
 class OpenAlert:
     id: int
@@ -58,7 +50,6 @@ class Escalation:
     def __init__(self, app: App) -> None:
         self._app = app
         self._db = app.db
-        self._db.executescript(_SCHEMA)
         s = app.settings
         self.contacts = Contacts(app.db, s)
         self.after_alerts = s.emergency_after_alerts

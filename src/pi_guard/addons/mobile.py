@@ -23,17 +23,6 @@ from pi_guard.storage.db import Database
 
 log = logging.getLogger(__name__)
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS mobile_devices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, platform TEXT NOT NULL,
-    username TEXT NOT NULL,
-    token TEXT NOT NULL UNIQUE, created TEXT NOT NULL, last_seen TEXT, info TEXT,
-    vpn_peer INTEGER);
-CREATE TABLE IF NOT EXISTS mobile_track (
-    device_id INTEGER NOT NULL, ts TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL,
-    accuracy REAL);
-CREATE INDEX IF NOT EXISTS mobile_track_device ON mobile_track (device_id, ts);
-"""
 # While a phone is lost or after its SOS, its places are kept as a track, for this long at most.
 TRACK_DAYS = 7
 EMERGENCY_MINUTES = 30
@@ -97,7 +86,6 @@ def map_link(report: dict[str, Any], provider: str = "openstreetmap") -> str | N
 class MobileHub:
     def __init__(self, db: Database) -> None:
         self._db = db
-        db.executescript(_SCHEMA)
         self._sockets: dict[int, Send] = {}
 
     def create(self, name: str, platform: str, username: str) -> tuple[int, str]:

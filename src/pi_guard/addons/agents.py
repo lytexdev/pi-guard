@@ -26,13 +26,6 @@ log = logging.getLogger(__name__)
 REQUEST_SECONDS = 20
 POWER_COMMANDS = ("shutdown", "reboot", "suspend", "lock")
 DOCKER_ACTIONS = ("start", "stop", "restart", "remove")
-_TABLE = """
-CREATE TABLE IF NOT EXISTS agents (
-    id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, token_hash TEXT NOT NULL,
-    created TEXT NOT NULL, last_seen TEXT, info TEXT NOT NULL DEFAULT '{}');
-"""
-
-
 class AgentError(Exception):
     """`key` is a translation key."""
 
@@ -67,7 +60,6 @@ class AgentHub:
         self._ids = itertools.count(1)
         self.connections: dict[int, Connection] = {}
         self._confirmations: dict[str, _Pending] = {}
-        db.executescript(_TABLE)
 
     # --- agents -------------------------------------------------------------------------
 

@@ -188,9 +188,6 @@ async def apply_settings(
     await _write_overrides(d, rendered, actor, source)
 
 
-HISTORY_SCHEMA = """CREATE TABLE IF NOT EXISTS settings_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, actor TEXT NOT NULL,
-    source TEXT NOT NULL, changes TEXT NOT NULL)"""
 HISTORY_KEEP = 200
 
 
@@ -214,7 +211,6 @@ async def _write_overrides(d: Any, rendered: dict[str, str], actor: str, source:
         # Secrets are never kept, not even here: such a change cannot be undone.
         changes = {k: None if k in SECRETS else [before.get(k), rendered.get(k)] for k in changed}
         db = d.app.db
-        db.execute(HISTORY_SCHEMA)
         db.execute("INSERT INTO settings_history (ts, actor, source, changes) VALUES (?, ?, ?, ?)",
                    (utcnow().isoformat(), actor, source, json.dumps(changes)))  # fmt: skip
         db.execute(
@@ -262,7 +258,6 @@ async def voice_listen(request: web.Request) -> web.Response:
 async def settings_history(request: web.Request) -> web.Response:
     """The last changes, with the value before and after, so one can be undone."""
     db = dashboard(request).app.db
-    db.execute(HISTORY_SCHEMA)
     rows = db.execute("SELECT id, ts, actor, source, changes FROM settings_history "
                       "ORDER BY id DESC LIMIT 50").fetchall()  # fmt: skip
     return web.json_response([{"id": r[0], "time": r[1], "actor": r[2], "source": r[3],
@@ -274,7 +269,6 @@ async def settings_revert(request: web.Request) -> web.Response:
     setting from pi-guard.env counts. Secrets stay as they are."""
     d = dashboard(request)
     db = d.app.db
-    db.execute(HISTORY_SCHEMA)
     row = db.execute("SELECT changes FROM settings_history WHERE id = ?",
                      (int(request.match_info["id"]),)).fetchone()  # fmt: skip
     if row is None:

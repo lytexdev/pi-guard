@@ -35,13 +35,7 @@ def test_the_kind_is_stored_and_checked(db: Any, tmp_path: Path) -> None:
         store.add("Carl", kind="<script>")
 
 
-def test_an_old_table_gets_the_column(db: Any, tmp_path: Path) -> None:
-    db.execute(
-        "CREATE TABLE wg_peers (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, "
-        "address TEXT NOT NULL UNIQUE, public_key TEXT NOT NULL UNIQUE, "
-        "private_key TEXT NOT NULL, preshared_key TEXT NOT NULL, "
-        "full_tunnel INTEGER NOT NULL DEFAULT 1, created TEXT NOT NULL)"
-    )
+def test_kind_defaults_to_empty(db: Any, tmp_path: Path) -> None:
     store = PeerStore(db, tmp_path, b"k" * 32)
     store.add("Anna")
     assert store.list()[0]["kind"] == ""

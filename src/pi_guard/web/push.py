@@ -27,13 +27,6 @@ from pi_guard.storage.db import Database
 
 log = logging.getLogger(__name__)
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS push_subscriptions (
-    endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL,
-    language TEXT NOT NULL, username TEXT NOT NULL, created TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS push_action_tokens (
-    hash TEXT PRIMARY KEY, username TEXT NOT NULL, expires TEXT NOT NULL);
-"""
 # A notification's buttons work this long, and once: whoever sees it later cannot use it.
 ACTION_SECONDS = 3600
 TTL_SECONDS = 3600
@@ -50,7 +43,6 @@ class WebPush:
 
         self._db = db
         self._contact = contact
-        db.executescript(_SCHEMA)
         if not key_path.exists():
             vapid = Vapid01()
             vapid.generate_keys()

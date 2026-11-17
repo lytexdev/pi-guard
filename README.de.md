@@ -111,7 +111,7 @@ der Installation [docs/de/datenschutz.md](docs/de/datenschutz.md).
 ## Lizenz
 
 MIT, siehe [LICENSE](LICENSE). Die technische Dokumentation ist auf Englisch
-im Ordner [docs](docs). Auf Deutsch gibt es: [Installation](docs/de/installation.md),
+im Ordner [docs](docs) (Architektur inkl. SQLite-Schema-Migrationen ohne ORM). Auf Deutsch gibt es: [Installation](docs/de/installation.md),
 [Bedienung](docs/de/bedienung.md), [Dashboard](docs/de/dashboard.md), [Add-ons](docs/de/addons.md),
 [Handy-App](docs/de/mobile.md), [Sprache](docs/de/sprache.md), [Netzwerk](docs/de/netzwerk.md),
 [Backups](docs/de/backup.md), [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md),

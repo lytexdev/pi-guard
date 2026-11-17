@@ -22,12 +22,26 @@ from typing import Any
 
 from pi_guard.core.timeutil import utcnow
 from pi_guard.security.files import secure_file
+from pi_guard.storage.migrate import apply_migrations
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS records (
-    id INTEGER PRIMARY KEY, name TEXT NOT NULL, data BLOB NOT NULL, updated TEXT NOT NULL);
-PRAGMA foreign_keys=ON;
-"""
+
+def _medical_v1(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS records (
+            id INTEGER PRIMARY KEY, name TEXT NOT NULL, data BLOB NOT NULL,
+            updated TEXT NOT NULL)
+        """
+    )
+
+
+def _medical_v2(conn: sqlite3.Connection) -> None:
+    # Rescue links are gone (1.10); their hashes too.
+    conn.execute("DROP TABLE IF EXISTS links")
+
+
+_MEDICAL_MIGRATIONS = (_medical_v1, _medical_v2)
+
 # One line each.
 LINE_FIELDS = {"name": 80, "birthday": 10, "blood_type": 10, "height_cm": 5, "weight_kg": 5,
                "phone": 40, "email": 120, "account": 64, "organ_donor": 20,
@@ -127,9 +141,8 @@ class MedicalRecords:
         self._conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
         secure_file(path)
         self._conn.execute("PRAGMA secure_delete=ON")
-        self._conn.executescript(_SCHEMA)
-        # Rescue links are gone (1.10); their hashes too.
-        self._conn.execute("DROP TABLE IF EXISTS links")
+        self._conn.execute("PRAGMA foreign_keys=ON")
+        apply_migrations(self._conn, _MEDICAL_MIGRATIONS)
         key_path = data_dir / "medical.key"
         if not key_path.exists():
             key_path.write_bytes(AESGCM.generate_key(bit_length=256))

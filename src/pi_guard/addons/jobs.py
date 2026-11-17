@@ -20,12 +20,6 @@ log = logging.getLogger(__name__)
 
 MAX_RECORD_MINUTES = 120
 SWEEP_SECONDS = 20
-_TABLE = """
-CREATE TABLE IF NOT EXISTS jobs (
-    id INTEGER PRIMARY KEY, kind TEXT NOT NULL, run_at TEXT NOT NULL, args TEXT NOT NULL);
-"""
-
-
 def next_time(text: str, tz: ZoneInfo, after: datetime | None = None) -> datetime:
     """The next time this clock time comes, in UTC."""
     hour, minute = (int(x) for x in text.split(":"))
@@ -41,7 +35,6 @@ def next_time(text: str, tz: ZoneInfo, after: datetime | None = None) -> datetim
 class Jobs:
     def __init__(self, app: App) -> None:
         self._app = app
-        app.db.executescript(_TABLE)
 
     def add(self, kind: str, when: datetime, args: dict[str, Any]) -> None:
         self._app.db.execute("INSERT INTO jobs (kind, run_at, args) VALUES (?, ?, ?)",

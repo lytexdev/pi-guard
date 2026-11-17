@@ -178,7 +178,7 @@ pi-guard logs -f
 | [API](docs/api.md) | Tokens and endpoints for your own scripts |
 | [Server](docs/agent.md) | Connect PCs and NAS: status, security check, updates, Docker, Compose, Git |
 | [Training](docs/training.md) | Thresholds and a better person detector, on your own GPU |
-| [Architecture](docs/architecture.md) | how the parts fit together |
+| [Architecture](docs/architecture.md) | how the parts fit together; SQLite schema migrations, no ORM |
 | [Performance](docs/performance.md) | measurements and limits |
 | [Troubleshooting](docs/troubleshooting.md) | common problems |
 

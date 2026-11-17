@@ -44,31 +44,6 @@ MIN_ANSWER = 2
 # web_sessions.pending: what is still missing before a session counts.
 PENDING_NONE, PENDING_ALL, PENDING_CODEWORD = 0, 1, 2
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS web_sessions (
-    id_hash TEXT PRIMARY KEY, username TEXT NOT NULL, csrf TEXT NOT NULL,
-    created TEXT NOT NULL, last_seen TEXT NOT NULL, ip TEXT NOT NULL, agent TEXT NOT NULL,
-    pending INTEGER NOT NULL DEFAULT 0);
-CREATE TABLE IF NOT EXISTS web_keyfiles (
-    name TEXT PRIMARY KEY, hash TEXT NOT NULL, created TEXT NOT NULL, last_used TEXT);
-CREATE TABLE IF NOT EXISTS web_account (
-    id INTEGER PRIMARY KEY CHECK (id = 1), username TEXT NOT NULL, password_hash TEXT NOT NULL,
-    must_change INTEGER NOT NULL, totp TEXT, totp_pending TEXT, updated TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS web_users (
-    id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE COLLATE NOCASE,
-    password_hash TEXT NOT NULL, role TEXT NOT NULL, totp TEXT, totp_pending TEXT,
-    created TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS web_recovery (hash TEXT PRIMARY KEY);
-CREATE TABLE IF NOT EXISTS web_tokens (
-    id INTEGER PRIMARY KEY, name TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, scope TEXT NOT NULL,
-    created TEXT NOT NULL, last_used TEXT);
-CREATE TABLE IF NOT EXISTS web_factors (name TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS web_credentials (
-    id TEXT PRIMARY KEY, public_key TEXT NOT NULL, sign_count INTEGER NOT NULL,
-    name TEXT NOT NULL, created TEXT NOT NULL, last_used TEXT);
-"""
-
-
 def _normal(answer: str) -> str:
     """Answers count without case and extra spaces: "Berlin " is "berlin"."""
     return " ".join(answer.split()).casefold()
@@ -179,10 +154,6 @@ class Session:
 class AuthStore:
     def __init__(self, db: Database, secret_key: bytes = b"") -> None:
         self._db = db
-        db.executescript(_SCHEMA)
-        columns = {r[1] for r in db.execute("PRAGMA table_info(web_users)")}
-        if "permissions" not in columns:  # members (1.10): what the owner granted them
-            db.execute("ALTER TABLE web_users ADD COLUMN permissions TEXT NOT NULL DEFAULT '[]'")
         self.configure_keys(secret_key)
 
     # key files: the file content is the credential; only its hash is stored

@@ -23,13 +23,6 @@ log = logging.getLogger(__name__)
 SWEEP_SECONDS = 30
 MAX_MINUTES = 7 * 24 * 60
 _DOMAIN_RE = re.compile(r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$")
-_TABLE = """
-CREATE TABLE IF NOT EXISTS net_blocks (
-    id INTEGER PRIMARY KEY, domain TEXT NOT NULL, device TEXT, label TEXT NOT NULL DEFAULT '',
-    until TEXT, created TEXT NOT NULL, UNIQUE (domain, device));
-"""
-
-
 class BlockError(Exception):
     """`key` is a translation key."""
 
@@ -56,7 +49,6 @@ class Blocks:
         self._db = db
         self._pihole = pihole
         self._page_ip = page_ip
-        db.executescript(_TABLE)
 
     def list(self) -> list[dict[str, Any]]:
         rows = self._db.execute("SELECT * FROM net_blocks ORDER BY created DESC").fetchall()

@@ -21,10 +21,6 @@ FIELDS = {"name": 80, "email": 120, "phone": 40, "address": 200, "note": 500,
           "person": 80, "telegram": 64, "discord": 32, "signal": 40, "whatsapp": 40}  # fmt: skip
 MESSENGER = {"telegram": re.compile(r"^(@[A-Za-z0-9_]{5,32}|-?[0-9]{3,20})$"),
              "discord": re.compile(r"^[0-9]{15,22}$")}  # fmt: skip
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS web_profiles (
-    username TEXT PRIMARY KEY COLLATE NOCASE, data TEXT NOT NULL);
-"""
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PHONE = re.compile(r"^\+?[0-9 ()/.-]{3,40}$")
 
@@ -57,7 +53,6 @@ def clean(data: dict[str, Any]) -> dict[str, str]:
 class Profiles:
     def __init__(self, db: Database) -> None:
         self._db = db
-        db.executescript(_SCHEMA)
 
     def get(self, username: str) -> dict[str, str]:
         row = self._db.execute(
@@ -69,8 +64,8 @@ class Profiles:
         values = clean(data)
         if values:
             self._db.execute(
-                "INSERT INTO web_profiles VALUES (?, ?) ON CONFLICT(username) "
-                "DO UPDATE SET data = excluded.data",
+                "INSERT INTO web_profiles (username, data) VALUES (?, ?) "
+                "ON CONFLICT(username) DO UPDATE SET data = excluded.data",
                 (username, json.dumps(values)),
             )
         else:

@@ -17,6 +17,7 @@ from typing import Any
 
 from pi_guard.core.timeutil import utcnow
 from pi_guard.security.files import secure_file
+from pi_guard.storage.migrate import apply_migrations
 
 MAX_FILE_BYTES = 10_000_000
 MAX_FILE_CHARS = 2_000_000
@@ -113,21 +114,34 @@ def passages(text: str) -> list[str]:
     return [p for p in result if p]
 
 
+def _knowledge_v1(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS files (
+            id INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL UNIQUE,
+            size INTEGER NOT NULL, chunks INTEGER NOT NULL, created TEXT NOT NULL)
+        """
+    )
+    conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS passages USING fts5(text, file_id UNINDEXED)")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS answers (
+            key TEXT PRIMARY KEY, answer TEXT NOT NULL, sources TEXT NOT NULL,
+            hits INTEGER NOT NULL, created TEXT NOT NULL)
+        """
+    )
+
+
+_KNOWLEDGE_MIGRATIONS = (_knowledge_v1,)
+
+
 class Knowledge:
     def __init__(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._db = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
         self._db.row_factory = sqlite3.Row
         secure_file(path)
-        self._db.executescript("""
-            CREATE TABLE IF NOT EXISTS files (
-                id INTEGER PRIMARY KEY, name TEXT NOT NULL, sha256 TEXT NOT NULL UNIQUE,
-                size INTEGER NOT NULL, chunks INTEGER NOT NULL, created TEXT NOT NULL);
-            CREATE VIRTUAL TABLE IF NOT EXISTS passages USING fts5(text, file_id UNINDEXED);
-            CREATE TABLE IF NOT EXISTS answers (
-                key TEXT PRIMARY KEY, answer TEXT NOT NULL, sources TEXT NOT NULL,
-                hits INTEGER NOT NULL, created TEXT NOT NULL);
-        """)
+        apply_migrations(self._db, _KNOWLEDGE_MIGRATIONS)
 
     def add(self, name: str, data: bytes) -> dict[str, Any]:
         text = extract_text(name, data)

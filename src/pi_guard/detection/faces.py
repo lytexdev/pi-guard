@@ -44,6 +44,7 @@ from pi_guard.core.timeutil import utcnow
 from pi_guard.detection.models import SFACE, YUNET
 from pi_guard.detection.persons import FULL_WIDTH, Image, PersonDetector
 from pi_guard.security.files import secure_file
+from pi_guard.storage.migrate import add_column, apply_migrations
 
 log = logging.getLogger(__name__)
 
@@ -231,35 +232,50 @@ def consistent(samples: list[Embedding]) -> tuple[list[Embedding], int]:
     return keep, len(samples) - len(keep)
 
 
+def _bio_v1(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS people (
+            id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, enrolled_at TEXT NOT NULL,
+            enrolled_by TEXT NOT NULL)
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS samples (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+            embedding BLOB NOT NULL, created_at TEXT NOT NULL)
+        """
+    )
+
+
+def _bio_v2(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS rejections (
+            id INTEGER PRIMARY KEY,
+            person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+            embedding BLOB NOT NULL, created_at TEXT NOT NULL)
+        """
+    )
+    for column, kind in (("pose", "TEXT"), ("light", "REAL"), ("source", "TEXT")):
+        add_column(conn, "samples", column, kind)
+    for column, kind in (("profile", "TEXT"), ("picture", "BLOB")):
+        add_column(conn, "people", column, kind)
+
+
+_BIO_MIGRATIONS = (_bio_v1, _bio_v2)
+
+
 class BiometricStore:
     def __init__(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
         secure_file(path)
         self._conn.execute("PRAGMA secure_delete=ON")  # overwrite deleted rows with zeros
-        self._conn.executescript("""
-            CREATE TABLE IF NOT EXISTS people (
-                id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, enrolled_at TEXT NOT NULL,
-                enrolled_by TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS samples (
-                id INTEGER PRIMARY KEY,
-                person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
-                embedding BLOB NOT NULL, created_at TEXT NOT NULL);
-            PRAGMA foreign_keys=ON;
-        """)
-        columns = {row[1] for row in self._conn.execute("PRAGMA table_info(samples)")}
-        self._conn.execute(
-            "CREATE TABLE IF NOT EXISTS rejections (id INTEGER PRIMARY KEY, "
-            "person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE, "
-            "embedding BLOB NOT NULL, created_at TEXT NOT NULL)"
-        )
-        for column, kind in (("pose", "TEXT"), ("light", "REAL"), ("source", "TEXT")):
-            if column not in columns:
-                self._conn.execute(f"ALTER TABLE samples ADD COLUMN {column} {kind}")
-        columns = {row[1] for row in self._conn.execute("PRAGMA table_info(people)")}
-        for column, kind in (("profile", "TEXT"), ("picture", "BLOB")):
-            if column not in columns:
-                self._conn.execute(f"ALTER TABLE people ADD COLUMN {column} {kind}")
+        self._conn.execute("PRAGMA foreign_keys=ON")
+        apply_migrations(self._conn, _BIO_MIGRATIONS)
 
     def profile(self, name: str) -> dict[str, Any]:
         row = self._conn.execute(

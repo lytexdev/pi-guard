@@ -33,20 +33,6 @@ PEERS_FILE = Path("wireguard") / "peers"
 PQ_FOLDER = Path("wireguard") / "pq"
 MAX_NAME = 32
 
-_TABLE = """
-CREATE TABLE IF NOT EXISTS wg_peers (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
-    address TEXT NOT NULL UNIQUE,
-    public_key TEXT NOT NULL UNIQUE,
-    private_key TEXT NOT NULL,
-    preshared_key TEXT NOT NULL,
-    full_tunnel INTEGER NOT NULL DEFAULT 1,
-    created TEXT NOT NULL
-);
-"""
-
-
 # What a device is, for its icon. "" means not chosen: then the name or the app decides.
 KINDS = ("android", "ios", "windows", "linux", "macos", "phone", "tablet", "computer", "other")
 _GUESSES = (
@@ -116,10 +102,6 @@ class PeerStore:
         self._db = db
         self._file = data_dir / PEERS_FILE
         self._key = hashlib.sha256(b"pi-guard wireguard key\0" + secret_key).digest()
-        db.executescript(_TABLE)
-        columns = {r[1] for r in db.execute("PRAGMA table_info(wg_peers)")}
-        if "kind" not in columns:  # added in 1.10
-            db.execute("ALTER TABLE wg_peers ADD COLUMN kind TEXT NOT NULL DEFAULT ''")
 
     # sealed values ---------------------------------------------------------------------
 
