@@ -13,6 +13,7 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- *Learn at the camera* said *no face* when the picture was too dark; it says so now.
 - *Who is this?* refused a person's own camera faces while they had only one or two pictures ("looks too different"),
   so nobody with few pictures could be taught. The check against wrong clicks starts with the third picture now.
 

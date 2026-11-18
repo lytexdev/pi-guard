@@ -366,3 +366,13 @@ def test_a_session_at_the_camera_keeps_new_views_and_refuses_someone_else(
         recognizer.learn_many("Lena", views(identity(), 10, 0.3), "web:admin")
     with pytest.raises(Exception, match="learn_not_enrolled"):
         recognizer.learn_many("Fremder", at_camera, "web:admin")
+
+
+def test_a_dark_camera_picture_says_it_is_too_dark(recognizer: Any) -> None:
+    from types import SimpleNamespace
+
+    recognizer._detector = SimpleNamespace(faces_full=lambda image, width: None)
+    night = np.full((90, 160, 3), 25, np.uint8)
+    day = np.full((90, 160, 3), 120, np.uint8)
+    assert recognizer.camera_sample(night) == (None, "faces.too_dark")
+    assert recognizer.camera_sample(day) == (None, "faces.no_face")

@@ -3592,5 +3592,6 @@
   "federation.sos": "🆘 SOS from the household {name}! Please get in touch or check at once.",
   "web.group_federation": "Linked households",
   "web.dev_rec_width": "Save recordings at width",
-  "web.dev_rec_same": "as captured"
+  "web.dev_rec_same": "as captured",
+  "faces.too_dark": "Too dark: the camera sees no face. Turn on a light that falls on the face, not into the camera."
 }

@@ -92,6 +92,11 @@ card. If few moments show a face, the camera sees people from the side or behind
   `v4l2-ctl --list-formats-ext`, and about 11 GB a day. `mjpeg` keeps 30 FPS but gains less, and takes far more CPU,
   because such cameras may ignore the requested frame rate. On one test camera with a Pi 4: H.264 copy 50 % of a core,
   sharpness 22; MJPEG 150 %, 30; YUYV 75 %, 53.
+- Dark rooms: in 81 night pictures from a USB webcam, people were found in 32 and faces in none, also after
+  brightening them in software (gamma, CLAHE); the camera's brightness control lifted only the bright parts, and it
+  has no manual exposure. The pixels simply hold no face. Light that falls on the faces helps; a lit LED strip in the
+  picture or behind the person makes the camera expose for it and the faces darker. *Learn at the camera* now says
+  *too dark* instead of *no face*.
 - Faces stay small: capture larger than you record. With `resolution: 1920x1080` and `recording_width: 1280`, faces
   and snapshots get the full 1080p while the encoder and the disk only see 720p; many USB cameras send YUYV at 1080p
   with the same 5 FPS as at 720p. *Sharper for faces* under Devices sets this when the camera offers 1080p.

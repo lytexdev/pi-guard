@@ -98,6 +98,8 @@ LEARN_MIN_MATCH = 0.2
 # Below this many samples a person's own faces from the camera can still look unlike the first
 # pictures (phone vs. camera, light): the admin's word is taken then, the check only after.
 LEARN_CHECK_FROM = 3
+# Mean brightness (0-255) below which a camera picture is too dark to find faces in.
+DARK = 50
 # Two samples this similar teach nothing new; one of them is left out or dropped first.
 REDUNDANT = 0.93
 LIVE_MAX_NEW = 8  # samples kept from one session in front of the camera
@@ -619,7 +621,10 @@ class FaceRecognizer:
         """The largest face of a camera picture as a sample, or why it cannot be one."""
         faces = self._detector.faces_full(image, FULL_WIDTH)
         if faces is None or len(faces) == 0:
-            return None, "faces.no_face"
+            # Measured on a USB camera at night: bodies were found, faces in none of 81 dark
+            # pictures, also after brightening them. Saying so beats "no face".
+            dark = float(self._cv2.cvtColor(image, self._cv2.COLOR_BGR2GRAY).mean()) < DARK
+            return None, "faces.too_dark" if dark else "faces.no_face"
         face = max(faces, key=lambda f: float(f[2] * f[3]))
         problem, aligned = self.learn_problem(image, face)
         if problem:
