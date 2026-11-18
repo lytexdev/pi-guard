@@ -339,6 +339,11 @@ class App:
             parts["dashboard"] = self.dashboard.run
             if self.dashboard.vpn_usage is not None:
                 parts["vpn-usage"] = self.dashboard.vpn_usage.run
+            federation = self.dashboard.federation
+            if federation is not None:
+                parts["federation"] = federation.run
+                if self.settings.federation_listen:
+                    parts["federation-listen"] = federation.listen
             if self.settings.blockpage_ip:
                 from pi_guard.addons.blockpage import BlockPage
 

@@ -288,9 +288,7 @@ def _pgp(request: web.Request) -> Any:
 
 
 def _password_ok(request: web.Request, data: dict[str, Any]) -> None:
-    d = dashboard(request)
-    if d.auth.check_password(d.auth.account()["username"], str(data.get("password", ""))) is None:
-        raise web.HTTPForbidden(text="web.wrong_password")
+    confirm_password(request, str(data.get("password", "")), owner=True)
 
 
 async def pgp_list(request: web.Request) -> web.Response:
@@ -542,8 +540,7 @@ async def recovery_codes(request: web.Request) -> web.Response:
     account = d.auth.account()
     if not account["totp"]:
         raise web.HTTPConflict(text="web.recovery_needs_totp")
-    if d.auth.check_password(account["username"], password) is None:
-        raise web.HTTPBadRequest(text="web.wrong_password")
+    confirm_password(request, password, owner=True)
     d.app.db.audit(f"web:{current(request).username}", "account.recovery_codes")
     return web.json_response({"codes": d.auth.new_recovery_codes()})
 

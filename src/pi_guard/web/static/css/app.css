@@ -1103,3 +1103,8 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .chip-filter { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-filter button { min-height: 34px; padding: 0 12px; border-radius: 999px; font-size: .88rem; font-weight: 500; }
 .chip-filter button.on { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); border-color: var(--accent); color: var(--accent); }
+
+/* Linked households */
+.fed-banner { position: sticky; top: 0; z-index: 30; grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: color-mix(in srgb, var(--accent) 22%, var(--surface)); border-bottom: 1px solid var(--accent); }
+.fed-boot { display: grid; place-items: center; min-height: 60vh; }
+.fed-link .dot { margin-top: 6px; }

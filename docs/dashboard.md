@@ -185,23 +185,47 @@ Only the numbers of a face are stored, as with any enrollment. Viewers do not se
 
 ## Contacts
 
-*Settings → Contacts* lists everyone as cards: role badges and chips for what is linked (face with its number of
-pictures, dashboard account, messengers, emergency contact, emergency card, VPN devices), with search and role filters.
-Each card has *Edit* (the setup below), *Photos & videos* (upload pictures and videos for face recognition, or the live
-camera, with the person's consent; only face features are stored) and *Invite*: it sends the app download link (7
-days) and, if wanted, a VPN access of their own as a WireGuard file to one of the person's own ways to reach them
-(messenger or email, never a typed address). A VPN access asks for the password, is linked to the person, and the
-dialog says which services keep the file; if sending fails, the access is removed again. Members need the *Apps* area
-for the app link and the *Network* area for a VPN access, besides *Contacts*. *Not linked yet* offers faces, accounts and emergency contacts that belong
-to nobody, one tap each. The detailed face view and the emergency contact list fold away below.
+*Contacts* has its own entry in the navigation, below *Network*. It lists everyone as cards: role badges and chips for
+what is linked (face with its number of pictures, dashboard account, messengers, emergency contact, emergency card, VPN
+devices), with search and role filters. The picture is drawn from the initials; *Change picture* (tap it, or the menu)
+puts in an own photo, cut to a square and made small in the browser, and *Use the default picture* goes back. A
+coloured ring shows the rights at a glance: red admin, green member, blue viewer, purple second line, orange
+emergency contact, yellow gets alerts; the legend is below the cards.
 
-*New person* opens a short setup (who they are, roles, messengers
-that are running on this Pi, what they get on SOS or unanswered alerts, optional dashboard account, face samples, and
-optional emergency medical sheet). Saving uses the admin session; medical sheet sharing still asks for confirmation.
-Messenger channels are on/off cards for services that are set up. *Who is this?* at the top assigns faces from
-recent events to a person or marks a stranger by swiping. The old *People* address redirects here. Who may use Telegram/Signal/… for commands is managed here; the old admin/viewer ID lists under
-Messaging stay in expert mode only. Escalation timing stays under *Settings → Emergency*. The security check is under
-*Settings → Data & backup → Security*.
+Each card has *Edit* (the setup below), *Photos & videos* (upload pictures and videos for face recognition, or the live
+camera, with the person's consent; only face features are stored) and *Invite*. An invitation goes to one of the
+person's own ways to reach them (messenger or email, never a typed address), and you choose what it holds: the link to
+the dashboard, the Android app, the desktop apps (download links valid for 7 days), the login details, and an own VPN
+access as a WireGuard file. Login details carry a new temporary password, stored only once the message went out; the
+old one stops working then. Login details and a VPN access ask for your password, and the dialog says which services
+keep the message. If sending fails, a new VPN access is removed again. Members need the *Apps* area for the app links
+and the *Network* area for a VPN access, besides *Contacts*; login details are for admins only, and never for the
+owner's login. *Not linked yet* offers faces, accounts and emergency contacts that belong to nobody, one tap each. The
+detailed face view and the emergency contact list fold away below.
+
+*New person* opens a short setup (who they are, roles, messengers that are running on this Pi, what they get on SOS or
+unanswered alerts, optional dashboard account, face samples, and optional emergency medical sheet). A new account gets
+a temporary password: made by the Pi (recommended) or typed by you. It is shown once, with *Send an invitation*; at the
+first login the person must choose an own password before anything else opens. Saving uses the admin session; medical
+sheet sharing still asks for confirmation. Messenger channels are on/off cards for services that are set up.
+
+*Who is this?* at the top assigns faces from recent events to a person or marks a stranger by swiping. Every contact is
+offered: those the cameras do not know yet under *Not taught yet*, and their first face is taken only after you confirm
+that the person agreed; the face is then linked to the contact. The old *People* and *Settings → Contacts* addresses
+redirect here. Who may use Telegram/Signal/… for commands is managed here; the old admin/viewer ID lists under
+Messaging stay in expert mode only.
+
+### Roles and who hears what
+
+- **Second line** (role): household people who look after an alarm when no admin reacted. An alarm still open after
+  *Tell the second line after (minutes)* (default 10, `emergency_backup_minutes`) goes to their messengers, before the
+  emergency contacts; admins are told who was informed.
+- **Emergency contact** and **gets alerts**: written to on an SOS or when alerts stay unconfirmed, see [mobile](mobile.md).
+- *Settings → Notifications → Where what arrives* sets per messenger what it sends by itself: alerts and emergencies,
+  only one of them, or *commands only*, for example when alarms should come through the app while Signal or Discord
+  stay for commands. An SOS always arrives on every messenger, with the emergency data as a PDF for contacts set up for
+  it. The kinds of messages and their ways are set below on the same page.
+- *Settings → Emergency* shows the emergency contacts and whose emergency data exist, above the escalation settings.
 
 ## Updates and versions
 
@@ -230,10 +254,10 @@ off for now.
 
 ## Network tools
 
-- **Wi-Fi QR codes:** the code button beside each Wi-Fi reads its key from the FRITZ!Box. The code
-  can be saved as a picture; anyone who has it can join. Without a FRITZ!Box, type the name and key.
-  A typed key is not stored. Saved Wi-Fi profiles (home, guest; with the password) keep their key sealed
-  with the dashboard's secret key, and the list never shows it.
+- **Wi-Fi QR codes:** the Wi-Fi card on the network overview has two lines, *Home Wi-Fi* and *Guest Wi-Fi*.
+  With a FRITZ!Box both come from there and *Share* reads the key from it. Without one, *Save* each once (name and
+  key, with your password); the key is sealed with the dashboard's secret key and only opened for the code. The code
+  can be saved as a picture; anyone who has it can join.
 - **What others can see of you** explains what your provider, others in the network and the operator
   of the network can see, using what this Pi knows about the device you are on.
 - **Locking a device out:** TR-064 has no call to throw one device out of the Wi-Fi. There are two
@@ -406,7 +430,9 @@ setting, a change takes effect after a restart.
 ## Where notifications go
 
 Under Settings › Notifications every kind of message has its own ways: tap *All ways* below it and pick, for example,
-only Signal, or Telegram and the PiGuard app. Changes work at once.
+only Signal, or Telegram and the PiGuard app. Changes work at once. *Where what arrives* at the top of the page sets per
+messenger what it sends by itself (*commands only* keeps it for commands) and when the second line hears of an alarm;
+see [roles and who hears what](#roles-and-who-hears-what).
 
 ## Install as an app (PWA) and push notifications
 

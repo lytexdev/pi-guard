@@ -121,6 +121,8 @@ expert mode only.
 | `EMERGENCY_DISCORD_USER_IDS` | – | |
 | `EMERGENCY_AFTER_ALERTS` | `3` | open (unconfirmed) alerts needed… |
 | `EMERGENCY_AFTER_MINUTES` | `30` | …the oldest open for at least this long |
+| `EMERGENCY_BACKUP_MINUTES` | `10` | an alert open this long goes to contacts with the role *second line* first |
+| `TELEGRAM_DELIVERY` (and `SIGNAL_`, `DISCORD_`, `WHATSAPP_`, `EMAIL_`) | `both` | what the messenger sends by itself: `alerts`, `emergency`, `both`, or `commands` (nothing, only commands); an SOS always arrives |
 
 An alert (movement, person, unknown person) that was sent stays open until
 someone presses *Everything is fine*, sends `ok`, says they are at home
@@ -128,6 +130,17 @@ someone presses *Everything is fine*, sends `ok`, says they are at home
 presence detection does not confirm alerts. When the thresholds are reached,
 the contacts get one message with a summary and up to three photos, and the
 admins are told; later alerts are added to the same escalation.
+
+### Linked households
+
+See [federation.md](federation.md). All off by default.
+
+| Name | Default | |
+|---|---|---|
+| `FEDERATION_ENABLED` | `false` | links with other pi-guards at all |
+| `FEDERATION_LISTEN` | `false` | other households may connect here (the helper's Pi); needs the port forwarded |
+| `FEDERATION_PORT` | `8444` | TCP port of the link, with its own certificate; never the dashboard |
+| `FEDERATION_ADDRESS` | – | public name or address of this Pi for codes; empty: the VPN's public name |
 
 ### Dashboard, push, network
 

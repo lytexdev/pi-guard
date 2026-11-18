@@ -102,7 +102,11 @@ function shell(route) {
     viewer ? items.map(([r, i, l]) => link(r, i, l, tabs)) : [
       ...items.slice(0, 4).map(([r, i, l]) => link(r, i, l, tabs)),
       link("more", "menu-2", "web.nav_more", items.slice(0, 4).some(([r]) => r === tabs) ? tabs : "more")]);
-  return h("div", { class: "shell" }, skip, nav, main, tabbar, scrollTopButton(), accessibilityButton(),
+  // Opened through a household link from another Pi: say where one is, and the way back.
+  const linked = state.session?.federation;
+  const banner = linked ? h("div", { class: "fed-banner", role: "status" }, icon("link"), h("span", { class: "grow" }, t("web.fed_banner", { name: linked.name })),
+    h("a", { href: "/#/settings/federation" }, t("web.fed_back"))) : null;
+  return h("div", { class: `shell${linked ? " linked" : ""}` }, skip, banner, nav, main, tabbar, scrollTopButton(), accessibilityButton(),
     state.session?.assistant ? assistantButton() : null);
 }
 

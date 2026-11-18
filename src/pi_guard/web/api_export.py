@@ -19,7 +19,7 @@ from pi_guard.config.settings import Settings
 from pi_guard.core.timeutil import utcnow
 from pi_guard.security.files import atomic_write
 from pi_guard.web.api_manage import saved_config, write_config
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.server import confirm_password, current, dashboard, read_json
 from pi_guard.web.settings_schema import BY_KEY, FIELDS
 
 FORMAT_VERSION = 1
@@ -34,9 +34,7 @@ def routes() -> list[web.RouteDef]:
 
 
 def _confirm(request: web.Request, data: dict[str, Any]) -> None:
-    d = dashboard(request)
-    if d.auth.check_password(d.auth.account()["username"], str(data.get("password", ""))) is None:
-        raise web.HTTPForbidden(text="web.wrong_password")
+    confirm_password(request, str(data.get("password", "")), owner=True)
 
 
 def _rows(app: Any, sql: str) -> list[dict[str, Any]]:

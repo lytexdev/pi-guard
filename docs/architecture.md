@@ -6,8 +6,9 @@ pi-guard is one Python process (asyncio) plus one FFmpeg process per camera. Aro
 |---|---|
 | `vpn/` | VPN service in Rust: tunnel, kill switch and split tunneling on computers, the Pi's side of the key exchange |
 | `vpn/kem/` | the post-quantum key exchange, one implementation for the Pi, computers and Android |
-| `src/pi_guard/privacy/` | optional Pi-side privacy upstream: multi-hop exit, Mullvad/custom providers, DNS, Tor, profiles |
-| `deploy/privacy/` | root jobs for the upstream WireGuard exit, nftables plan and Tor control |
+| `src/pi_guard/privacy/` | optional Pi-side privacy upstream: one exit (Mullvad with multi-hop, or an own WireGuard server), DNS, kill switch |
+| `deploy/privacy/` | root jobs for the upstream WireGuard exit and the nftables plan |
+| `src/pi_guard/federation/` | linked households: keys, codes, the helper's listener and tunnel, the helped side's connection, see [federation.md](federation.md) |
 | `agent/` | small Rust program on connected computers |
 | `proxy/` | `pgproxy`, the optional reverse proxy in Rust, see [proxy.md](proxy.md) |
 | `desktop/` | Electron app: shows the dashboard, drives the VPN service |

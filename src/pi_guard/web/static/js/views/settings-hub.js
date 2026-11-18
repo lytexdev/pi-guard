@@ -36,7 +36,7 @@ const SECTIONS = [
   ["messaging", "message", ["telegram", "discord", "email", "whatsapp", "signal", "chatapps"], "alerts"], ["notifications", "bell-ringing", null, "alerts"],
   ["emergency", "alert-triangle", ["emergency"], "alerts"],
   ["devices", "camera", null, "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
-  ["addons", "cpu", null, "home"],
+  ["addons", "cpu", null, "home"], ["federation", "link", ["federation"], "home"],
   ["data", "database", ["backup"], "system"], ["integrations", "router", ["integrations", "network"], "system"],
   ["updates", "refresh", ["updates", "mobile"], "system"],
   ["logs", "list-details", null, "system"], ["support", "headset", null, "system"],
@@ -407,6 +407,7 @@ export async function render(main, params = []) {
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
     if (current === "emergency") await emergencyOverview(body);
+    if (current === "federation") await (await import("./federation.js")).render(extra);
     if (current === "updates") {
       // Pi + app versions first, then settings, then invitations and phones.
       const status = h("div");

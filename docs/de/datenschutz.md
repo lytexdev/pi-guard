@@ -37,12 +37,17 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
   gibt es nicht mehr.
 - Kid Protect schreibt die MAC-Adressen der Kindergeräte und ihre Gruppen in Ihr Pi-hole; die FRITZ!Box bekommt ihre
   IP-Adressen, um zu den eingestellten Zeiten das Internet zu sperren.
+- Mit einem verbundenen Haushalt (aus) bekommt der Pi der helfenden Person verschlüsselt: Modus, welche Kameras laufen,
+  die Zahl offener Meldungen, Art und Zeit des letzten Ereignisses und die Version; Alarme (Art, Kameraname, Zeit) nur,
+  wenn erlaubt, und jedes SOS. Öffnet sie das Dashboard, gehen nur die Antworten auf ihre Anfragen hinüber: Kamerabilder
+  und Notfalldaten nur mit Haken, nie Anmeldedaten, Schlüssel, Sicherungen oder Exporte. Siehe
+  [Verbundene Haushalte](haushalte.md).
 - Sonst nichts: keine Cloud, keine Werbung.
 
 ### Privacy-Upstream (optional)
 
-Wenn Multi-Hop oder Tor auf dem Pi aktiv ist, kann Verkehr von VPN-Clients über einen
-Upstream-Exit (eigener WireGuard, Mullvad oder Tor) statt über den Heim-WAN gehen.
+Wenn auf dem Pi ein Ausgang eingeschaltet ist, geht Verkehr von VPN-Clients über ihn (Mullvad,
+auf Wunsch Multi-Hop, oder ein eigener WireGuard-Server) statt über den Heim-WAN.
 Mullvad-Kontonummern und Exit-Schlüssel liegen versiegelt auf dem Pi, erscheinen nicht in
 der API und nicht in Logs. Exit-IP-Prüfungen fragen `api.ipify.org` nur auf Knopfdruck.
 Ausgeschaltete Funktionen starten keine Extra-Dienste. Details: [vpn.md](../vpn.md#privacy-upstream-optional).

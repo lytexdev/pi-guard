@@ -30,7 +30,7 @@ from pi_guard.config.files import FileConfig
 from pi_guard.core import self_update
 from pi_guard.core.app_updates import step
 from pi_guard.web.api_manage import saved_config, write_config
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.server import confirm_password, current, dashboard, read_json
 
 UPDATE_REPORT = Path("/var/lib/pi-guard-scan/update.json")  # root writes it, pi-guard reads
 MAX_ZIP = 2_000_000
@@ -84,8 +84,7 @@ async def backup_run(request: web.Request) -> web.Response:
 
     d = dashboard(request)
     data = await read_json(request)
-    if d.auth.check_password(d.auth.account()["username"], str(data.get("password", ""))) is None:
-        raise web.HTTPForbidden(text="web.wrong_password")
+    confirm_password(request, str(data.get("password", "")), owner=True)
     if d.app.backups.running:
         raise web.HTTPConflict(text="web.bk_running_already")
     actor = f"web:{current(request).username}"
@@ -230,9 +229,7 @@ def unpack(archive: bytes, root: Path) -> dict[str, Any]:
 
 
 def _confirmed(request: web.Request, password: str) -> None:
-    d = dashboard(request)
-    if d.auth.check_password(d.auth.account()["username"], password) is None:
-        raise web.HTTPForbidden(text="web.wrong_password")
+    confirm_password(request, password, owner=True)
 
 
 async def _set_enabled(request: web.Request, plugin_id: str, enabled: bool) -> None:

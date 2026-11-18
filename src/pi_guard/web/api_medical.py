@@ -15,7 +15,7 @@ from aiohttp import web
 from pi_guard.addons.medical import MedicalError, MedicalRecords
 from pi_guard.core.timeutil import utcnow
 from pi_guard.i18n import format_time, t
-from pi_guard.web.server import current, dashboard, json_body_limit, read_json
+from pi_guard.web.server import confirm_password, current, dashboard, json_body_limit, read_json
 
 
 def routes() -> list[web.RouteDef]:
@@ -50,9 +50,11 @@ async def _confirmed(request: web.Request) -> dict[str, Any]:
     """The request body, after the admin's password: for files, sending and deleting."""
     d = dashboard(request)
     data = await read_json(request)
-    if d.auth.check_password(d.auth.account()["username"], str(data.get("password", ""))) is None:
+    try:
+        confirm_password(request, str(data.get("password", "")), owner=True)
+    except web.HTTPForbidden:
         d.guard.login_failed(d.guard.client_ip(request))
-        raise web.HTTPForbidden(text="web.wrong_password")
+        raise
     return data
 
 

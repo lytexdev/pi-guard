@@ -118,10 +118,7 @@ def _actor(request: web.Request) -> str:
 
 def _confirm(request: web.Request, data: dict[str, Any]) -> None:
     """Changes that lock people out need the password again."""
-    d = dashboard(request)
-    name = d.auth.account(current(request).username)["username"]
-    if d.auth.check_password(name, str(data.get("password", ""))) is None:
-        raise web.HTTPForbidden(text="web.wrong_password")
+    confirm_password(request, str(data.get("password", "")))
 
 
 # --- trying out audio devices ---------------------------------------------------------------

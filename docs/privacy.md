@@ -49,6 +49,8 @@ runs with `UMask=0077`; databases are `0600`).
 | Model files (download) | from GitHub | only when you run `pi-guard models download` |
 | Backups, encrypted with your passphrase before they leave | your Nextcloud, server or Borg repository | only if backups are set up, see [backup.md](backup.md) |
 | A request for the newest app release and Pi release, and their files when there is a new one | GitHub (the repository chosen under Settings › Updates) | every hour, unless switched off |
+| Mode, cameras online, number of open alerts, the last event's kind and time, the version; alarms (kind, camera name, time) if allowed; every SOS | a **linked helper's Pi**, encrypted | only with a household link, see [federation.md](federation.md) |
+| Answers to the helper's requests in this dashboard: never pictures or emergency data unless ticked, never logins, keys, backups or exports | a **linked helper's Pi**, encrypted | only while the helper has this household open |
 
 Telegram bot chats are **not end-to-end encrypted**: photos and videos sent by
 the bot are stored on Telegram's servers like any cloud chat. Signal messages
@@ -137,8 +139,8 @@ pi-guard does not scan the network.
 
 ### Privacy upstream (optional)
 
-When you enable multi-hop or Tor on the Pi, traffic from VPN clients can leave
-through an upstream exit (custom WireGuard, Mullvad, or Tor) instead of your
+When you turn on an exit on the Pi, traffic from VPN clients leaves through it
+(Mullvad, optionally multi-hop, or an own WireGuard server) instead of your
 home WAN. Mullvad account numbers and exit private keys are stored sealed with
 the dashboard secret, never returned by the API, and never written to logs.
 Exit-IP checks ask `api.ipify.org` only when you press the diagnostics button.

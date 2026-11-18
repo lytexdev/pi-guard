@@ -56,22 +56,26 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   auch in den Apps, per Assistent und mit `/tutorial` im Chat. Siehe [docs/de/dashboard.md](docs/de/dashboard.md).
 - **Netzwerk (optional):** Pi-hole, Geräte im Heimnetz, WireGuard-VPN, ein getarnter Weg für
   Netze, die WireGuard sperren (AmneziaWG),
-  optionaler Privacy-Upstream (Multi-Hop / Mullvad / Tor),
+  optionaler Ausgang über Mullvad (auch Multi-Hop) oder einen eigenen Server, mit je einem Schalter und pro Gerät,
+  Heim- und Gast-WLAN per QR-Code teilen,
   feste IP-Adresse, Hilfe beim Umzug in ein neues Zuhause, an einen neuen Router oder
   Pi ([Umzug](docs/de/backup.md#umzug)). Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
+- **Verbundene Haushalte (optional):** Den pi-guard der Oma vom eigenen aus betreuen: ihren Zustand, ihre Alarme und
+  jedes SOS, und ihr Dashboard, ohne in ihrem WLAN oder VPN zu sein und ohne dass bei ihr etwas geöffnet wird. Sie
+  bestimmt, was Sie dürfen. Siehe [Verbundene Haushalte](docs/de/haushalte.md).
 - **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md), Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
   Home Assistant. Die [Handy-App](docs/de/mobile.md) ist standardmäßig an.
-- **Keine Cloud.** Kein Benutzerkonto bei einem Anbieter, keine offenen Ports,
-  keine Telemetrie. Das Gerät verlassen nur die Nachrichten, die Sie anfordern, und was ein
+- **Keine Cloud.** Kein Benutzerkonto bei einem Anbieter, keine Telemetrie, und keine offenen Ports, außer Sie
+  betreuen einen anderen Haushalt. Das Gerät verlassen nur die Nachrichten, die Sie anfordern, und was ein
   optionaler Teil braucht, den Sie einschalten (KI-Anbieter für den Assistenten, Mullvad,
-  Update-Prüfung auf GitHub).
+  Update-Prüfung auf GitHub, der Pi einer helfenden Person).
 
 ## Alles drumherum
 
 | | |
 | --- | --- |
-| **Web-Dashboard** | Livebild und Ton, Kontakte an einem Ort (Gesicht, Konto, Messenger, Notfallrolle, VPN und eine Einladung mit App und VPN-Zugang), Ereignisse, Wochenplan mit Kalendern, Netzwerk, Einstellungen in einer Normal- und einer Experten-Ansicht, ein Sicherheitscheck mit rückgängig machbaren Korrekturen, Logs in Reitern und Mitglieder, die nur die freigegebenen Bereiche, Add-ons und Einstellungen bekommen. Hell, dunkel oder wie das System. Standardmäßig an unter `https://<pi>:8443`. |
+| **Web-Dashboard** | Livebild und Ton, Kontakte als eigene Seite (Gesicht, Konto, Messenger, Notfallrolle, VPN, eigene Bilder mit einem Rahmen für ihre Rechte, eine zweite Instanz vor den Notfallkontakten, und Einladungen mit Dashboard-Link, Apps, Zugangsdaten mit vorläufigem Passwort und VPN-Zugang), wohin welcher Messenger was schickt, Ereignisse, Wochenplan mit Kalendern, Netzwerk, Einstellungen in einer Normal- und einer Experten-Ansicht, ein Sicherheitscheck mit rückgängig machbaren Korrekturen, Logs in Reitern und Mitglieder, die nur die freigegebenen Bereiche, Add-ons und Einstellungen bekommen. Hell, dunkel oder wie das System. Standardmäßig an unter `https://<pi>:8443`. |
 | **Android-App** | Das Dashboard mit Alarmen ohne Google, ein VPN wie bei Mullvad mit Split-Tunneling und automatischem Verbinden, SOS mit Kamerabildern, Foto und Ton vom Handy und mitverfolgtem Standort, Handy finden und vermisste Handys verfolgen und auf Wunsch ein unauffälliges Aussehen. |
 | **Desktop-App** | Das Dashboard im eigenen Fenster für Linux, Windows und macOS, vertraut nur dem Zertifikat Ihres pi-guard. Unter Linux auch ein VPN mit Kill Switch, Lockdown, Split-Tunneling und quantenresistentem Tunnel. |
 | **Server** | Ein kleiner Rust-Agent verbindet PC oder NAS: Status, Sicherheitsprüfung, Updates, Docker, Compose und Git, sicheres Herunterfahren; dazu Dienste, die auf Ausfälle überwacht werden. |
@@ -121,8 +125,8 @@ im Ordner [docs](docs) (Architektur inkl. SQLite-Schema-Migrationen ohne ORM). A
 [Bedienung](docs/de/bedienung.md), [Dashboard](docs/de/dashboard.md), [Add-ons](docs/de/addons.md),
 [Handy-App](docs/de/mobile.md), [Sprache](docs/de/sprache.md), [Netzwerk](docs/de/netzwerk.md),
 [Backups](docs/de/backup.md), [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md),
-[WhatsApp](docs/de/whatsapp.md), [Reverse-Proxy](docs/de/proxy.md), [Training](docs/de/training.md) und
-[Datenschutz](docs/de/datenschutz.md).
+[WhatsApp](docs/de/whatsapp.md), [Reverse-Proxy](docs/de/proxy.md), [Training](docs/de/training.md),
+[Verbundene Haushalte](docs/de/haushalte.md) und [Datenschutz](docs/de/datenschutz.md).
 
 ## Unterstützen
 

@@ -142,6 +142,13 @@ class Settings(BaseSettings):
     # Contacts with the role "backup" are told first, when no admin reacted for this long.
     emergency_backup_minutes: int = Field(10, ge=1, le=1440)
 
+    # Linked households (federation/): off until wanted. `listen`: others may connect here, on
+    # this port, which the router must forward; `address`: how they reach it from outside.
+    federation_enabled: bool = False
+    federation_listen: bool = False
+    federation_port: int = Field(8444, ge=1024, le=65535)
+    federation_address: str = ""
+
     # Network integrations (optional)
     pihole_enabled: bool = False
     pihole_url: str = "http://127.0.0.1:8080"

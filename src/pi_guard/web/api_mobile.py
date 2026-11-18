@@ -252,6 +252,8 @@ async def emergency(request: web.Request) -> web.Response:
     reached = await sharing.sos(app, device["username"], head, place, photos,
                                 f"mobile:{device['id']}", address)  # fmt: skip
     await app.messenger.notify_admins("\n".join(head + place), photos, tone="alert", sos=True)
+    if d.federation is not None:
+        await d.federation.sos()  # linked households: every helper hears of it
     app.db.audit(f"mobile:{device['id']}", "mobile.emergency", str(reached))
     if app.settings.mobile_sos_home_audio:
         _background(_home_clip(d, device["name"]))
@@ -560,9 +562,7 @@ async def app_upload(request: web.Request) -> web.Response:
                         out.write(chunk)
             else:
                 fields[str(part.name)] = (await part.text())[:100]  # type: ignore[union-attr]
-        name = d.auth.account(current(request).username)["username"]
-        if d.auth.check_password(name, fields.get("password", "")) is None:
-            raise web.HTTPForbidden(text="web.wrong_password")
+        confirm_password(request, fields.get("password", ""))
         try:
             meta = await asyncio.to_thread(_store_apk, source, _apk_dir(request), fields)
         except (KeyError, ValueError, OSError):

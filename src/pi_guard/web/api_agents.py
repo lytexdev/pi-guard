@@ -10,7 +10,7 @@ from aiohttp import WSMsgType, web
 
 from pi_guard.addons.agents import DOCKER_ACTIONS, AgentError, AgentHub, Connection
 from pi_guard.addons.remote import ConfirmationError
-from pi_guard.web.server import current, dashboard, read_json
+from pi_guard.web.server import confirm_password, current, dashboard, read_json
 
 log = logging.getLogger(__name__)
 
@@ -139,8 +139,7 @@ async def maintain(request: web.Request) -> web.Response:
     the password; the computer itself decides whether it allows it, from its agent.conf."""
     d = dashboard(request)
     data = await read_json(request)
-    if d.auth.check_password(d.auth.account()["username"], str(data.get("password", ""))) is None:
-        raise web.HTTPForbidden(text="web.wrong_password")
+    confirm_password(request, str(data.get("password", "")), owner=True)
     what = str(data.get("what", ""))
     target = str(data.get("target", ""))[:300]
     if what == "upgrade":

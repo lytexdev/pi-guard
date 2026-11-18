@@ -19,6 +19,7 @@ import json
 import secrets
 import struct
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -164,6 +165,9 @@ class Session:
 
 
 class AuthStore:
+    # Set by the dashboard when households are linked: the role a helper was granted.
+    federation_role: Callable[[str], str] | None = None
+
     def __init__(self, db: Database, secret_key: bytes = b"") -> None:
         self._db = db
         self.configure_keys(secret_key)
@@ -402,13 +406,15 @@ class AuthStore:
         """Unknown names are viewers: a session can outlive a changed account."""
         if username.startswith(("key:", "api:")) or username == "local":
             return "admin"
+        if username.startswith("fed:"):  # a helper through a household link
+            return self.federation_role(username) if self.federation_role else "viewer"
         if username.casefold() == self.account()["username"].casefold():
             return "admin"
         row = self._extra(username)
         return str(row["role"]) if row else "viewer"
 
     def is_owner(self, username: str) -> bool:
-        return self._extra(username) is None
+        return not username.startswith("fed:") and self._extra(username) is None
 
     def exists(self, username: str) -> bool:
         """Devices keep the name they were paired with; it may be gone by now."""
