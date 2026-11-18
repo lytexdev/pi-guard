@@ -60,6 +60,8 @@ PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.c
 # Reachable while the default password has not been changed yet.
 SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",
                  "/api/account/totp/confirm", "/api/setup/status"}  # fmt: skip
+# With a temporary password a further user may only choose an own one.
+RENEW_ALLOWED = {"/api/account", "/api/me/password", "/api/me/profile"}
 # What viewers may do: watch. Everything else is closed to them, also anything added later.
 VIEWER_GET = {"/api/overview", "/api/events", "/api/stats", "/api/alerts", "/api/connection",
               "/api/evidence", "/api/account", "/api/me/profile",
@@ -370,6 +372,8 @@ class Dashboard:
             raise web.HTTPUnauthorized(text="login required")
         if path not in SETUP_ALLOWED and self._setup_required(session):
             raise web.HTTPForbidden(text="setup_required")
+        if path not in RENEW_ALLOWED and self.auth.must_renew(session.username):
+            raise web.HTTPForbidden(text="password_renew")
         role = self.auth.role_of(session.username)
         if role == "viewer" and not self._viewer_may(request):
             raise web.HTTPForbidden(text="web.viewer_forbidden")
@@ -495,6 +499,7 @@ class Dashboard:
             if session and session.pending and self.auth.is_owner(session.username) else None,
             "totp": bool(session and self.auth.totp_secret(session.username)),
             "setup_required": bool(active and session and self._setup_required(session)),
+            "password_renew": bool(active and session and self.auth.must_renew(session.username)),
             "setup_done": bool(self.app.db.get(SETUP_DONE_KEY)),
             "role": self.auth.role_of(session.username) if active and session else None,
             "appearance": self.app.db.get("web.appearance") or {},

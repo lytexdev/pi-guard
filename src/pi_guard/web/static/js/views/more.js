@@ -58,7 +58,7 @@ export async function render(main) {
   const entries = [["setup/welcome", "settings", "web.setup_open"], ["addons", "cpu", "web.nav_addons"], ["monitor", "camera", "web.nav_monitor"],
     ["settings", "settings", "web.nav_settings"],
     ["settings/appearance", "palette", "web.set_appearance"],
-    ["settings/contacts", "users", "web.set_contacts"],
+    ["contacts", "users", "web.nav_contacts"],
     ["settings/logs", "list-details", "web.nav_logs"], ["settings/updates", "refresh", "web.set_updates"],
     ["logout", "logout", "web.logout"]];
   fill(main,

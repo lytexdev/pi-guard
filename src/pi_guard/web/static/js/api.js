@@ -30,6 +30,7 @@ export async function api(path, { method = "GET", body, raw } = {}) {
   if (!response.ok) {
     const message = (await response.text()) || response.statusText;
     if (response.status === 403 && message === "setup_required") location.hash = "#/setup/account";
+    if (response.status === 403 && message === "password_renew") location.hash = "#/account";
     throw new ApiError(response.status, message);
   }
   if (raw) return response;

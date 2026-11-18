@@ -378,6 +378,60 @@ async def test_a_face_in_an_event_picture_is_learned(web) -> None:  # type: igno
     assert app.db.get("contribution.corrections") is None  # statistics are off for now
 
 
+async def test_a_contact_gets_a_first_face_only_with_consent(web) -> None:  # type: ignore[no-untyped-def]
+    from pi_guard.core.timeutil import utcnow
+    from pi_guard.detection.faces import Identification, Verdict
+    from pi_guard.detection.persons import PersonResult
+    from pi_guard.storage.persons import Persons
+
+    client, app = web
+    headers = {"X-CSRF-Token": await _login(client)}
+    face = np.array([[100, 50, 60, 60, *([0] * 10), 0.9]], np.float32)
+    started: list[str] = []
+    enrolled = {"Lena"}
+
+    class Faces:
+        store = SimpleNamespace(people=lambda: [(n, 3, "") for n in sorted(enrolled)],
+                                exists=lambda n: n if n in enrolled else None)  # fmt: skip
+
+        def identify(self, image: Any, face: Any) -> Identification:
+            return Identification(Verdict.UNKNOWN, None, 0.1)
+
+        def learn_problem(self, image: Any, face: Any) -> tuple[str | None, Any]:
+            return None, image
+
+        def start(self, name: str, image: Any, face: Any, actor: str) -> int:
+            started.append(name)
+            enrolled.add(name)
+            return 1
+
+        def quality(self, name: str) -> dict[str, Any]:
+            return {"score": 10}
+
+    class Detector:
+        def detect(self, path: Path) -> PersonResult:
+            return PersonResult(1, face, np.zeros((720, 1280, 3), np.uint8))
+
+    app.analysis = SimpleNamespace(faces=Faces(), persons=Detector())
+    shots = app.media_dir / "snapshots"
+    shots.mkdir(parents=True, exist_ok=True)
+    (shots / "person_1.jpg").write_bytes(b"jpeg")
+    app.db.add_event(utcnow(), "unknown_person", "door", {"snapshot": "person_1.jpg"})
+    mia = Persons(app.db).save(None, {"display_name": "Mia"})
+
+    found = await (await client.get("/api/events/1/faces")).json()
+    assert found["people"] == ["Lena"] and found["contacts"] == ["Mia"]
+    url = "/api/events/1/faces/0"
+    no_consent = await client.post(url, json={"name": "Mia", "is": True}, headers=headers)
+    assert no_consent.status == 409 and not started
+    stranger = {"name": "Nobody", "is": True, "consent": True}
+    assert (await client.post(url, json=stranger, headers=headers)).status == 404
+    ok = await client.post(url, json={"name": "Mia", "is": True, "consent": True}, headers=headers)
+    assert ok.status == 200 and started == ["Mia"]
+    assert ("face", "Mia") in Persons(app.db).get(mia).links  # type: ignore[union-attr]
+    assert (await (await client.get("/api/faces/review")).json())["contacts"] == []
+
+
 async def test_the_statistics_are_gone_for_now(web) -> None:  # type: ignore[no-untyped-def]
     client, _ = web
     await _login(client)

@@ -44,6 +44,7 @@ APP_TABLES = frozenset(
         "wg_usage",
         "persons",
         "person_links",
+        "person_pictures",
     }
 )
 
@@ -279,8 +280,21 @@ def _v4(conn: sqlite3.Connection) -> None:
 
 
 def _v5(conn: sqlite3.Connection) -> None:
-    """Per VPN device: whether its app is offered the AmneziaWG way."""
+    """Per VPN device: whether its app is offered the AmneziaWG way. Own profile pictures.
+    Temporary passwords of further dashboard users. When the backup people were told."""
     add_column(conn, "wg_peers", "disguise", "INTEGER NOT NULL DEFAULT 1")
+    add_column(conn, "web_users", "must_change", "INTEGER NOT NULL DEFAULT 0")
+    add_column(conn, "alerts", "backup_at", "TEXT")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS person_pictures (
+            person_id INTEGER PRIMARY KEY,
+            data BLOB NOT NULL,
+            updated TEXT NOT NULL,
+            FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE
+        )
+        """
+    )
 
 
 MIGRATIONS: tuple[Migration, ...] = (_v1, _v2, _v3, _v4, _v5)

@@ -251,7 +251,7 @@ async def emergency(request: web.Request) -> web.Response:
     address = f"{request.scheme}://{request.host}"
     reached = await sharing.sos(app, device["username"], head, place, photos,
                                 f"mobile:{device['id']}", address)  # fmt: skip
-    await app.messenger.notify_admins("\n".join(head + place), photos, tone="alert")
+    await app.messenger.notify_admins("\n".join(head + place), photos, tone="alert", sos=True)
     app.db.audit(f"mobile:{device['id']}", "mobile.emergency", str(reached))
     if app.settings.mobile_sos_home_audio:
         _background(_home_clip(d, device["name"]))
@@ -278,7 +278,8 @@ async def _to_everyone(app: Any, text: str, photo: Path | None = None,
     """Emergency contacts that get this kind of file, and admins, with the words even if the
     file fails."""
     reached = await sharing.to_contacts(app, text, need, photo=photo, audio=audio)
-    await app.messenger.notify_admins(text, [photo] if photo else [], tone="alert", audio=audio)
+    await app.messenger.notify_admins(text, [photo] if photo else [], tone="alert", audio=audio,
+                                      sos=True)  # fmt: skip
     return reached
 
 

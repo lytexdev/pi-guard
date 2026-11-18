@@ -599,6 +599,18 @@ class FaceRecognizer:
         sample = with_context(embedding, pose_of(face), light, "camera")
         return self.enroll(stored, sample, actor), score
 
+    def start(self, name: str, image: Image, face: npt.NDArray[np.float32], actor: str) -> int:
+        """A contact's first face, from a camera picture, after the admin confirmed the
+        person agreed. Refused when it looks like someone already enrolled."""
+        if self.store.exists(name) is not None:
+            raise EnrollmentError("faces.already_enrolled")
+        problem, aligned = self.learn_problem(image, face)
+        if problem:
+            raise EnrollmentError(problem)
+        light = float(self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY).mean())
+        sample = with_context(self._embed(aligned), pose_of(face), light, "camera")
+        return self.enroll(name, sample, actor)
+
     def camera_sample(self, image: Image) -> tuple[Embedding | None, str | None]:
         """The largest face of a camera picture as a sample, or why it cannot be one."""
         faces = self._detector.faces_full(image, FULL_WIDTH)

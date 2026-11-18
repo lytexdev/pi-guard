@@ -10,9 +10,12 @@ from pi_guard.core.timeutil import utcnow
 from pi_guard.storage.db import Database
 
 KINDS = ("face", "web_account", "messenger", "emergency_contact", "medical", "vpn")
-# household: lives here; trusted: cameras know them; emergency/alert/viewer: who gets what
-ROLES = ("household", "trusted", "emergency", "alert", "viewer")
+# household: lives here; trusted: cameras know them; emergency/alert/viewer: who gets what;
+# backup: told about alarms no admin reacted to, before the emergency contacts
+ROLES = ("household", "trusted", "backup", "emergency", "alert", "viewer")
 MAX_PERSONS = 80
+# A profile picture is scaled to 256 pixels in the browser; the Pi has no image library.
+PICTURE_MAX = 120_000
 
 
 class PersonError(ValueError):
@@ -28,6 +31,7 @@ class Person:
     note: str = ""
     roles: list[str] = field(default_factory=list)
     links: list[tuple[str, str]] = field(default_factory=list)
+    picture: str = ""  # when the own picture changed, or "" for the drawn initials
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -36,6 +40,7 @@ class Person:
             "note": self.note,
             "roles": list(self.roles),
             "links": [{"kind": k, "ref": r} for k, r in self.links],
+            "picture": self.picture,
         }
 
 
@@ -116,6 +121,27 @@ class Persons:
 
     def unlink(self, kind: str, ref: str) -> None:
         self._db.execute("DELETE FROM person_links WHERE kind = ? AND ref = ?", (kind, ref))
+
+    def set_picture(self, person_id: int, data: bytes | None) -> bool:
+        """An own JPEG picture, or None for the drawn initials again."""
+        if not self.get(person_id):
+            return False
+        if data is None:
+            self._db.execute("DELETE FROM person_pictures WHERE person_id = ?", (person_id,))
+            return True
+        if not data.startswith(b"\xff\xd8\xff") or len(data) > PICTURE_MAX:
+            raise PersonError("web.person_bad_picture")
+        self._db.execute(
+            "INSERT OR REPLACE INTO person_pictures (person_id, data, updated) VALUES (?, ?, ?)",
+            (person_id, data, utcnow().isoformat()),
+        )
+        return True
+
+    def picture(self, person_id: int) -> bytes | None:
+        row = self._db.execute(
+            "SELECT data FROM person_pictures WHERE person_id = ?", (person_id,)
+        ).fetchone()
+        return bytes(row["data"]) if row else None
 
     def delete(self, person_id: int) -> bool:
         return bool(self._db.execute("DELETE FROM persons WHERE id = ?", (person_id,)).rowcount)
@@ -210,10 +236,14 @@ class Persons:
             roles = json.loads(row["roles"] or "[]")
         except json.JSONDecodeError:
             roles = []
+        picture = self._db.execute(
+            "SELECT updated FROM person_pictures WHERE person_id = ?", (row["id"],)
+        ).fetchone()
         return Person(
             int(row["id"]),
             row["display_name"],
             row["note"] or "",
             [r for r in roles if r in ROLES],
             [(r["kind"], r["ref"]) for r in links],
+            picture["updated"] if picture else "",
         )

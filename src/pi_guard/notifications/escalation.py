@@ -2,6 +2,8 @@
 
 Every alert about movement or people that was actually sent is "open" until a
 user acknowledges it ("Everything is fine", "I am at home", or the dashboard).
+First, when an alert is open for `emergency_backup_minutes`, the people with the
+contact role "backup" get it: a second line before anyone outside the household.
 When at least `emergency_after_alerts` alerts are open and the oldest has been
 open for `emergency_after_minutes`, the emergency contacts get one message with
 a summary, and the latest events and photos if they are set to get them (see
@@ -23,6 +25,7 @@ from pi_guard.core.permissions import Role
 from pi_guard.core.timeutil import utcnow
 from pi_guard.i18n import format_time, t
 from pi_guard.messaging.base import Reply
+from pi_guard.messaging.hub import delivery_allows
 from pi_guard.notifications.contacts import Contacts
 
 if TYPE_CHECKING:
@@ -62,6 +65,41 @@ class Escalation:
     @property
     def enabled(self) -> bool:
         return bool(self.contacts.recipients("escalation"))
+
+    @property
+    def backup_after(self) -> timedelta:
+        return timedelta(minutes=self._app.settings.emergency_backup_minutes)
+
+    def backup_channels(self) -> list[tuple[str, str, str]]:
+        """(provider, address, name) of everyone with the contact role "backup": their own
+        messengers, and the ways of the emergency contact linked to them."""
+        from pi_guard.storage.persons import Persons
+
+        found: list[tuple[str, str, str]] = []
+        for person in Persons(self._db).all():
+            if "backup" not in person.roles:
+                continue
+            for kind, ref in person.links:
+                if kind == "messenger" and ":" in ref:
+                    provider, address = ref.split(":", 1)
+                    found.append((provider, address, person.display_name))
+                elif kind == "emergency_contact" and ref.isdigit():
+                    contact = self.contacts.get(int(ref))
+                    for provider, address in contact.channels if contact else ():
+                        found.append((provider, address, person.display_name))
+        return list(dict.fromkeys(found))
+
+    def backup_due(self, now: datetime | None = None) -> list[OpenAlert]:
+        """Open alerts the backup people should hear about now, or an empty list."""
+        rows = self._db.execute(
+            "SELECT * FROM alerts WHERE acked_at IS NULL AND backup_at IS NULL ORDER BY ts"
+        ).fetchall()
+        if not rows or not self.backup_channels():
+            return []
+        if (now or utcnow()) - datetime.fromisoformat(rows[0]["ts"]) < self.backup_after:
+            return []
+        return [OpenAlert(r["id"], datetime.fromisoformat(r["ts"]), r["type"], r["camera"],
+                          r["snapshot"], r["escalated_at"] is not None) for r in rows]  # fmt: skip
 
     def is_contact(self, provider: str, user_id: str) -> bool:
         return (provider, user_id) in self.contacts.channels()
@@ -160,14 +198,57 @@ class Escalation:
     async def run(self) -> None:
         while True:
             await asyncio.sleep(CHECK_SECONDS)
+            backup = self.backup_due()
+            if backup:
+                await self.to_backup(backup)
             alerts = self.due()
             if alerts:
                 await self.escalate(alerts)
 
+    def _event_lines(self, alerts: list[OpenAlert], lang: str) -> list[str]:
+        names = {cid: p.camera.name for cid, p in self._app.cameras.items()}
+        lines = []
+        for alert in alerts[-10:]:
+            where = names.get(alert.camera or "", alert.camera or "")
+            lines.append(f"• {format_time(alert.ts, self._app.settings.tz, lang)} "
+                         f"{t(f'event.{alert.type}', lang)} – {where}")  # fmt: skip
+        return lines
+
+    async def to_backup(self, alerts: list[OpenAlert]) -> None:
+        """The second line: household people who look after it when no admin reacted."""
+        app = self._app
+        lang = app.settings.language
+        minutes = self._app.settings.emergency_backup_minutes
+        text = "\n".join([t("emergency.backup_title", lang), "",
+                          t("emergency.backup_summary", lang, count=len(alerts), minutes=minutes),
+                          *self._event_lines(alerts, lang), "",
+                          t("emergency.backup_what", lang)])  # fmt: skip
+        photos = [app.media_dir / "snapshots" / a.snapshot for a in alerts if a.snapshot]
+        photo = next((p for p in reversed(photos) if p.is_file()), None)
+        reached: set[str] = set()
+        for provider, address, name in self.backup_channels():
+            if provider not in app.providers or not delivery_allows(
+                app.settings, provider, "alerts"
+            ):
+                continue
+            try:
+                await app.messenger.send(provider, address, Reply(text, photo=photo, tone="alert"))
+                reached.add(name)
+            except Exception as exc:  # every messenger fails in its own way
+                log.warning("backup contact via %s unreachable: %s", provider, type(exc).__name__)
+        ids = ",".join(str(a.id) for a in alerts)
+        self._db.execute(f"UPDATE alerts SET backup_at = ? WHERE id IN ({ids})",  # noqa: S608
+                         (utcnow().isoformat(),))  # fmt: skip
+        self._db.audit("system", "emergency.backup", f"alerts={len(alerts)} people={len(reached)}")
+        if reached:
+            await app.messenger.notify_admins(
+                t("emergency.backup_owner_note", lang, names=", ".join(sorted(reached))),
+                tone="alert",
+            )
+
     async def escalate(self, alerts: list[OpenAlert]) -> None:
         app = self._app
         lang = app.settings.language
-        names = {cid: p.camera.name for cid, p in app.cameras.items()}
         head = [
             t("emergency.title", lang),
             "",
@@ -178,11 +259,7 @@ class Escalation:
                 since=format_time(alerts[0].ts, app.settings.tz, lang, with_date=True),
             ),
         ]
-        events = []
-        for alert in alerts[-10:]:
-            where = names.get(alert.camera or "", alert.camera or "")
-            events.append(f"• {format_time(alert.ts, app.settings.tz, lang)} "
-                          f"{t(f'event.{alert.type}', lang)} – {where}")  # fmt: skip
+        events = self._event_lines(alerts, lang)
         tail = ["", t("emergency.what_to_do", lang)]
         if self.assessment:
             tail = ["", t("emergency.assessment", lang, text=self.assessment), *tail]
@@ -190,8 +267,6 @@ class Escalation:
         photos = [p for p in photos if p.is_file()][-PHOTOS:]
         sent = 0
         reached: set[int] = set()
-        from pi_guard.messaging.hub import delivery_allows
-
         for provider, chat, contact in self.contacts.recipients("escalation"):
             if provider not in app.providers:
                 continue

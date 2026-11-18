@@ -4,6 +4,7 @@ import { api, attempt, confirmDialog, fill, h, icon, t, toast } from "../api.js"
 const ROLE_ICONS = {
   household: "home",
   trusted: "user-check",
+  backup: "users",
   emergency: "alert-triangle",
   alert: "bell",
   viewer: "eye",
@@ -156,14 +157,19 @@ function accessStep(personsData, person) {
   const account = h("select", {}, h("option", { value: "" }, t("web.none")),
     (personsData.accounts || []).map((a) => h("option", { value: a, selected: a === linked }, a)));
   const username = h("input", { maxlength: 32, autocomplete: "off" });
-  const password = h("input", { type: "password", maxlength: 128, autocomplete: "new-password" });
+  const made = h("input", { type: "radio", name: "cw_pw", value: "made", checked: true });
+  const own = h("input", { type: "radio", name: "cw_pw", value: "own" });
+  const password = h("input", { type: "password", maxlength: 128, autocomplete: "new-password", minlength: 10 });
+  const passwordBox = h("div", { class: "field hidden" }, h("label", {}, t("web.password")), password);
+  [made, own].forEach((r) => r.addEventListener("change", () => passwordBox.classList.toggle("hidden", made.checked)));
   const role = h("select", {}, ["viewer", "member", "admin"].map((r) =>
     h("option", { value: r, selected: r === "viewer" }, t(`web.role_${r}`))));
   const linkBox = h("div", { class: linked ? "stack" : "stack hidden" },
     h("div", { class: "field" }, h("label", {}, t("web.person_account")), account));
   const createBox = h("div", { class: "stack hidden" },
     h("div", { class: "field" }, h("label", {}, t("web.username")), username),
-    h("div", { class: "field" }, h("label", {}, t("web.password")), password),
+    h("div", { class: "stack" }, h("label", { class: "check" }, made, t("web.cw_pw_made")), h("label", { class: "check" }, own, t("web.cw_pw_own"))),
+    passwordBox,
     h("div", { class: "field" }, h("label", {}, t("web.role")), role),
     h("p", { class: "muted" }, h("small", {}, t("web.cw_access_create_hint"))));
   const sync = () => {
@@ -181,7 +187,7 @@ function accessStep(personsData, person) {
       mode: mode.value,
       account: account.value,
       username: username.value.trim(),
-      password: password.value,
+      password: made.checked ? "" : password.value,
       role: role.value,
     }),
   };
@@ -300,17 +306,33 @@ async function saveEmergency(contactsData, draft, channels, share, medicalMode, 
   return result ? (existing || result.id) : null;
 }
 
+// A new login always starts with a temporary password: made here, or typed by the admin. The
+// person chooses an own one at the first login.
 async function maybeCreateAccount(access) {
-  if (access.mode !== "create") return access.mode === "link" ? access.account : "";
-  if (!access.username || !access.password) {
+  if (access.mode !== "create") return { name: access.mode === "link" ? access.account : "" };
+  if (!access.username) {
     toast(t("web.cw_access_need_creds"), true);
     return null;
   }
   const ok = await attempt(() => api("/api/dashboard-users", {
     method: "POST",
-    body: { username: access.username, password: access.password, role: access.role || "viewer" },
+    body: { username: access.username, password: access.password, role: access.role || "viewer", temporary: true },
   }), t("web.saved"));
-  return ok ? access.username : null;
+  return ok ? { name: access.username, password: ok.password || access.password } : null;
+}
+
+function accountMade(account, personId) {
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, icon("key"), " ", t("web.cw_made_title")),
+    h("p", {}, t("web.cw_made_text", { user: account.name })),
+    h("p", { class: "row wrap" }, h("code", { class: "big" }, account.password),
+      h("button", { class: "small", onclick: () => navigator.clipboard?.writeText(account.password).then(() => toast(t("web.copied"))) }, icon("copy"), t("web.copy"))),
+    h("p", { class: "muted" }, h("small", {}, t("web.cw_made_hint"))),
+    h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.done")),
+      h("button", { class: "primary", onclick: async () => { dialog.close(); (await import("./persons.js")).inviteById(personId, ["dashboard", "android", "desktop", "login"]); } },
+        icon("send"), t("web.cw_made_invite"))));
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 async function maybeEnrollFace(name, faceOpt) {
@@ -484,7 +506,7 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
     if (!displayName) { toast(t("web.person_needs_name"), true); return; }
     const picked = roles.value();
     const channels = messengers.value();
-    if ((picked.includes("emergency") || picked.includes("alert")) && !channels.length) {
+    if ((picked.includes("emergency") || picked.includes("alert") || picked.includes("backup")) && !channels.length) {
       toast(t("web.ec_needs_channel"), true);
       return;
     }
@@ -492,8 +514,9 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
       && !await confirmDialog(t("web.ec_sheet_confirm"), t("web.ec_sheet_yes"))) return;
 
     const accessVal = access.value();
-    const accountName = await maybeCreateAccount(accessVal);
-    if (accountName === null) return;
+    const created = await maybeCreateAccount(accessVal);
+    if (created === null) return;
+    const accountName = created.name;
 
     const faceOpt = face.value();
     let faceRef = faceOpt.face;
@@ -545,6 +568,7 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
 
     dialog.close();
     onDone();
+    if (created.password) accountMade(created, personId);
     if (faceOpt.enroll && (picked.includes("trusted") || picked.includes("household"))) {
       toast(t("web.cw_face_next"));
     }

@@ -56,14 +56,14 @@ class Settings(BaseSettings):
     telegram_allowed_chat_ids: IntList = Field(default_factory=list)
     telegram_group_plain_text: bool = False
     # alerts: only alarms/commands; emergency: only SOS/escalation; both: previous behaviour
-    telegram_delivery: Literal["alerts", "emergency", "both"] = "both"
+    telegram_delivery: Literal["alerts", "emergency", "both", "commands"] = "both"
 
     # Discord (optional bot in direct messages; see docs/discord.md)
     discord_enabled: bool = False
     discord_bot_token: SecretStr | None = None
     discord_admin_user_ids: StrList = Field(default_factory=list)
     discord_viewer_user_ids: StrList = Field(default_factory=list)
-    discord_delivery: Literal["alerts", "emergency", "both"] = "both"
+    discord_delivery: Literal["alerts", "emergency", "both", "commands"] = "both"
 
     # Phones with the pi-guard app (see docs/mobile.md)
     mobile_enabled: bool = True
@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     email_from: str = ""
     email_recipients: StrList = Field(default_factory=list)
     email_export: Literal["off", "weekly", "monthly"] = "off"
-    email_delivery: Literal["alerts", "emergency", "both"] = "both"
+    email_delivery: Literal["alerts", "emergency", "both", "commands"] = "both"
 
     signal_enabled: bool = False
     # Off: Signal only sends alerts and reads nothing; for a number that is also a private one.
@@ -89,7 +89,7 @@ class Settings(BaseSettings):
     signal_admin_numbers: StrList = Field(default_factory=list)
     signal_allowed_numbers: StrList = Field(default_factory=list)
     signal_cli_address: str = "127.0.0.1:7583"
-    signal_delivery: Literal["alerts", "emergency", "both"] = "both"
+    signal_delivery: Literal["alerts", "emergency", "both", "commands"] = "both"
 
     recording_enabled: bool = True
     recording_continuous: bool = True
@@ -139,6 +139,8 @@ class Settings(BaseSettings):
     emergency_discord_user_ids: StrList = Field(default_factory=list)
     emergency_after_alerts: int = Field(3, ge=1, le=50)
     emergency_after_minutes: int = Field(30, ge=1, le=1440)
+    # Contacts with the role "backup" are told first, when no admin reacted for this long.
+    emergency_backup_minutes: int = Field(10, ge=1, le=1440)
 
     # Network integrations (optional)
     pihole_enabled: bool = False
@@ -175,7 +177,7 @@ class Settings(BaseSettings):
     whatsapp_allowed_numbers: StrList = Field(default_factory=list)
     # Approved template for alerts outside WhatsApp's 24-hour reply window.
     whatsapp_alert_template: str | None = None
-    whatsapp_delivery: Literal["alerts", "emergency", "both"] = "both"
+    whatsapp_delivery: Literal["alerts", "emergency", "both", "commands"] = "both"
 
     # AI assistant add-on: keys stay here; everything else is in config.yaml (addons.assistant)
     assistant_api_key: SecretStr | None = None

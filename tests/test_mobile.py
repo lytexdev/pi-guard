@@ -138,7 +138,8 @@ async def test_emergency_goes_to_contacts_and_admins(tmp_path: Path, monkeypatch
     async def send(provider: str, chat: str, reply: Reply) -> None:
         sent.append((provider, chat, reply.text))
 
-    async def admins(text: str, photos: Any = (), tone: str = "") -> None:
+    async def admins(text: str, photos: Any = (), tone: str = "", sos: bool = False) -> None:
+        assert sos  # an SOS goes to every messenger, whatever it delivers otherwise
         sent.append(("admins", "", text))
 
     app.providers["signal"] = SimpleNamespace(supports_buttons=False)

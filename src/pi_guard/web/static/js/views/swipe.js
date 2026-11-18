@@ -2,7 +2,7 @@
 // Right: yes, it is the suggested person. Left: no (or a stranger). Up: skip. A name below the
 // picture says who it is instead. Arrow keys and the buttons do the same, for every hand.
 // Only people already enrolled can be learned; enrolling needs their consent.
-import { api, attempt, h, icon, t, toast, when } from "../api.js";
+import { api, attempt, confirmDialog, h, icon, t, toast, when } from "../api.js";
 
 const SWIPE = 90;  // pixels to count as a swipe
 
@@ -28,7 +28,7 @@ export async function openSwipe(onDone = () => {}) {
   dialog.showModal();
   const count = () => { counter.textContent = t("web.sw_count", { done, learned }); };
   count();
-  if (!queue.people.length) { stage.replaceChildren(h("p", { class: "notice" }, t("web.sw_no_people"))); return; }
+  if (!queue.people.length && !(queue.contacts || []).length) { stage.replaceChildren(h("p", { class: "notice" }, t("web.sw_no_people"))); return; }
 
   // Cards come one event at a time, so the Pi looks for faces only in pictures someone sees.
   async function* cards() {
@@ -44,7 +44,7 @@ export async function openSwipe(onDone = () => {}) {
   let current = null;
   let busy = false;
 
-  const act = async (kind, name) => {
+  const act = async (kind, name, consent = false) => {
     if (!current || busy) return;
     busy = true;
     const { event, index, face } = current;
@@ -52,9 +52,13 @@ export async function openSwipe(onDone = () => {}) {
     card?.classList.add(`gone-${kind === "yes" || kind === "name" ? "right" : kind === "skip" ? "up" : "left"}`);
     let ok = true;
     if (kind === "yes" || kind === "name") {
-      const result = await attempt(() => api(`/api/events/${event.id}/faces/${index}`, { method: "POST", body: { name: name || face.name, is: true } }));
+      const result = await attempt(() => api(`/api/events/${event.id}/faces/${index}`, { method: "POST", body: { name: name || face.name, is: true, consent } }));
       ok = Boolean(result);
-      if (ok) { learned += 1; toast(t("web.lf_learned", { name: name || face.name, total: result.total })); }
+      if (ok) {
+        learned += 1;
+        toast(t("web.lf_learned", { name: name || face.name, total: result.total }));
+        if (consent) { queue.people.push(name); queue.contacts = queue.contacts.filter((c) => c !== name); }
+      }
     } else if (kind === "no" && face.name) {
       ok = Boolean(await attempt(() => api(`/api/events/${event.id}/faces/${index}`, { method: "POST", body: { name: face.name, is: false } })));
     } else {
@@ -101,6 +105,12 @@ export async function openSwipe(onDone = () => {}) {
       picks.map((p, i) => h("button", { class: "small", title: i < 9 ? `${i + 1}` : "", onclick: () => act("name", p) }, p)),
       h("button", { class: "small sw-stranger-pick", title: t("web.sw_stranger_hint"), onclick: () => act("no") },
         icon("user-x"), " ", t("web.sw_stranger")));
+    // Contacts the cameras do not know yet: their first face needs their consent.
+    const fresh = (queue.contacts || []).length ? h("div", { class: "row wrap sw-names" },
+      h("small", { class: "muted" }, t("web.sw_new_contact")),
+      queue.contacts.map((p) => h("button", { class: "small ghost", onclick: async () => {
+        if (await confirmDialog(t("web.sw_consent", { name: p }), t("web.sw_consent_yes"))) act("name", p, true);
+      } }, icon("user-plus"), " ", p))) : null;
     stage.replaceChildren(card,
       h("div", { class: "sw-buttons" },
         h("button", { class: "sw-no", title: `${t(named ? "web.sw_no" : "web.sw_stranger")} (←)`, onclick: () => act("no") },
@@ -108,7 +118,7 @@ export async function openSwipe(onDone = () => {}) {
         h("button", { class: "sw-skip", title: `${t("web.sw_skip")} (↑)`, onclick: () => act("skip") }, t("web.sw_skip")),
         named ? h("button", { class: "sw-yes primary", title: `${t("web.sw_yes", { name: face.name })} (→)`, onclick: () => act("yes") },
           icon("check"), t("web.sw_yes", { name: face.name })) : null),
-      names);
+      names, fresh);
     card.focus();
   }
 

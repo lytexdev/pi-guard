@@ -199,7 +199,7 @@ function panel() {
 }
 
 // Photos from a phone are several MB: send at most 1600 px as JPEG, which the server accepts.
-async function shrinkPicture(dataUrl, longest = 1600) {
+export async function shrinkPicture(dataUrl, longest = 1600) {
   try {
     const img = new Image();
     img.src = dataUrl;
