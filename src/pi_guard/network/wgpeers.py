@@ -133,13 +133,14 @@ class PeerStore:
 
     def list(self) -> list[dict[str, Any]]:
         rows = self._db.execute(
-            "SELECT id, name, address, public_key, full_tunnel, created, kind, route "
+            "SELECT id, name, address, public_key, full_tunnel, created, kind, route, disguise "
             "FROM wg_peers ORDER BY name"
         ).fetchall()
         return [
             {
                 **dict(r),
                 "full_tunnel": bool(r["full_tunnel"]),
+                "disguise": bool(r["disguise"]),
                 "route": r["route"] if r["route"] in ROUTES else "default",
             }
             for r in rows
@@ -191,6 +192,12 @@ class PeerStore:
         cursor = self._db.execute("UPDATE wg_peers SET route = ? WHERE id = ?", (route, peer_id))
         if cursor.rowcount:
             self.write_routes_file()
+        return bool(cursor.rowcount)
+
+    def set_disguise(self, peer_id: int, on: bool) -> bool:
+        cursor = self._db.execute(
+            "UPDATE wg_peers SET disguise = ? WHERE id = ?", (int(on), peer_id)
+        )
         return bool(cursor.rowcount)
 
     def home_addresses(self) -> Sequence[str]:

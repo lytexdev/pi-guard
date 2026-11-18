@@ -425,7 +425,9 @@ async def vpn(request: web.Request) -> web.Response:
     port = (status.get("interface") or {}).get("listen_port")
     ways = endpoints(d.settings, port)
     # Separate from "ways": apps before 1.8 would try them as plain WireGuard and wait in vain.
-    on = awg.enabled(d.settings.data_dir)  # switched off as a VPN layer: not offered
+    # Switched off as a VPN layer, or for this device: not offered.
+    mine = next((p for p in store.list() if p["id"] == peer), {})
+    on = awg.enabled(d.settings.data_dir) and mine.get("disguise", True)
     hidden = awg.ways(ways, await asyncio.to_thread(awg.read)) if on else []
     return web.json_response({"config": config, "name": name, "ways": ways, "obfuscated": hidden},
                              headers={"Cache-Control": "no-store"})  # fmt: skip

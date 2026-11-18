@@ -160,9 +160,10 @@ async def test_wifi_access_and_blocking_need_the_password(tmp_path: Path) -> Non
         headers = {"X-CSRF-Token": await _login(client)}
         no_box = await client.post("/api/network/wifi/qr", json={"index": 3}, headers=headers)
         assert no_box.status == 409
-        typed = {"ssid": "Home", "key": "12345678"}
-        response = await client.post("/api/network/wifi/qr", json=typed, headers=headers)
-        assert (await response.json())["qr"].startswith("data:image/svg+xml")
+        typed = {"ssid": "Home", "key": "12345678"}  # only saved networks, never typed in here
+        assert (
+            await client.post("/api/network/wifi/qr", json=typed, headers=headers)
+        ).status == 400
 
         app.fritz = box = Fritz()
         guest = await client.post("/api/network/wifi/qr", json={"index": 3}, headers=headers)

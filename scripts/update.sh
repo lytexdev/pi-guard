@@ -36,23 +36,35 @@ git_as_owner() { runuser -u "$OWNER" -- git -C "$REPO" "$@"; }
 
 # Optional root parts already installed by their own scripts stay current (binaries and systemd
 # units). First install stays the owner's step (privacy-server.sh, wireguard.sh, amneziawg.sh).
+# Tor was removed in 1.14. A Tor that pi-guard started is stopped once, then its job goes.
+retire_tor() {
+    [[ -e /usr/local/sbin/pi-guard-tor-ctl || -e /etc/systemd/system/pi-guard-tor-ctl.path ]] || return 0
+    systemctl disable --now pi-guard-tor-ctl.path 2>/dev/null || true
+    rm -f /var/lib/pi-guard/privacy/tor.want /var/lib/pi-guard/privacy/tor.bridges
+    [[ -x /usr/local/sbin/pi-guard-tor-ctl ]] && /usr/local/sbin/pi-guard-tor-ctl >/dev/null 2>&1 || true
+    rm -f /usr/local/sbin/pi-guard-tor-ctl /etc/systemd/system/pi-guard-tor-ctl.path \
+        /etc/systemd/system/pi-guard-tor-ctl.service /run/pi-guard-status/privacy.tor
+    rm -f /var/lib/pi-guard-privacy/tor-started-by-us
+}
+
 refresh_helpers() {
     local src unit iface
 
     if [[ -e /usr/local/sbin/pi-guard-exit-apply || -f /var/lib/pi-guard/privacy/installed ]]; then
         src="$REPO/deploy/privacy"
-        for unit in pi-guard-exit-apply pi-guard-privacy-nft pi-guard-tor-ctl pi-guard-privacy-status; do
+        for unit in pi-guard-exit-apply pi-guard-privacy-nft pi-guard-privacy-status; do
             [[ -f "$src/$unit" ]] && install -m 0755 "$src/$unit" /usr/local/sbin/
         done
         for unit in \
             pi-guard-exit-apply.service pi-guard-exit-apply.path \
             pi-guard-privacy-nft.service pi-guard-privacy-nft.path \
-            pi-guard-tor-ctl.service pi-guard-tor-ctl.path \
             pi-guard-privacy-status.service pi-guard-privacy-status.timer
         do
             [[ -f "$src/$unit" ]] && install -m 0644 "$src/$unit" /etc/systemd/system/
         done
     fi
+
+    retire_tor
 
     if [[ -e /usr/local/sbin/pi-guard-wg-apply ]]; then
         src="$REPO/deploy/wireguard"
@@ -92,7 +104,7 @@ refresh_helpers() {
         # A watch that systemd stopped (the old PathExists loop) must come back.
         systemctl reset-failed pi-guard-exit-apply.path pi-guard-exit-apply.service 2>/dev/null || true
         systemctl enable --now pi-guard-exit-apply.path pi-guard-privacy-nft.path \
-            pi-guard-tor-ctl.path pi-guard-privacy-status.timer 2>/dev/null || true
+            pi-guard-privacy-status.timer 2>/dev/null || true
         systemctl enable --quiet pi-guard-exit-apply.service 2>/dev/null || true
         # New path units and exit rules take effect now, not only on the next peer change.
         systemctl start pi-guard-exit-apply.service 2>/dev/null || true

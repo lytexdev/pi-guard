@@ -80,19 +80,43 @@ function addDialog(redraw) {
   name.focus();
 }
 
-const ROUTE_ICONS = { home: "home", default: "share", exit: "world" };
-
-function routePicker(value, onPick) {
-  return h("div", { class: "route-pick", role: "radiogroup", "aria-label": t("web.wg_exit_route") },
-    ["home", "default", "exit"].map((route) => h("button", {
-      type: "button",
-      class: `route-option${route === value ? " on" : ""}`,
-      role: "radio",
-      "aria-checked": String(route === value),
-      onclick: () => onPick(route),
-    }, icon(ROUTE_ICONS[route]),
-      h("strong", {}, t(`web.wg_exit_${route}`)),
-      h("small", { class: "muted" }, t(`web.wg_exit_${route}_hint`)))));
+// Two plain switches per device: out through Mullvad or the home line, and whether its app gets
+// the disguised AmneziaWG way. Multi-hop and the servers are set once for the Pi (Privacy).
+async function deviceLayers(p, redraw) {
+  const [cfg, diag] = await Promise.all([api("/api/privacy/config").catch(() => null), api("/api/privacy/diagnostics").catch(() => null)]);
+  const hop = (cfg?.chain?.hops || []).find((x) => x.enabled !== false);
+  const selected = cfg?.providers?.mullvad?.selected || {};
+  const exitUp = Boolean(hop && diag?.exit?.up);
+  let route = p.route || "default";
+  let disguise = p.disguise !== false;
+  const via = !hop ? "" : hop.provider === "mullvad"
+    ? (selected.entry_hostname ? t("web.pv_way_multi", { entry: selected.entry_hostname, exit: selected.hostname }) : t("web.pv_way_mullvad", { exit: selected.hostname || "Mullvad" }))
+    : t("web.pv_way_custom", { name: hop.name });
+  const patch = async (body) => Boolean(await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body }), t("web.saved")));
+  const toggle = (id, label, hint, checked, disabled, onChange) => {
+    const input = h("input", { type: "checkbox", class: "toggle", role: "switch", id, checked, disabled });
+    input.addEventListener("change", async () => {
+      input.disabled = true;
+      if (!await onChange(input.checked)) input.checked = !input.checked;
+      input.disabled = disabled;
+    });
+    return h("div", { class: "switch-row is-bool pv-switch" }, h("div", { class: "switch-label" }, h("label", { for: id }, label), h("small", { class: "muted block" }, hint)),
+      h("div", { class: "control" }, input));
+  };
+  const viaExit = route === "exit" || (route === "default" && exitUp);
+  return h("div", { class: "stack" },
+    toggle("dev_exit", t("web.wg_dev_exit"), hop ? (exitUp ? via : t("web.wg_dev_exit_down", { way: via })) : t("web.wg_dev_exit_none"), viaExit, !exitUp && !viaExit, async (on) => {
+      if (!await patch({ route: on ? "exit" : "home" })) return false;
+      route = on ? "exit" : "home";
+      redraw();
+      return true;
+    }),
+    toggle("dev_awg", t("web.wg_dev_awg"), cfg?.amneziawg?.on ? t("web.wg_dev_awg_hint") : t("web.wg_dev_awg_off"), disguise && Boolean(cfg?.amneziawg?.on), !cfg?.amneziawg?.on, async (on) => {
+      if (!await patch({ disguise: on })) return false;
+      disguise = on;
+      return true;
+    }),
+    h("p", { class: "muted" }, h("small", {}, t("web.wg_dev_layers_hint"), " "), h("a", { href: "#/network/vpn/privacy" }, t("web.wg_dev_layers_link"))));
 }
 
 function usageBars(hours) {
@@ -111,22 +135,12 @@ function peerDialog(p, redraw) {
   const kind = p.id ? kindSelect("wg_kind_edit", p.kind_set || "") : null;
   const name = p.id ? h("input", { id: "wg_name_edit", type: "text", maxlength: 32, value: p.name || "" }) : null;
   const usageBox = h("div", { class: "stack" }, h("p", { class: "muted" }, t("web.wg_usage_loading")));
-  let routeValue = p.route || "default";
   const routeBox = h("div", { class: "stack" });
-  const drawRoute = () => fill(routeBox, routePicker(routeValue, async (route) => {
-    if (route === routeValue) return;
-    if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { route } }), t("web.saved"))) {
-      routeValue = route;
-      drawRoute();
-      redraw();
-    }
-  }));
   kind?.addEventListener("change", async () => {
     if (await attempt(() => api(`/api/network/wireguard/peers/${p.id}`, { method: "PATCH", body: { kind: kind.value } }), t("web.saved"))) redraw();
   });
   const dialog = h("dialog", { class: "wg-dialog wide" }, h("h2", {}, icon(kindIcon(p.kind)), " ", p.name || p.public_key.slice(0, 10)),
-    h("p", {}, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline")),
-      p.id ? h("span", { class: "badge" }, t(`web.wg_exit_${routeValue}`)) : null),
+    h("p", {}, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline"))),
     h("dl", { class: "kv" },
       row(t("web.wg_address"), p.address || p.allowed_ips),
       row(t("web.wg_tunnel"), p.id ? t(p.full_tunnel ? "web.wg_route_full" : "web.wg_home_only") : null),
@@ -141,15 +155,14 @@ function peerDialog(p, redraw) {
         }
       } }, icon("pencil"), t("web.wg_rename")))) : null,
     kind ? h("div", { class: "field" }, h("label", { for: "wg_kind_edit" }, t("web.wg_kind")), kind) : null,
-    p.id ? h("div", { class: "field stack" }, h("label", {}, t("web.wg_exit_route")),
-      h("p", { class: "muted" }, h("small", {}, t("web.wg_exit_hint"))), routeBox) : null,
+    p.id ? h("div", { class: "stack" }, h("h3", {}, t("web.wg_dev_layers")), routeBox) : null,
     p.id ? h("div", { class: "stack" }, h("h3", {}, t("web.wg_usage_title")), usageBox) : null,
     h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => dialog.close() }, t("web.done"))));
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();
   if (p.id) {
-    drawRoute();
+    deviceLayers(p, redraw).then((box) => fill(routeBox, box));
     api(`/api/network/wireguard/peers/${p.id}/usage?days=1`).then((data) => {
       fill(usageBox, usageBars(data.hours));
     }).catch(() => fill(usageBox, h("p", { class: "muted" }, t("web.wg_usage_empty"))));
@@ -165,7 +178,8 @@ function peerCard(p, redraw) {
         h("small", { class: "muted block" }, state),
         h("span", { class: "row wrap" }, h("span", { class: `badge ${p.active ? "ok" : ""}` }, t(p.active ? "web.topo_online" : "web.topo_offline")),
           p.id ? h("span", { class: "badge" }, t(p.full_tunnel ? "web.wg_route_full" : "web.wg_home_only")) : null,
-          p.id && p.route && p.route !== "default" ? h("span", { class: "badge" }, t(`web.wg_exit_${p.route}`)) : null,
+          p.id && p.route === "exit" ? h("span", { class: "badge" }, t("web.wg_badge_exit")) : null,
+          p.id && p.route === "home" ? h("span", { class: "badge" }, t("web.wg_badge_home")) : null,
           p.received || p.sent ? h("small", { class: "muted" }, `↓${(p.received / 1e6).toFixed(1)} ↑${(p.sent / 1e6).toFixed(1)} MB`) : null))),
     p.id ? h("div", { class: "wg-card-actions" },
       h("button", { class: "small", title: t("web.wg_show"), onclick: async () => {
@@ -194,7 +208,7 @@ function wireguardPanel(d, redraw) {
   return panel;
 }
 
-const VPN_PARTS = ["devices", "reach", "privacy", "quantum"];
+const VPN_PARTS = ["devices", "privacy", "quantum"];
 const LAYER_ICONS = { devices: "brand-wireguard", reach: "eye-off", privacy: "shield-lock", quantum: "lock" };
 
 function vpnLayers(d, part) {
@@ -210,7 +224,7 @@ function vpnLayers(d, part) {
         h("strong", {}, t("web.vpn_layer_quantum")),
         h("small", { class: "muted" }, t("web.vpn_layer_quantum_hint"))),
       h("span", { class: "badge", "data-state": "quantum" }, "…")),
-    h("a", { href: "#/network/vpn/reach", class: `vpn-layer${part === "reach" ? " on" : ""}`, "data-layer": "awg" },
+    h("a", { href: "#/network/vpn/privacy", class: "vpn-layer", "data-layer": "awg" },
       icon(LAYER_ICONS.reach), h("div", { class: "grow" },
         h("strong", {}, t("web.vpn_layer_awg")),
         h("small", { class: "muted" }, t("web.vpn_layer_awg_hint"))),
@@ -240,7 +254,7 @@ function vpnLayers(d, part) {
   api("/api/privacy/diagnostics").then((diag) => {
     const el = layers.querySelector("[data-state=privacy]");
     if (!el) return;
-    const live = Boolean(diag?.exit?.up || diag?.tor?.enabled);
+    const live = Boolean(diag?.exit?.up);
     el.className = `badge ${live ? "ok" : ""}`;
     el.textContent = t(live ? "web.vpn_layer_on" : "web.vpn_layer_off");
     layers.querySelector("[data-layer=privacy]")?.classList.toggle("live", live);
@@ -262,17 +276,14 @@ function vpnSummary(d, part) {
         h("p", {}, on ? t("web.vpn_sum_devices", { active: peers.filter((p) => p.active).length, total: peers.length }) : t("web.wireguard_off")),
         way,
         h("p", { class: "muted" }, h("small", {}, t("web.vpn_layers_intro"))))),
-    vpnLayers(d, part),
-    h("nav", { class: "vpn-parts", "aria-label": t("web.nm_tab_vpn") }, VPN_PARTS.map((id) =>
-      h("a", { href: `#/network/vpn/${id}`, class: id === part ? "on" : "" }, icon(LAYER_ICONS[id]), " ", t(`web.vpn_part_${id}`)))));
+    vpnLayers(d, part));
 }
 
 function vpnTab(body, d, params, redraw) {
   const part = VPN_PARTS.includes(params[1]) ? params[1] : "devices";
   const hint = (key) => h("p", { class: "muted" }, t(key));
   fill(body, vpnSummary(d, part),
-    part === "devices" ? wireguardPanel(d, redraw) : null,
-    part === "reach" ? [hint("web.vpn_part_reach_hint"), reachPanel()] : null,
+    part === "devices" ? [wireguardPanel(d, redraw), h("details", { class: "panel guide" }, h("summary", {}, icon("world"), " ", t("web.reach_title")), reachPanel())] : null,
     part === "privacy" ? [hint("web.vpn_part_privacy_hint"), privacyPanels()] : null,
     part === "quantum" ? [hint("web.vpn_part_quantum_hint"), quantumPanel()] : null);
 }
@@ -417,15 +428,6 @@ async function renewWifi(index) {
   if (wifi) wifiDialog(wifi, index);
 }
 
-function manualWifi() {
-  const ssid = h("input", { placeholder: t("web.wifi_name"), "aria-label": t("web.wifi_name"), autocomplete: "off" });
-  const key = h("input", { type: "password", placeholder: t("web.wifi_key"), "aria-label": t("web.wifi_key"), autocomplete: "off" });
-  return h("div", { class: "row" }, ssid, key, h("button", { title: t("web.wifi_qr_tip"), onclick: async () => {
-    const wifi = await attempt(() => api("/api/network/wifi/qr", { method: "POST", body: { ssid: ssid.value, key: key.value } }));
-    if (wifi) wifiDialog(wifi, null);
-  } }, icon("qrcode"), t("web.wifi_qr")));
-}
-
 async function exposureDialog() {
   const e = await attempt(() => api("/api/network/exposure"));
   if (!e) return;
@@ -562,59 +564,67 @@ async function overviewTab(body, d, redraw) {
   fill(charts, analytics ? historyChart(analytics.history || []) : null, devicesGlance(d, analytics));
 }
 
-async function wifiProfilesPanel() {
-  const panel = h("div", { class: "stack" });
-  const draw = async () => {
-    const data = await api("/api/network/wifi/profiles").catch(() => ({ profiles: [] }));
-    const profiles = data.profiles || [];
-    const name = h("input", { placeholder: t("web.wifi_profile_name"), "aria-label": t("web.wifi_profile_name"), autocomplete: "off" });
-    const ssid = h("input", { placeholder: t("web.wifi_name"), "aria-label": t("web.wifi_name"), autocomplete: "off" });
-    const key = h("input", { type: "password", placeholder: t("web.wifi_key"), "aria-label": t("web.wifi_key"), autocomplete: "new-password" });
-    const guest = h("input", { type: "checkbox" });
-    fill(panel, h("h3", {}, t("web.wifi_profiles")), h("p", { class: "muted" }, h("small", {}, t("web.wifi_profiles_hint"))),
-      h("ul", { class: "list" }, profiles.length ? profiles.map((p) => h("li", {},
-        icon("wifi"),
-        h("div", { class: "grow" }, h("div", {}, p.name || p.ssid, p.guest ? h("span", { class: "badge accent" }, t("web.nm_guest")) : null),
-          h("small", { class: "muted" }, p.ssid, p.has_key ? "" : ` · ${t("web.wifi_no_key")}`)),
-        h("button", { class: "icon-only", title: t("web.wifi_qr_tip"), disabled: !p.has_key, onclick: async () => {
-          const wifi = await attempt(() => api("/api/network/wifi/qr", { method: "POST", body: { profile: p.id } }));
-          if (wifi) wifiDialog(wifi, null);
-        } }, icon("qrcode")),
-        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
-          if (!await confirmDialog(t("web.wifi_profile_delete", { name: p.name || p.ssid }), t("web.delete"), true)) return;
-          const password = await askDialog(t("web.confirm_password"), { type: "password" });
-          if (!password) return;
-          const next = profiles.filter((x) => x.id !== p.id).map((x) => ({ id: x.id, name: x.name, ssid: x.ssid, guest: x.guest }));
-          if (await attempt(() => api("/api/network/wifi/profiles", { method: "PUT", body: { profiles: next, password } }), t("web.saved"))) draw();
-        } }, icon("trash")))) : h("li", { class: "empty" }, t("web.wifi_profiles_empty"))),
-      h("div", { class: "row wrap" }, name, ssid, key, h("label", { class: "check" }, guest, t("web.nm_guest")),
-        h("button", { class: "primary", onclick: async () => {
-          const password = await askDialog(t("web.confirm_password"), { type: "password" });
-          if (!password) return;
-          const next = [...profiles.map((x) => ({ id: x.id, name: x.name, ssid: x.ssid, guest: x.guest })),
-            { name: name.value.trim(), ssid: ssid.value.trim(), key: key.value, guest: guest.checked }];
-          if (await attempt(() => api("/api/network/wifi/profiles", { method: "PUT", body: { profiles: next, password } }), t("web.saved"))) draw();
-        } }, icon("plus"), t("web.wifi_profile_add"))));
-  };
-  await draw();
-  return panel;
+// Two networks, nothing more: the home one and the one for guests. From the FRITZ!Box when it
+// has them, otherwise saved here once (the key sealed on the Pi).
+function wifiEditor(slot, saved, redraw) {
+  const ssid = h("input", { id: "wifi_ssid", value: saved?.ssid || "", maxlength: 32, autocomplete: "off" });
+  const key = h("input", { id: "wifi_key", type: "password", minlength: 8, maxlength: 63, autocomplete: "new-password", placeholder: saved?.has_key ? t("web.wifi_key_keep") : "" });
+  const dialog = h("dialog", { class: "wg-dialog" }, h("h2", {}, t(`web.wifi_slot_${slot}`)),
+    h("form", { class: "stack", method: "dialog" },
+      h("div", { class: "field" }, h("label", { for: "wifi_ssid" }, t("web.wifi_name")), ssid),
+      h("div", { class: "field" }, h("label", { for: "wifi_key" }, t("web.wifi_key")), key),
+      h("p", { class: "muted" }, h("small", {}, t("web.wifi_slot_hint"))),
+      h("div", { class: "row end" }, h("button", { type: "button", onclick: () => dialog.close() }, t("web.cancel")),
+        h("button", { class: "primary", type: "submit" }, icon("check"), t("web.save")))));
+  dialog.querySelector("form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const password = await askDialog(t("web.confirm_password"), { type: "password" });
+    if (!password) return;
+    if (await attempt(() => api(`/api/network/wifi/profiles/${slot}`, { method: "PUT", body: { ssid: ssid.value, key: key.value, password } }), t("web.saved"))) { dialog.close(); redraw(); }
+  });
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+  ssid.focus();
 }
 
 async function wifiPanel(d) {
-  const profiles = await wifiProfilesPanel();
-  return h("section", { class: "panel stack nm-wifi" }, h("h2", {}, icon("wifi"), " ", t("web.nm_wifi")),
-    d.wlans.length ? h("ul", { class: "list" }, d.wlans.map((w) => h("li", {}, h("span", { class: `dot ${w.enabled ? "ok" : ""}` }),
-      h("div", { class: "grow" }, h("div", {}, w.ssid || "–", w.guest ? h("span", { class: "badge accent" }, t("web.nm_guest")) : null),
-        h("small", {}, `${w.enabled ? t("web.nm_on") : t("web.nm_off")} · ${t("web.nm_channel", { channel: w.channel })} · ${t("web.nm_clients", { count: w.clients })}`)),
-      h("button", { class: "icon-only", title: t("web.wifi_qr_tip"), onclick: async () => {
-        const wifi = await attempt(() => api("/api/network/wifi/qr", { method: "POST", body: { index: w.index } }));
-        if (wifi) wifiDialog(wifi, w.index);
-      } }, icon("qrcode")))))
-      : [h("p", { class: "muted" }, t("web.nm_no_router")), manualWifi()],
-    profiles,
-    d.nearby.length ? h("details", { class: "guide" }, h("summary", {}, t("web.nm_nearby"), ` (${d.nearby.length})`), h("ul", { class: "list" }, d.nearby.map((n) => h("li", {}, icon("wifi"),
-      h("div", { class: "grow" }, h("div", {}, n.ssid), h("small", {}, `${n.security || t("web.nm_open")} · ${t("web.nm_channel", { channel: n.channel })}`)),
-      h("span", { class: "badge" }, `${n.signal} %`))))) : null);
+  const panel = h("section", { class: "panel stack nm-wifi" });
+  const draw = async () => {
+    const saved = ((await api("/api/network/wifi/profiles").catch(() => null))?.profiles) || [];
+    const routerWlan = (guest) => d.wlans.filter((w) => Boolean(w.guest) === guest).sort((a, b) => Number(b.enabled) - Number(a.enabled))[0];
+    const slotRow = (slot) => {
+      const wlan = routerWlan(slot === "guest");
+      const own = saved.find((p) => p.id === slot);
+      const qr = async (body, index) => { const wifi = await attempt(() => api("/api/network/wifi/qr", { method: "POST", body })); if (wifi) wifiDialog(wifi, index); };
+      if (wlan) {
+        return h("li", {}, h("span", { class: `dot ${wlan.enabled ? "ok" : ""}` }),
+          h("div", { class: "grow" }, h("div", {}, h("strong", {}, t(`web.wifi_slot_${slot}`)), " ", h("span", { class: "muted" }, wlan.ssid || "–")),
+            h("small", { class: "muted" }, `${wlan.enabled ? t("web.nm_on") : t("web.nm_off")} · ${t("web.nm_clients", { count: wlan.clients })} · ${t("web.wifi_from_router")}`)),
+          h("button", { class: "small", title: t("web.wifi_qr_tip"), onclick: () => qr({ index: wlan.index }, wlan.index) }, icon("qrcode"), t("web.wifi_share")));
+      }
+      if (!own) {
+        return h("li", {}, h("span", { class: "dot" }),
+          h("div", { class: "grow" }, h("strong", {}, t(`web.wifi_slot_${slot}`)), h("small", { class: "muted block" }, t("web.wifi_slot_empty"))),
+          h("button", { class: "small", onclick: () => wifiEditor(slot, null, draw) }, icon("plus"), t("web.wifi_slot_set")));
+      }
+      return h("li", {}, h("span", { class: "dot ok" }),
+        h("div", { class: "grow" }, h("div", {}, h("strong", {}, t(`web.wifi_slot_${slot}`)), " ", h("span", { class: "muted" }, own.ssid)),
+          own.has_key ? null : h("small", { class: "muted" }, t("web.wifi_no_key"))),
+        h("button", { class: "small", title: t("web.wifi_qr_tip"), disabled: !own.has_key, onclick: () => qr({ profile: slot }, null) }, icon("qrcode"), t("web.wifi_share")),
+        h("button", { class: "icon-only", title: t("web.edit"), onclick: () => wifiEditor(slot, own, draw) }, icon("pencil")),
+        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
+          if (!await confirmDialog(t("web.wifi_profile_delete", { name: own.ssid }), t("web.delete"), true)) return;
+          const password = await askDialog(t("web.confirm_password"), { type: "password" });
+          if (!password) return;
+          if (await attempt(() => api(`/api/network/wifi/profiles/${slot}`, { method: "DELETE", body: { password } }), t("web.saved"))) draw();
+        } }, icon("trash")));
+    };
+    fill(panel, h("h2", {}, icon("wifi"), " ", t("web.nm_wifi")), h("p", { class: "muted" }, h("small", {}, t("web.wifi_slots_hint"))),
+      h("ul", { class: "list" }, slotRow("home"), slotRow("guest")));
+  };
+  await draw();
+  return panel;
 }
 
 async function blocksPanel(d) {

@@ -278,5 +278,10 @@ def _v4(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS person_links_person ON person_links (person_id)")
 
 
-MIGRATIONS: tuple[Migration, ...] = (_v1, _v2, _v3, _v4)
+def _v5(conn: sqlite3.Connection) -> None:
+    """Per VPN device: whether its app is offered the AmneziaWG way."""
+    add_column(conn, "wg_peers", "disguise", "INTEGER NOT NULL DEFAULT 1")
+
+
+MIGRATIONS: tuple[Migration, ...] = (_v1, _v2, _v3, _v4, _v5)
 VERSION = len(MIGRATIONS)

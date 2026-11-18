@@ -69,13 +69,10 @@ def resources() -> dict[str, Any]:
     }
 
 
-def path_nodes(
-    store: Any, *, exit_st: dict[str, str], tor_st: dict[str, str]
-) -> list[dict[str, Any]]:
+def path_nodes(store: Any, *, exit_st: dict[str, str]) -> list[dict[str, Any]]:
     """Full traffic path for the chain visualizer, always including the home VPN hop."""
     data = store.public_view()
     chain_on = bool(data.get("enabled")) and bool(data["chain"].get("active"))
-    tor_on = bool(data.get("tor", {}).get("enabled"))
     hops = [h for h in (data["chain"].get("hops") or []) if h.get("enabled") is not False]
     nodes: list[dict[str, Any]] = [
         {
@@ -115,22 +112,8 @@ def path_nodes(
                 "endpoint": exit_st.get("endpoint") if chain_on else None,
             }
         )
-    if tor_on:
-        nodes.append(
-            {
-                "id": "tor",
-                "kind": "tor",
-                "label": "Tor",
-                "title_key": "web.priv_hop_tor",
-                "detail_key": "web.priv_hop_tor_detail",
-                "status": "ok" if tor_st.get("running") == "1" else "pending",
-                "fixed": False,
-                "mode": data.get("tor", {}).get("mode"),
-            }
-        )
     exit_ok = chain_on and exit_st.get("up") == "1"
-    tor_ok = tor_on and tor_st.get("running") == "1"
-    internet_ok = exit_ok or tor_ok or not (chain_on or tor_on)
+    internet_ok = exit_ok or not chain_on
     nodes.append(
         {
             "id": "internet",
@@ -148,7 +131,6 @@ def path_nodes(
 def snapshot(store: Any, *, exit_ip: str | None = None, installed: bool = False) -> dict[str, Any]:
     exit_st = read_status("privacy.exit")
     nft_st = read_status("privacy.nft")
-    tor_st = read_status("privacy.tor")
     data = store.public_view()
     hops = data["chain"].get("hops") or []
     layers = ["home_vpn"]
@@ -158,8 +140,6 @@ def snapshot(store: Any, *, exit_ip: str | None = None, installed: bool = False)
         layers.append(f"kill_switch:{data['kill_switch']}")
     if data.get("dns", {}).get("mode") not in (None, "system"):
         layers.append(f"dns:{data['dns']['mode']}")
-    if data.get("tor", {}).get("enabled"):
-        layers.append(f"tor:{data['tor']['mode']}")
     if data.get("obfuscation", {}).get("mode") not in (None, "off"):
         layers.append(f"obfs:{data['obfuscation']['mode']}")
 
@@ -177,9 +157,8 @@ def snapshot(store: Any, *, exit_ip: str | None = None, installed: bool = False)
         "time": int(time.time()),
         "enabled": bool(data.get("enabled")),
         "installed": installed,
-        "profile": data.get("profile"),
         "layers": layers,
-        "path": path_nodes(store, exit_st=exit_st, tor_st=tor_st),
+        "path": path_nodes(store, exit_st=exit_st),
         "chain_active": bool(data["chain"].get("active")),
         "hops": [
             {
@@ -206,12 +185,6 @@ def snapshot(store: Any, *, exit_ip: str | None = None, installed: bool = False)
         "dns": {
             "mode": data.get("dns", {}).get("mode"),
             "strict": bool(data.get("dns", {}).get("strict")),
-        },
-        "tor": {
-            "enabled": bool(data.get("tor", {}).get("enabled")),
-            "running": tor_st.get("running") == "1",
-            "bootstrap": _int(tor_st.get("bootstrap")),
-            "has_status": bool(tor_st),
         },
         "exit_ip": shown_ip,
         "exit_ip_kind": (

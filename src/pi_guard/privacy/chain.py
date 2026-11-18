@@ -22,12 +22,9 @@ def set_hops(store: Any, hops: list[dict[str, Any]], caps: dict[str, Any]) -> li
     validate_chain(
         cleaned,
         caps,
-        tor_mode=str(store.data.get("tor", {}).get("mode") or "off"),
         obfuscation=str(store.data.get("obfuscation", {}).get("mode") or "off"),
     )
     store.data["chain"]["hops"] = cleaned
-    if store.data.get("profile") != "custom":
-        store.data["profile"] = "custom"
     store.save()
     return cleaned
 

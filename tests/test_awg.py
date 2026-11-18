@@ -133,6 +133,11 @@ async def test_the_app_gets_obfuscated_ways(tmp_path: Path, monkeypatch: Any) ->
         awg.set_enabled(app.settings.data_dir, True)
         body = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
         assert body["obfuscated"]
+        # Switched off for this one device in the dashboard.
+        peer = app.dashboard.wg_peers.list()[0]["id"]
+        app.dashboard.wg_peers.set_disguise(peer, False)
+        body = await (await client.post("/api/mobile/vpn", json={}, headers=bearer)).json()
+        assert body["obfuscated"] == [] and body["ways"]
     finally:
         await client.close()
         app.db.close()

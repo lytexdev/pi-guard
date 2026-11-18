@@ -1,4 +1,4 @@
-"""Dashboard API for the optional privacy upstream (multi-hop, DNS, Tor, profiles)."""
+"""Dashboard API for the optional privacy upstream (Mullvad, multi-hop, DNS, kill switch)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import Any
 from aiohttp import web
 
 from pi_guard.network import awg
+from pi_guard.privacy.capabilities import installed_marker
 from pi_guard.privacy.errors import PrivacyError
 from pi_guard.privacy.service import PrivacyService
 from pi_guard.web.server import confirm_password, current, dashboard, read_json
@@ -21,18 +22,10 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/privacy/capabilities", capabilities),
         web.get("/api/privacy/config", config_get),
         web.get("/api/privacy/diagnostics", diagnostics),
-        web.put("/api/privacy/profile", profile_put),
         web.put("/api/privacy/killswitch", killswitch_put),
         web.put("/api/privacy/dns", dns_put),
-        web.put("/api/privacy/tor", tor_put),
-        web.put("/api/privacy/obfuscation", obfuscation_put),
-        web.get("/api/privacy/chain", chain_get),
-        web.put("/api/privacy/chain", chain_put),
         web.post("/api/privacy/chain/hops", hop_add),
         web.delete("/api/privacy/chain/hops/{id}", hop_remove),
-        web.post("/api/privacy/chain/reorder", chain_reorder),
-        web.post("/api/privacy/activate", activate),
-        web.post("/api/privacy/deactivate", deactivate),
         web.put("/api/privacy/modules", modules_put),
         web.post("/api/privacy/providers/custom", custom_add),
         web.post("/api/privacy/providers/custom/import", custom_import),
@@ -113,18 +106,6 @@ async def _probe_exit_ip() -> str | None:
     return None
 
 
-async def profile_put(request: web.Request) -> web.Response:
-    data = await read_json(request)
-    try:
-        result = _svc(request).set_profile(str(data.get("profile") or ""))
-    except PrivacyError as exc:
-        raise _err(exc) from None
-    dashboard(request).app.db.audit(
-        f"web:{current(request).username}", "privacy.profile", str(data.get("profile"))
-    )
-    return web.json_response(result)
-
-
 async def killswitch_put(request: web.Request) -> web.Response:
     data = await read_json(request)
     try:
@@ -149,50 +130,15 @@ async def dns_put(request: web.Request) -> web.Response:
     return web.json_response(result)
 
 
-async def tor_put(request: web.Request) -> web.Response:
-    data = await read_json(request)
-    try:
-        result = _svc(request).set_tor(data)
-    except PrivacyError as exc:
-        raise _err(exc) from None
-    dashboard(request).app.db.audit(
-        f"web:{current(request).username}", "privacy.tor", str(data.get("mode"))
-    )
-    return web.json_response(result)
-
-
-async def obfuscation_put(request: web.Request) -> web.Response:
-    data = await read_json(request)
-    try:
-        result = _svc(request).set_obfuscation(data)
-    except PrivacyError as exc:
-        raise _err(exc) from None
-    return web.json_response(result)
-
-
-async def chain_get(request: web.Request) -> web.Response:
-    cfg = _svc(request).config()
-    return web.json_response(cfg["chain"])
-
-
-async def chain_put(request: web.Request) -> web.Response:
-    data = await read_json(request)
-    hops = data.get("hops")
-    if not isinstance(hops, list):
-        raise web.HTTPBadRequest(text="web.priv_chain_bad")
-    try:
-        result = _svc(request).set_chain(hops)
-    except PrivacyError as exc:
-        raise _err(exc) from None
-    return web.json_response({"hops": result})
-
-
 async def hop_add(request: web.Request) -> web.Response:
     data = await read_json(request)
+    svc = _svc(request)
     try:
-        hop = _svc(request).add_hop(data)
+        hop = svc.add_hop(data)  # validates and normalizes
     except PrivacyError as exc:
         raise _err(exc) from None
+    _set_exit(svc, hop)
+    await _apply_exit(svc)
     dashboard(request).app.db.audit(
         f"web:{current(request).username}", "privacy.hop_add", str(hop.get("provider") or "")
     )
@@ -201,70 +147,53 @@ async def hop_add(request: web.Request) -> web.Response:
 
 async def hop_remove(request: web.Request) -> web.Response:
     hop_id = request.match_info["id"]
+    svc = _svc(request)
     try:
-        _svc(request).remove_hop(hop_id)
+        svc.remove_hop(hop_id)
     except PrivacyError as exc:
         raise _err(exc) from None
+    await _apply_exit(svc)
     return web.json_response({"ok": True})
 
 
-async def chain_reorder(request: web.Request) -> web.Response:
-    data = await read_json(request)
-    order = data.get("order")
-    if not isinstance(order, list):
-        raise web.HTTPBadRequest(text="web.priv_chain_order")
+async def _apply_exit(svc: Any) -> None:
+    """Start the exit when one is in the chain, stop it when the last one is gone."""
+    hops = [h for h in (svc.store.data["chain"].get("hops") or []) if h.get("enabled") is not False]
     try:
-        hops = _svc(request).reorder_hops([str(x) for x in order])
+        if hops and installed_marker(svc._data_dir):
+            await asyncio.to_thread(svc.activate)
+        elif svc.store.data.get("enabled"):
+            await asyncio.to_thread(svc.deactivate)
     except PrivacyError as exc:
         raise _err(exc) from None
-    return web.json_response({"hops": hops})
 
 
-async def activate(request: web.Request) -> web.Response:
+def _mullvad_hop(selected: dict[str, Any]) -> dict[str, Any]:
+    """No params of its own: the exit is built from the stored selection, so switching
+    multi-hop off takes effect (a copy in the hop kept the entry server)."""
+    names = [selected.get("entry_hostname"), selected.get("hostname")]
+    return {"id": "mullvad", "provider": "mullvad", "enabled": True, "params": {},
+            "name": " → ".join(filter(None, names)) or "Mullvad",
+            "server_id": selected.get("hostname")}  # fmt: skip
+
+
+def _set_exit(svc: Any, hop: dict[str, Any] | None) -> None:
+    """The Pi has one exit tunnel: a new one replaces the old one."""
     try:
-        result = await asyncio.to_thread(_svc(request).activate)
-    except PrivacyError as exc:
-        raise _err(exc) from None
-    dashboard(request).app.db.audit(f"web:{current(request).username}", "privacy.activate", "")
-    return web.json_response(result)
-
-
-async def deactivate(request: web.Request) -> web.Response:
-    result = await asyncio.to_thread(_svc(request).deactivate)
-    dashboard(request).app.db.audit(f"web:{current(request).username}", "privacy.deactivate", "")
-    return web.json_response(result)
-
-
-def _ensure_mullvad_hop(svc: Any, selected: dict[str, Any]) -> None:
-    """Put the Mullvad exit into the chain if it is not there yet."""
-    hops = list(svc.store.data["chain"].get("hops") or [])
-    if any(h.get("provider") == "mullvad" for h in hops):
-        return
-    hops.append({"id": "mullvad", "provider": "mullvad", "enabled": True, "params": {},
-                 "name": selected.get("hostname") or "Mullvad",
-                 "server_id": selected.get("hostname")})  # fmt: skip
-    try:
-        svc.set_chain(hops)
+        svc.set_chain([hop] if hop else [])
     except PrivacyError as exc:
         raise _err(exc) from None
 
 
 async def modules_put(request: web.Request) -> web.Response:
-    """Turn Mullvad exit, Mullvad multi-hop entry, or Tor on or off without a full deactivate."""
+    """Turn the Mullvad exit, its multi-hop entry, or AmneziaWG on or off.
+
+    The exit starts as soon as it is in the chain: there is no separate activate step."""
     data = await read_json(request)
     svc = _svc(request)
     store = svc.store
     cfg = store.data
     changed: list[str] = []
-
-    if "tor" in data:
-        on = data["tor"] is True
-        try:
-            mode = "vpn_then_tor" if on else "off"
-            svc.set_tor({**cfg.get("tor", {}), "enabled": on, "mode": mode})
-        except PrivacyError as exc:
-            raise _err(exc) from None
-        changed.append(f"tor={'on' if on else 'off'}")
 
     if "mullvad" in data:
         on = data["mullvad"] is True
@@ -276,18 +205,10 @@ async def modules_put(request: web.Request) -> web.Response:
                 raise web.HTTPConflict(text="web.priv_mullvad_need_account")
             if not selected.get("hostname"):
                 raise web.HTTPConflict(text="web.priv_mullvad_need_server")
-            _ensure_mullvad_hop(svc, selected)
+            _set_exit(svc, _mullvad_hop(selected))
         else:
-            hops = [h for h in hops if h.get("provider") != "mullvad"]
-            try:
-                svc.set_chain(hops)
-            except PrivacyError as exc:
-                raise _err(exc) from None
-            selected = (cfg["providers"].get("mullvad") or {}).get("selected")
-            if isinstance(selected, dict) and selected.get("entry_hostname"):
-                selected = {**selected, "entry_hostname": None}
-                cfg["providers"]["mullvad"]["selected"] = selected
-                store.save()
+            if any(h.get("provider") == "mullvad" for h in hops):
+                _set_exit(svc, None)  # the chosen servers stay for the next time
         changed.append(f"mullvad={'on' if on else 'off'}")
 
     if "multi_hop" in data:
@@ -297,11 +218,12 @@ async def modules_put(request: web.Request) -> web.Response:
             raise web.HTTPConflict(text="web.priv_mullvad_need_server")
         if on and not selected.get("entry_hostname"):
             raise web.HTTPConflict(text="web.priv_mullvad_need_entry")
-        if on:  # multi-hop only applies while the Mullvad exit hop is in the chain
-            _ensure_mullvad_hop(svc, selected)
         if not on and selected.get("entry_hostname"):
-            cfg["providers"]["mullvad"]["selected"] = {**selected, "entry_hostname": None}
+            selected = {**selected, "entry_hostname": None}
+            cfg["providers"]["mullvad"]["selected"] = selected
             store.save()
+        if on or any(h.get("provider") == "mullvad" for h in cfg["chain"].get("hops") or []):
+            _set_exit(svc, _mullvad_hop(selected))
         changed.append(f"multi_hop={'on' if on else 'off'}")
 
     if "amneziawg" in data:
@@ -315,17 +237,8 @@ async def modules_put(request: web.Request) -> web.Response:
         await asyncio.to_thread(awg.set_enabled, dashboard(request).settings.data_dir, on)
         changed.append(f"amneziawg={'on' if on else 'off'}")
 
-    # Turning the last exit off must deactivate, not fail with "enable Tor first".
-    hops_left = [h for h in (cfg["chain"].get("hops") or []) if h.get("enabled") is not False]
-    tor_on = bool(cfg.get("tor", {}).get("enabled"))
-    if cfg.get("enabled"):
-        try:
-            if hops_left or tor_on:
-                await asyncio.to_thread(svc.activate)
-            else:
-                await asyncio.to_thread(svc.deactivate)
-        except PrivacyError as exc:
-            raise _err(exc) from None
+    if "mullvad" in data or "multi_hop" in data:
+        await _apply_exit(svc)
 
     dashboard(request).app.db.audit(
         f"web:{current(request).username}", "privacy.modules", ",".join(changed)
@@ -369,6 +282,7 @@ async def custom_remove(request: web.Request) -> web.Response:
     name = svc.custom.remove(svc.store, request.match_info["id"])
     if name is None:
         raise web.HTTPNotFound(text="web.not_found")
+    await _apply_exit(svc)  # it may have been the exit in use
     dashboard(request).app.db.audit(
         f"web:{current(request).username}", "privacy.custom_remove", name
     )
@@ -395,6 +309,9 @@ async def mullvad_remove(request: web.Request) -> web.Response:
     confirm_password(request, str(data.get("password") or ""))
     svc = _svc(request)
     await svc.mullvad.remove_account(svc.store)
+    if any(h.get("provider") == "mullvad" for h in svc.store.data["chain"].get("hops") or []):
+        _set_exit(svc, None)
+    await _apply_exit(svc)
     dashboard(request).app.db.audit(
         f"web:{current(request).username}", "privacy.mullvad_remove", ""
     )
@@ -417,17 +334,12 @@ async def mullvad_server(request: web.Request) -> web.Response:
     try:
         countries = await svc.mullvad.relays(svc.store.relay_cache_path())
         selected = svc.mullvad.select_server(svc.store, data, countries)
-        # Keep a mullvad hop in the chain in sync with selection.
-        hops = [h for h in svc.store.data["chain"]["hops"] if h.get("provider") != "mullvad"]
-        names = [selected.get("entry_hostname"), selected.get("hostname")]
-        hops.append(
-            {
-                "provider": "mullvad",
-                "name": " → ".join(filter(None, names)),
-                "params": selected,
-            }
-        )
-        svc.set_chain(hops)
     except PrivacyError as exc:
         raise _err(exc) from None
+    # Choosing a server means using it: Mullvad becomes the exit at once.
+    _set_exit(svc, _mullvad_hop(selected))
+    await _apply_exit(svc)
+    dashboard(request).app.db.audit(
+        f"web:{current(request).username}", "privacy.mullvad_server", str(selected.get("hostname"))
+    )
     return web.json_response({"selected": selected})
