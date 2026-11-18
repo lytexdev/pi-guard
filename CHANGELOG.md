@@ -11,6 +11,11 @@ All notable changes are documented here. The format follows
 - Cameras can record narrower than they capture (`recording_width`): faces and snapshots keep 1080p while recordings
   stay 720p. *Sharper for faces* sets this when the camera offers 1080p.
 
+### Changed
+
+- Dark faces: a head where no face was found is searched again with more local contrast, for events and for *Learn at
+  the camera*. In night pictures of a USB webcam it found a few faces where there had been none; by day 24 more to 336.
+
 ### Fixed
 
 - *Learn at the camera* said *no face* when the picture was too dark; it says so now.

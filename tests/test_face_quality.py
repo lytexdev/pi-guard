@@ -371,7 +371,11 @@ def test_a_session_at_the_camera_keeps_new_views_and_refuses_someone_else(
 def test_a_dark_camera_picture_says_it_is_too_dark(recognizer: Any) -> None:
     from types import SimpleNamespace
 
-    recognizer._detector = SimpleNamespace(faces_full=lambda image, width: None)
+    recognizer._detector = SimpleNamespace(
+        faces_full=lambda image, width: None,
+        bodies=lambda image: [(1.0, 1.0, 50.0, 80.0)],
+        head_faces=lambda image, bodies: ([], image),  # nothing, even with more contrast
+    )
     night = np.full((90, 160, 3), 25, np.uint8)
     day = np.full((90, 160, 3), 120, np.uint8)
     assert recognizer.camera_sample(night) == (None, "faces.too_dark")

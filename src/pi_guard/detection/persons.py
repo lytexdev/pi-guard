@@ -40,6 +40,11 @@ PERSON_MIN_SCORE = 0.5
 NMS_OVERLAP = 0.45
 MAX_HEADS = 3  # bodies whose head is searched for a face, biggest first
 MIN_HEAD_PX = 24  # a head region smaller than this holds no face worth finding
+# A head without a face is searched again with local contrast (CLAHE on lightness, small
+# tiles). Measured on a USB camera at night: 5 faces in 572 dark pictures instead of none,
+# 3 of them matched the right person; stretching, gamma and enlarging found none.
+LIFT_CLIP = 2.0
+LIFT_TILES = 4
 
 Image = npt.NDArray[np.uint8]
 Box = tuple[float, float, float, float]  # x, y, w, h
@@ -283,18 +288,39 @@ class PersonDetector:
         return [(x * factor, y * factor, w * factor, h * factor)
                 for x, y, w, h in self._hog_bodies(small)]  # fmt: skip
 
-    def _head_faces(self, image: Image, bodies: list[Box]) -> list[npt.NDArray[np.float32]]:
+    def lift(self, image: Image) -> Image:
+        """More local contrast on lightness: brings dark faces out without blowing out light."""
+        cv2 = self._cv2
+        lightness, a, b = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2LAB))
+        clahe = cv2.createCLAHE(clipLimit=LIFT_CLIP, tileGridSize=(LIFT_TILES, LIFT_TILES))
+        merged = cv2.merge((clahe.apply(lightness), a, b))
+        return cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)  # type: ignore[no-any-return]
+
+    def head_faces(
+        self, image: Image, bodies: list[Box]
+    ) -> tuple[list[npt.NDArray[np.float32]], Image]:
+        """Faces in the heads of `bodies`, and the picture to read them from: a head whose
+        face was only found after `lift` is lifted there too (in a copy), so the face is
+        embedded as it was found."""
         height, width = image.shape[:2]
-        found = []
+        found, picture = [], image
         for body in sorted(bodies, key=lambda b: b[2] * b[3], reverse=True)[:MAX_HEADS]:
             region = head_region(body, width, height)
             if region is None:
                 continue
             left, top, right, bottom = region
-            faces = self.faces_full(image[top:bottom, left:right])
+            crop = image[top:bottom, left:right]
+            faces = self.faces_full(crop)
+            if faces is None or not len(faces):
+                lifted = self.lift(crop)
+                faces = self.faces_full(lifted)
+                if faces is not None and len(faces):
+                    if picture is image:
+                        picture = image.copy()
+                    picture[top:bottom, left:right] = lifted
             if faces is not None and len(faces):
                 found.append(shift_faces(faces, left, top))
-        return found
+        return found, picture
 
     def detect(self, path: Path) -> PersonResult:
         started = time.monotonic()
@@ -306,7 +332,8 @@ class PersonDetector:
         if faces is not None and len(faces) and image is not full:
             faces = scale_faces(faces, full.shape[1] / image.shape[1])
         if self._faces is not None and image is not full:
-            faces = merge_faces(faces, self._head_faces(full, bodies))
+            heads, full = self.head_faces(full, bodies)
+            faces = merge_faces(faces, heads)
         return PersonResult(len(bodies), faces, full, time.monotonic() - started,
                             self.body_detector, hog)  # fmt: skip
 

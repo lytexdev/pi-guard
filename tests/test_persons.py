@@ -92,6 +92,34 @@ def test_a_small_face_is_found_in_the_head_of_a_body(
     assert result.faces is not None and result.faces[0, :4].tolist() == [595, 190, 40, 40]
 
 
+def test_a_dark_head_is_searched_again_with_more_contrast(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only the lifted head shows the face; it is read from the lifted picture."""
+    detector = PersonDetector(tmp_path)
+    detector._faces = object()
+    monkeypatch.setattr(detector, "bodies", lambda image: [(600.0, 200.0, 100.0, 300.0)])
+    rng = np.random.default_rng(1)
+    dark = rng.integers(10, 30, (720, 1280, 3), dtype=np.uint8)
+    head = dark[170:380, 585:715]
+    contrasts = []
+
+    def faces(image: np.ndarray) -> np.ndarray | None:
+        if image.shape[1] >= persons.ANALYSIS_WIDTH:
+            return None
+        contrasts.append(float(image.std()))
+        return _face(10, 20, 40) if image.std() > 1.5 * head.std() else None
+
+    monkeypatch.setattr(detector, "faces", faces)
+    photo = tmp_path / "night.png"
+    cv2.imwrite(str(photo), dark)
+    result = detector.detect(photo)
+    assert len(contrasts) == 2 and result.face_count == 1
+    assert result.faces is not None and result.faces[0, :4].tolist() == [595, 190, 40, 40]
+    assert result.image[170:380, 585:715].std() > 1.5 * head.std()
+    assert np.array_equal(result.image[:100], dark[:100])  # the rest stays as taken
+
+
 def test_every_class_is_decoded_for_the_live_marks() -> None:
     from pi_guard.detection.persons import COCO, decode_objects
 
