@@ -74,6 +74,9 @@ class CameraConfig(_Model):
     input_format: Literal["auto", "mjpeg", "yuyv422", "h264"] = "auto"
     codec: Literal["auto", "copy", "h264_v4l2m2m", "libx264"] = "auto"
     bitrate: str = "2M"
+    # Recordings narrower than the capture: faces and snapshots keep the full size, the
+    # encoder (and the disk) only gets this width. None: as captured.
+    recording_width: int | None = Field(None, ge=320, le=3840)
     recording: bool = True
     retention_days: int | None = Field(None, ge=1, le=365)
     motion_detection: bool = True

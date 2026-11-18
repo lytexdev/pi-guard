@@ -274,7 +274,9 @@ def build_command(
         ),
     ]
     if encode:
-        chains.append("[rec_in]format=yuv420p[rec]")
+        narrower = camera.recording_width and camera.recording_width < camera.size[0]
+        scale = f"scale={camera.recording_width}:-2," if narrower else ""
+        chains.append(f"[rec_in]{scale}format=yuv420p[rec]")
     if live:
         chains.append(f"[live_in]fps={live.fps:g},scale='min({live.width},iw)':-2[live]")
     args += ["-filter_complex", ";".join(chains)]

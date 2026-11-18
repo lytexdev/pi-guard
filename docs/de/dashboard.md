@@ -150,7 +150,8 @@ pi-guard in dessen Bild findet, und wen es jeweils gesehen hat:
   lernt pi-guard Blickwinkel und Licht der Kamera. Neue Personen kommen über die Seite Personen dazu, mit ihrer
   Zustimmung. Das Gesicht muss mindestens 56 Pixel breit, scharf und etwa zur Kamera gewandt sein; ein kleineres
   brächte mehr Rauschen als Gesicht bei. Ein Gesicht, das den gespeicherten Bildern der Person kaum ähnelt oder
-  eher jemand anderem, wird abgelehnt; das fängt einen falschen Klick ab. In den Details der Person sind diese
+  eher jemand anderem, wird ab dem dritten Bild der Person abgelehnt; das fängt einen falschen Klick ab. Die ersten
+  beiden nimmt pi-guard so, wie du es sagst. In den Details der Person sind diese
   Bilder als *von der Kamera* markiert.
 - **Das ist nicht …** an einem erkannten Gesicht merkt es sich als jemand anderen. Danach ist ein Gesicht, das ihm
   ähnlicher ist als dieser Person, *unsicher* statt diese Person. Es wird mit der Person gelöscht.

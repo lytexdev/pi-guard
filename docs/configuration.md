@@ -180,6 +180,7 @@ cameras:
     input_format: auto       # auto | mjpeg | yuyv422 | h264
     codec: auto              # auto | copy | h264_v4l2m2m | libx264
     bitrate: 2M
+    recording_width: 1280         # optional: record narrower than captured; faces keep the full size
     recording: true          # false: rolling buffer only (for /video)
     retention_days: null
     motion_detection: true

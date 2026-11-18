@@ -49,15 +49,17 @@ function microphoneTest(chosen) {
 
 function facePreset(found) {
   const formats = found?.formats || [];
-  const preferred = ["1280x720", "1920x1080", "1024x576", "800x600", "640x480"];
+  // The largest picture for faces; recordings are scaled to 1280 wide so the encoder stays cheap.
+  const preferred = ["1920x1080", "1280x720", "1024x576", "800x600", "640x480"];
   for (const name of ["yuyv422", "mjpeg"]) {
     const fmt = formats.find((f) => f.name === name);
     if (!fmt) continue;
     const size = preferred.find((s) => !fmt.sizes.length || fmt.sizes.includes(s)) || fmt.sizes[0];
     if (!size) continue;
-    return { resolution: size, fps: name === "yuyv422" ? 5 : 10, input_format: name, codec: "libx264", bitrate: name === "yuyv422" ? "1M" : "1.5M" };
+    const wide = Number(size.split("x")[0]) > 1280;
+    return { resolution: size, fps: name === "yuyv422" ? 5 : 10, input_format: name, codec: "libx264", bitrate: name === "yuyv422" ? "1M" : "1.5M", recording_width: wide ? 1280 : null };
   }
-  return { resolution: "1280x720", fps: 5, input_format: "mjpeg", codec: "libx264", bitrate: "1.5M" };
+  return { resolution: "1280x720", fps: 5, input_format: "mjpeg", codec: "libx264", bitrate: "1.5M", recording_width: null };
 }
 
 function cameraEditor(camera, devices, mics, remove) {
@@ -76,6 +78,7 @@ function cameraEditor(camera, devices, mics, remove) {
   const fps = h("input", { id: id(), type: "number", min: 1, max: 60, value: camera.fps });
   let inputFormat = camera.input_format || "auto";
   let codec = camera.codec || "auto";
+  const recWidth = select([["", t("web.dev_rec_same")], ["1920", "1920"], ["1280", "1280"], ["960", "960"], ["640", "640"]], camera.recording_width ? String(camera.recording_width) : "");
   const rate = select(["500k", "1M", "1500k", "2M", "3M", "4M", camera.bitrate].filter((v, i, all) => all.indexOf(v) === i).map((v) => [v, t("web.bitrate_value", { rate: v.endsWith("k") ? parseInt(v, 10) / 1000 : parseFloat(v), day: Math.round((v.endsWith("k") ? parseInt(v, 10) / 1000 : parseFloat(v)) * 10.8) })]), camera.bitrate);
   const brightness = h("input", { id: id(), type: "number", min: -64, max: 64, value: camera.brightness ?? "", placeholder: t("web.dev_optional") });
   const contrast = h("input", { id: id(), type: "number", min: 0, max: 64, value: camera.contrast ?? "", placeholder: t("web.dev_optional") });
@@ -92,6 +95,7 @@ function cameraEditor(camera, devices, mics, remove) {
     else if (!usb) res.value = preset.resolution;
     fps.value = preset.fps;
     rate.value = preset.bitrate;
+    recWidth.value = preset.recording_width ? String(preset.recording_width) : "";
     inputFormat = preset.input_format;
     codec = preset.codec;
   };
@@ -103,7 +107,7 @@ function cameraEditor(camera, devices, mics, remove) {
     field(usb ? t("web.device") : t("web.source_address"), dev),
     usb ? null : h("div", { class: "hint" }, t(`web.source_${camera.source}_hint`)),
     irHint,
-    field(t("web.resolution"), res), field(t("web.fps"), fps), field(t("web.bitrate"), rate),
+    field(t("web.resolution"), res), field(t("web.fps"), fps), field(t("web.bitrate"), rate), field(t("web.dev_rec_width"), recWidth),
     usb ? h("div", { class: "row" }, h("button", { type: "button", title: t("web.dev_face_preset_tip"), onclick: applyFaces }, icon("user"), t("web.dev_face_preset"))) : null,
     usb ? field(t("web.dev_brightness"), brightness) : null,
     usb ? field(t("web.dev_contrast"), contrast) : null,
@@ -114,6 +118,7 @@ function cameraEditor(camera, devices, mics, remove) {
     field(t("web.sensitivity"), sens), field(t("web.microphone_in_video"), mic), microphoneTest(mic));
   panel.read = () => ({
     ...camera, name: name.value, room: room.value.trim(), device: dev.value.trim(), resolution: res.value, fps: Number(fps.value), bitrate: rate.value,
+    recording_width: recWidth.value ? Number(recWidth.value) : null,
     input_format: inputFormat, codec,
     brightness: brightness.value === "" ? null : Number(brightness.value),
     contrast: contrast.value === "" ? null : Number(contrast.value),

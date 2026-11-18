@@ -95,6 +95,9 @@ DOMINANT_FACE = 2.5  # a face this many times bigger than the others is the subj
 # of one person from a phone and a distant camera are often far apart, so this only catches
 # a wrong click: unrelated people are usually around 0.1.
 LEARN_MIN_MATCH = 0.2
+# Below this many samples a person's own faces from the camera can still look unlike the first
+# pictures (phone vs. camera, light): the admin's word is taken then, the check only after.
+LEARN_CHECK_FROM = 3
 # Two samples this similar teach nothing new; one of them is left out or dropped first.
 REDUNDANT = 0.93
 LIVE_MAX_NEW = 8  # samples kept from one session in front of the camera
@@ -593,7 +596,8 @@ class FaceRecognizer:
             raise EnrollmentError(problem)
         embedding = self._embed(aligned)
         score = self._score(embedding, stored)
-        if score < LEARN_MIN_MATCH:
+        samples = next((c for n, c, _ in self.store.people() if n == stored), 0)
+        if score < LEARN_MIN_MATCH and samples >= LEARN_CHECK_FROM:
             raise EnrollmentError("faces.learn_too_different")
         light = float(self._cv2.cvtColor(aligned, self._cv2.COLOR_BGR2GRAY).mean())
         sample = with_context(embedding, pose_of(face), light, "camera")

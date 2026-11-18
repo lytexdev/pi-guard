@@ -3590,5 +3590,7 @@
   "federation.linked": "Neuer verbundener Haushalt: {name}. Du siehst ihn unter Einstellungen › Verbundene Haushalte.",
   "federation.alert": "🏠 {name}: {event} – {camera}",
   "federation.sos": "🆘 SOS aus dem Haushalt {name}! Bitte sofort melden oder nachsehen.",
-  "web.group_federation": "Verbundene Haushalte"
+  "web.group_federation": "Verbundene Haushalte",
+  "web.dev_rec_width": "Aufnahme speichern in Breite",
+  "web.dev_rec_same": "wie die Kamera"
 }

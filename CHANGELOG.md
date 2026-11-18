@@ -8,6 +8,16 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Cameras can record narrower than they capture (`recording_width`): faces and snapshots keep 1080p while recordings
+  stay 720p. *Sharper for faces* sets this when the camera offers 1080p.
+
+### Fixed
+
+- *Who is this?* refused a person's own camera faces while they had only one or two pictures ("looks too different"),
+  so nobody with few pictures could be taught. The check against wrong clicks starts with the third picture now.
+
+### Added
+
 - Linked households: one pi-guard looks after another (for example a grandmother's) without being in its network.
   The helped Pi keeps one outgoing connection to the helper (TLS to a pinned certificate, both Ed25519 keys proven on
   every connection, a one-time code for the first link); the helper sees its state, gets its alarms if allowed and

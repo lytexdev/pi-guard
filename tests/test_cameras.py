@@ -258,3 +258,17 @@ async def test_snapshot_validates_and_copies(tmp_path: Path) -> None:
     p.snapshot_path.write_bytes(b"\xff\xd8image\xff\xd9")
     out = await p.snapshot(tmp_path / "media" / "out.jpg")
     assert out.read_bytes().endswith(b"\xff\xd9")
+
+
+def test_recordings_can_be_narrower_than_the_capture(tmp_path: Path) -> None:
+    def graph(**camera: object) -> str:
+        choice = CaptureChoice("yuyv422", "libx264")
+        args = build_command(cam(resolution="1920x1080", **camera), choice, segment_dir=tmp_path,
+                             segment_seconds=300, snapshot_path=tmp_path / "s.jpg",
+                             analysis_fps=4)  # fmt: skip
+        return args[args.index("-filter_complex") + 1]
+
+    assert "[rec_in]scale=1280:-2,format=yuv420p[rec]" in graph(recording_width=1280)
+    assert "[rec_in]format=yuv420p[rec]" in graph()
+    assert "[rec_in]format=yuv420p[rec]" in graph(recording_width=1920)  # not wider than captured
+    assert "[snap_in]fps=1/1[snap]" in graph(recording_width=1280)  # snapshots keep the full size

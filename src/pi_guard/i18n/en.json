@@ -3590,5 +3590,7 @@
   "federation.linked": "New linked household: {name}. You find it under Settings › Linked households.",
   "federation.alert": "🏠 {name}: {event} – {camera}",
   "federation.sos": "🆘 SOS from the household {name}! Please get in touch or check at once.",
-  "web.group_federation": "Linked households"
+  "web.group_federation": "Linked households",
+  "web.dev_rec_width": "Save recordings at width",
+  "web.dev_rec_same": "as captured"
 }

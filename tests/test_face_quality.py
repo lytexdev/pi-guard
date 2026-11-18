@@ -121,6 +121,20 @@ def test_a_face_from_the_camera_is_learned(recognizer: Any) -> None:
     assert recognizer.store.details("Lena")[0]["source"] is None  # uploads stay unmarked
 
 
+def test_the_first_faces_from_the_camera_count_even_when_they_look_unlike(recognizer: Any) -> None:
+    """With one or two pictures the camera's own view can score low: the admin's word counts,
+    and the check against wrong clicks starts with the third picture."""
+    from pi_guard.detection.faces import EnrollmentError
+
+    recognizer.enroll_many("Mia", views(identity(), 1), "test")
+    total, _ = recognizer.learn("Mia", *camera(recognizer, identity()), "web:admin")
+    assert total == 2
+    total, _ = recognizer.learn("Mia", *camera(recognizer, identity()), "web:admin")
+    assert total == 3
+    with pytest.raises(EnrollmentError, match=r"faces\.learn_too_different"):
+        recognizer.learn("Mia", *camera(recognizer, identity()), "web:admin")
+
+
 def test_only_enrolled_people_and_fitting_faces_are_learned(recognizer: Any) -> None:
     from pi_guard.detection.faces import EnrollmentError
 

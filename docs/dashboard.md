@@ -155,8 +155,8 @@ whom it saw in each:
 - **This is …** stores the face as one more picture of a person already on the People page, so the camera's angle
   and light are learned. New people are added on the People page, with their consent. The face must be at least
   56 pixels wide, sharp and roughly facing the camera; a smaller one would teach more noise than face. A face that
-  hardly resembles the person's stored pictures, or looks more like somebody else, is refused, which catches a
-  wrong click. In the person's details these pictures are marked *from the camera*.
+  hardly resembles the person's stored pictures, or looks more like somebody else, is refused from the person's
+  third picture on, which catches a wrong click; the first two are taken as you say. In the person's details these pictures are marked *from the camera*.
 - **This is not …** on a recognised face notes it as somebody else. From then on, a face more similar to it than to
   that person is *uncertain*, not that person. It is deleted with the person.
 
