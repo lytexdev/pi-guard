@@ -15,53 +15,58 @@ The VPN connects phones and computers to your home, like a commercial VPN app, b
 
 ## Privacy upstream (optional)
 
-Devices still connect to your Pi. On the Pi you can optionally send that traffic onward through another
-hop before it reaches the internet: a custom WireGuard server, Mullvad, or Tor.
+Devices still connect to your Pi. On the Pi you can optionally send their traffic onward through one exit before it
+reaches the internet: Mullvad (optionally multi-hop) or a WireGuard server of your own.
 
 ```text
 Device  →  Pi (home WireGuard)  →  optional exit  →  Internet
 ```
 
-Everything stays **off** until you turn it on. Install once as root (does not install Tor or commercial VPN packages):
+Everything stays **off** until you turn it on. Install once as root (does not install commercial VPN packages):
 
 ```bash
 sudo ./scripts/privacy-server.sh install
 ```
 
-Then open **Network › VPN** in the dashboard. Home VPN is the base; optional layers sit on top and can be on or off
-independently:
+Then open **Network › VPN** in the dashboard. Home VPN is the base; the layers sit on top as cards:
 
 | Layer | What it does | First install |
 |---|---|---|
-| Home VPN | Devices reach home through WireGuard | `wireguard.sh setup` |
+| Home VPN | Devices reach home through WireGuard; below it the ways home from outside | `wireguard.sh setup` |
 | Quantum-safe keys | Extra key exchange on the home VPN | `vpn-server.sh install` |
 | AmneziaWG disguise | Alternate path when WireGuard is blocked | `amneziawg.sh install` |
-| Mullvad / multi-hop | Exit through Mullvad, another VPN or Tor | `privacy-server.sh install` |
+| Mullvad / multi-hop | Exit through Mullvad or an own server | `privacy-server.sh install` |
 
-The page shows those layers as cards, then the parts *Devices*, *Outside / Amnezia*, *Mullvad / hop* and *Quantum*.
-Under *Modules*, tap Mullvad, multi-hop, Tor or AmneziaWG to turn each on or off (with a confirm dialog). A card shows
-*On* only while that hop is in the chain; *Configured* means a Mullvad server is chosen but not switched on yet.
-Turning the last exit off deactivates privacy instead of asking for Tor. The AmneziaWG card acts on the Pi itself: off
-takes `awg0` down (the root sync job follows a flag pi-guard leaves) and the apps no longer get the disguised ways; on
-brings both back. Any mix works: none, only the disguise, only the Mullvad exit, the exit with multi-hop, or all. Profiles, the multi-hop chain, providers, DNS,
-the Pi-side kill switch, Tor details and diagnostics live under the same privacy part. The
-chain always shows the home VPN hop first (devices → Pi-Guard → optional exits → internet). **Check** under Diagnostics
-asks for the public/exit IP once and keeps it for a few minutes. Signed updates refresh already-installed helpers and
-units; first install of each layer stays the owner's script once.
+**Privacy** starts with one line that says where VPN devices go out now (home line, Mullvad, multi-hop with both
+servers, or an own server) and whether that works. Below it are four switches that act at once:
 
-### Per-device internet path
-
-While a phone or computer is connected to the home VPN, each device can choose how its traffic leaves the Pi (device
-card → details → three clear choices):
-
-| Path | Meaning |
+| Switch | On |
 |---|---|
-| Home connection only | stay on your home ISP even if the Pi sends others through Mullvad |
-| Same as the Pi | use the privacy exit when it is on, otherwise the home ISP |
-| Through Mullvad / multi-hop | can only be chosen while the exit is up; if the exit goes down later, the device leaves through the home connection like the others, unless the Pi's kill switch is on |
+| Mullvad | VPN devices leave through Mullvad. The first time it links the account and asks for a server. |
+| Multi-hop | In at one Mullvad server, out at a second one; the entry server is chosen in the same dialog. |
+| Disguise (AmneziaWG) | `awg0` runs and the apps are offered the disguised way. Off takes `awg0` down (the root sync job follows a flag pi-guard leaves). |
+| Kill switch | VPN devices get no internet when the exit fails, instead of going through the home line. |
 
-This is Pi-side policy routing (`privacy/device-routes`), not a second Mullvad account on the phone. You can also rename
-a device there.
+There is always one exit: choosing a Mullvad server or an own server replaces the one before, and turning the last one
+off stops the exit. Turning Mullvad off keeps the chosen servers for the next time. *Advanced* holds DNS, the strict
+kill switch (the Pi itself also only through the exit), own WireGuard servers (import a `.conf`, then *Use*), unlinking
+the Mullvad account and the diagnosis with *Check*, which asks for the public address once. Signed updates refresh
+already-installed helpers and units; the first install of each layer stays the owner's script once.
+
+Tor was removed in 1.14: hardly anyone used it on a Pi, and a VPN exit through Tor was never sound. An update stops a
+Tor that pi-guard had started and removes its job; a Tor installed by hand is not touched.
+
+### Per device
+
+Each device in *Devices* has two switches under *Way to the internet*:
+
+| Switch | Meaning |
+|---|---|
+| Through Mullvad | on: this device leaves through the exit (only while it is up); off: it stays on the home line even when others go through Mullvad. A new device follows the Pi's setting until it is switched. |
+| Disguise (AmneziaWG) | whether this device's app is offered the disguised way |
+
+Multi-hop, the servers and the kill switch apply to the whole Pi: there is one exit tunnel. This is Pi-side policy
+routing (`privacy/device-routes`), not a second Mullvad account on the phone. You can also rename a device there.
 
 Emergency unlock if the Pi firewall ever blocks you:
 
@@ -71,21 +76,19 @@ sudo ./scripts/privacy-server.sh unlock
 
 | Feature | Status |
 | --- | --- |
-| Custom WireGuard / `.conf` import as exit | yes |
+| Own WireGuard server / `.conf` import as exit | yes |
 | Mullvad account → device → server (public API) | yes |
-| Mullvad native multi-hop (entry + exit) | yes: *Choose server* → *Multi-hop through a second server* |
-| Independent nested WG tunnels beyond that | refused (not silently faked) |
+| Mullvad native multi-hop (entry + exit) | yes |
+| Two independent tunnels in a row | refused (not silently faked) |
 | DNS modes (system / custom / VPN-routed / provider / DoT) | yes; DoH/DoQ not shipped yet |
 | Pi upstream kill switch (nftables) | yes; LAN management stays allowed |
-| Tor SOCKS / VPN-then-Tor | only if `tor` is already installed |
-| AmneziaWG / Shadowsocks / Xray | capability-gated; off on a stock Pi kernel |
-| SSH remote VPS setup | plan/preview only; no auto-apply |
+| AmneziaWG disguise | when `amneziawg.sh install` ran |
 
 ### Mullvad
 
-*Network › VPN › Providers*: link the account with its 16-digit number (it is checked with Mullvad, an account without
-paid time is refused, and the number is stored sealed), then *Choose server*: country, city and server for the exit,
-and with *Multi-hop through a second server* an entry server. Mullvad's own multi-hop connects to the entry's address
+*Network › VPN › Privacy*: the Mullvad switch links the account with its 16-digit number (it is checked with Mullvad, an account without
+paid time is refused, and the number is stored sealed), then asks for country, city and server for the exit,
+and with *Multi-hop* an entry server. Mullvad's own multi-hop connects to the entry's address
 on the exit's port with the exit's key, so the entry sees the home and the exit sees the destination. Keys, addresses
 and ports come from Mullvad's relay list on the Pi, never from the browser.
 
@@ -106,7 +109,7 @@ Until 2026-11-12 every exit was refused (`invalid exit.peer`): a bracket in the 
 internet. Tested with the Mullvad API's answers and the script in test mode; a real tunnel to Mullvad was not tested.
 
 Honest limits: the home VPN endpoint remains identifiable; multi-hop is not correlation-proof; same-provider entry and
-exit are not independent trust domains; Tor routing is not Tor Browser; obfuscation does not mean undetectable.
+exit are not independent trust domains; obfuscation does not mean undetectable.
 
 See also [privacy.md](privacy.md) and the compatibility notes under *Things that already went wrong* in `AGENTS.md`.
 

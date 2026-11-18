@@ -132,3 +132,39 @@ def test_contacts_are_checked() -> None:
     assert made["share"] == {"sos": ["location", "medical"]} and made["medical_mode"] == "note"
     fresh = clean({"name": "A", "channels": [{"provider": "email", "address": "a@b.de"}]})
     assert fresh["share"] == DEFAULT_SHARE and "medical" not in fresh["share"]["sos"]
+
+
+async def test_the_second_line_hears_first_and_only_once(app) -> None:  # type: ignore[no-untyped-def]
+    from pi_guard.storage.persons import Persons
+
+    persons = Persons(app.db)
+    oma = persons.save(None, {"display_name": "Oma", "roles": ["backup"]})
+    persons.link(oma, "messenger", "telegram:8008")
+    await alert(app, minutes_ago=5)
+    assert app.escalation.backup_due() == []  # 10 minutes by default
+    assert len(app.escalation.backup_due(utcnow() + timedelta(minutes=6))) == 1
+    await alert(app, minutes_ago=12)
+    await app.escalation.to_backup(app.escalation.backup_due())
+    told = sent_to(app, "8008")
+    assert len(told) == 1 and "second line" in told[0].text and "2 message" in told[0].text
+    assert any("second line was told: Oma" in r.text for r in sent_to(app, ADMIN))
+    assert app.escalation.backup_due(utcnow() + timedelta(hours=1)) == []
+    assert sent_to(app, CONTACT) == []  # the emergency contacts come later, as before
+    await app.messenger.handle(msg("ok", VIEWER, from_button=True))
+    await alert(app, minutes_ago=11)
+    assert len(app.escalation.backup_due()) == 1  # a new alarm after "all fine" counts again
+
+
+async def test_a_messenger_for_commands_only_sends_no_alarms(tmp_path: Path) -> None:
+    from pi_guard.messaging.hub import delivery_allows
+
+    application = make_app(tmp_path, telegram_delivery="commands")
+    try:
+        assert not delivery_allows(application.settings, "telegram", "alerts")
+        assert not delivery_allows(application.settings, "telegram", "emergency")
+        await application.messenger.notify_admins("alarm")
+        assert sent_to(application, ADMIN) == []
+        await application.messenger.notify_admins("SOS", sos=True)  # an SOS must arrive
+        assert [r.text for r in sent_to(application, ADMIN)] == ["SOS"]
+    finally:
+        application.db.close()

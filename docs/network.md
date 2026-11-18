@@ -218,6 +218,6 @@ but without Pi-hole as DNS and without management in the dashboard.
 
 ### Privacy upstream
 
-Optional multi-hop exit on the Pi (Mullvad, custom WireGuard, Tor). Devices still
-use the home VPN; the Pi forwards selected traffic through an upstream hop.
+Optional exit on the Pi: Mullvad (optionally multi-hop) or an own WireGuard server, with simple switches. Devices
+still use the home VPN; the Pi forwards their traffic through the exit, each device can stay on the home line.
 Install with `sudo ./scripts/privacy-server.sh install`. Details: [vpn.md](vpn.md#privacy-upstream-optional).

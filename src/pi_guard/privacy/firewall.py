@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
 TABLE = "pi_guard_privacy"
@@ -17,11 +16,10 @@ SSH_PORT = 22
 
 @dataclass(frozen=True)
 class Plan:
-    """Fail-closed plan: drop wg0→WAN unless via exit; optional Tor uid outbound."""
+    """Fail-closed plan: drop wg0→WAN unless via the exit."""
 
     mode: str = "off"  # off | vpn | strict | custom
     exit_up: bool = False
-    tor: bool = False
     allow_lan_mgmt: bool = True
     home_network: str | None = None
     wan_ifaces: tuple[str, ...] = ()
@@ -69,18 +67,12 @@ def render(plan: Plan) -> str:
         fwd.append(f"    iifname {HOME_IFACES} ip saddr {{ {addrs} }} accept")
     if plan.home_network:  # the home network stays reachable from the VPN
         fwd.append(f"    iifname {HOME_IFACES} ip daddr {plan.home_network} accept")
-    if plan.tor:
-        fwd.append(f"    iifname {HOME_IFACES} meta skuid debian-tor accept")
-        fwd.append("    meta skuid debian-tor accept")
-    if plan.mode == "vpn" and not plan.exit_up and not plan.tor:
+    if plan.mode == "vpn" and not plan.exit_up:
         # VPN mode without an active exit: do not lock the home WAN (owner still setting up).
         fwd = [
             "  chain forward {",
             "    type filter hook forward priority filter; policy accept;",
         ]
-    if plan.mode == "strict" and not plan.exit_up and not plan.tor:
-        # Strict: drop client internet until an exit is up. LAN to Pi stays in input chain.
-        pass
     fwd.append("  }")
 
     inp = [
@@ -107,8 +99,6 @@ def render(plan: Plan) -> str:
         "    udp sport 546 udp dport 547 accept",
         "    icmpv6 type { nd-router-solicit, nd-neighbor-solicit, nd-neighbor-advert } accept",
     ]
-    if plan.tor:
-        out.append("    meta skuid debian-tor accept")
     if plan.allow_lan_mgmt and plan.home_network:
         out.append(f"    ip daddr {plan.home_network} accept")
     # Always allow WireGuard handshake traffic to the exit endpoint via mark later; for now
@@ -120,24 +110,3 @@ def render(plan: Plan) -> str:
 
     lines += fwd + inp + out + nat + ["}"]
     return "\n".join(lines) + "\n"
-
-
-def apply_or_relaxed(plan: Plan, load: Callable[[Plan], None]) -> Plan:
-    """If the kernel refuses a rule (missing module), retry without tor uid match."""
-    try:
-        load(plan)
-        return plan
-    except Exception:
-        if not plan.tor:
-            raise
-        relaxed = Plan(
-            mode=plan.mode,
-            exit_up=plan.exit_up,
-            tor=False,
-            allow_lan_mgmt=plan.allow_lan_mgmt,
-            home_network=plan.home_network,
-            wan_ifaces=plan.wan_ifaces,
-            home_only=plan.home_only,
-        )
-        load(relaxed)
-        return relaxed

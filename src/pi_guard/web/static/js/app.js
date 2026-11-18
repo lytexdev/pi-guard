@@ -12,6 +12,7 @@ const VIEWS = {
   people: () => import("./views/people.js"),
   more: () => import("./views/more.js"),
   network: () => import("./views/network.js"),
+  contacts: () => import("./views/contacts-page.js"),
   addons: () => import("./views/addons.js"),
   settings: () => import("./views/settings-hub.js"),
   monitor: () => import("./views/monitor.js"),
@@ -25,6 +26,7 @@ const PRIMARY = [
   ["live", "video", "web.nav_live"],
   ["events", "bell", "web.nav_events"],
   ["network", "network", "web.nav_network"],
+  ["contacts", "users", "web.nav_contacts"],
 ];
 const SECONDARY = [
   ["addons", "cpu", "web.nav_addons"],
@@ -40,6 +42,7 @@ export function memberRoutes(session = state.session) {
   const routes = [...VIEWER_ROUTES, "more"];
   if (granted.includes("people")) routes.push("people");
   if (granted.includes("network")) routes.push("network");
+  if (granted.includes("contacts")) routes.push("contacts");
   if (granted.some((p) => p.startsWith("addon:"))) routes.push("addons");
   if (granted.includes("logs") || granted.some((p) => p.startsWith("settings:"))
       || granted.some((p) => ["contacts", "devices", "apps"].includes(p))) routes.push("settings");
@@ -99,7 +102,11 @@ function shell(route) {
     viewer ? items.map(([r, i, l]) => link(r, i, l, tabs)) : [
       ...items.slice(0, 4).map(([r, i, l]) => link(r, i, l, tabs)),
       link("more", "menu-2", "web.nav_more", items.slice(0, 4).some(([r]) => r === tabs) ? tabs : "more")]);
-  return h("div", { class: "shell" }, skip, nav, main, tabbar, scrollTopButton(), accessibilityButton(),
+  // Opened through a household link from another Pi: say where one is, and the way back.
+  const linked = state.session?.federation;
+  const banner = linked ? h("div", { class: "fed-banner", role: "status" }, icon("link"), h("span", { class: "grow" }, t("web.fed_banner", { name: linked.name })),
+    h("a", { href: "/#/settings/federation" }, t("web.fed_back"))) : null;
+  return h("div", { class: `shell${linked ? " linked" : ""}` }, skip, banner, nav, main, tabbar, scrollTopButton(), accessibilityButton(),
     state.session?.assistant ? assistantButton() : null);
 }
 
@@ -119,7 +126,7 @@ async function refreshSession() {
 async function currentSession(name) {
   if (!started) { started = true; return state.session; }
   const known = state.session;
-  if (!known?.authenticated || known.setup_required || !known.setup_done || name === "login" || name === "setup") {
+  if (!known?.authenticated || known.setup_required || known.password_renew || !known.setup_done || name === "login" || name === "setup") {
     return refreshSession();
   }
   refreshSession().then(() => {
@@ -149,8 +156,8 @@ async function show(turn) {
   if (cleanup) { cleanup(); cleanup = null; }
   let [name, ...params] = (location.hash.replace(/^#\/?/, "") || "overview").split("/");
   if (["devices", "notifications", "access", "logs"].includes(name)) { params = [name]; name = "settings"; }
-  // People live under Settings → Contacts; keep the faces API and deep links.
-  if (name === "people") { location.hash = "#/settings/contacts"; return; }
+  // People and contacts have their own page; keep old deep links.
+  if (name === "people" || (name === "settings" && params[0] === "contacts")) { location.hash = "#/contacts"; return; }
   if (name === "addons" && params[0] === "analytics") { name = "network"; params = []; }
   const root = document.getElementById("app");
   if (name === "logout") {
@@ -168,6 +175,7 @@ async function show(turn) {
   if (session.role === "viewer" && name !== "login" && !VIEWER_ROUTES.includes(name)) { location.hash = "#/overview"; return; }
   if (session.role === "member" && name !== "login" && !memberRoutes(session).includes(name)) { location.hash = "#/overview"; return; }
   if (session.setup_required && name !== "setup") { location.hash = "#/setup/welcome"; return; }
+  if (session.password_renew && name !== "account") { location.hash = "#/account"; return; }
   if (session.authenticated && session.role === "admin" && !session.setup_done && name === "overview"
       && !sessionStorage.getItem("pg.setup_later")) { location.hash = "#/setup/welcome"; return; }
   const loader = VIEWS[name] || VIEWS.overview;

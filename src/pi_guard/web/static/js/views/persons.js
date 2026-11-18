@@ -5,12 +5,63 @@ import { api, attempt, confirmDialog, fill, h, icon, t, toast } from "../api.js"
 import { openContactWizard } from "./contact-wizard.js";
 import { captureDialog } from "./capture.js";
 
-const ROLE_ICONS = { household: "home", trusted: "user-check", emergency: "alert-triangle", alert: "bell", viewer: "eye" };
+const ROLE_ICONS = { household: "home", trusted: "user-check", backup: "users", emergency: "alert-triangle", alert: "bell", viewer: "eye" };
 const BRAND = { telegram: "brand-telegram", signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail" };
 
 const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
 const hue = (name) => [...name].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 360;
 const linksOf = (p, kind) => (p.links || []).filter((l) => l.kind === kind).map((l) => l.ref);
+
+// The ring around a picture tells the rights at a glance: the account's role first, then the
+// part the person plays in an emergency.
+const RINGS = ["admin", "member", "viewer", "backup", "emergency", "alert"];
+function ringOf(p, data) {
+  const roles = linksOf(p, "web_account").map((a) => (data.account_roles || {})[a]);
+  return RINGS.find((r) => roles.includes(r) || (p.roles || []).includes(r)) || "";
+}
+
+export function avatar(p, data, size = "") {
+  const ring = ringOf(p, data);
+  const title = ring ? t(`web.pc_ring_${ring}`) : "";
+  if (p.picture) {
+    return h("img", { class: `person-avatar ${size} ${ring ? `ring-${ring}` : ""}`.trim(), title, alt: "",
+      src: `/api/persons/${p.id}/picture?v=${encodeURIComponent(p.picture)}` });
+  }
+  const drawn = h("span", { class: `person-avatar ${size} ${ring ? `ring-${ring}` : ""}`.trim(), title, "aria-hidden": "true" }, initials(p.display_name));
+  drawn.style.setProperty("--hue", hue(p.display_name));
+  return drawn;
+}
+
+// A square from the middle of the chosen picture, 256 pixels, as JPEG: small enough for the Pi.
+async function squarePicture(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 256;
+    canvas.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 256, 256);
+    return await new Promise((done) => canvas.toBlob(done, "image/jpeg", 0.86));
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function pickPicture(p, redraw) {
+  const input = h("input", { type: "file", accept: "image/*", class: "hidden" });
+  input.addEventListener("change", async () => {
+    const blob = input.files[0] ? await squarePicture(input.files[0]) : null;
+    input.remove();
+    if (!blob) { if (input.files[0]) toast(t("web.person_bad_picture"), true); return; }
+    if (await attempt(() => api(`/api/persons/${p.id}/picture`, { method: "PUT", body: blob }), t("web.saved"))) redraw();
+  });
+  document.body.append(input);
+  input.click();
+}
 
 function modal(cls, ...children) {
   const dialog = h("dialog", { class: cls }, ...children);
@@ -33,29 +84,48 @@ function channelsOf(p, contacts) {
   return found.filter(([p, a]) => { const key = `${p}:${a}`; if (seen.has(key)) return false; seen.add(key); return true; });
 }
 
-function inviteDialog(person, contacts, redraw) {
+// What a start needs, chosen part by part. A login and a VPN access outlive the session: they
+// need the password, and the chat service keeps what it sends.
+const INVITE_ITEMS = [["dashboard", "home"], ["android", "brand-android"], ["desktop", "device-desktop"], ["login", "key"], ["vpn", "brand-wireguard"]];
+
+function inviteDialog(person, contacts, redraw, preset = ["dashboard", "android", "desktop"]) {
   const channels = channelsOf(person, contacts);
   const running = new Set(contacts?.providers || []);
   if (!channels.length) { toast(t("web.inv_no_channel"), true); return; }
+  const hasLogin = linksOf(person, "web_account").length > 0;
   const pick = h("select", { id: "inv_to" }, channels.map(([p, a], i) =>
     h("option", { value: i, disabled: !running.has(p) }, `${t(`web.ec_p_${p}`)}: ${a}${running.has(p) ? "" : ` (${t("web.inv_off")})`}`)));
-  const app = h("input", { type: "checkbox", checked: true });
-  const vpn = h("input", { type: "checkbox" });
-  const password = h("input", { type: "password", autocomplete: "current-password", placeholder: t("web.password") });
-  const vpnBox = h("div", { class: "stack hidden" }, h("p", { class: "notice" }, t("web.inv_vpn_warning")), password);
-  vpn.addEventListener("change", () => vpnBox.classList.toggle("hidden", !vpn.checked));
+  const boxes = {};
+  const password = h("input", { type: "password", autocomplete: "current-password", placeholder: t("web.password"), "aria-label": t("web.password") });
+  const secret = h("div", { class: "stack hidden" }, h("p", { class: "notice" }, t("web.inv_secret_warning")), password);
+  const sync = () => secret.classList.toggle("hidden", !(boxes.login?.checked || boxes.vpn?.checked));
+  const rows = INVITE_ITEMS.map(([id, ic]) => {
+    const box = h("input", { type: "checkbox", checked: preset.includes(id) && (id !== "login" || hasLogin), disabled: id === "login" && !hasLogin });
+    box.addEventListener("change", sync);
+    boxes[id] = box;
+    return h("label", { class: "check inv-item" }, box, icon(ic), h("span", {}, t(`web.inv_item_${id}`),
+      h("small", { class: "muted block" }, t(id === "login" && !hasLogin ? "web.inv_item_login_none" : `web.inv_item_${id}_hint`))));
+  });
+  sync();
   const dialog = modal("wg-dialog", h("h2", {}, icon("share"), " ", t("web.inv_title", { name: person.display_name })),
     h("p", { class: "muted" }, t("web.inv_intro")),
     h("div", { class: "field" }, h("label", { for: "inv_to" }, t("web.inv_to")), pick),
-    h("label", { class: "check" }, app, t("web.inv_app")),
-    h("label", { class: "check" }, vpn, t("web.inv_vpn")), vpnBox,
+    h("fieldset", { class: "stack inv-items" }, h("legend", {}, t("web.inv_what")), rows), secret,
     h("div", { class: "row end" }, h("button", { onclick: () => dialog.close() }, t("web.cancel")),
       h("button", { class: "primary", onclick: async () => {
         const [provider, address] = channels[Number(pick.value)];
-        const body = { provider, address, app: app.checked, vpn: vpn.checked, password: password.value };
+        const items = INVITE_ITEMS.map(([id]) => id).filter((id) => boxes[id].checked);
+        const body = { provider, address, items, password: password.value };
         if (await attempt(() => api(`/api/persons/${person.id}/invite`, { method: "POST", body }), t("web.inv_sent"))) { dialog.close(); redraw(); }
       } }, icon("send"), t("web.inv_send"))));
   return dialog;
+}
+
+// From elsewhere (the wizard after a new login): the same dialog for one person.
+export async function inviteById(id, preset) {
+  const [data, contacts] = await Promise.all([attempt(() => api("/api/persons")), api("/api/contacts").catch(() => null)]);
+  const person = data?.persons.find((p) => p.id === id);
+  if (person) inviteDialog(person, contacts, () => {}, preset);
 }
 
 // Photos and videos for face recognition, with the person's consent; or the live camera.
@@ -107,18 +177,23 @@ function personCard(p, data, contacts, open, redraw) {
   const emergency = linksOf(p, "emergency_contact").length > 0;
   const medical = linksOf(p, "medical").length > 0;
   const vpn = linksOf(p, "vpn").length;
-  const avatar = h("span", { class: "person-avatar", "aria-hidden": "true" }, initials(p.display_name));
-  avatar.style.setProperty("--hue", hue(p.display_name));
+  const picture = h("button", { class: "person-picture", title: t("web.pc_picture_change"), "aria-label": `${p.display_name}: ${t("web.pc_picture_change")}`,
+    onclick: () => pickPicture(p, redraw) }, avatar(p, data));
   const menu = h("details", { class: "addon-menu" }, h("summary", { title: t("web.ad_more"), "aria-label": `${p.display_name}: ${t("web.ad_more")}` }, icon("dots-vertical")),
     h("div", { class: "addon-menu-body", role: "menu" },
       h("button", { role: "menuitem", onclick: () => { menu.open = false; open(p); } }, icon("pencil"), t("web.edit")),
+      h("button", { role: "menuitem", onclick: () => { menu.open = false; pickPicture(p, redraw); } }, icon("photo"), t("web.pc_picture_change")),
+      p.picture ? h("button", { role: "menuitem", onclick: async () => {
+        menu.open = false;
+        if (await attempt(() => api(`/api/persons/${p.id}/picture`, { method: "DELETE" }), t("web.saved"))) redraw();
+      } }, icon("user"), t("web.pc_picture_reset")) : null,
       h("button", { role: "menuitem", class: "danger", onclick: async () => {
         menu.open = false;
         if (!await confirmDialog(t("web.person_delete_confirm", { name: p.display_name }), t("web.delete"), true)) return;
         if (await attempt(() => api(`/api/persons/${p.id}`, { method: "DELETE" }))) redraw();
       } }, icon("trash"), t("web.delete"))));
   return h("article", { class: "person-card", dataset: { text: `${p.display_name} ${p.note} ${(p.links || []).map((l) => l.ref).join(" ")}`.toLowerCase(), roles: (p.roles || []).join(" ") } },
-    h("div", { class: "person-head" }, avatar,
+    h("div", { class: "person-head" }, picture,
       h("div", { class: "grow" }, h("h3", {}, p.display_name), p.note ? h("small", { class: "muted block" }, p.note) : null,
         h("div", { class: "row wrap person-roles" }, (p.roles || []).length ? p.roles.map((r) =>
           h("span", { class: `badge person-role-${r}`, title: t(`web.person_role_${r}_hint`) }, icon(ROLE_ICONS[r] || "user"), " ", t(`web.person_role_${r}`)))
@@ -189,7 +264,9 @@ export async function personsPanel(box) {
             h("button", { title: t("web.sw_teaser"), onclick: async () => (await import("./swipe.js")).openSwipe() }, icon("photo"), t("web.sw_title")),
             h("button", { class: "primary", onclick: () => open() }, icon("plus"), t("web.person_new")))),
         data.persons.length ? h("div", { class: "stack person-tools" }, search, filters) : null,
-        data.persons.length ? grid : h("div", { class: "empty-state stack" }, icon("users", "lg"), h("p", {}, t("web.person_empty")),
+        data.persons.length ? [grid, h("div", { class: "row wrap person-legend", "aria-label": t("web.pc_ring_legend") },
+          h("small", { class: "muted" }, t("web.pc_ring_legend")),
+          RINGS.map((r) => h("small", { class: `ring-key ring-${r}` }, t(`web.pc_ring_${r}`))))] : h("div", { class: "empty-state stack" }, icon("users", "lg"), h("p", {}, t("web.person_empty")),
           h("div", { class: "row" }, h("button", { class: "primary", onclick: () => open() }, icon("plus"), t("web.person_new"))))),
       loosePanel(data, contacts, draw));
     apply();

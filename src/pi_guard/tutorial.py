@@ -14,7 +14,7 @@ CHAPTERS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("overview", "#/overview", ("uebersicht", "overview", "startseite", "zuhause und abwesend")),
     ("live", "#/live", ("live", "kamerabild", "mithoeren", "sprechen")),
     ("events", "#/events", ("ereignis", "event", "beweisvideo")),
-    ("people", "#/people", ("person", "gesicht", "face", "wischen", "swipe", "wer ist das")),
+    ("people", "#/contacts", ("person", "gesicht", "face", "wischen", "swipe", "wer ist das")),
     ("network", "#/network/overview",
      ("netzwerk", "network", "pi-hole", "pihole", "sperr", "block")),
     ("vpn", "#/network/vpn", ("vpn", "wireguard", "unterwegs")),

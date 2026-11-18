@@ -13,10 +13,9 @@ import pytest
 from pi_guard.network.wgpeers import generate_keypair
 from pi_guard.privacy.capabilities import detect
 from pi_guard.privacy.chain import set_hops
-from pi_guard.privacy.compat import validate_chain, validate_dns
+from pi_guard.privacy.compat import validate_dns
 from pi_guard.privacy.errors import PrivacyError
-from pi_guard.privacy.firewall import Plan, apply_or_relaxed, render
-from pi_guard.privacy.profiles import apply_profile
+from pi_guard.privacy.firewall import Plan, render
 from pi_guard.privacy.providers.custom_wg import CustomWireGuard
 from pi_guard.privacy.providers.import_wg import parse_wireguard_conf
 from pi_guard.privacy.providers.mullvad import MullvadProvider
@@ -40,7 +39,8 @@ def test_migrate_keeps_advanced_off() -> None:
     assert data["enabled"] is False
     assert data["kill_switch"] == "off"
     assert data["chain"]["hops"] == []
-    assert data["tor"]["enabled"] is False
+    # Tor was removed in 1.14: an old setting is dropped, never applied.
+    assert "tor" not in migrate({"version": 1, "tor": {"enabled": True, "mode": "socks"}})
 
 
 def test_store_seals_and_redacts(tmp_path: Path) -> None:
@@ -63,7 +63,7 @@ def test_store_seals_and_redacts(tmp_path: Path) -> None:
 def test_diagnostics_path_includes_home_vpn(privacy: PrivacyService) -> None:
     from pi_guard.privacy.health import path_nodes, remember_exit_ip, snapshot
 
-    path = path_nodes(privacy.store, exit_st={}, tor_st={})
+    path = path_nodes(privacy.store, exit_st={})
     kinds = [n["kind"] for n in path]
     assert kinds[0] == "clients"
     assert kinds[1] == "home_vpn"
@@ -73,26 +73,6 @@ def test_diagnostics_path_includes_home_vpn(privacy: PrivacyService) -> None:
     assert snap["exit_ip"] == "203.0.113.10"
     assert "web.priv_diag_need_install" in snap["notes"]
     assert snap["path"][1]["kind"] == "home_vpn"
-
-
-def test_profiles_are_starting_points(privacy: PrivacyService) -> None:
-    cfg = privacy.set_profile("enhanced")
-    assert cfg["profile"] == "enhanced"
-    assert cfg["kill_switch"] == "vpn"
-    assert cfg["dns"]["mode"] == "vpn_routed"
-    maximum = apply_profile(privacy.store.data, "maximum")
-    assert maximum["kill_switch"] == "strict"
-    assert maximum["dns"]["strict"] is True
-
-
-def test_compat_blocks_tor_with_wg_exit() -> None:
-    caps = detect()
-    with pytest.raises(PrivacyError, match="tor_with_wg"):
-        validate_chain(
-            [{"id": "1", "provider": "custom", "params": {}}],
-            caps,
-            tor_mode="vpn_then_tor",
-        )
 
 
 def test_compat_blocks_strict_system_dns() -> None:
@@ -166,19 +146,6 @@ def test_firewall_strict_drops_and_keeps_mgmt() -> None:
     assert "pgexit" in text
     off = render(Plan(mode="off"))
     assert "policy drop" not in off
-
-
-def test_firewall_relaxed_when_tor_uid_fails() -> None:
-    calls: list[Plan] = []
-
-    def load(plan: Plan) -> None:
-        calls.append(plan)
-        if plan.tor:
-            raise RuntimeError("no such user")
-
-    out = apply_or_relaxed(Plan(mode="strict", exit_up=True, tor=True), load)
-    assert out.tor is False
-    assert len(calls) == 2
 
 
 @pytest.mark.asyncio
@@ -264,7 +231,7 @@ async def test_api_privacy_requires_login(tmp_path: Path) -> None:
         app.db.close()
 
 
-async def test_api_privacy_config_and_profile(tmp_path: Path) -> None:
+async def test_api_privacy_config_and_kill_switch(tmp_path: Path) -> None:
     client, app = await _client(tmp_path)
     try:
         csrf = await _login(client)
@@ -275,11 +242,10 @@ async def test_api_privacy_config_and_profile(tmp_path: Path) -> None:
         cfg = await client.get("/api/privacy/config")
         assert cfg.status == 200
         assert (await cfg.json())["enabled"] is False
-        put = await client.put(
-            "/api/privacy/profile", json={"profile": "enhanced"}, headers=headers
-        )
+        put = await client.put("/api/privacy/killswitch", json={"mode": "vpn"}, headers=headers)
         assert put.status == 200
         assert (await put.json())["kill_switch"] == "vpn"
+        assert (await client.put("/api/privacy/tor", json={}, headers=headers)).status in (404, 405)
         bad = await client.put(
             "/api/privacy/dns", json={"mode": "system", "strict": True}, headers=headers
         )
@@ -290,7 +256,7 @@ async def test_api_privacy_config_and_profile(tmp_path: Path) -> None:
 
 
 async def test_api_modules_off_last_exit_deactivates(tmp_path: Path) -> None:
-    """Turning Mullvad off must deactivate, not fail with 'enable Tor first'."""
+    """Turning Mullvad off stops the exit; the chosen servers stay for the next time."""
     client, app = await _client(tmp_path)
     try:
         csrf = await _login(client)
@@ -322,7 +288,7 @@ async def test_api_modules_off_last_exit_deactivates(tmp_path: Path) -> None:
         body = await answer.json()
         assert body["enabled"] is False
         assert body["chain"]["hops"] == []
-        assert not (body["providers"]["mullvad"].get("selected") or {}).get("entry_hostname")
+        assert body["providers"]["mullvad"]["selected"]["entry_hostname"] == "se-sto-wg-001"
     finally:
         await client.close()
         app.db.close()
@@ -472,3 +438,35 @@ def test_two_mullvad_hops_use_the_exits_port(privacy: PrivacyService) -> None:
         {"id": "b", "provider": "mullvad", "name": "out", "params": exit_relay},
     ]
     assert build_active_peer(privacy.store).endpoint == "193.138.218.220:3155"
+
+
+async def test_multi_hop_off_really_leaves_the_entry(tmp_path: Path) -> None:
+    """The exit used to keep a copy of the servers in its hop: multi-hop off changed nothing."""
+    client, app = await _client(tmp_path)
+    try:
+        csrf = await _login(client)
+        headers = {"X-CSRF-Token": csrf}
+        assert (await client.get("/api/privacy/config")).status == 200
+        svc = app.dashboard.privacy
+        assert svc is not None
+        (svc.store._dir / "installed").write_text("1\n", encoding="utf-8")
+        private, public = generate_keypair()
+        mullvad = svc.store.data["providers"]["mullvad"]
+        mullvad["account_sealed"] = svc.store.seal("1234567890123456")
+        mullvad["private_key_sealed"] = svc.store.seal(private)
+        mullvad["ipv4_address"] = "10.64.0.2/32"
+        mullvad["selected"] = {
+            "hostname": "de-fra-wg-001", "ipv4": "185.0.0.1", "public_key": public,
+            "entry_hostname": "se-sto-wg-001", "entry_ipv4": "185.0.0.9", "multihop_port": 3155,
+        }  # fmt: skip
+        svc.store.save()
+        on = await client.put("/api/privacy/modules", json={"mullvad": True}, headers=headers)
+        assert on.status == 200, await on.text()
+        assert "185.0.0.9:3155" in (svc.store._dir / "exit.peer").read_text()
+        off = await client.put("/api/privacy/modules", json={"multi_hop": False}, headers=headers)
+        assert off.status == 200, await off.text()
+        line = (svc.store._dir / "exit.peer").read_text()
+        assert "185.0.0.1:51820" in line and "185.0.0.9" not in line
+    finally:
+        await client.close()
+        app.db.close()

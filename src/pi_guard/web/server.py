@@ -60,6 +60,8 @@ PUBLIC = {"/api/session", "/api/login", "/api/login/totp", "/api/logout", "/ca.c
 # Reachable while the default password has not been changed yet.
 SETUP_ALLOWED = {"/api/account", "/api/account/credentials", "/api/account/totp/begin",
                  "/api/account/totp/confirm", "/api/setup/status"}  # fmt: skip
+# With a temporary password a further user may only choose an own one.
+RENEW_ALLOWED = {"/api/account", "/api/me/password", "/api/me/profile"}
 # What viewers may do: watch. Everything else is closed to them, also anything added later.
 VIEWER_GET = {"/api/overview", "/api/events", "/api/stats", "/api/alerts", "/api/connection",
               "/api/evidence", "/api/account", "/api/me/profile",
@@ -101,6 +103,8 @@ def confirm_password(request: web.Request, password: str, owner: bool = False) -
     `owner`: passkeys log in as the owner, so another admin's password is not enough for one.
     """
     d = dashboard(request)
+    if current(request).username.startswith("fed:"):
+        raise web.HTTPForbidden(text="web.fed_needs_local")  # a helper never has the password
     name = d.auth.account(None if owner else current(request).username)["username"]
     if d.auth.check_password(name, password) is None:
         raise web.HTTPForbidden(text="web.wrong_password")
@@ -192,6 +196,12 @@ class Dashboard:
             self._secret_key(),
             home_network=s.wireguard_home_network or None,
         )
+        self.federation = None
+        if s.federation_enabled:
+            from pi_guard.federation.service import Federation
+
+            self.federation = Federation(self)
+            self.auth.federation_role = self.federation.role_of
         self.web = self._build()
 
     def tls_names(self) -> list[str]:
@@ -238,6 +248,7 @@ class Dashboard:
             api_contacts,
             api_core,
             api_export,
+            api_federation,
             api_kids,
             api_live,
             api_login,
@@ -276,7 +287,7 @@ class Dashboard:
         for module in (api_account, api_apps, api_addons, api_agents, api_contacts, api_persons,
                        api_core, api_export, api_kids, api_login, api_live, api_manage, api_medical,
                        api_move, api_network, api_privacy, api_proxy, api_security, api_system,
-                       api_mobile, api_tools, api_updates, api_v1):  # fmt: skip
+                       api_mobile, api_tools, api_updates, api_v1, api_federation):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
             sub = web.Application()
@@ -370,6 +381,15 @@ class Dashboard:
             raise web.HTTPUnauthorized(text="login required")
         if path not in SETUP_ALLOWED and self._setup_required(session):
             raise web.HTTPForbidden(text="setup_required")
+        if path not in RENEW_ALLOWED and self.auth.must_renew(session.username):
+            raise web.HTTPForbidden(text="password_renew")
+        if session.username.startswith("fed:"):
+            # A helper through the link: the tunnel checked the path, check it again here.
+            from pi_guard.federation.protocol import tunnel_allowed
+
+            link = self.federation.link_of(session.username) if self.federation else None
+            if link is None or not tunnel_allowed(path, link.role, link.extras):
+                raise web.HTTPForbidden(text="web.fed_forbidden")
         role = self.auth.role_of(session.username)
         if role == "viewer" and not self._viewer_may(request):
             raise web.HTTPForbidden(text="web.viewer_forbidden")
@@ -434,6 +454,10 @@ class Dashboard:
         return bool(self.auth.account()["must_change"])
 
     def _resolve(self, request: web.Request) -> Session | None:
+        if self.federation is not None:
+            tunnelled = self.federation.session_for(request)
+            if tunnelled is not None:
+                return tunnelled
         if "none" in self.settings.dashboard_methods:
             return Session("local", "none", False)
         return self.auth.session(request.cookies.get(COOKIE))
@@ -495,6 +519,7 @@ class Dashboard:
             if session and session.pending and self.auth.is_owner(session.username) else None,
             "totp": bool(session and self.auth.totp_secret(session.username)),
             "setup_required": bool(active and session and self._setup_required(session)),
+            "password_renew": bool(active and session and self.auth.must_renew(session.username)),
             "setup_done": bool(self.app.db.get(SETUP_DONE_KEY)),
             "role": self.auth.role_of(session.username) if active and session else None,
             "appearance": self.app.db.get("web.appearance") or {},

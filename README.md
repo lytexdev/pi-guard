@@ -52,20 +52,25 @@ movement, and lets you look at your home with two buttons: **View photo** and
   `/tutorial` in chats.
 - **Network (optional).** Pi-hole statistics and presence, devices in the LAN,
   a WireGuard VPN with your own devices, a disguised way for networks that block
-  WireGuard (AmneziaWG), optional privacy upstream (multi-hop / Mullvad / Tor), a safe fixed-IP script, and help with moving to a new home,
+  WireGuard (AmneziaWG), an optional exit through Mullvad (also multi-hop) or your own server with one switch each and
+  per device, sharing the home and guest Wi-Fi by QR code, a safe fixed-IP script, and help with moving to a new home,
   router or Pi (see [backups](docs/backup.md#moving)).
+- **Linked households (optional).** Look after a grandmother's pi-guard from your own: her state, her alarms and every
+  SOS, and her dashboard, without being in her Wi-Fi or VPN and with nothing opened at her home. She decides what you
+  may do. See [linked households](docs/federation.md).
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.
 - **Nothing leaves the device** except the messages you ask for and what an
   optional part you turn on needs (an AI provider for the assistant, Mullvad,
-  update checks on GitHub). No cloud account, no open ports, no telemetry.
+  update checks on GitHub, a linked helper's Pi). No cloud account, no telemetry, and no open ports unless you help
+  another household.
 
 ## Everything around it
 
 | | |
 | --- | --- |
-| **Web dashboard** | Live picture and sound, contacts in one place (face, account, messengers, emergency role, VPN, and an invitation with the app and a VPN access), events, weekly plan with calendars, network, settings in a normal and an expert view, a security check with fixes that can be undone, logs in tabs, and members who get only the areas, add-ons and settings you grant. Light, dark or as the system. On by default at `https://<pi>:8443`. |
+| **Web dashboard** | Live picture and sound, contacts as their own page (face, account, messengers, emergency role, VPN, own pictures with a ring for their rights, a second line before the emergency contacts, and invitations with the dashboard link, apps, login details with a temporary password and a VPN access), where each messenger's messages go, events, weekly plan with calendars, network, settings in a normal and an expert view, a security check with fixes that can be undone, logs in tabs, and members who get only the areas, add-ons and settings you grant. Light, dark or as the system. On by default at `https://<pi>:8443`. |
 | **Accessibility** | Text size, magnifier, colour-blind filters, reading aloud, visible alerts for deaf people, typed speech for people who cannot talk, screen-reader labels, and commands by voice or chat. See [dashboard](docs/dashboard.md#accessibility). |
 | **Android app** | The dashboard with alerts without Google, a VPN like Mullvad's with split tunneling and auto-connect, SOS with camera pictures, photos and sound from the phone and a followed place, finding and tracking lost phones, and an inconspicuous look if you want one. |
 | **Desktop app** | The dashboard in its own window for Linux, Windows and macOS, trusting only your pi-guard's certificate. On Linux also a VPN with kill switch, lockdown, split tunneling and a quantum-resistant tunnel. |
@@ -177,6 +182,7 @@ pi-guard logs -f
 | [Updates](docs/updates.md) | How agents and apps update themselves, signed and verified |
 | [VPN](docs/vpn.md) | Kill switch, lockdown, split tunneling, quantum-resistant tunnel, privacy upstream |
 | [Network](docs/network.md) | Pi-hole, WireGuard, fixed address |
+| [Linked households](docs/federation.md) | Look after another pi-guard without being in its network |
 | [Add-ons](docs/addons.md) | Service watcher, network analysis, smart home, remote commands, AI assistant |
 | [WhatsApp](docs/whatsapp.md) | Official Cloud API setup and its limits |
 | [Public access](docs/public-access.md) | Domain, reverse proxy and safe login |
@@ -194,7 +200,8 @@ German: [Installation](docs/de/installation.md) ·
 [Netzwerk](docs/de/netzwerk.md) · [Sprache](docs/de/sprache.md) ·
 [Datenschutz](docs/de/datenschutz.md) · [Training](docs/de/training.md) ·
 [Backup](docs/de/backup.md) · [Discord](docs/de/discord.md) · [E-Mail](docs/de/email.md) ·
-[WhatsApp](docs/de/whatsapp.md) · [Reverse-Proxy](docs/de/proxy.md)
+[WhatsApp](docs/de/whatsapp.md) · [Reverse-Proxy](docs/de/proxy.md) ·
+[Verbundene Haushalte](docs/de/haushalte.md)
 
 ## Privacy
 

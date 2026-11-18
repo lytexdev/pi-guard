@@ -156,13 +156,14 @@ VPN-Server-Binary selbst geändert hat.
 
 ### Privacy-Upstream
 
-Optionaler Multi-Hop-Exit auf dem Pi (Mullvad, eigener WireGuard, Tor). Geräte nutzen weiter das
-Heim-VPN; der Pi leitet ausgewählten Verkehr über einen Upstream-Hop. Installation:
+Optionaler Ausgang auf dem Pi: Mullvad (auf Wunsch Multi-Hop) oder ein eigener WireGuard-Server, mit einfachen
+Schaltern: Mullvad, Multi-Hop, Tarnung (AmneziaWG) und Kill-Switch, jeweils an oder aus. Geräte nutzen weiter das
+Heim-VPN; pro Gerät gibt es zwei Schalter, *Über Mullvad* und *Tarnung*. Tor gibt es seit 1.14 nicht mehr. Installation:
 `sudo ./scripts/privacy-server.sh install`. Details: [vpn.md](../vpn.md#privacy-upstream-optional).
 
-Mullvad: unter *Netzwerk › VPN* das Konto mit seiner 16-stelligen Nummer verknüpfen (ein Konto ohne bezahlte Zeit wird
-abgelehnt), dann *Server wählen*: Land, Stadt und Server für den Ausgang, und mit *Multi-Hop über einen zweiten Server*
-einen Eingang. Schlüssel, Adressen und Ports nimmt der Pi aus Mullvads Serverliste. Bis 2026-11-12 kam kein Exit hoch
+Mullvad: unter *Netzwerk › VPN › Privatsphäre* verknüpft der Schalter *Mullvad* das Konto mit seiner 16-stelligen
+Nummer (ein Konto ohne bezahlte Zeit wird abgelehnt) und fragt nach Land, Stadt und Server für den Ausgang, mit
+*Multi-Hop* auch nach einem Eingang. Es gibt immer nur einen Ausgang; ein neuer ersetzt den alten. Schlüssel, Adressen und Ports nimmt der Pi aus Mullvads Serverliste. Bis 2026-11-12 kam kein Exit hoch
 (`invalid exit.peer` im Journal), mit Kill-Switch hatten VPN-Geräte dann kein Internet. Signierte Updates
 bringen geänderte Exit-Units von allein mit; `privacy-server.sh install` nur einmal zur Erstinstallation.
 Eine echte Verbindung zu Mullvad ist noch nicht getestet.

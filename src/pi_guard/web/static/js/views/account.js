@@ -31,12 +31,13 @@ export async function render(main) {
       h("section", { class: "panel stack" }, h("h2", {}, icon("list-details"), " ", t("web.pf_title")), h("p", { class: "muted" }, t("web.pf_intro")),
         h("div", {}, h("button", { onclick: () => profileDialog("/api/me/profile", t("web.pf_title")) }, icon("pencil"), t("web.pf_edit")))),
       h("section", { class: "panel stack" }, h("h2", {}, account.username),
-        h("p", { class: "muted" }, t("web.account_viewer_hint")),
+        account.must_change ? h("p", { class: "notice" }, icon("key"), " ", t("web.account_renew")) : h("p", { class: "muted" }, t("web.account_viewer_hint")),
         h("div", { class: "field" }, h("label", { for: "ocur" }, t("web.current_password")), current),
         h("div", { class: "field" }, h("label", { for: "onew" }, t("web.new_password")), next),
         h("button", { class: "primary", onclick: async () => {
           if (await attempt(() => api("/api/me/password", { method: "POST", body: { current: current.value, password: next.value } }))) {
             toast(t("web.saved")); current.value = ""; next.value = "";
+            if (account.must_change) location.replace("#/overview");
           }
         } }, icon("check"), t("web.save"))), totp);
   };

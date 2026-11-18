@@ -693,7 +693,24 @@ async def review_queue(request: web.Request) -> web.Response:
         if len(queue) >= 40:
             break
     people = [n for n, _, _ in _faces(request).store.people()]
-    return web.json_response({"events": queue, "people": people})
+    return web.json_response({"events": queue, "people": people,
+                              "contacts": _contacts_without_face(app, people)})  # fmt: skip
+
+
+def _contacts_without_face(app: Any, enrolled: list[str]) -> list[str]:
+    """Contacts the cameras do not know yet: they can be taught from a picture, with consent."""
+    from pi_guard.storage.persons import Persons
+
+    known = {n.casefold() for n in enrolled}
+    found = []
+    for person in Persons(app.db).all():
+        faces = [ref for kind, ref in person.links if kind == "face"]
+        if (
+            not any(f.casefold() in known for f in faces)
+            and person.display_name.casefold() not in known
+        ):
+            found.append(person.display_name)
+    return found
 
 
 async def review_done(request: web.Request) -> web.Response:
@@ -717,8 +734,10 @@ async def event_faces(request: web.Request) -> web.Response:
             "name": identity.name, "score": round(identity.score, 2), "learn_problem": problem,
         })  # fmt: skip
     height, width = result.image.shape[:2] if result.image is not None else (0, 0)
-    return web.json_response({"faces": found, "width": width, "height": height,
-                              "people": [n for n, _, _ in faces.store.people()]})  # fmt: skip
+    people = [n for n, _, _ in faces.store.people()]
+    fresh = _contacts_without_face(dashboard(request).app, people)
+    return web.json_response({"faces": found, "width": width, "height": height, "people": people,
+                              "contacts": fresh})  # fmt: skip
 
 
 async def learn_from_event(request: web.Request) -> web.Response:
@@ -732,21 +751,40 @@ async def learn_from_event(request: web.Request) -> web.Response:
     if result.faces is None or index >= len(result.faces):
         raise web.HTTPNotFound()
     face, actor = result.faces[index], _actor(request)
+    app = dashboard(request).app
+    first = is_person and faces.store.exists(name) is None
+    if first:
+        # A contact without a face yet: only with their consent, and only a real contact.
+        if data.get("consent") is not True:
+            raise web.HTTPConflict(text="faces.need_consent")
+        if name not in _contacts_without_face(app, [n for n, _, _ in faces.store.people()]):
+            raise web.HTTPNotFound(text="faces.learn_not_enrolled")
     try:
-        if is_person:
+        if first:
+            total = await asyncio.to_thread(faces.start, name, result.image, face, actor)
+            _link_face(app, name)
+        elif is_person:
             total, _ = await asyncio.to_thread(faces.learn, name, result.image, face, actor)
         else:
             await asyncio.to_thread(faces.reject, name, result.image, face)
     except EnrollmentError as exc:
         raise web.HTTPUnprocessableEntity(text=exc.key) from None
-    app = dashboard(request).app
-    action = "faces.learn" if is_person else "faces.reject"
+    action = "faces.enroll" if first else "faces.learn" if is_person else "faces.reject"
     app.db.audit(actor, action, f"event={request.match_info['id']}")
     mark_reviewed(app, int(request.match_info["id"]), index)
     if not is_person:
         return web.json_response({"ok": True})
     quality = await asyncio.to_thread(faces.quality, faces.store.exists(name) or name)
     return web.json_response({"ok": True, "total": total, "quality": quality})
+
+
+def _link_face(app: Any, name: str) -> None:
+    from pi_guard.storage.persons import Persons
+
+    store = Persons(app.db)
+    person = next((p for p in store.all() if p.display_name == name), None)
+    if person is not None:
+        store.link(person.id, "face", name)
 
 
 async def add_from_camera(request: web.Request) -> web.Response:

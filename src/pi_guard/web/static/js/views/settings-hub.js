@@ -6,7 +6,7 @@ import { searchToggle, skeleton, supportNote } from "../widgets.js";
 import { restartPrompt } from "./settings.js";
 
 // Moved into other tabs; old links keep working.
-const MOVED = { plan: "modes", api: "access", apps: "updates", dashboard: "general", people: "contacts", security: "data" };
+const MOVED = { plan: "modes", api: "access", apps: "updates", dashboard: "general", security: "data" };
 // Data & backup holds what used to be four tabs; their old links open the right part.
 const DATA_TABS = [["backup", "upload"], ["storage", "database"], ["security", "shield-check"], ["move", "map-pin"], ["export", "download"]];
 const dataTabs = () => DATA_TABS.filter(([id]) => id !== "export" || expertMode());
@@ -17,7 +17,6 @@ const TOPICS = {
   devices: ["web.cameras", "web.speaker", "web.microphone", "web.trusted_devices", "web.quiet_hours_sound"],
   access: ["web.users_title", "web.webauthn_title", "web.recovery_title", "web.codeword", "web.login_security", "web.account", "web.api_tokens", "web.api_docs"],
   messaging: ["web.discord_status", "web.signal_status"],
-  contacts: ["web.set_contacts", "web.person_roles", "web.person_face", "web.nav_people"],
   addons: ["web.nav_addons"],
   "data/security": ["web.scan_firewall", "web.scan_updates", "web.scan_rootkits", "web.scan_ports", "web.scan_ssh"],
   "data/storage": ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
@@ -35,10 +34,9 @@ const SECTIONS = [
   ["general", "settings", ["general", "dashboard"], "basics"], ["recording", "video", ["recording"], "basics"], ["detection", "users", ["detection"], "basics"],
   ["modes", "home", ["modes"], "basics"], ["audio", "volume", ["audio"], "basics"],
   ["messaging", "message", ["telegram", "discord", "email", "whatsapp", "signal", "chatapps"], "alerts"], ["notifications", "bell-ringing", null, "alerts"],
-  ["contacts", "users", null, "alerts"],
   ["emergency", "alert-triangle", ["emergency"], "alerts"],
   ["devices", "camera", null, "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
-  ["addons", "cpu", null, "home"],
+  ["addons", "cpu", null, "home"], ["federation", "link", ["federation"], "home"],
   ["data", "database", ["backup"], "system"], ["integrations", "router", ["integrations", "network"], "system"],
   ["updates", "refresh", ["updates", "mobile"], "system"],
   ["logs", "list-details", null, "system"], ["support", "headset", null, "system"],
@@ -248,6 +246,24 @@ async function updateSection(root) {
   await Promise.all([draw(), api("/api/apps").then(drawApps).catch(() => fill(apps))]);
 }
 
+// What an emergency would use, on one page: who is told, and whose emergency data exist.
+async function emergencyOverview(body) {
+  const contacts = h("div");
+  const data = h("section", { class: "panel stack" });
+  body.before(contacts, data);
+  const admin = state.session?.role === "admin";
+  const granted = state.session?.permissions || [];
+  if (admin || granted.includes("contacts")) await (await import("./contacts.js")).contactsPanel(contacts);
+  const people = admin || granted.includes("addon:medical") ? await api("/api/medical").catch(() => null) : null;
+  fill(data, h("div", { class: "row between wrap" }, h("h2", {}, icon("user-check"), " ", t("web.md_title")),
+    h("a", { class: "button", href: "#/addons/medical" }, icon("pencil"), t("web.em_open_medical"))),
+  people === null ? h("p", { class: "muted" }, t("web.em_medical_off"))
+    : h("ul", { class: "list" }, people.length ? people.map((p) => h("li", {}, icon("user"),
+      h("div", { class: "grow" }, h("div", {}, p.name), h("small", { class: "muted" }, t("web.md_updated", { time: when(p.updated) })))))
+      : h("li", { class: "empty" }, t("web.md_none"))),
+  h("p", { class: "muted" }, h("small", {}, t("web.em_medical_hint"))));
+}
+
 async function supportSection(box) {
   const saved = state.session.support || {};
   const input = (key, type = "text") => h("input", { id: `sp_${key}`, type, value: saved[key] || "" });
@@ -381,7 +397,7 @@ export async function render(main, params = []) {
     body.addEventListener("change", showSave);
     if (current === "messaging") {
       body.before(h("p", { class: "notice" }, t("web.messaging_contacts_note"), " ",
-        h("a", { href: "#/settings/contacts" }, t("web.set_contacts"))));
+        h("a", { href: "#/contacts" }, t("web.set_contacts"))));
       const { discordPanel, emailPanel, signalPanel } = await import("./signal.js");
       const modules = state.session.modules || {};
       if (modules.discord) extra.append(await discordPanel());
@@ -390,10 +406,8 @@ export async function render(main, params = []) {
       if (expertMode()) extra.append(await messengerTests());
     }
     if (current === "modes") await (await import("./plan.js")).render(extra);
-    if (current === "emergency") {
-      body.before(h("p", { class: "notice" }, t("web.emergency_contacts_moved"), " ",
-        h("a", { href: "#/settings/contacts" }, t("web.set_contacts"))));
-    }
+    if (current === "emergency") await emergencyOverview(body);
+    if (current === "federation") await (await import("./federation.js")).render(extra);
     if (current === "updates") {
       // Pi + app versions first, then settings, then invitations and phones.
       const status = h("div");
@@ -428,17 +442,6 @@ export async function render(main, params = []) {
     body.addEventListener("input", showSave);
     body.addEventListener("change", showSave);
     body.addEventListener("click", (e) => { if (e.target.closest("button")) showSave(); });
-  } else if (current === "contacts") {
-    // One list of people; the detailed face and emergency views fold away below it.
-    const persons = h("div");
-    const faces = h("div");
-    const emergency = h("div");
-    const more = (titleKey, iconName, inner) => h("details", { class: "panel hub-more" },
-      h("summary", {}, icon(iconName), " ", t(titleKey)), inner);
-    body.append(persons, more("web.pc_more_faces", "user-check", faces), more("web.pc_more_emergency", "alert-triangle", emergency));
-    await (await import("./persons.js")).personsPanel(persons);
-    await (await import("./people.js")).render(faces, [], { embedded: true });
-    await (await import("./contacts.js")).contactsPanel(emergency);
   } else if (current === "addons") {
     const view = await import("./addons.js");
     await view.render(body, [], { embedded: true });

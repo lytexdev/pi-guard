@@ -89,7 +89,8 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/signal/test", signal_test),
         web.post("/api/network/wifi/qr", wifi_qr),
         web.get("/api/network/wifi/profiles", wifi_profiles_get),
-        web.put("/api/network/wifi/profiles", wifi_profiles_put),
+        web.put("/api/network/wifi/profiles/{slot:home|guest}", wifi_profile_put),
+        web.delete("/api/network/wifi/profiles/{slot:home|guest}", wifi_profile_delete),
         web.post("/api/network/wifi/{index:[123]}/renew", wifi_renew),
         web.get("/api/network/internet/{ip}", internet_state),
         web.post("/api/network/internet/{ip}", internet_set),
@@ -117,10 +118,7 @@ def _actor(request: web.Request) -> str:
 
 def _confirm(request: web.Request, data: dict[str, Any]) -> None:
     """Changes that lock people out need the password again."""
-    d = dashboard(request)
-    name = d.auth.account(current(request).username)["username"]
-    if d.auth.check_password(name, str(data.get("password", ""))) is None:
-        raise web.HTTPForbidden(text="web.wrong_password")
+    confirm_password(request, str(data.get("password", "")))
 
 
 # --- trying out audio devices ---------------------------------------------------------------
@@ -523,7 +521,8 @@ def _fritz(request: web.Request) -> Any:
 
 
 WIFI_PROFILES_KEY = "network.wifi_profiles"
-WIFI_PROFILE_MAX = 8
+# Two saved networks, for homes without a FRITZ!Box: the own one and the one for guests.
+WIFI_SLOTS = ("home", "guest")
 
 
 _WIFI_AAD = b"pi-guard-wifi"
@@ -560,81 +559,74 @@ def _save_wifi(d: Any, profiles: list[dict[str, Any]]) -> None:
 
 
 def _wifi_profiles(d: Any) -> list[dict[str, Any]]:
-    """Saved profiles with their keys opened. Profiles from before 1.13 kept the key in plain
-    text: they are sealed the first time they are read."""
+    """The saved networks with their keys opened, at most one per slot.
+
+    Before 1.14 there was a free list, and before 1.13 keys were kept in plain text: the first
+    network of each kind becomes its slot, sealed, the first time it is read."""
     raw = d.app.db.get(WIFI_PROFILES_KEY) or []
     if not isinstance(raw, list):
         return []
-    profiles = [p for p in raw if isinstance(p, dict)]
-    opened = [{**{k: v for k, v in p.items() if k != "key_sealed"},
-               "key": str(p["key"]) if "key" in p else _open_wifi(d, str(p.get("key_sealed", "")))}
-              for p in profiles]  # fmt: skip
-    if any("key" in p for p in profiles):
+    profiles: dict[str, dict[str, Any]] = {}
+    for p in raw:
+        if not isinstance(p, dict) or not p.get("ssid"):
+            continue
+        slot = (
+            str(p.get("id")) if p.get("id") in WIFI_SLOTS else "guest" if p.get("guest") else "home"
+        )
+        if slot in profiles:
+            continue
+        key = str(p["key"]) if "key" in p else _open_wifi(d, str(p.get("key_sealed", "")))
+        profiles[slot] = {"id": slot, "ssid": str(p["ssid"])[:32], "key": key}
+    opened = [profiles[slot] for slot in WIFI_SLOTS if slot in profiles]
+    if [p.get("id") for p in raw if isinstance(p, dict)] != [p["id"] for p in opened] or any(
+        isinstance(p, dict) and "key" in p for p in raw
+    ):
         _save_wifi(d, opened)
     return opened
 
 
 async def wifi_profiles_get(request: web.Request) -> web.Response:
-    """Saved SSIDs for guest/home QR codes; keys are never returned in the list."""
-    profiles = []
-    for p in _wifi_profiles(dashboard(request)):
-        if not isinstance(p, dict) or not p.get("ssid"):
-            continue
-        profiles.append(
-            {
-                "id": str(p.get("id") or ""),
-                "name": str(p.get("name") or p["ssid"])[:40],
-                "ssid": str(p["ssid"])[:32],
-                "guest": bool(p.get("guest")),
-                "has_key": bool(p.get("key")),
-            }
-        )
+    """The two saved networks; keys are never returned here."""
+    profiles = [
+        {"id": p["id"], "ssid": p["ssid"], "guest": p["id"] == "guest", "has_key": bool(p["key"])}
+        for p in _wifi_profiles(dashboard(request))
+    ]
     return web.json_response({"profiles": profiles})
 
 
-async def wifi_profiles_put(request: web.Request) -> web.Response:
-    """Replace saved Wi-Fi profiles (SSID + key) after password confirm."""
+async def wifi_profile_put(request: web.Request) -> web.Response:
+    """Save the home or guest network (name and key) after the password."""
     d = dashboard(request)
     data = await read_json(request)
     _confirm(request, data)
-    wanted = data.get("profiles")
-    if not isinstance(wanted, list):
+    slot = request.match_info["slot"]
+    ssid, key = str(data.get("ssid", "")).strip()[:32], str(data.get("key", ""))
+    saved = {p["id"]: p for p in _wifi_profiles(d)}
+    if not key and slot in saved:
+        key = saved[slot]["key"]  # only the name changed
+    if not ssid or not 8 <= len(key) <= 63:
         raise web.HTTPBadRequest(text="web.wifi_bad_input")
-    existing = {str(p.get("id")): p for p in _wifi_profiles(d)}
-    cleaned: list[dict[str, Any]] = []
-    for raw in wanted[:WIFI_PROFILE_MAX]:
-        if not isinstance(raw, dict):
-            continue
-        ssid = str(raw.get("ssid", "")).strip()[:32]
-        key = str(raw.get("key", ""))
-        profile_id = str(raw.get("id") or secrets.token_hex(4))
-        if not ssid:
-            continue
-        if key and not 8 <= len(key) <= 63:
-            raise web.HTTPBadRequest(text="web.wifi_bad_input")
-        if not key and profile_id in existing:
-            key = str(existing[profile_id].get("key") or "")
-        if not key:
-            raise web.HTTPBadRequest(text="web.wifi_bad_input")
-        cleaned.append(
-            {
-                "id": profile_id,
-                "name": str(raw.get("name") or ssid).strip()[:40] or ssid,
-                "ssid": ssid,
-                "key": key,
-                "guest": bool(raw.get("guest")),
-            }
-        )
-    _save_wifi(d, cleaned)
-    d.app.db.audit(_actor(request), "network.wifi_profiles", str(len(cleaned)))
+    saved[slot] = {"id": slot, "ssid": ssid, "key": key}
+    _save_wifi(d, [saved[s] for s in WIFI_SLOTS if s in saved])
+    d.app.db.audit(_actor(request), "network.wifi_profile", slot)
+    return await wifi_profiles_get(request)
+
+
+async def wifi_profile_delete(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    data = await read_json(request)
+    _confirm(request, data)
+    slot = request.match_info["slot"]
+    _save_wifi(d, [p for p in _wifi_profiles(d) if p["id"] != slot])
+    d.app.db.audit(_actor(request), "network.wifi_profile_delete", slot)
     return await wifi_profiles_get(request)
 
 
 async def wifi_qr(request: web.Request) -> web.Response:
-    """From a saved profile, the FRITZ!Box, or typed in."""
+    """From a saved network or the FRITZ!Box."""
     d = dashboard(request)
     data = await read_json(request)
-    ssid, key = str(data.get("ssid", "")).strip(), str(data.get("key", ""))
+    ssid, key = "", ""
     index = data.get("index")
     profile_id = str(data.get("profile") or "").strip()
     if profile_id:

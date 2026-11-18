@@ -20,14 +20,12 @@ CONFIG_NAME = "config.json"
 EXIT_PEER = "exit.peer"
 EXIT_CONF = "exit.conf"
 NFT_PLAN = "nft.plan"
-TOR_WANT = "tor.want"
 DEVICE_ROUTES = "device-routes"
 RELAY_CACHE = "mullvad-relays.json"
 _ADDR = re.compile(r"^(?:10\.8\.0\.(?:[2-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-4]))$")
 
 DEFAULT: dict[str, Any] = {
     "version": PRIVACY_CONFIG_VERSION,
-    "profile": "standard",
     "enabled": False,
     "kill_switch": "off",  # off | vpn | strict | custom
     "dns": {
@@ -36,15 +34,8 @@ DEFAULT: dict[str, Any] = {
         "strict": False,
         "dot_server": "",
     },
-    "tor": {
-        "enabled": False,
-        "mode": "off",  # off | socks | vpn_then_tor
-        "socks_port": 9050,
-        "bridges": "",
-        "use_bridges": False,
-    },
     "obfuscation": {
-        "mode": "off",  # off | auto | amneziawg | shadowsocks | xray
+        "mode": "off",  # off | amneziawg
         "params": {},
     },
     "chain": {
@@ -65,13 +56,6 @@ DEFAULT: dict[str, Any] = {
         },
         "custom": [],  # [{id, name, endpoint, public_key, private_key_sealed, ...}]
     },
-    "routing": {
-        "scope": "all_full_tunnel",  # all_full_tunnel | selected_peers | destinations
-        "peer_ids": [],
-        "destinations": [],
-        "bypass": [],
-    },
-    "custom_profiles": {},
 }
 
 
@@ -146,13 +130,6 @@ class PrivacyStore:
     def write_nft_plan(self, text: str) -> None:
         atomic_write(self._dir / NFT_PLAN, text.encode())
 
-    def write_tor_want(self, enabled: bool) -> None:
-        path = self._dir / TOR_WANT
-        if enabled:
-            atomic_write(path, b"1\n")
-        else:
-            path.unlink(missing_ok=True)
-
     def home_only_addresses(self) -> tuple[str, ...]:
         """Addresses marked route=home in device-routes (written by PeerStore)."""
         path = self._dir / DEVICE_ROUTES
@@ -190,9 +167,7 @@ def migrate(raw: dict[str, Any]) -> dict[str, Any]:
             continue
         if isinstance(value, dict) and isinstance(raw[key], dict):
             merged = deepcopy(value)
-            merged.update(
-                {k: v for k, v in raw[key].items() if k in merged or key == "custom_profiles"}
-            )
+            merged.update({k: v for k, v in raw[key].items() if k in merged})
             if key == "providers":
                 merged["mullvad"] = {
                     **DEFAULT["providers"]["mullvad"],

@@ -1,7 +1,7 @@
-"""Optional privacy upstream on the Pi: multi-hop exit, DNS, Tor, profiles.
+"""Optional privacy upstream on the Pi: one exit (Mullvad or an own server), DNS, kill switch.
 
 Devices still connect to the home WireGuard server. When enabled, selected traffic
-leaves through an upstream hop (custom WireGuard, Mullvad, or Tor) instead of the
+leaves through the exit (Mullvad, optionally multi-hop, or an own WireGuard server) instead of the
 home WAN. Everything here stays off until the owner turns it on.
 """
 

@@ -1,5 +1,5 @@
 // "Who is this?" on a person event: say who a face in the picture is, or is not.
-import { api, attempt, h, t, toast, fill } from "../api.js";
+import { api, attempt, confirmDialog, h, t, toast, fill } from "../api.js";
 
 function seen(face) {
   if (face.verdict === "known") return t("web.lf_seen_known", { name: face.name, score: Math.round(face.score * 100) / 100 });
@@ -21,15 +21,23 @@ function faceItem(event, face, index, data, reload) {
     toast(t(message, { name: body.name, total: result.total }));
     reload();
   };
+  const fresh = data.contacts || [];
   const choose = h("select", { "aria-label": t("web.lf_choose") },
     h("option", { value: "" }, t("web.lf_choose")),
-    data.people.map((name) => h("option", { value: name, selected: name === face.name }, name)));
+    data.people.map((name) => h("option", { value: name, selected: name === face.name }, name)),
+    fresh.length ? h("optgroup", { label: t("web.sw_new_contact") }, fresh.map((name) => h("option", { value: name }, name))) : null);
   const learn = h("button", { class: "primary", disabled: Boolean(face.learn_problem) || !face.name,
-    onclick: () => choose.value && send({ name: choose.value, is: true }, "web.lf_learned") }, t("web.lf_learn"));
+    onclick: async () => {
+      if (!choose.value) return;
+      // A contact's first face: only with their consent.
+      const consent = fresh.includes(choose.value);
+      if (consent && !await confirmDialog(t("web.sw_consent", { name: choose.value }), t("web.sw_consent_yes"))) return;
+      send({ name: choose.value, is: true, consent }, "web.lf_learned");
+    } }, t("web.lf_learn"));
   choose.addEventListener("change", () => { learn.disabled = Boolean(face.learn_problem) || !choose.value; });
   return h("li", { class: "stack" },
     h("div", {}, h("strong", {}, t("web.lf_face", { number: index + 1 })), " · ", seen(face)),
-    data.people.length ? h("div", { class: "row" }, choose, learn) : null,
+    data.people.length || fresh.length ? h("div", { class: "row" }, choose, learn) : null,
     face.learn_problem ? h("small", { class: "muted" }, t(face.learn_problem)) : null,
     face.verdict === "known" ? h("div", {}, h("button", { class: "danger",
       onclick: () => send({ name: face.name, is: false }, "web.lf_rejected") }, t("web.lf_not", { name: face.name }))) : null);
@@ -49,7 +57,7 @@ export async function learnDialog(event) {
       data.faces.map((face, i) => marker(face, data, i + 1)));
     fill(body, picture,
       data.faces.length ? null : h("p", { class: "notice" }, t("web.lf_none")),
-      data.faces.length && !data.people.length ? h("p", { class: "notice" }, t("web.lf_no_people")) : null,
+      data.faces.length && !data.people.length && !(data.contacts || []).length ? h("p", { class: "notice" }, t("web.lf_no_people")) : null,
       h("ul", { class: "list" }, data.faces.map((face, i) => faceItem(event, face, i, data, load))));
     return true;
   };

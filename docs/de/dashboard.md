@@ -183,24 +183,49 @@ Gespeichert werden wie beim Eintragen nur die Zahlen eines Gesichts. Zuschauer s
 
 ## Kontakte
 
-*Einstellungen → Kontakte* zeigt alle Personen als Karten: Rollen und Chips für das Verknüpfte (Gesicht mit Anzahl der
-Bilder, Dashboard-Konto, Messenger, Notfallkontakt, Notfallkarte, VPN-Geräte), mit Suche und Rollenfilter. Jede Karte
-hat *Bearbeiten* (das Setup unten), *Fotos & Videos* (Bilder und Videos für die Gesichtserkennung hochladen oder die
-Kamera nutzen, mit Einverständnis der Person; gespeichert werden nur Gesichtsmerkmale) und *Einladen*: Das schickt den
-Download-Link der App (7 Tage) und auf Wunsch einen eigenen VPN-Zugang als WireGuard-Datei an einen Kontaktweg der Person
-(Messenger oder E-Mail, nie an eine eingetippte Adresse). Ein VPN-Zugang braucht das Passwort, wird der Person
-zugeordnet, und der Dialog sagt, welche Dienste die Datei behalten; klappt das Senden nicht, wird der Zugang wieder
-entfernt. Mitglieder brauchen neben *Kontakte* den Bereich *Apps* für den App-Link und *Netzwerk* für einen VPN-Zugang. *Noch nicht zugeordnet* bietet Gesichter, Konten und
-Notfallkontakte ohne Person an, je ein Tipp. Die Gesichtserkennung im Detail und die Notfallkontakt-Liste sind darunter
-eingeklappt.
+*Kontakte* hat einen eigenen Eintrag in der Navigation, unter *Netzwerk*. Dort stehen alle Personen als Karten: Rollen
+und Chips für das Verknüpfte (Gesicht mit Anzahl der Bilder, Dashboard-Konto, Messenger, Notfallkontakt, Notfallkarte,
+VPN-Geräte), mit Suche und Rollenfilter. Das Bild zeigt die Initialen; *Profilbild ändern* (auf das Bild tippen oder im
+Menü) setzt ein eigenes Foto ein, im Browser quadratisch zugeschnitten und verkleinert, *Standardbild verwenden* nimmt es
+wieder heraus. Ein farbiger Rahmen zeigt die Rechte: rot Admin, grün Mitglied, blau nur ansehen, lila zweite Instanz,
+orange Notfallkontakt, gelb bekommt Alarme; die Legende steht unter den Karten.
 
-*Neue Person* öffnet ein kurzes Setup (wer, Rollen, laufende
-Messenger, was bei SOS oder unbeantworteten Alarmen ankommt, optional Dashboard-Konto, Gesichtsproben und optional
-Notfallkarte). Speichern nutzt die Admin-Sitzung; die Notfallkarte als PDF braucht weiterhin eine Bestätigung.
-Messenger-Kanäle sind An/Aus-Karten für eingerichtete Dienste. *Wer ist das?* oben ordnet Gesichter aus
-Ereignissen per Wischen einer Person zu oder markiert Fremde. Wer Telegram/Signal/… für Befehle nutzen darf, steuerst du hier; die
-alten Admin-/Betrachter-Listen unter Nachrichten bleiben nur im Expertenmodus. Eskalationszeiten bleiben unter
-*Einstellungen → Notfall*. Der Sicherheitscheck liegt unter *Einstellungen → Daten & Sicherung → Sicherheitscheck*.
+Jede Karte hat *Bearbeiten* (das Setup unten), *Fotos & Videos* (Bilder und Videos für die Gesichtserkennung hochladen
+oder die Kamera nutzen, mit Einverständnis der Person; gespeichert werden nur Gesichtsmerkmale) und *Einladen*. Eine
+Einladung geht an einen eigenen Kontaktweg der Person (Messenger oder E-Mail, nie an eine eingetippte Adresse), und du
+wählst den Inhalt: Link zum Dashboard, Android-App, Desktop-Apps (Download-Links 7 Tage gültig), Zugangsdaten und einen
+eigenen VPN-Zugang als WireGuard-Datei. Zugangsdaten enthalten ein neues vorläufiges Passwort, das erst gespeichert wird,
+wenn die Nachricht raus ist; das alte gilt dann nicht mehr. Zugangsdaten und VPN-Zugang fragen nach deinem Passwort, und
+der Dialog sagt, welche Dienste die Nachricht behalten. Klappt das Senden nicht, wird ein neuer VPN-Zugang wieder
+entfernt. Mitglieder brauchen neben *Kontakte* den Bereich *Apps* für die App-Links und *Netzwerk* für einen VPN-Zugang;
+Zugangsdaten verschicken nur Admins, und nie für das Konto des Besitzers. *Noch nicht zugeordnet* bietet Gesichter,
+Konten und Notfallkontakte ohne Person an, je ein Tipp. Die Gesichtserkennung im Detail und die Notfallkontakt-Liste sind
+darunter eingeklappt.
+
+*Neue Person* öffnet ein kurzes Setup (wer, Rollen, laufende Messenger, was bei SOS oder unbeantworteten Alarmen ankommt,
+optional Dashboard-Konto, Gesichtsproben und optional Notfallkarte). Ein neues Konto bekommt ein vorläufiges Passwort:
+vom Pi erzeugt (empfohlen) oder von dir eingetippt. Es wird einmal angezeigt, mit *Einladung senden*; beim ersten
+Anmelden muss die Person ein eigenes Passwort wählen, vorher öffnet sich nichts anderes. Speichern nutzt die
+Admin-Sitzung; die Notfallkarte als PDF braucht weiterhin eine Bestätigung.
+
+*Wer ist das?* oben ordnet Gesichter aus Ereignissen per Wischen einer Person zu oder markiert Fremde. Alle Kontakte
+stehen zur Wahl: wen die Kameras noch nicht kennen, steht unter *Noch nicht angelernt*, und sein erstes Gesicht wird
+erst genommen, wenn du bestätigst, dass die Person zugestimmt hat; das Gesicht wird dann dem Kontakt zugeordnet. Die alten
+Adressen *Personen* und *Einstellungen → Kontakte* leiten hierhin um. Wer Telegram/Signal/… für Befehle nutzen darf,
+steuerst du hier; die alten Admin-/Betrachter-Listen unter Nachrichten bleiben nur im Expertenmodus.
+
+### Rollen und wer was bekommt
+
+- **Zweite Instanz** (Rolle): Menschen im Haushalt, die nach einem Alarm schauen, wenn kein Admin reagiert hat. Ein
+  Alarm, der nach *Zweite Instanz informieren nach (Minuten)* (Standard 10, `emergency_backup_minutes`) noch offen ist,
+  geht an ihre Messenger, noch vor den Notfallkontakten; die Admins erfahren, wer informiert wurde.
+- **Notfallkontakt** und **bekommt Alarme**: Nachricht bei einem SOS oder wenn Meldungen unbestätigt bleiben.
+- *Einstellungen → Benachrichtigungen → Wo was ankommt* stellt pro Messenger ein, was er von sich aus schickt: Alarme und
+  Notfälle, nur eins davon, oder *nur Befehle*, etwa wenn Alarme über die App kommen sollen und Signal oder Discord nur
+  für Befehle bleiben. Ein SOS kommt immer auf jedem Messenger an, mit den Notfalldaten als PDF für Kontakte, die so
+  eingestellt sind. Darunter stellst du pro Meldung die Wege ein.
+- *Einstellungen → Notfall* zeigt die Notfallkontakte und für wen Notfalldaten hinterlegt sind, über den
+  Eskalations-Einstellungen. Der Sicherheitscheck liegt unter *Einstellungen → Daten & Sicherung → Sicherheitscheck*.
 
 ## Updates und Versionen
 
@@ -229,10 +254,10 @@ Die alte Adresse *Einstellungen → Apps* leitet hierhin um.
 
 ## Netzwerk-Werkzeuge
 
-- **WLAN-QR-Code:** Der Code-Knopf neben jedem WLAN liest den Schlüssel aus der FRITZ!Box. Du kannst den
-  Code als Bild speichern; wer ihn hat, kommt ins WLAN. Ohne FRITZ!Box trägst du Name und Schlüssel ein.
-  Ein eingetippter Schlüssel wird nicht gespeichert. Gespeicherte WLAN-Profile (Zuhause, Gast; mit Passwort)
-  liegen mit dem geheimen Schlüssel des Dashboards versiegelt, und die Liste zeigt den Schlüssel nie.
+- **WLAN-QR-Code:** Die WLAN-Karte im Netzwerk-Überblick hat zwei Zeilen, *Heim-WLAN* und *Gast-WLAN*. Mit einer
+  FRITZ!Box kommen beide von dort, und *Teilen* liest den Schlüssel aus ihr. Ohne FRITZ!Box *hinterlegst* du jedes
+  einmal (Name und Schlüssel, mit deinem Passwort); der Schlüssel liegt mit dem geheimen Schlüssel des Dashboards
+  versiegelt und wird nur für den Code geöffnet. Du kannst den Code als Bild speichern; wer ihn hat, kommt ins WLAN.
 - **Was andere von dir sehen können** erklärt, was dein Anbieter, andere im Netzwerk und der Betreiber
   sehen können, mit dem, was dieser Pi über dein aktuelles Gerät weiß.
 - **Ein Gerät aussperren:** Die Schnittstelle der FRITZ!Box kann kein einzelnes Gerät aus dem WLAN werfen.

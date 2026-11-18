@@ -1,4 +1,4 @@
-// Interactive map: internet, optional privacy exit/Tor, router, this Pi, services and devices.
+// Interactive map: internet, optional privacy exit, router, this Pi, services and devices.
 import { api, fill, h, icon, svg, t, whileShown } from "../api.js";
 import { logoUrl } from "../theme.js";
 
@@ -93,17 +93,6 @@ function privacyLayers(data) {
         p.kill_switch && p.kill_switch !== "off" ? `${t("web.topo_ks")}: ${p.kill_switch}` : null,
         p.dns_mode && p.dns_mode !== "system" ? `${t("web.topo_dns")}: ${p.dns_mode}` : null,
       ].filter(Boolean).join(" · "),
-      href: "#/network/vpn",
-    });
-  }
-  if (p.tor?.enabled) {
-    layers.push({
-      label: "Tor",
-      icon: "network",
-      sub: p.tor.running ? t("web.topo_online") : t("web.topo_offline"),
-      state: p.tor.running ? "ok" : "",
-      cls: "privacy tor",
-      detail: t("web.topo_tor_text"),
       href: "#/network/vpn",
     });
   }

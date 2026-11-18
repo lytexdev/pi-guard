@@ -300,12 +300,14 @@ class Messenger:
         return False
 
     async def notify_admins(
-        self, text: str, photos: Sequence[Path] = (), tone: str = "info", audio: Path | None = None
-    ) -> None:
+        self, text: str, photos: Sequence[Path] = (), tone: str = "info", audio: Path | None = None,
+        *, sos: bool = False,
+    ) -> None:  # fmt: skip
+        """`sos`: on every messenger, whatever it is set to deliver."""
         for user in self._app.users.all():
             if user.role is not Role.ADMIN or user.provider not in self._app.providers:
                 continue
-            if not delivery_allows(self._app.settings, user.provider, "alerts"):
+            if not sos and not delivery_allows(self._app.settings, user.provider, "alerts"):
                 continue
             first = photos[0] if photos else None
             reply = Reply(text, photo=first, audio=None if first else audio, tone=tone)
@@ -319,8 +321,11 @@ class Messenger:
 
 
 def delivery_allows(settings: object, provider: str, kind: str) -> bool:
-    """kind is 'alerts' or 'emergency'. Default both keeps previous behaviour."""
+    """kind is 'alerts' or 'emergency'. Default both keeps previous behaviour; 'commands'
+    sends neither, the messenger is only for commands. An SOS ignores this: it must arrive."""
     mode = getattr(settings, f"{provider}_delivery", "both")
+    if mode == "commands":
+        return False
     if mode not in ("alerts", "emergency", "both"):
         mode = "both"
     if kind == "alerts":

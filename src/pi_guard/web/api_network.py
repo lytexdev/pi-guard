@@ -145,6 +145,7 @@ async def overview(request: web.Request) -> web.Response:
                     kind=known["kind"],
                     kind_set=known["kind_set"],
                     route=known.get("route") or "default",
+                    disguise=known.get("disguise", True),
                 )
             else:
                 peer["kind"] = "other"
@@ -170,7 +171,6 @@ async def overview(request: web.Request) -> web.Response:
         "devices": [_with_details(app, d.as_dict(), hosts) for d in devices
                     if not _internal(d.ips)],
         "wlans": wlans,
-        "nearby": await _nearby_wifi(),
         "blockpage": s.blockpage_ip,
         "kids": app.addons.kids is not None,
     })  # fmt: skip
@@ -200,27 +200,6 @@ async def _router(app: Any) -> tuple[list[dict[str, Any]], dict[str, dict[str, A
         return _router_cache[1], _router_cache[2]
     _router_cache = (time.monotonic(), wlans, hosts)
     return wlans, hosts
-
-
-async def _nearby_wifi() -> list[dict[str, Any]]:
-    """Wi-Fi networks this Pi can see, including guest networks of the own router."""
-    try:
-        process = await asyncio.create_subprocess_exec(
-            "nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,CHAN", "device", "wifi", "list",
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
-        )  # fmt: skip
-        out, _ = await asyncio.wait_for(process.communicate(), 5)
-    except (OSError, TimeoutError):
-        return []
-    found: dict[str, dict[str, Any]] = {}
-    for line in out.decode(errors="replace").splitlines():
-        parts = re.split(r"(?<!\\):", line)
-        if len(parts) == 4 and parts[0] and parts[1].isdigit():
-            ssid = parts[0].replace("\\:", ":")
-            if ssid not in found or int(parts[1]) > found[ssid]["signal"]:
-                found[ssid] = {"ssid": ssid, "signal": int(parts[1]), "security": parts[2],
-                               "channel": parts[3]}  # fmt: skip
-    return sorted(found.values(), key=lambda n: -n["signal"])[:20]
 
 
 async def save_label(request: web.Request) -> web.Response:
@@ -471,7 +450,7 @@ async def topology(request: web.Request) -> web.Response:
 
 
 def _privacy_nodes(d: Any) -> dict[str, Any] | None:
-    """Upstream privacy path for the network map (exit, Tor, DNS, kill switch)."""
+    """Upstream privacy path for the network map (exit, DNS, kill switch)."""
     privacy = getattr(d, "privacy", None)
     if privacy is None:
         return None
@@ -491,7 +470,6 @@ def _privacy_nodes(d: Any) -> dict[str, Any] | None:
         "exit_up": bool((snap.get("exit") or {}).get("up")),
         "exit_endpoint": (snap.get("exit") or {}).get("endpoint"),
         "exit_ip": snap.get("exit_ip"),
-        "tor": snap.get("tor") or {},
         "hops": exit_hops,
         "path": path,
         "layers": snap.get("layers") or [],
@@ -693,7 +671,7 @@ async def wg_add(request: web.Request) -> web.Response:
 
 
 async def wg_patch(request: web.Request) -> web.Response:
-    """Rename, set device kind, or choose the exit route for one VPN device."""
+    """Rename, set device kind, choose the exit route or the AmneziaWG way of one VPN device."""
     data = await read_json(request)
     store = _store(request)
     peer_id = _peer_id(request)
@@ -723,6 +701,10 @@ async def wg_patch(request: web.Request) -> web.Response:
             if privacy is not None:
                 await asyncio.to_thread(privacy._write_nft)
             changed.append("route")
+        if "disguise" in data:
+            if not await asyncio.to_thread(store.set_disguise, peer_id, data["disguise"] is True):
+                raise web.HTTPNotFound()
+            changed.append("disguise")
     except PeerError as exc:
         raise web.HTTPBadRequest(text=str(exc)) from None
     if not changed:

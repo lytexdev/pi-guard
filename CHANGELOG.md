@@ -8,6 +8,44 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Linked households: one pi-guard looks after another (for example a grandmother's) without being in its network.
+  The helped Pi keeps one outgoing connection to the helper (TLS to a pinned certificate, both Ed25519 keys proven on
+  every connection, a one-time code for the first link); the helper sees its state, gets its alarms if allowed and
+  every SOS, and opens its dashboard with the granted rights. Logins, keys, tokens, backups, exports, live streams and
+  anything that needs the password never pass; camera pictures and emergency data only when ticked. See
+  docs/federation.md.
+- Contacts are their own page under Network. Own profile pictures, and a coloured ring for admin, member, viewer,
+  second line, emergency contact and alerts.
+- Invitations choose their parts: dashboard link, Android app, desktop apps, login details with a new temporary
+  password, own VPN access. New logins start with a temporary password (made or set) that must be changed at the first
+  login.
+- The contact role *second line* gets an alarm no admin acknowledged within `EMERGENCY_BACKUP_MINUTES` (10), before the
+  emergency contacts. Per messenger *commands only*; Settings → Notifications shows where what arrives.
+- *Who is this?* offers every contact; a contact's first face is taken from the picture only after confirming consent.
+- Settings → Emergency shows the emergency contacts and whose emergency data exist.
+- Per VPN device: *Through Mullvad* and *Disguise (AmneziaWG)* switches.
+
+### Changed
+
+- Network › VPN › Privacy is one exit with four switches (Mullvad, multi-hop, AmneziaWG, kill switch) that act at
+  once; DNS, the strict kill switch, own servers and the diagnosis moved under *Advanced*. Choosing a server uses it.
+- Wi-Fi sharing keeps two networks, home and guest, from the FRITZ!Box or saved once; typed-in codes and the list of
+  nearby networks are gone.
+- Every password confirmation goes through one check, which a helper through a household link can never pass.
+
+### Removed
+
+- Tor as privacy exit (UI, API and the root job; an update stops a Tor pi-guard had started), privacy profiles, the
+  chain editor, and the never implemented Shadowsocks, Xray and SSH provisioning stubs.
+
+### Fixed
+
+- Switching multi-hop off did not change the exit: the exit kept a copy of the entry server. Choosing another Mullvad
+  server while the exit ran was not applied until the next activation.
+- An SOS reached admins only on messengers set to deliver alerts; it now arrives on every messenger.
+
+### Added
+
 - Contacts in one place: person cards with roles and what is linked (face, account, messengers, emergency role and
   card, VPN devices), search and role filters, photos and videos for face recognition from the card, an invitation that
   sends the app link and optionally an own VPN access to the person's own messenger or email (password for VPN), and a

@@ -44,6 +44,9 @@ APP_TABLES = frozenset(
         "wg_usage",
         "persons",
         "person_links",
+        "person_pictures",
+        "federation_links",
+        "federation_invites",
     }
 )
 
@@ -278,5 +281,47 @@ def _v4(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS person_links_person ON person_links (person_id)")
 
 
-MIGRATIONS: tuple[Migration, ...] = (_v1, _v2, _v3, _v4)
+def _v5(conn: sqlite3.Connection) -> None:
+    """Per VPN device: whether its app is offered the AmneziaWG way. Own profile pictures.
+    Temporary passwords of further dashboard users. When the backup people were told.
+    Linked households."""
+    add_column(conn, "wg_peers", "disguise", "INTEGER NOT NULL DEFAULT 1")
+    add_column(conn, "web_users", "must_change", "INTEGER NOT NULL DEFAULT 0")
+    add_column(conn, "alerts", "backup_at", "TEXT")
+    # Linked households (federation/): the other Pi's key, and on the helped side the address,
+    # the pinned certificate and what the helper may do.
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS federation_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            side TEXT NOT NULL,
+            peer_key TEXT NOT NULL,
+            url TEXT NOT NULL DEFAULT '',
+            pin TEXT NOT NULL DEFAULT '',
+            role TEXT NOT NULL DEFAULT 'viewer',
+            extras TEXT NOT NULL DEFAULT '[]',
+            created TEXT NOT NULL,
+            last_seen TEXT,
+            UNIQUE (side, peer_key)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS federation_invites "
+        "(token_hash TEXT PRIMARY KEY, expires TEXT NOT NULL)"
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS person_pictures (
+            person_id INTEGER PRIMARY KEY,
+            data BLOB NOT NULL,
+            updated TEXT NOT NULL,
+            FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE
+        )
+        """
+    )
+
+
+MIGRATIONS: tuple[Migration, ...] = (_v1, _v2, _v3, _v4, _v5)
 VERSION = len(MIGRATIONS)

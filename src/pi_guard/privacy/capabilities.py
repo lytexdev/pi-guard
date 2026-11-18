@@ -40,18 +40,9 @@ def _amnezia_present() -> bool:
     return _has_cmd("awg", "amneziawg-go")
 
 
-def _xray_present() -> bool:
-    return _has_cmd("xray")
-
-
-def _shadowsocks_present() -> bool:
-    return _has_cmd("ssserver", "ss-server", "shadowsocks-libev")
-
-
 def detect(data_dir: Path | None = None) -> dict[str, Capability]:
     """Probe the host once per request. Disabled features stay cheap: no services start."""
     del data_dir  # reserved for future probes that need state
-    tor = _has_cmd("tor")
     wg = _has_cmd("wg")
     nft = _has_cmd("nft")
     amnezia = _amnezia_present()
@@ -137,27 +128,6 @@ def detect(data_dir: Path | None = None) -> dict[str, Capability]:
             PERF_LOW,
             "web.priv_doq_later",
         ),
-        "tor": Capability(
-            "tor",
-            tor,
-            ("linux",),
-            ("tor",),
-            PERF_HIGH,
-            None if tor else "web.priv_need_tor",
-        ),
-        "tor_bridges": Capability(
-            "tor_bridges",
-            tor
-            and (
-                Path("/usr/bin/obfs4proxy").is_file()
-                or Path("/usr/bin/snowflake-client").is_file()
-                or _has_cmd("obfs4proxy", "snowflake-client")
-            ),
-            ("linux",),
-            ("tor", "obfs4proxy|snowflake"),
-            PERF_HIGH,
-            None if tor else "web.priv_need_tor",
-        ),
         "amneziawg": Capability(
             "amneziawg",
             amnezia,
@@ -166,39 +136,8 @@ def detect(data_dir: Path | None = None) -> dict[str, Capability]:
             PERF_MODERATE,
             None if amnezia else "web.priv_need_amnezia",
         ),
-        "shadowsocks": Capability(
-            "shadowsocks",
-            _shadowsocks_present(),
-            ("linux",),
-            ("shadowsocks",),
-            PERF_MODERATE,
-            "web.priv_ss_disabled" if not _shadowsocks_present() else None,
-        ),
-        "xray_reality": Capability(
-            "xray_reality",
-            _xray_present(),
-            ("linux",),
-            ("xray",),
-            PERF_MODERATE,
-            "web.priv_xray_disabled" if not _xray_present() else None,
-        ),
-        "ssh_provision": Capability(
-            "ssh_provision",
-            _has_cmd("ssh"),
-            ("linux",),
-            ("openssh-client",),
-            PERF_VARIABLE,
-            None if _has_cmd("ssh") else "web.priv_need_ssh",
-        ),
         "diagnostics": Capability(
             "diagnostics",
-            True,
-            ("linux",),
-            (),
-            PERF_MINIMAL,
-        ),
-        "profiles": Capability(
-            "profiles",
             True,
             ("linux",),
             (),

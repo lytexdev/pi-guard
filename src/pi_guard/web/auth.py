@@ -19,6 +19,7 @@ import json
 import secrets
 import struct
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -108,6 +109,17 @@ def verify_password(password: str, stored: str, pepper: bytes = b"") -> bool:
 # --- TOTP (RFC 6238) ---------------------------------------------------------------------
 
 
+# Easy to read aloud and type on a phone: no 0/O, 1/l/I.
+_TEMPORARY_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789"
+
+
+def new_temporary_password() -> str:
+    """Three groups of four, like `k7rm-x2pa-9fhe`: 60 bits, and it must be changed at once."""
+    return "-".join(
+        "".join(secrets.choice(_TEMPORARY_ALPHABET) for _ in range(4)) for _ in range(3)
+    )
+
+
 def new_totp_secret() -> str:
     return base64.b32encode(secrets.token_bytes(20)).decode().rstrip("=")
 
@@ -153,6 +165,9 @@ class Session:
 
 
 class AuthStore:
+    # Set by the dashboard when households are linked: the role a helper was granted.
+    federation_role: Callable[[str], str] | None = None
+
     def __init__(self, db: Database, secret_key: bytes = b"") -> None:
         self._db = db
         self.configure_keys(secret_key)
@@ -329,7 +344,8 @@ class AuthStore:
         if password == DEFAULT_PASSWORD or password.casefold() == username.casefold():
             raise CredentialError("web.password_too_simple")
 
-    def add_user(self, username: str, password: str, role: str) -> None:
+    def add_user(self, username: str, password: str, role: str, *, temporary: bool = False) -> None:
+        """`temporary`: the person must choose an own password at the first login."""
         username = username.strip()
         self._check_new_login(username, password)
         if role not in ROLES:
@@ -338,9 +354,28 @@ class AuthStore:
         if taken or self._extra(username) is not None:
             raise CredentialError("web.user_taken")
         self._db.execute(
-            "INSERT INTO web_users (username, password_hash, role, created) VALUES (?, ?, ?, ?)",
-            (username, hash_password(password, self._pepper), role, utcnow().isoformat()),
-        )
+            "INSERT INTO web_users (username, password_hash, role, created, must_change) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (username, hash_password(password, self._pepper), role, utcnow().isoformat(),
+             int(temporary)),
+        )  # fmt: skip
+
+    def temporary_password(self, username: str, password: str = "") -> str:
+        """A new password for a further user, to be changed at the next login; their sessions
+        end. Never for the owner: their way back is the recovery code."""
+        row = self._extra(username)
+        if row is None:
+            raise CredentialError("web.user_missing")
+        password = password or new_temporary_password()
+        self._db.execute("UPDATE web_users SET password_hash = ?, must_change = 1 WHERE id = ?",
+                         (hash_password(password, self._pepper), row["id"]))  # fmt: skip
+        self._db.execute("DELETE FROM web_sessions WHERE username = ?", (row["username"],))
+        return password
+
+    def must_renew(self, username: str) -> bool:
+        """A further user still logs in with a temporary password."""
+        row = self._extra(username)
+        return bool(row and row["must_change"])
 
     def set_role(self, user_id: int, role: str) -> bool:
         if role not in ROLES:
@@ -362,20 +397,24 @@ class AuthStore:
         if row is None or self.check_password(username, current) is None:
             raise CredentialError("web.wrong_password")
         self._check_new_login(username, password)
-        self._db.execute("UPDATE web_users SET password_hash = ? WHERE id = ?",
+        if password == current:
+            raise CredentialError("web.password_too_simple")
+        self._db.execute("UPDATE web_users SET password_hash = ?, must_change = 0 WHERE id = ?",
                          (hash_password(password, self._pepper), row["id"]))  # fmt: skip
 
     def role_of(self, username: str) -> str:
         """Unknown names are viewers: a session can outlive a changed account."""
         if username.startswith(("key:", "api:")) or username == "local":
             return "admin"
+        if username.startswith("fed:"):  # a helper through a household link
+            return self.federation_role(username) if self.federation_role else "viewer"
         if username.casefold() == self.account()["username"].casefold():
             return "admin"
         row = self._extra(username)
         return str(row["role"]) if row else "viewer"
 
     def is_owner(self, username: str) -> bool:
-        return self._extra(username) is None
+        return not username.startswith("fed:") and self._extra(username) is None
 
     def exists(self, username: str) -> bool:
         """Devices keep the name they were paired with; it may be gone by now."""
@@ -390,7 +429,8 @@ class AuthStore:
     def account(self, username: str | None = None) -> dict[str, Any]:
         extra = self._extra(username) if username else None
         if extra is not None:
-            return {"username": extra["username"], "must_change": False, "owner": False,
+            return {"username": extra["username"], "must_change": bool(extra["must_change"]),
+                    "owner": False,
                     "totp": extra["totp"] is not None, "codeword": False,
                     "recovery_left": 0}  # fmt: skip
         row = self._db.execute("SELECT * FROM web_account WHERE id = 1").fetchone()

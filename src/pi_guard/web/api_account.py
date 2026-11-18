@@ -11,7 +11,7 @@ from aiohttp import web
 
 from pi_guard.web import permissions
 from pi_guard.web.api_mobile import forget_devices, role_changed
-from pi_guard.web.auth import CredentialError, totp_uri
+from pi_guard.web.auth import CredentialError, new_temporary_password, totp_uri
 from pi_guard.web.profiles import ProfileError, clean, from_vcard, to_vcard
 from pi_guard.web.server import COOKIE, SETUP_DONE_KEY, current, dashboard, read_json
 
@@ -161,15 +161,21 @@ async def users(request: web.Request) -> web.Response:
 
 
 async def user_add(request: web.Request) -> web.Response:
+    """A further login. `temporary`: the person must choose an own password at the first
+    login; without a password one is made and shown here once."""
     d = dashboard(request)
     data = await read_json(request)
+    temporary = data.get("temporary") is True
+    password = str(data.get("password", ""))
+    made = new_temporary_password() if temporary and not password else ""
     try:
-        d.auth.add_user(str(data.get("username", "")), str(data.get("password", "")),
-                        str(data.get("role", "viewer")))  # fmt: skip
+        d.auth.add_user(str(data.get("username", "")), password or made,
+                        str(data.get("role", "viewer")), temporary=temporary)  # fmt: skip
     except CredentialError as exc:
         raise web.HTTPBadRequest(text=exc.key) from None
     d.app.db.audit(_actor(request), "account.user_add", str(data.get("username", ""))[:32])
-    return web.json_response({"ok": True})
+    return web.json_response({"ok": True, **({"password": made} if made else {})},
+                             headers={"Cache-Control": "no-store"})  # fmt: skip
 
 
 async def user_role(request: web.Request) -> web.Response:

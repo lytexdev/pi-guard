@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Optional privacy upstream on the Pi (multi-hop exit, DNS fail-closed, Tor control).
+# Optional privacy upstream on the Pi (Mullvad or own exit, multi-hop, DNS fail-closed).
 #
 #   sudo ./scripts/privacy-server.sh install
 #   sudo ./scripts/privacy-server.sh remove
 #   sudo ./scripts/privacy-server.sh unlock   # emergency: clear privacy nft table
 #
-# Does not install tor, mullvad, amnezia, xray, or shadowsocks packages.
+# Does not install mullvad or amnezia packages.
 # WireGuard and nftables must already be available (same as the home VPN).
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,7 +20,6 @@ install_all() {
     install -d -m 0755 /usr/local/sbin
     install -m 0755 "$SRC/pi-guard-exit-apply" /usr/local/sbin/
     install -m 0755 "$SRC/pi-guard-privacy-nft" /usr/local/sbin/
-    install -m 0755 "$SRC/pi-guard-tor-ctl" /usr/local/sbin/
     install -m 0755 "$SRC/pi-guard-privacy-status" /usr/local/sbin/
     install -d -m 0755 /var/lib/pi-guard-privacy
     install -d -m 0755 /run/pi-guard-status
@@ -38,7 +37,6 @@ install_all() {
     for unit in \
         pi-guard-exit-apply.service pi-guard-exit-apply.path \
         pi-guard-privacy-nft.service pi-guard-privacy-nft.path \
-        pi-guard-tor-ctl.service pi-guard-tor-ctl.path \
         pi-guard-privacy-status.service pi-guard-privacy-status.timer
     do
         install -m 0644 "$SRC/$unit" /etc/systemd/system/
@@ -46,13 +44,13 @@ install_all() {
     systemctl daemon-reload
     systemctl reset-failed pi-guard-exit-apply.path pi-guard-exit-apply.service 2>/dev/null || true
     systemctl enable --now pi-guard-exit-apply.path pi-guard-privacy-nft.path \
-        pi-guard-tor-ctl.path pi-guard-privacy-status.timer
+        pi-guard-privacy-status.timer
     systemctl enable pi-guard-exit-apply.service
     systemctl restart pi-guard-privacy-status.timer
     # An exit already in use takes the new rules now, not only at its next change.
     systemctl start pi-guard-exit-apply.service || true
     echo "privacy upstream ready. Configure it under Network > VPN in the dashboard."
-    echo "Tor, AmneziaWG, Shadowsocks and Xray are not installed automatically."
+    echo "AmneziaWG is set up on its own: scripts/amneziawg.sh install."
 }
 
 remove_all() {
@@ -60,7 +58,7 @@ remove_all() {
     systemctl disable --now pi-guard-exit-apply.path pi-guard-privacy-nft.path \
         pi-guard-tor-ctl.path pi-guard-privacy-status.timer 2>/dev/null || true
     /usr/local/sbin/pi-guard-exit-apply 2>/dev/null || true
-    # clear want so tor-ctl stops what we started
+    # The Tor job of versions before 1.14: stop a Tor it started.
     rm -f /var/lib/pi-guard/privacy/tor.want /var/lib/pi-guard/privacy/nft.plan \
         /var/lib/pi-guard/privacy/exit.peer /var/lib/pi-guard/privacy/exit.conf \
         /var/lib/pi-guard/privacy/installed /run/pi-guard-status/privacy.installed

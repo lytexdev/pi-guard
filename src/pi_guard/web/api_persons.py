@@ -23,6 +23,9 @@ def routes() -> list[web.RouteDef]:
         web.delete("/api/persons/{id:\\d+}", delete),
         web.post("/api/persons/migrate", migrate),
         web.post("/api/persons/{id:\\d+}/invite", invite),
+        web.get("/api/persons/{id:\\d+}/picture", picture_get),
+        web.put("/api/persons/{id:\\d+}/picture", picture_put),
+        web.delete("/api/persons/{id:\\d+}/picture", picture_delete),
     ]
 
 
@@ -81,6 +84,8 @@ async def listing(request: web.Request) -> web.Response:
             "faces": faces,
             "faces_on": d.app.faces is not None,
             "accounts": accounts,
+            # For the ring around a picture: admin, member or viewer.
+            "account_roles": {name: d.auth.role_of(name) for name in accounts},
             "contacts": contacts,
             "medical": medical,
             "medical_available": d.app.addons.medical is not None,
@@ -121,6 +126,42 @@ async def migrate(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "created": created, "persons": len(store.all())})
 
 
+async def picture_get(request: web.Request) -> web.Response:
+    data = _store(request).picture(int(request.match_info["id"]))
+    if data is None:
+        raise web.HTTPNotFound()
+    return web.Response(body=data, content_type="image/jpeg",
+                        headers={"Cache-Control": "private, max-age=86400"})  # fmt: skip
+
+
+async def picture_put(request: web.Request) -> web.Response:
+    """The JPEG itself as the body, at most PICTURE_MAX bytes."""
+    from pi_guard.storage.persons import PICTURE_MAX
+
+    if request.content_length is not None and request.content_length > PICTURE_MAX:
+        raise web.HTTPRequestEntityTooLarge(
+            max_size=PICTURE_MAX, actual_size=request.content_length
+        )
+    data = await request.content.read(PICTURE_MAX + 1)
+    person_id = int(request.match_info["id"])
+    try:
+        found = _store(request).set_picture(person_id, data)
+    except PersonError as exc:
+        raise web.HTTPBadRequest(text=exc.key) from None
+    if not found:
+        raise web.HTTPNotFound()
+    dashboard(request).app.db.audit(_actor(request), "persons.picture", str(person_id))
+    return web.json_response({"ok": True})
+
+
+async def picture_delete(request: web.Request) -> web.Response:
+    person_id = int(request.match_info["id"])
+    if not _store(request).set_picture(person_id, None):
+        raise web.HTTPNotFound()
+    dashboard(request).app.db.audit(_actor(request), "persons.picture", f"{person_id} removed")
+    return web.json_response({"ok": True})
+
+
 def _channels(request: web.Request, person: Any) -> list[tuple[str, str]]:
     """Where this person can be written to: their messengers and the email of their contact."""
     d = dashboard(request)
@@ -138,20 +179,38 @@ def _channels(request: web.Request, person: Any) -> list[tuple[str, str]]:
     return list(dict.fromkeys(found))
 
 
-async def invite(request: web.Request) -> web.Response:
-    """The apps, and on request a VPN access of their own, sent to the person.
+# What an invitation can hold, and the area a member needs for each.
+INVITE_ITEMS = {
+    "dashboard": "/api/persons", "android": "/api/apps/invite", "desktop": "/api/apps/invite",
+    "login": None, "vpn": "/api/network/wireguard/peers",
+}  # fmt: skip
 
-    Only to one of the person's own channels, never to a typed address. A VPN access is a key to
-    the home network: it needs the password, and the chat service keeps the file it sends.
+
+def _account_of(request: web.Request, person: Any) -> str:
+    """The person's own further login; never the owner's, whose way back is the recovery code."""
+    d = dashboard(request)
+    for kind, ref in person.links:
+        if kind == "web_account" and not d.auth.is_owner(ref) and d.auth.exists(ref):
+            return str(ref)
+    return ""
+
+
+async def invite(request: web.Request) -> web.Response:
+    """Chosen parts of a start, sent to the person: the dashboard address, the apps, their login
+    with a new temporary password, a VPN access of their own.
+
+    Only to one of the person's own channels, never to a typed address. A login or VPN access
+    outlives the session: both need the password, and the chat service keeps what it sends.
     """
     import tempfile
     from pathlib import Path
 
     from pi_guard.messaging.base import ProviderUnavailableError, Reply
     from pi_guard.network.wgpeers import PeerError
-    from pi_guard.web.api_apps import make_invite
+    from pi_guard.web.api_apps import make_invite, versions
     from pi_guard.web.api_network import _config, _server
     from pi_guard.web.api_network import _store as peer_store
+    from pi_guard.web.auth import new_temporary_password
     from pi_guard.web.server import confirm_password
 
     d = dashboard(request)
@@ -165,26 +224,40 @@ async def invite(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(text="web.inv_bad_channel")
     if channel[0] not in d.app.providers:
         raise web.HTTPConflict(text="web.inv_channel_off")
-    want_app, want_vpn = data.get("app") is not False, data.get("vpn") is True
-    if not (want_app or want_vpn):
+    raw = data.get("items")
+    items = [i for i in INVITE_ITEMS if isinstance(raw, list) and i in raw]
+    if not items:
         raise web.HTTPBadRequest(text="web.inv_nothing")
-    if (want_app and not _may(request, "/api/apps/invite")) or (
-        want_vpn and not _may(request, "/api/network/wireguard/peers")
-    ):
-        raise web.HTTPForbidden(text="web.member_forbidden")
+    admin = d.auth.role_of(current(request).username) == "admin"
+    for item in items:
+        need = INVITE_ITEMS[item]
+        if not admin and (need is None or not _may(request, need)):
+            raise web.HTTPForbidden(text="web.member_forbidden")
+    account = _account_of(request, person) if "login" in items else ""
+    if "login" in items and not account:
+        raise web.HTTPConflict(text="web.inv_no_account")
     peers = None
-    if want_vpn:
+    if "login" in items or "vpn" in items:
         # Before anything is made: a wrong password must leave no link or access behind.
         confirm_password(request, str(data.get("password", "")))
+    if "vpn" in items:
         peers = peer_store(request)
         _server(request)
     lang = d.settings.language
     base = (d.settings.dashboard_public_url or f"{request.scheme}://{request.host}").rstrip("/")
     lines = [_t("persons.invite_hello", lang, name=person.display_name)]
     actor = _actor(request)
-    if want_app:
+    if "dashboard" in items:
+        lines.append(_t("persons.invite_dashboard", lang, url=f"{base}/"))
+    if "android" in items or "desktop" in items:
         path, _ = make_invite(d, person.display_name[:40], actor)
-        lines.append(_t("persons.invite_app", lang, url=f"{base}{path}"))
+        have = versions(d.settings.data_dir)
+        if "android" in items:
+            lines.append(_t("persons.invite_android", lang, url=f"{base}{path}/android")
+                         if have["android"] else _t("persons.invite_no_app", lang))  # fmt: skip
+        if "desktop" in items:
+            lines.append(_t("persons.invite_desktop", lang, url=f"{base}{path}")
+                         if have["desktop"] else _t("persons.invite_no_app", lang))  # fmt: skip
     conf: tuple[str, str] | None = None
     peer_id: int | None = None
     if peers is not None:
@@ -206,6 +279,10 @@ async def invite(request: web.Request) -> web.Response:
         store.link(person.id, "vpn", str(peer_id))
         d.app.db.audit(actor, "wireguard.add", conf[0])
         lines.append(_t("persons.invite_vpn", lang))
+    # Stored only once it was sent: a failed message must not lock the person out.
+    temporary = new_temporary_password() if account else ""
+    if account:
+        lines.append(_t("persons.invite_login", lang, user=account, password=temporary))
     with tempfile.TemporaryDirectory(prefix="pg-invite-") as folder:
         document = None
         if conf is not None:
@@ -228,9 +305,11 @@ async def invite(request: web.Request) -> web.Response:
                 store.unlink("vpn", str(peer_id))
                 d.app.db.audit(actor, "wireguard.remove", conf[0] if conf else str(peer_id))
             raise web.HTTPBadGateway(text="web.ec_unreachable") from None
-    d.app.db.audit(actor, "persons.invite",
-                   f"{person.id} {channel[0]} app={want_app} vpn={want_vpn}")  # fmt: skip
-    return web.json_response({"ok": True, "vpn": conf is not None})
+    if account:
+        await asyncio.to_thread(d.auth.temporary_password, account, temporary)
+        d.app.db.audit(actor, "account.temporary_password", account)
+    d.app.db.audit(actor, "persons.invite", f"{person.id} {channel[0]} {','.join(items)}")
+    return web.json_response({"ok": True, "vpn": conf is not None, "login": bool(account)})
 
 
 def _t(key: str, lang: str, **values: object) -> str:
