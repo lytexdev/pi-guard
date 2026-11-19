@@ -99,7 +99,9 @@ def test_block_page_text_is_escaped() -> None:
 
 
 @pytest.mark.skipif(not shutil.which("openssl"), reason="needs openssl")
-async def test_block_page_serves_https_for_any_name(tmp_path: Path) -> None:
+async def test_block_page_serves_https_for_any_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import subprocess
 
     from pi_guard.addons import blockpage as module
@@ -110,7 +112,9 @@ async def test_block_page_serves_https_for_any_name(tmp_path: Path) -> None:
                    check=True, capture_output=True)  # fmt: skip
     from .test_addons import free_port
 
-    module.HTTP_PORT, module.HTTPS_PORT = free_port(), free_port()
+    # Through monkeypatch: other tests rely on the real ports (federation.port_taken_by).
+    monkeypatch.setattr(module, "HTTP_PORT", free_port())
+    monkeypatch.setattr(module, "HTTPS_PORT", free_port())
     task = asyncio.create_task(BlockPage(tmp_path, "de").run())
     await asyncio.sleep(0.5)
     try:
