@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from pathlib import Path
 
@@ -168,3 +169,49 @@ async def test_a_messenger_for_commands_only_sends_no_alarms(tmp_path: Path) -> 
         assert [r.text for r in sent_to(application, ADMIN)] == ["SOS"]
     finally:
         application.db.close()
+
+
+async def test_alarms_in_the_app_only_and_emergencies_on_telegram(tmp_path: Path) -> None:
+    """Telegram on "emergencies only": no alarm there, but the second line and the owner's note
+    about it still arrive, since both are emergencies."""
+    from pi_guard.storage.persons import Persons
+
+    app = make_app(tmp_path, telegram_delivery="emergency")
+    fake_snapshot(app)
+    app.modes.set_manual(Mode.AWAY)
+    app.webpush = _FakePush()  # type: ignore[assignment]  # the alarm goes to the browser app
+    try:
+        persons = Persons(app.db)
+        oma = persons.save(None, {"display_name": "Oma", "roles": ["backup"]})
+        persons.link(oma, "messenger", "telegram:8008")
+        before = len(sent_to(app, ADMIN))
+        await alert(app, minutes_ago=12)
+        assert len(sent_to(app, ADMIN)) == before  # the alarm itself: not on Telegram
+        await app.escalation.to_backup(app.escalation.backup_due())
+        assert len(sent_to(app, "8008")) == 1
+        assert any("second line was told: Oma" in r.text for r in sent_to(app, ADMIN))
+    finally:
+        app.db.close()
+
+
+async def test_an_alarm_only_pushed_to_browsers_still_counts_as_open(tmp_path: Path) -> None:
+    app = make_app(tmp_path, telegram_delivery="commands")
+    fake_snapshot(app)
+    app.modes.set_manual(Mode.AWAY)
+    push = _FakePush()
+    app.webpush = push  # type: ignore[assignment]
+    try:
+        await alert(app)
+        await asyncio.sleep(0)
+        assert push.sent and app.escalation.open_alerts()
+    finally:
+        app.db.close()
+
+
+class _FakePush:
+    def __init__(self) -> None:
+        self.sent: list[object] = []
+
+    async def send(self, texts: object, may_act: object = None, to: object = None) -> int:
+        self.sent.append(texts)
+        return 1

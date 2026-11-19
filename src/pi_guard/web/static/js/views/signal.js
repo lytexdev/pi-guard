@@ -2,10 +2,23 @@
 import { restartPrompt } from "./settings.js";
 import { askDialog, api, attempt, fill, h, icon, t, toast } from "../api.js";
 
+// Without an admin a messenger only answers strangers' "who are you": a one-time code, sent to
+// the bot, makes the sender an admin. No ID has to be looked up and typed in.
+export function adminCode(messenger) {
+  const out = h("div", { class: "stack" });
+  const button = h("button", { class: "primary", onclick: async () => {
+    const r = await attempt(() => api("/api/invite", { method: "POST", body: { role: "admin" } }));
+    if (r) fill(out, h("p", {}, t("web.messenger_admin_send", { messenger })), h("pre", { class: "mono" }, r.code),
+      h("small", { class: "muted" }, t("web.messenger_admin_valid")));
+  } }, icon("user-plus"), t("web.messenger_admin_connect"));
+  return h("div", { class: "notice stack" }, h("span", {}, t("web.messenger_no_admin_yet", { messenger })), h("div", {}, button), out);
+}
+
 export async function discordPanel() {
   const s = await api("/api/discord");
   return h("section", { class: "panel stack messaging-status" }, h("h2", {}, icon("brand-discord"), " ", t("web.discord_status")),
     h("p", { class: s.connected ? "" : "notice" }, !s.enabled ? t("web.discord_setup") : s.problem ? t("web.discord_refused") : s.connected ? t("web.discord_connected", { name: s.name }) : t("web.discord_waiting")),
+    s.enabled && !s.admins ? adminCode("Discord") : null,
     h("div", { class: "row" },
       s.invite ? h("a", { class: "button", href: s.invite, target: "_blank", rel: "noopener", title: t("web.discord_invite_tip") }, icon("plus"), t("web.discord_invite")) : null,
       s.connected ? h("button", { title: t("web.discord_test_tip"), onclick: () => attempt(() => api("/api/discord/test", { method: "POST" }), t("web.discord_test_sent")) }, icon("bell"), t("web.discord_test")) : null));
@@ -90,7 +103,8 @@ export async function signalPanel() {
       state === "stopped" ? h("pre", { class: "mono wrap" }, "cd ~/pi-guard && sudo ./scripts/signal.sh install") : null,
       state === "unlinked" ? link : null,
       state === "restart" ? h("button", { class: "primary", onclick: () => restartPrompt() }, icon("refresh"), t("web.signal_restart_now")) : null,
-      state === "ready" ? testButton() : null);
+      state === "ready" ? testButton() : null,
+      state === "ready" && !s.admins ? adminCode("Signal") : null);
   };
   await draw();
   return panel;

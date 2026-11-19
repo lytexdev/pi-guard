@@ -21,8 +21,10 @@ and choose **Copy User ID**. If you write to the bot without being listed, it an
 
 ## Configure pi-guard
 
-In the dashboard under *Settings → Messenger → Discord*: enter the token, add your user ID as admin,
-switch on Discord, save and restart. Or in the environment file:
+In the dashboard under *Settings → Messenger → Discord*: enter the token, switch on Discord, save and restart. No user
+ID is needed there: once the bot runs, *Connect me as admin* makes a one-time code (24 hours); send only that code to
+the bot as a direct message, and you are its admin. Signal has the same button. Without the dashboard, list the IDs in
+the environment file:
 
 ```dotenv
 PI_GUARD_DISCORD_ENABLED=true

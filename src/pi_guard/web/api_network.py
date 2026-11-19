@@ -60,6 +60,8 @@ _MAC_RE = re.compile(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$")
 def routes() -> list[web.RouteDef]:
     return [
         web.get("/api/network", overview),
+        web.get("/api/network/ddns", ddns_status),
+        web.post("/api/network/ddns/update", ddns_update),
         web.post("/api/network/pihole/blocking", blocking),
         web.post("/api/network/trust", trust_device),
         web.get("/api/network/device/{ip}", device_details),
@@ -799,3 +801,32 @@ async def wg_remove(request: web.Request) -> web.Response:
     Persons(dashboard(request).app.db).unlink("vpn", str(peer_id))
     dashboard(request).app.db.audit(f"web:{current(request).username}", "wireguard.remove", name)
     return web.json_response({"ok": True})
+
+
+# --- dynamic DNS ------------------------------------------------------------------------------
+
+
+def _ddns_view(d: Any) -> dict[str, Any]:
+    s = d.settings
+    return {
+        "provider": s.ddns_provider, "hostname": s.ddns_hostname, "ipv6": s.ddns_ipv6,
+        "token": bool(s.ddns_cloudflare_token and s.ddns_cloudflare_token.get_secret_value()),
+        "endpoint": s.wireguard_endpoint, "status": d.app.ddns.status(),
+    }  # fmt: skip
+
+
+async def ddns_status(request: web.Request) -> web.Response:
+    return web.json_response(_ddns_view(dashboard(request)), headers={"Cache-Control": "no-store"})
+
+
+async def ddns_update(request: web.Request) -> web.Response:
+    """Set the name now, also when the address did not change: to try out the token."""
+    from pi_guard.network.ddns import DDNSError
+
+    d = dashboard(request)
+    try:
+        await d.app.ddns.update(force=True)
+    except DDNSError as exc:
+        raise web.HTTPBadRequest(text=exc.key) from None
+    d.app.db.audit(f"web:{current(request).username}", "ddns.update", d.settings.ddns_hostname)
+    return web.json_response(_ddns_view(d))

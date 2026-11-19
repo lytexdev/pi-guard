@@ -136,11 +136,19 @@ class Notifier:
         rule = self.rule(event.type)
         if not self.should_send(event, rule):
             return
+        from pi_guard.messaging.hub import delivery_allows
+
         recipients = self.recipients(rule, exclude=event.data.get("actor"))
         webpush = self._app.webpush
-        if webpush is not None and "push" in rule.providers:
+        pushed = (webpush is not None and "push" in rule.providers
+                  and delivery_allows(self._app.settings, "push", "alerts"))  # fmt: skip
+        if pushed:
             self._push(event, rule)
         if not recipients:
+            # Only browser push: the alarm is still open, so the second line and the emergency
+            # contacts hear of it when nobody reacts.
+            if pushed:
+                self._app.escalation.record(event, event.snapshot)
             return
         attachment = await self._attachment(event, rule)
         self._app.escalation.record(

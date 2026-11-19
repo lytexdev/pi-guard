@@ -136,6 +136,22 @@ nach wenigen Sekunden ausgesperrt.
 
 Technische Details: [network.md](../network.md#wireguard-home-vpn).
 
+### Ein Name, der deiner Adresse folgt (Cloudflare-DDNS)
+
+Mit einer Domain bei Cloudflare hält pi-guard einen Namen wie `home.example.org` selbst auf deinem Zuhause:
+**Netzwerk › VPN › Dynamisches DNS (Cloudflare)**. Bei Cloudflare einen API-Token erstellen (*Mein Profil → API-Tokens →
+Token erstellen*, Vorlage *DNS-Zone bearbeiten*, nur für diese Zone), Name und Token eintragen, einschalten und
+speichern. Alle fünf Minuten fragt der Pi seine öffentliche IPv4-Adresse ab (api.ipify.org) und setzt bei einer Änderung
+den A-Eintrag; mit *Auch IPv6* zusätzlich den AAAA-Eintrag auf die eigene IPv6-Adresse des Pi. Einträge laufen nie über
+Cloudflares Proxy (orange Wolke aus): WireGuard ist UDP und braucht die echte Adresse. *Jetzt aktualisieren* probiert den
+Token sofort aus.
+
+Hat das VPN keine eigene Adresse (`PI_GUARD_WIREGUARD_ENDPOINT`), nimmt es diesen Namen, ebenso die verbundenen
+Haushalte; *Stattdessen den DDNS-Namen nehmen* ersetzt eine ältere Adresse wie eine feste IP. Im Router muss UDP 51820
+(und der Port der Haushalte) weiter weitergeleitet sein. Der Token wird wie jedes Geheimnis gespeichert, nie wieder
+angezeigt und nie protokolliert. *System → Zustand* zeigt, ob die letzte Aktualisierung geklappt hat. Getestet gegen eine
+nachgebaute Cloudflare-API, noch nicht gegen eine echte Zone.
+
 ### Getarnt mit AmneziaWG
 
 AmneziaWG ist WireGuard mit anders aussehenden Paketen (Füllpakete, Polster, andere Kopfzeilen). Netze,

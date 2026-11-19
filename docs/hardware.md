@@ -73,6 +73,11 @@ A microphone can either belong to a camera (recorded into its video) or be a
 standalone `audio.microphone` used only for `/listen`. ALSA capture devices
 can only be opened by one process.
 
+A speaker is optional. With only a camera and a microphone, listening in (Live, `/listen`, the app), recordings with
+sound, sound from home after an SOS and voice control (answers on screen) all work; talking, the doorbell chime and
+the alarm need a speaker. `pi-guard config init` picks a USB speaker, else the headphone jack, but never HDMI by
+itself: every Pi reports HDMI outputs, and taking one made pi-guard offer a speaker that was not there.
+
 ## Storage
 
 Rough storage use per camera at the default 2 Mbit/s:

@@ -27,6 +27,9 @@ def _split(value: object) -> object:
     return value
 
 
+_HOSTNAME = re.compile(r"^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="PI_GUARD_",
@@ -69,6 +72,11 @@ class Settings(BaseSettings):
     mobile_enabled: bool = True
     # After an SOS from a phone, the Pi's microphone records a short clip for the contacts.
     mobile_sos_home_audio: bool = False
+    # What the app and browser push send by themselves, like `<messenger>_delivery`: with the
+    # app on "both" and messengers on "emergency", alarms come in the app only, and the second
+    # line, emergencies and SOS on the messengers as well.
+    mobile_delivery: Literal["alerts", "emergency", "both", "commands"] = "both"
+    push_delivery: Literal["alerts", "emergency", "both", "commands"] = "both"
 
     # Email (optional, alerts and exports only; see docs/email.md)
     email_enabled: bool = False
@@ -161,6 +169,12 @@ class Settings(BaseSettings):
     wireguard_endpoint_v6: str | None = None
     # A rented server that passes the VPN on; written by scripts/relay.sh.
     wireguard_relay: str | None = None
+    # Dynamic DNS (network/ddns.py): a Cloudflare name that follows the home's public address.
+    # With no VPN address of its own, the VPN uses this name.
+    ddns_provider: Literal["off", "cloudflare"] = "off"
+    ddns_hostname: str = ""
+    ddns_cloudflare_token: SecretStr | None = None
+    ddns_ipv6: bool = False
     # The home network, reachable for VPN devices set to "home network only".
     wireguard_home_network: str | None = None
 
@@ -408,6 +422,14 @@ class Settings(BaseSettings):
             raise ValueError("expected a URL like https://stats.example.org/v1/report")
         return value
 
+    @field_validator("ddns_hostname")
+    @classmethod
+    def _check_ddns_hostname(cls, value: str) -> str:
+        value = value.strip().lower().rstrip(".")
+        if value and not _HOSTNAME.match(value):
+            raise ValueError("expected a name like home.example.org")
+        return value
+
     @field_validator("wireguard_endpoint", "wireguard_endpoint_v6", "wireguard_relay")
     @classmethod
     def _check_endpoint(cls, value: str | None) -> str | None:
@@ -483,7 +505,8 @@ class Settings(BaseSettings):
             bot_token = self.discord_bot_token
             if not (bot_token and bot_token.get_secret_value()):
                 raise ValueError("PI_GUARD_DISCORD_BOT_TOKEN is required when Discord is enabled")
-            if not self.discord_admin_user_ids:
+            # With the dashboard, admins join with an invitation code (Messenger page) instead.
+            if not self.discord_admin_user_ids and not self.dashboard_enabled:
                 raise ValueError("PI_GUARD_DISCORD_ADMIN_USER_IDS needs at least one user ID")
         if self.email_enabled and not (
             self.email_host and "@" in self.email_from and self.email_recipients
@@ -492,7 +515,7 @@ class Settings(BaseSettings):
         if self.signal_enabled:
             if not self.signal_phone_number:
                 raise ValueError("PI_GUARD_SIGNAL_PHONE_NUMBER is required when Signal is enabled")
-            if not self.signal_admin_numbers:
+            if not self.signal_admin_numbers and not self.dashboard_enabled:
                 raise ValueError("PI_GUARD_SIGNAL_ADMIN_NUMBERS needs at least one number")
         if self.whatsapp_enabled:
             access = self.whatsapp_access_token
@@ -500,8 +523,18 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "WhatsApp needs PI_GUARD_WHATSAPP_PHONE_NUMBER_ID and _ACCESS_TOKEN"
                 )
-            if not self.whatsapp_admin_numbers:
+            if not self.whatsapp_admin_numbers and not self.dashboard_enabled:
                 raise ValueError("PI_GUARD_WHATSAPP_ADMIN_NUMBERS needs at least one number")
+        if self.ddns_provider == "cloudflare":
+            ddns_token = self.ddns_cloudflare_token
+            if not self.ddns_hostname or not (ddns_token and ddns_token.get_secret_value()):
+                raise ValueError("Cloudflare DDNS needs PI_GUARD_DDNS_HOSTNAME and "
+                                 "PI_GUARD_DDNS_CLOUDFLARE_TOKEN")  # fmt: skip
+            # The VPN reaches home by this name unless another address was set.
+            if not self.wireguard_endpoint:
+                self.wireguard_endpoint = self.ddns_hostname
+            if self.ddns_ipv6 and not self.wireguard_endpoint_v6:
+                self.wireguard_endpoint_v6 = self.ddns_hostname
         if self.dashboard_enabled:
             self._check_dashboard()
         if self.webpush_enabled and not self.dashboard_enabled:

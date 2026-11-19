@@ -84,12 +84,18 @@ class WebPush:
         return [dict(r) for r in self._db.execute("SELECT * FROM push_subscriptions")]
 
     async def send(
-        self, texts: dict[str, dict[str, str]], may_act: Callable[[str], bool] | None = None
+        self,
+        texts: dict[str, dict[str, str]],
+        may_act: Callable[[str], bool] | None = None,
+        to: Callable[[str], bool] | None = None,
     ) -> int:
         """`texts` maps language -> payload; returns the number of devices reached. With
-        `may_act`, the people it allows get buttons: a token for one tap comes along."""
+        `may_act`, the people it allows get buttons: a token for one tap comes along. With
+        `to`, only the people it allows get it at all."""
         delivered = 0
         for sub in self.subscriptions():
+            if to is not None and not to(sub["username"]):
+                continue
             payload = dict(texts.get(sub["language"]) or next(iter(texts.values())))
             if may_act is not None and may_act(sub["username"]):
                 payload["token"] = self.action_token(sub["username"])

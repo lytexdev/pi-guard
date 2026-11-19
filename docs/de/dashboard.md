@@ -222,8 +222,11 @@ steuerst du hier; die alten Admin-/Betrachter-Listen unter Nachrichten bleiben n
   geht an ihre Messenger, noch vor den Notfallkontakten; die Admins erfahren, wer informiert wurde.
 - **Notfallkontakt** und **bekommt Alarme**: Nachricht bei einem SOS oder wenn Meldungen unbestätigt bleiben.
 - *Einstellungen → Benachrichtigungen* zeigt alles als Treppe mit vier Stufen, jede dort einstellbar:
-  1. **Sofort an euch:** pro Messenger, was er von sich aus schickt (Alarme und Notfälle, nur eins davon oder *nur
-     Befehle*, etwa wenn Alarme über die App kommen sollen), und pro Meldung wann, an wen und über welche Wege.
+  1. **Sofort an euch:** pro Weg, was er von sich aus schickt, zuerst Handy-App und Browser-Push, dann jeder Messenger
+     (Alarme und Notfälle, nur eins davon oder *nur Befehle*), und pro Meldung wann, an wen und über welche Wege.
+     Alarme nur in der App und der Rest auch per Messenger: die App auf *Alarme und Notfälle*, die Messenger auf *nur
+     Notfälle*; dort kommen dann zweite Instanz, Eskalationen und SOS an. Browser-Push lässt sich direkt dort
+     einschalten; ein Alarm, der nur per Push rausging, zählt für die nächsten Stufen trotzdem als offen.
   2. **Zweite Instanz:** nach wie vielen Minuten ein unbestätigter Alarm an die Menschen mit dieser Rolle geht.
   3. **Notfallkontakte:** nach wie vielen offenen Alarmen und Minuten sie informiert werden, wer mitmacht und was
      mitkommt (letzte Ereignisse, Bilder vom Pi).
@@ -330,7 +333,12 @@ Tagen gruppiert und durchsuchbar.
 Der runde Knopf unten rechts öffnet auf jeder Seite die Bedienungshilfen, nur für diesen Browser: Textgröße, Buchstaben-
 und Zeilenabstand, umgekehrte Farben, Graustufen, Filter für Rot-Grün- und Blau-Gelb-Farbenblindheit, großer Mauszeiger,
 Leselinie, eine Lupe für den Text unter dem Zeiger, unterstrichene Links, weniger Animationen, Vorlesen von angetipptem
-Text oder der ganzen Seite und eine Tour.
+Text oder der ganzen Seite und eine Tour. Die Textgröße wirkt zusätzlich zur großen Schrift im Design; Zeilen wie bei den
+Ereignissen brechen um, statt die Wörter zu quetschen. Die WebView der Handy-App hat keine Sprachausgabe: Vorlesen sagt
+das dort. Sperrt der Browser seinen Speicher (privates Fenster), gelten die Einstellungen nur für diese Seite.
+
+Das **Vollbild** der Live-Kamera nutzt das Vollbild des Browsers, wo es erlaubt ist. Auf dem iPhone (Vollbild nur für
+Videos) und in der Handy-App füllt es stattdessen das Fenster; der runde Knopf, Escape oder die Zurück-Taste schließen es.
 
 ## Hilfe und Tutorial
 

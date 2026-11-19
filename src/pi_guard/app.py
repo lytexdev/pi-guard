@@ -158,6 +158,9 @@ class App:
         self.app_updates = AppUpdates(self)
         self.self_update = SelfUpdate(self)
         self.backups = Backups(self)
+        from pi_guard.network.ddns import DDNS
+
+        self.ddns = DDNS(self)
         from pi_guard.audio.voice import Voice
 
         self.voice = Voice(self)
@@ -353,6 +356,8 @@ class App:
 
                 page = BlockPage(self.dashboard.tls_dir, self.settings.language)
                 parts["blockpage"] = page.run
+        if self.settings.ddns_provider != "off":
+            parts["ddns"] = self.ddns.run
         parts.update(self.addons.components())
         if (
             self.audio is not None

@@ -1,6 +1,6 @@
 // Live: picture, sound, push-to-talk, image tools, sounds and alarm.
 import { askDialog, api, attempt, confirmDialog, h, icon, t, toast, fill, whileShown } from "../api.js";
-import { liveSwitch } from "../widgets.js";
+import { fullscreen, liveSwitch } from "../widgets.js";
 import { state } from "../app.js";
 
 const REGIONS = ["top_left", "top", "top_right", "left", "center", "right", "bottom_left", "bottom", "bottom_right"];
@@ -335,7 +335,7 @@ export async function render(main, params) {
         h("div", { class: "controls" },
           h("button", { title: t("web.tip_zoom_in"), onclick: () => pan.zoom(1.5) }, icon("zoom-in"), t("web.zoom_in")),
           h("button", { title: t("web.tip_zoom_out"), onclick: () => pan.zoom(1 / 1.5) }, icon("zoom-out"), t("web.zoom_out")),
-          h("button", { title: t("web.tip_fullscreen"), onclick: () => stage.requestFullscreen?.() }, icon("maximize"), t("web.fullscreen")),
+          h("button", { title: t("web.tip_fullscreen"), onclick: () => fullscreen(stage) }, icon("maximize"), t("web.fullscreen")),
           marks.fpsButton, marks.marksButton,
           viewer ? null : h("button", { title: t("web.tip_photo"), onclick: photo }, icon("photo"), t("web.photo")),
           viewer ? null : h("button", { onclick: async () => {

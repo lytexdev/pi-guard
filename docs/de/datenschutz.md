@@ -24,6 +24,9 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
 - Mit Signal (optional) werden sie Ende-zu-Ende-verschlüsselt verschickt.
 - Mit MQTT (optional) gehen nur Zustände an Ihren eigenen Server – keine
   Bilder, keine Namen.
+- Mit dynamischem DNS über Cloudflare (aus) fragt der Pi alle 5 Minuten bei `api.ipify.org` die öffentliche
+  IPv4-Adresse ab und schickt Cloudflare die Adresse (und auf Wunsch die IPv6-Adresse des Pi), wenn sie sich ändert.
+- Der KI-Assistent bekommt Fragen nur aus dem Dashboard, den Apps und per Weckwort, nie über einen Messenger.
 - Anonyme Statistiken gibt es seit 1.10 vorerst nicht mehr: Nichts wird gesammelt oder gesendet, früher gesammelte
   Zahlen wurden gelöscht, und die Handy-App fragt nicht mehr danach. Die Instanz-ID bleibt auf dem Pi.
 - Mit *Bei Alarm Bilder ansehen* (aus) geht höchstens alle 10 Minuten das Alarmbild an den KI-Anbieter, mit dem, was die

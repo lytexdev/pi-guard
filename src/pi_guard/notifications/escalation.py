@@ -164,7 +164,8 @@ class Escalation:
             return
         self.assessment = view
         app.db.audit("assistant", "emergency.assessed", event.type.value)
-        await app.messenger.notify_admins(t("emergency.assessment", lang, text=view), tone="alert")
+        await app.messenger.notify_admins(t("emergency.assessment", lang, text=view), tone="alert",
+                                          kind="emergency")  # fmt: skip
 
     def open_alerts(self) -> list[OpenAlert]:
         rows = self._db.execute(
@@ -228,7 +229,7 @@ class Escalation:
         reached: set[str] = set()
         for provider, address, name in self.backup_channels():
             if provider not in app.providers or not delivery_allows(
-                app.settings, provider, "alerts"
+                app.settings, provider, "emergency"
             ):
                 continue
             try:
@@ -244,6 +245,7 @@ class Escalation:
             await app.messenger.notify_admins(
                 t("emergency.backup_owner_note", lang, names=", ".join(sorted(reached))),
                 tone="alert",
+                kind="emergency",
             )
 
     async def escalate(self, alerts: list[OpenAlert]) -> None:

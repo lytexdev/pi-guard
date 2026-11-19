@@ -185,8 +185,18 @@ def _federation(app: App) -> list[dict[str, Any]]:
                    port=app.settings.federation_port)]  # fmt: skip
 
 
+def _ddns(app: App) -> list[dict[str, Any]]:
+    if app.settings.ddns_provider == "off":
+        return []
+    status = app.ddns.status()
+    if not status.get("time"):
+        return [_check("ddns", "warn", host=app.settings.ddns_hostname, error=None)]
+    return [_check("ddns", "ok" if status.get("ok") else "fail", host=status.get("hostname"),
+                   address=status.get("ipv4"), error=status.get("error"))]  # fmt: skip
+
+
 PARTS = ("service", "cameras", "resources", "database", "messengers", "models", "backup",
-         "federation")  # fmt: skip
+         "federation", "ddns")  # fmt: skip
 
 
 def checks(app: App) -> list[dict[str, Any]]:

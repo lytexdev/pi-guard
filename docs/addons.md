@@ -2,8 +2,8 @@
 
 Optional extras, off by default. Choose them in the setup assistant or under
 **Add-ons** in the dashboard; each needs a restart of pi-guard once. They are stored
-under `addons:` in the configuration. Everything works in the dashboard and in every
-messenger, where buttons become a numbered menu if the platform has none.
+under `addons:` in the configuration. Everything but the AI assistant (dashboard and apps only) works in the dashboard
+and in every messenger, where buttons become a numbered menu if the platform has none.
 
 | Add-on | Command | Aliases |
 | --- | --- | --- |
@@ -11,9 +11,9 @@ messenger, where buttons become a numbered menu if the platform has none.
 | Network management | `/netstats [ip]` | `/analyse` |
 | Smart home | `/smarthome [name] [on\|off]` | `/smart`, `/schalte` |
 | Remote commands | `/action` | `/aktion` |
-| AI assistant | `/ask question`, `/weather [place]` | `/frage`, `/wetter` |
 
-All but the assistant are for admins.
+
+All are for admins. The AI assistant has no chat command: it answers only in the dashboard and the apps (see below).
 
 Each card has a switch and a menu (three dots): *Pin to navigation*, *Help & guide* (what the add-on does and how to
 start, with the tour or its documentation) and *Remove*. Telegram, Signal, WhatsApp, Discord, email and the chat
@@ -98,9 +98,10 @@ refused. Shutting down protects a disk only if it is encrypted and locks on shut
 
 ## AI assistant
 
-The round button at the bottom right of the dashboard opens a chat with text and microphone.
-With the add-on on, anything you write that is no command is a question; voice messages
-get an extra button, and the dashboard has a text box and a microphone.
+The round button at the bottom right of the dashboard opens a chat with text and microphone, also in the phone and
+desktop apps. The assistant answers only there and to the wake phrase at home, never in Telegram, Signal, Discord,
+WhatsApp, email or the chat services: a messenger account is easier to take over than a dashboard login, and every
+answer there leaves the home through that service. `/frage` and `/wetter` in a chat say where to ask instead.
 Questions about pi-guard itself ("How does the VPN work?", "Tutorial") are answered from the built-in tutorial,
 without the provider and without cost; see [Help and tutorial](dashboard.md#help-and-tutorial).
 

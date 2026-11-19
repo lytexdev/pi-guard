@@ -31,6 +31,15 @@ def _prefer_usb(devices: list[AudioDevice]) -> AudioDevice | None:
     return next((d for d in devices if d.usb), devices[0] if devices else None)
 
 
+def _pick_speaker(devices: list[AudioDevice]) -> AudioDevice | None:
+    """A USB speaker, else the headphone jack; never HDMI by itself. Every Pi reports HDMI
+    outputs, so without a speaker pi-guard believed it had one: talking, chimes and the alarm
+    went nowhere, and the page offered them. No speaker leaves the rest working."""
+    playback = [d for d in devices if d.playback and "hdmi" not in d.name.casefold()
+                and "hdmi" not in d.card_id.casefold()]  # fmt: skip
+    return _prefer_usb(playback)
+
+
 def _pick_microphone(devices: list[AudioDevice], cameras: list[VideoDevice]) -> AudioDevice | None:
     """A dedicated USB microphone (a card that cannot play sound) beats the dummy input of
     USB speakers and sound cards, which often records nothing but noise; a separate
@@ -78,7 +87,7 @@ def starter_config(cameras: list[VideoDevice], audio: list[AudioDevice]) -> str:
     if not cameras:
         lines.append("  []  # no camera detected; see `pi-guard cameras`")
 
-    speaker = _prefer_usb([d for d in audio if d.playback])
+    speaker = _pick_speaker(audio)
     microphone = _pick_microphone(audio, cameras)
     lines += ["", "audio:"]
     lines.append(f"  speaker: {_q(speaker.alsa_name) if speaker else 'null'}")

@@ -6,7 +6,11 @@ import { restartPrompt } from "./settings.js";
 
 const ORDER = ["motion_detected", "person_detected", "unknown_person", "known_person", "arrival_detected", "mode_changed", "presence_changed",
   "camera_disconnected", "camera_reconnected", "recording_failed", "storage_low", "service_down", "service_up", "system_started", "emergency_escalated"];
-const MESSENGERS = ["telegram", "signal", "discord", "whatsapp", "email"];
+// The app and browser push first: alarms may come there only, and messengers carry just the
+// second line, emergencies and SOS ("emergency").
+const MESSENGERS = ["mobile", "push", "telegram", "signal", "discord", "whatsapp", "email"];
+const WAY_ICON = { mobile: "device-mobile", push: "bell-ringing", email: "mail" };
+const WAY_NAME = { mobile: "web.notif_via_mobile", push: "web.notif_via_push" };
 
 const wayName = (way) => (["mobile", "push", "email"].includes(way) ? t(`web.notif_via_${way}`) : way[0].toUpperCase() + way.slice(1));
 
@@ -117,7 +121,8 @@ export async function render(main) {
     const names = (list, none) => (list.length ? list.join(", ") : t(none));
     const backup = (persons?.persons || []).filter((p) => (p.roles || []).includes("backup")).map((p) => p.display_name);
     const active = rules.filter((r) => r.enabled).length;
-    const on = MESSENGERS.filter((m) => `${m}_delivery` in values && (values[`${m}_enabled`] ?? true));
+    const enabled = (m) => (m === "push" ? values.webpush_enabled : values[`${m}_enabled`]) ?? true;
+    const on = MESSENGERS.filter((m) => `${m}_delivery` in values && enabled(m));
     const backupMin = values.emergency_backup_minutes;
     const afterMin = values.emergency_after_minutes;
     const afterAlerts = values.emergency_after_alerts;
@@ -126,8 +131,14 @@ export async function render(main) {
       const pick = h("select", { "aria-label": t(`web.setting_${m}_delivery`) }, ["both", "alerts", "emergency", "commands"].map((o) =>
         h("option", { value: o, selected: values[`${m}_delivery`] === o }, t(`web.opt_${m}_delivery_${o}`))));
       pick.addEventListener("change", () => save({ [`${m}_delivery`]: pick.value }));
-      return h("li", {}, icon(m === "email" ? "mail" : `brand-${m}`), h("span", { class: "grow" }, t(`web.ec_p_${m}`)), pick);
+      return h("li", {}, icon(WAY_ICON[m] || `brand-${m}`), h("span", { class: "grow" }, t(WAY_NAME[m] || `web.ec_p_${m}`)), pick);
     })) : settings ? h("p", { class: "muted" }, t("web.notif_no_messenger")) : null;
+    // Browser push is off until switched on; it needs no messenger at all.
+    const pushOff = "webpush_enabled" in values && !values.webpush_enabled ? (() => {
+      const box = h("input", { type: "checkbox", class: "toggle", role: "switch", "aria-label": t("web.setting_webpush_enabled") });
+      box.addEventListener("change", () => save({ webpush_enabled: box.checked }));
+      return h("label", { class: "row" }, box, icon("bell-ringing"), h("span", { class: "grow" }, t("web.notif_push_off")));
+    })() : null;
 
     const order = backupMin !== undefined && afterMin !== undefined && backupMin >= afterMin
       ? h("p", { class: "notice" }, icon("alert-triangle"), " ", t("web.stair_order_warn")) : null;
@@ -141,7 +152,7 @@ export async function render(main) {
       h("p", { class: "muted" }, t("web.stair_intro")),
       h("ol", { class: "stairs" },
         step(1, "accent", t("web.stair_1"), t("web.stair_now"), t("web.stair_1_who", { count: active, total: rules.length }), [
-          routing ? [h("h3", {}, t("web.notif_routing")), h("p", { class: "muted" }, h("small", {}, t("web.notif_routing_intro"))), routing] : null,
+          routing ? [h("h3", {}, t("web.notif_routing")), h("p", { class: "muted" }, h("small", {}, t("web.notif_routing_intro"))), routing, pushOff] : null,
           h("h3", {}, t("web.stair_1_events")), h("p", { class: "muted" }, h("small", {}, t("web.notif_intro"))), h("div", { class: "settings-panel" }, ruleList(rules, ways))]),
         step(2, "warn", t("web.stair_2"), backupMin !== undefined ? t("web.stair_after", { minutes: backupMin }) : t("web.stair_2_timing"),
           names(backup, "web.notif_backup_none"), [

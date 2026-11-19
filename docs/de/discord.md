@@ -22,8 +22,10 @@ nennt er dir deine ID ebenfalls.
 
 ## pi-guard einrichten
 
-Im Dashboard unter *Einstellungen → Messenger → Discord*: Token eintragen, deine Benutzer-ID als Admin
-hinzufügen, Discord einschalten, speichern und neu starten.
+Im Dashboard unter *Einstellungen → Messenger → Discord*: Token eintragen, Discord einschalten, speichern und neu
+starten. Eine Benutzer-ID brauchst du dort nicht: Sobald der Bot läuft, erzeugt *Mich als Admin verbinden* einen
+einmaligen Code (24 Stunden). Schick nur diesen Code dem Bot als Direktnachricht, dann bist du sein Admin. Signal hat
+denselben Knopf. Ohne Dashboard trägst du die IDs in der env-Datei ein (`PI_GUARD_DISCORD_ADMIN_USER_IDS`).
 
 Admins dürfen alle Befehle nutzen, Betrachter dürfen zuschauen, und beide bekommen Alarme.
 

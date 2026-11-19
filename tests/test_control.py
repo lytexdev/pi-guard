@@ -453,19 +453,13 @@ def test_ai_plans_are_checked(tmp_path: Path) -> None:
     app.db.close()
 
 
-async def test_viewers_cannot_trigger_actions(tmp_path: Path, monkeypatch: Any) -> None:
+async def test_chats_get_no_ai_actions(tmp_path: Path, monkeypatch: Any) -> None:
+    """The AI proposes actions in the dashboard only: no chat, not even an admin's, gets one."""
     app = smart_app(tmp_path)
-    await app.messenger.handle(msg("/frage Licht Schlafzimmer aus", VIEWER))
-    assert not app.providers["telegram"].last().buttons or "proposal" not in str(
-        app.providers["telegram"].last().buttons
-    )
-    await app.messenger.handle(msg("/frage Licht Schlafzimmer aus", ADMIN))
-    reply = app.providers["telegram"].last()
-    assert reply.buttons[0][0].command.startswith("proposal yes")
-    await app.messenger.handle(msg(reply.buttons[0][0].command, VIEWER, from_button=True))
+    for who in (VIEWER, ADMIN):
+        await app.messenger.handle(msg("/frage Licht Schlafzimmer aus", who))
+        assert "proposal" not in str(app.providers["telegram"].last().buttons)
     assert app.addons.smarthome.switched == []
-    await app.messenger.handle(msg(reply.buttons[0][0].command, ADMIN, from_button=True))
-    assert app.addons.smarthome.switched == [("schlaf", False)]
     app.db.close()
 
 

@@ -2,7 +2,7 @@
 
 Optionale Erweiterungen, ab Werk ausgeschaltet. Sie werden im Einrichtungsassistenten
 oder im Dashboard unter **Add-ons** gewählt und brauchen einmal einen Neustart von
-pi-guard. Alles funktioniert im Dashboard und in jedem Messenger.
+pi-guard. Alles funktioniert im Dashboard und in jedem Messenger, außer dem KI-Assistenten (nur Dashboard und Apps).
 
 | Add-on | Befehl |
 | --- | --- |
@@ -10,7 +10,6 @@ pi-guard. Alles funktioniert im Dashboard und in jedem Messenger.
 | Netzwerkanalyse | `/analyse [IP]` |
 | Smart Home | `/smart [Name] [an\|aus]` |
 | Fernbefehle | `/aktion` |
-| KI-Assistent | `/frage Text`, `/wetter [Ort]` |
 
 Jede Karte hat einen Schalter und ein Menü (drei Punkte): *An Navigation anheften*, *Hilfe & Anleitung* (was das Add-on
 macht und wie man anfängt, mit der Tour oder seiner Anleitung) und *Entfernen*. Telegram, Signal, WhatsApp, Discord,
@@ -44,7 +43,10 @@ Minute. Den Schlüssel von pi-guard tragen Sie auf dem anderen Computer in
 (siehe [addons.md](../addons.md#remote-commands)). Herunterfahren schützt die Festplatte
 nur, wenn sie verschlüsselt ist.
 
-**KI-Assistent:** Alles, was kein Befehl ist, gilt als Frage. Wetter, Uhrzeit und Datum
+**KI-Assistent:** Er antwortet nur im Dashboard und in den Apps (runder Knopf unten rechts) und auf das Weckwort zu
+Hause, nie in Telegram, Signal, Discord, WhatsApp, E-Mail oder den Chat-Diensten: Ein Messenger-Konto ist leichter
+übernommen als ein Dashboard-Login, und jede Antwort dort verlässt das Haus über diesen Dienst. `/frage` und `/wetter`
+im Chat sagen, wo man stattdessen fragt. Wetter, Uhrzeit und Datum
 kosten keine Tokens, ebenso Fragen zu pi-guard selbst („Wie funktioniert das VPN?“, „Tutorial“), die aus dem
 eingebauten Tutorial kommen; gleiche Fragen kommen eine Stunde lang aus dem Zwischenspeicher, und
 ein Tageslimit begrenzt die Kosten. Fragen gehen an den gewählten Anbieter. Optional (alles aus):

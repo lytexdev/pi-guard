@@ -222,9 +222,11 @@ Messaging stay in expert mode only.
   emergency contacts; admins are told who was informed.
 - **Emergency contact** and **gets alerts**: written to on an SOS or when alerts stay unconfirmed, see [mobile](mobile.md).
 - *Settings → Notifications* shows everything as a staircase of four steps, each set up where it is:
-  1. **At once to you:** per messenger what it sends by itself (alerts and emergencies, only one of them, or *commands
-     only*, for example when alarms should come through the app), and each kind of message with when, to whom and
-     which ways.
+  1. **At once to you:** per way what it sends by itself, the phone app and browser push first, then each messenger
+     (alerts and emergencies, only one of them, or *commands only*), and each kind of message with when, to whom and
+     which ways. Alarms in the app only and the rest also on a messenger: the app on *alerts and emergencies*, the
+     messengers on *emergencies only*; they then carry the second line, escalations and SOS. Browser push can be
+     switched on right there; an alarm that went only by push still counts as open for the next steps.
   2. **Second line:** after how many minutes an unconfirmed alarm goes to the people with that role.
   3. **Emergency contacts:** after how many open alarms and minutes they are told, who takes part and what comes with
      the message (latest events, pictures from the Pi).
@@ -335,7 +337,9 @@ service log with level chips, search, pause, copy and download, and the audit tr
 The round button at the bottom right opens the accessibility panel on every page, for this browser only: text size,
 letter and line spacing, inverted colours, greyscale, filters for red-green and blue-yellow colour blindness, a large
 cursor, a reading ruler, a magnifier for the text under the pointer, underlined links, fewer animations, reading
-tapped text or the whole page aloud, and a guided tour.
+tapped text or the whole page aloud, and a guided tour. The text size works on top of the large text of the design;
+rows such as events wrap instead of squeezing the words. The phone app's WebView has no speech output: reading aloud
+says so there. If the browser blocks storage (a private window), the settings last for this page only.
 
 ## Help and tutorial
 
@@ -493,6 +497,9 @@ The Telegram bot token can be entered in the dashboard (write-only, stored in
 `dashboard.env` with mode 0600); other secrets only in `pi-guard.env`.
 
 ### Live view, listening and talking
+
+- **Fullscreen** uses the browser's own fullscreen where it is allowed. On an iPhone, which has fullscreen only for
+  videos, and in the phone app, it fills the window instead; the round button, Escape or the back button closes it.
 
 - The live picture is an extra low-rate MJPEG output of the existing capture
   process (`PI_GUARD_DASHBOARD_LIVE_FPS`, default 8, `0` turns it off;

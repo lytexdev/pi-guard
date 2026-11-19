@@ -184,6 +184,12 @@ def test_starter_config_survives_awkward_device_names(tmp_path: Path) -> None:
     # Not the speaker's dummy input, not the webcam: the separate microphone.
     assert config.audio.microphone == "plughw:CARD=SF558,DEV=0"
 
+    # A camera with a microphone and no speaker: HDMI is never taken as one.
+    path.write_text(starter_config([camera], [audio[0], audio[3]]))
+    config = load_file_config(path)
+    assert config.audio.speaker is None
+    assert config.audio.microphone == "plughw:CARD=Camera,DEV=0"
+
 
 def test_broken_yaml_gives_a_readable_error(tmp_path: Path) -> None:
     path = tmp_path / "config.yaml"

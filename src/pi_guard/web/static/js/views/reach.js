@@ -1,5 +1,6 @@
 // The ways home from outside. Only a device that connected from outside proves one works.
-import { api, attempt, fill, h, icon, t } from "../api.js";
+import { api, attempt, fill, h, icon, t, when } from "../api.js";
+import { restartPrompt } from "./settings.js";
 
 const ICONS = { ipv4: "world", ipv6: "network", relay: "router", tailscale: "plug-connected", awg: "eye-off" };
 const BADGE = { ok: "ok", warn: "danger", off: "" };
@@ -56,4 +57,47 @@ export function reachPanel() {
     h("p", { class: "muted" }, t("web.reach_intro")), list, note,
     h("div", { class: "row" }, check),
     h("p", { class: "muted" }, h("small", {}, t("web.reach_check_hint"))));
+}
+
+// A name that follows the home's public address (Cloudflare), for the VPN and linked households.
+export function ddnsPanel() {
+  const panel = h("div", { class: "stack" });  // inside a folded panel that has the title
+  const draw = async () => {
+    const d = await attempt(() => api("/api/network/ddns"));
+    if (!d) return;
+    const on = h("input", { type: "checkbox", class: "toggle", role: "switch", id: "ddns_on", checked: d.provider === "cloudflare" });
+    const host = h("input", { id: "ddns_host", value: d.hostname, placeholder: "home.example.org", autocomplete: "off", spellcheck: false });
+    const token = h("input", { id: "ddns_token", type: "password", autocomplete: "off", placeholder: d.token ? t("web.ddns_token_kept") : "" });
+    const v6 = h("input", { type: "checkbox", id: "ddns_v6", checked: d.ipv6 });
+    const s = d.status || {};
+    const save = async () => {
+      const body = { ddns_provider: on.checked ? "cloudflare" : "off", ddns_hostname: host.value.trim(), ddns_ipv6: v6.checked };
+      if (token.value) body.ddns_cloudflare_token = token.value;
+      if (await attempt(() => api("/api/settings", { method: "PUT", body }), t("web.saved"))) { restartPrompt(); draw(); }
+    };
+    const update = async () => {
+      const r = await attempt(() => api("/api/network/ddns/update", { method: "POST" }), t("web.ddns_updated"));
+      if (r) draw();
+    };
+    const useName = d.provider === "cloudflare" && d.hostname && d.endpoint && d.endpoint.split(":")[0] !== d.hostname
+      ? h("p", { class: "notice" }, t("web.ddns_endpoint_other", { endpoint: d.endpoint }), " ",
+        h("button", { class: "small", onclick: async () => {
+          if (await attempt(() => api("/api/settings", { method: "PUT", body: { wireguard_endpoint: d.hostname } }), t("web.saved"))) { restartPrompt(); draw(); }
+        } }, t("web.ddns_use_name"))) : null;
+    fill(panel, h("p", { class: "muted" }, t("web.ddns_intro")),
+      h("label", { class: "row", for: "ddns_on" }, on, h("span", { class: "grow" }, t("web.ddns_on"))),
+      h("div", { class: "field" }, h("label", { for: "ddns_host" }, t("web.ddns_hostname")), host),
+      h("div", { class: "field" }, h("label", { for: "ddns_token" }, t("web.ddns_token")), token,
+        h("small", { class: "muted" }, t("web.ddns_token_hint"))),
+      h("label", { class: "check", for: "ddns_v6" }, v6, t("web.ddns_ipv6")),
+      h("div", { class: "row wrap" }, h("button", { class: "primary", onclick: save }, icon("check"), t("web.save")),
+        d.provider === "cloudflare" ? h("button", { onclick: update }, icon("refresh"), t("web.ddns_update_now")) : null),
+      s.time ? h("p", { class: s.ok ? "muted" : "notice danger" }, s.ok
+        ? t("web.ddns_status_ok", { host: s.hostname, ipv4: s.ipv4 || "–", ipv6: s.ipv6 || "–", time: when(s.time) })
+        : `${t(s.error || "web.error")}${s.detail ? ` (${s.detail})` : ""} · ${when(s.time)}`) : null,
+      useName,
+      h("p", { class: "muted" }, h("small", {}, t("web.ddns_privacy"))));
+  };
+  draw();
+  return panel;
 }

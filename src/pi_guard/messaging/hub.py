@@ -112,14 +112,8 @@ class Messenger:
                 parsed = app.registry.parse("enroll add")
             elif msg.is_group and not msg.from_button:
                 return
-            elif (
-                app.addons.assistant is not None
-                and msg.text.strip()
-                and not msg.text.lstrip().startswith("/")
-                and not msg.is_group
-            ):
-                # Anything that is no command is a question for the assistant.
-                parsed = app.registry.parse(f"ask {msg.text}")
+            # The AI assistant answers only in the dashboard and the apps, never in a chat: a
+            # messenger account is easier to take over, and chats leave the home.
         if parsed is None:
             await self._reply(
                 msg,
@@ -301,13 +295,16 @@ class Messenger:
 
     async def notify_admins(
         self, text: str, photos: Sequence[Path] = (), tone: str = "info", audio: Path | None = None,
-        *, sos: bool = False,
+        *, sos: bool = False, kind: str = "alerts",
     ) -> None:  # fmt: skip
-        """`sos`: on every messenger, whatever it is set to deliver."""
+        """`kind`: "alerts" or "emergency", checked against each way's delivery setting.
+        `sos`: on every messenger, whatever it is set to deliver. Admins with browser push get
+        it there too."""
+        await self._push_admins(text, sos, kind)
         for user in self._app.users.all():
             if user.role is not Role.ADMIN or user.provider not in self._app.providers:
                 continue
-            if not sos and not delivery_allows(self._app.settings, user.provider, "alerts"):
+            if not sos and not delivery_allows(self._app.settings, user.provider, kind):
                 continue
             first = photos[0] if photos else None
             reply = Reply(text, photo=first, audio=None if first else audio, tone=tone)
@@ -318,6 +315,24 @@ class Messenger:
                 await self._send_safely(
                     user.provider, user.user_id, Reply(photo.stem, photo=photo, tone=tone)
                 )
+
+    async def _push_admins(self, text: str, sos: bool, kind: str) -> None:
+        app = self._app
+        dashboard = app.dashboard
+        if app.webpush is None or dashboard is None:
+            return
+        if not sos and not delivery_allows(app.settings, "push", kind):
+            return
+        payload = {"title": "pi-guard", "body": text[:300], "tag": f"admins:{kind}",
+                   "priority": "critical" if sos else "high", "url": "/#/overview"}  # fmt: skip
+
+        def admin(name: str) -> bool:
+            return bool(dashboard.auth.role_of(name) == "admin")
+
+        try:
+            await app.webpush.send({"any": payload}, to=admin)
+        except Exception as exc:  # push is a bonus here: the messengers still carry it
+            log.warning("browser push to admins failed: %s", type(exc).__name__)
 
 
 def delivery_allows(settings: object, provider: str, kind: str) -> bool:

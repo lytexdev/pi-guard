@@ -74,6 +74,9 @@ FIELDS = (
     ),
     Field("mobile_enabled", "mobile", "bool"),
     Field("mobile_sos_home_audio", "mobile", "bool"),
+    Field(
+        "mobile_delivery", "mobile", "choice", options=("alerts", "emergency", "both", "commands")
+    ),
     Field("email_enabled", "email", "bool"),
     Field("email_host", "email", "text"),
     Field("email_port", "email", "int", 1, 65535),
@@ -120,6 +123,10 @@ FIELDS = (
     Field("fritzbox_password", "network", "secret"),
     Field("wireguard_enabled", "network", "bool"),
     Field("wireguard_endpoint", "network", "text"),
+    Field("ddns_provider", "network", "choice", options=("off", "cloudflare")),
+    Field("ddns_hostname", "network", "text"),
+    Field("ddns_cloudflare_token", "network", "secret"),
+    Field("ddns_ipv6", "network", "bool"),
     Field("wireguard_endpoint_v6", "network", "text"),
     Field("assistant_api_key", "assistant", "secret"),
     Field("assistant_deepl_key", "assistant", "secret"),
@@ -166,6 +173,9 @@ FIELDS = (
     Field("backup_borg_repo", "backup", "text"),
     Field("dashboard_trusted_proxies", "dashboard", "list"),
     Field("webpush_enabled", "dashboard", "bool"),
+    Field(
+        "push_delivery", "dashboard", "choice", options=("alerts", "emergency", "both", "commands")
+    ),
     Field("dashboard_honeypot", "dashboard", "bool"),
     Field("dashboard_ban_minutes", "dashboard", "int", 1, 10080),
     Field("dashboard_rate_limit_per_minute", "dashboard", "int", 30, 10000),
@@ -187,7 +197,7 @@ EXPERT = frozenset({
     "emergency_telegram_user_ids", "emergency_signal_numbers", "emergency_discord_user_ids",
     "whatsapp_app_secret", "whatsapp_verify_token", "whatsapp_alert_template",
     "wireguard_endpoint_v6", "dashboard_auth", "dashboard_public_url",
-    "dashboard_trusted_proxies", "support_url", "app_updates_from_github", "webpush_enabled",
+    "dashboard_trusted_proxies", "support_url", "app_updates_from_github",
     "update_auto", "update_repository", "update_channel",
     "dashboard_honeypot", "voice_button_gpio",
     "dashboard_ban_minutes",

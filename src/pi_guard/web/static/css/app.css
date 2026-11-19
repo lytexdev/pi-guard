@@ -78,8 +78,10 @@ main { padding: 24px clamp(16px, 3vw, 40px) 96px; max-width: 1280px; width: 100%
   }
   .tabbar a {
     display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted);
-    font-size: .7rem; padding: 6px 0; min-height: 52px; justify-content: center;
+    font-size: .7rem; padding: 6px 0; min-height: 52px; justify-content: center; min-width: 0;
   }
+  /* Five labels in a phone's width: with big text they shorten instead of running together. */
+  .tabbar a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: min(1em, 13px); }
   .tabbar a.active { color: var(--accent); }
   .tabbar a:hover { text-decoration: none; }
   .tabbar .icon { width: 24px; height: 24px; }
@@ -163,7 +165,11 @@ input[type="file"] { padding: 10px; }
 .thumb { width: 72px; height: 48px; object-fit: cover; border-radius: 6px; background: var(--surface-2); flex: none; }
 .thumb.event-icon { display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
 .thumb.event-icon svg { width: 1.5rem; height: 1.5rem; }
-.event-row { cursor: pointer; }
+.event-row { cursor: pointer; flex-wrap: wrap; }
+/* Big text on a phone: the words keep their room, the button moves to its own line. */
+.event-row > .grow { flex: 1 1 9rem; min-width: 0; overflow-wrap: anywhere; }
+.event-row > button { margin-left: auto; }
+.list li > .grow { min-width: 0; overflow-wrap: anywhere; }
 .event-detail-shot { width: 100%; max-height: 280px; object-fit: contain; border-radius: 8px; background: var(--surface-2); }
 .event-detail-icon { display: flex; align-items: center; justify-content: center; min-height: 120px; color: var(--muted); }
 .event-detail-icon svg { width: 3rem; height: 3rem; }
@@ -192,6 +198,15 @@ th { color: var(--muted); font-weight: 500; }
   aspect-ratio: 16 / 9; touch-action: none; user-select: none;
 }
 .stage img { width: 100%; height: 100%; object-fit: contain; transform-origin: 0 0; will-change: transform; }
+.stage:fullscreen { aspect-ratio: auto; border-radius: 0; }
+/* The window view where the browser has no fullscreen (iPhone, the phone app). */
+.fs-window { position: fixed !important; inset: 0; z-index: 1000; width: 100vw; height: 100dvh; max-height: none;
+  aspect-ratio: auto !important; border-radius: 0 !important; margin: 0; background: #000; }
+.fs-window img { height: 100% !important; aspect-ratio: auto !important; }
+html.fs-open, html.fs-open body { overflow: hidden; }
+html.fs-open .tabbar, html.fs-open .a11y-open, html.fs-open .to-top, html.fs-open .ai-open { display: none; }
+.fs-close { position: absolute; z-index: 3; top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right));
+  width: 44px; height: 44px; border-radius: 50%; background: rgba(0, 0, 0, .6); color: #fff; border: 1px solid rgba(255, 255, 255, .35); }
 .stage .overlay {
   position: absolute; inset: auto 0 0 0; display: flex; justify-content: space-between; align-items: center;
   padding: 8px 10px; background: linear-gradient(transparent, rgba(0, 0, 0, .65)); font-size: .85rem;
@@ -205,7 +220,8 @@ th { color: var(--muted); font-weight: 500; }
 .chart { width: 100%; height: 180px; display: block; }
 .chart .bar { fill: var(--accent); }
 .chart .bar.alt { fill: var(--warn); }
-.chart text { fill: var(--muted); font-size: 10px; }
+.chart text { fill: var(--muted); font-size: 12px; }
+:root[data-text="large"] .chart text { font-size: 15px; }
 .chart line { stroke: var(--line); }
 
 /* login */
@@ -276,8 +292,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
   --ok: #6dff9e; --warn: #ffd166; --danger: #ff8a8a;
 }
 :root[data-theme="contrast"] .panel, :root[data-theme="contrast"] button { border-width: 2px; }
-:root[data-text="large"] { font-size: 19px; --tap: 52px; }
-:root[data-text="large"] body { font-size: 19px; }
+/* Large text multiplies with the accessibility scale; a fixed size here made the slider do nothing. */
+:root[data-text="large"] { font-size: calc(118.75% * var(--scale, 1)); --tap: 52px; }
 :root[data-text="large"] .icon { width: 24px; height: 24px; }
 
 /* setup assistant */
@@ -1130,6 +1146,8 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .stair summary { flex-wrap: wrap; }
 .stair summary > .badge { flex: none; white-space: nowrap; margin-left: auto; }
 .stair-body { padding: 0 14px 14px; }
+.stair-body label.row { flex-wrap: nowrap; }
+.stair-body label.row > .grow { min-width: 0; }
 .stair-field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .stair-field input { width: 6rem; }
 .stair-contact { flex-direction: column; align-items: stretch; }

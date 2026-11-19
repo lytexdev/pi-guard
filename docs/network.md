@@ -190,6 +190,22 @@ app finds the dashboard at its Tailscale address by itself. Open the app once at
 Tailscale is a company's service in between; its connections stay end-to-end encrypted, but your
 devices are listed there.
 
+### A name that follows your address (Cloudflare DDNS)
+
+With a domain at Cloudflare, pi-guard keeps a name such as `home.example.org` pointed at your home by itself:
+**Network › VPN › Dynamic DNS (Cloudflare)**. Make an API token at Cloudflare (*My Profile → API Tokens → Create
+Token*, template *Edit zone DNS*, only for that zone), enter the name and the token, switch it on and save. Every five
+minutes the Pi looks up its public IPv4 address (api.ipify.org) and, when it changed, sets the A record; with *IPv6
+too* it also sets the AAAA record to the Pi's own global IPv6 address. Records are never proxied (orange cloud off):
+WireGuard is UDP and needs the real address. *Update now* tries the token at once.
+
+Without a VPN address of its own (`PI_GUARD_WIREGUARD_ENDPOINT`), the VPN uses this name, and so do linked households;
+*Use the DDNS name instead* replaces an older address such as a fixed IP. The router still has to forward UDP 51820
+(and the households' port). The token is stored like every secret, never shown again and never logged. Settings:
+`PI_GUARD_DDNS_PROVIDER=cloudflare`, `PI_GUARD_DDNS_HOSTNAME`, `PI_GUARD_DDNS_CLOUDFLARE_TOKEN`, `PI_GUARD_DDNS_IPV6`.
+*System → Health* shows whether the last update worked. Tested against a stand-in of the Cloudflare API, not yet
+against a real zone.
+
 ### Devices
 
 Dashboard › **Network › VPN › Devices › Add device**: enter a name ("Anna's

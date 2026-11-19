@@ -453,21 +453,17 @@ def addon_app(tmp_path: Path, **addons: Any) -> Any:
     return app
 
 
-async def test_plain_text_goes_to_the_assistant_only_when_enabled(
-    tmp_path: Path, monkeypatch: Any
-) -> None:
+async def test_chats_never_reach_the_assistant(tmp_path: Path, monkeypatch: Any) -> None:
+    """The assistant answers in the dashboard and the apps only, also when it is on."""
     Api(monkeypatch)
-    off = make_app(tmp_path / "a")
-    await off.messenger.handle(msg("Was ist die Hauptstadt von Frankreich?", ADMIN))
-    assert off.providers["telegram"].last().text != "Paris."
-    off.db.close()
     settings = {"enabled": True, "provider": "custom", "base_url": "https://x/v1", "model": "m"}
     on = addon_app(tmp_path / "b", assistant=settings)
     on.addons.assistant._api_key = "k"
     await on.messenger.handle(msg("Was ist die Hauptstadt von Frankreich?", ADMIN))
-    assert on.providers["telegram"].last().text == "Paris."
-    await on.messenger.handle(msg("/gibtesnicht", ADMIN))
     assert on.providers["telegram"].last().text != "Paris."
+    for asked in ("/frage Was ist die Hauptstadt von Frankreich?", "/wetter Berlin"):
+        await on.messenger.handle(msg(asked, ADMIN))
+        assert "dashboard" in on.providers["telegram"].last().text.lower()
     on.db.close()
 
 
@@ -506,7 +502,7 @@ async def test_action_needs_two_presses_in_chat(tmp_path: Path, monkeypatch: Any
 
 async def test_add_on_commands_explain_when_switched_off(tmp_path: Path) -> None:
     app = make_app(tmp_path)
-    for command in ("/dienste", "/analyse", "/smart", "/aktion", "/frage hallo"):
+    for command in ("/dienste", "/analyse", "/smart", "/aktion"):
         await app.messenger.handle(msg(command, ADMIN))
         assert "Add-ons" in app.providers["telegram"].last().text
     app.db.close()

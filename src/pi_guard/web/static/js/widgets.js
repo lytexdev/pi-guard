@@ -1,5 +1,5 @@
 // Things that float above every page: back to top, and the assistant.
-import { api, fill, h, icon, t, toast } from "./api.js";
+import { api, appShell, fill, h, icon, t, toast } from "./api.js";
 import { state } from "./app.js";
 import { accessibilityCommand, readsAloud, speak } from "./accessibility.js";
 import { markdown } from "./markdown.js";
@@ -241,4 +241,45 @@ export function installLightbox() {
     document.body.append(dialog);
     dialog.showModal();
   });
+}
+
+// Fullscreen for a camera picture. The browser's own where it works; the iPhone (no fullscreen
+// for anything but video) and the phone app's WebView (none without native code) get a view over
+// the whole window instead, closed by its button, Escape or the back button.
+export async function fullscreen(el) {
+  if (document.fullscreenElement) { await document.exitFullscreen?.().catch(() => {}); return; }
+  if (appShell() !== "android" && el.requestFullscreen) {
+    try {
+      await el.requestFullscreen({ navigationUI: "hide" });
+      screen.orientation?.lock?.("landscape").catch(() => {});
+      return;
+    } catch { /* not allowed here: the window view below */ }
+  }
+  windowView(el);
+}
+
+function windowView(el) {
+  if (el.classList.contains("fs-window")) return;
+  const close = h("button", { class: "fs-close icon-only", type: "button", title: t("web.close"), "aria-label": t("web.close") }, icon("x"));
+  let ended = false;
+  const end = (fromHistory = false) => {
+    if (ended) return;
+    ended = true;
+    el.classList.remove("fs-window");
+    document.documentElement.classList.remove("fs-open");
+    close.remove();
+    removeEventListener("keydown", key);
+    removeEventListener("popstate", back);
+    if (!fromHistory) history.back();  // the entry pushed below
+  };
+  const key = (event) => { if (event.key === "Escape") end(); };
+  const back = () => end(true);
+  close.addEventListener("pointerdown", (event) => event.stopPropagation());
+  close.addEventListener("click", (event) => { event.stopPropagation(); end(); });
+  history.pushState({ fullscreen: true }, "");  // so the phone's back button closes it
+  el.classList.add("fs-window");
+  document.documentElement.classList.add("fs-open");
+  el.append(close);
+  addEventListener("keydown", key);
+  addEventListener("popstate", back);
 }

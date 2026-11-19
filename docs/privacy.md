@@ -35,7 +35,8 @@ runs with `UMask=0077`; databases are `0600`).
 | Alert text (no photos, no names), and for admins a one-tap token for *All fine* and *Sound alarm*, valid an hour | **browser push services** (Google, Apple, Mozilla), end-to-end encrypted | only with `PI_GUARD_WEBPUSH_ENABLED` and devices that subscribed |
 | Live picture and sound, files you upload | your own browser, over HTTPS | only while you use the dashboard |
 | Your browser's public IP address | `api.ipify.org`, and the Pi asks `ipwho.is` about unknown addresses | when the overview is open (connection panel) |
-| Questions to the AI assistant, voice messages sent to it | the provider you chose (OpenAI, Mistral, your own) | add-on on, only what you ask |
+| Questions to the AI assistant | the provider you chose (OpenAI, Mistral, your own); asked in the dashboard, the apps or by the wake phrase, never through a messenger | add-on on, only what you ask |
+| The home's public IPv4 address and, if chosen, the Pi's IPv6 address | `api.ipify.org` (IPv4 lookup) and Cloudflare (the DNS record) | dynamic DNS on: every 5 minutes a lookup, a change at Cloudflare only when the address changed |
 | Excerpts from your files, Paperless-ngx and Nextcloud | the AI provider | only if you allow it; never with Ollama |
 | Labels, help texts and switch, number and choice values of settings (never secrets, lists or the time zone) | the AI provider | only when you use *Ask about settings* with the assistant on |
 | Names of devices and cameras | the AI provider | only if "AI may plan actions" is ticked |

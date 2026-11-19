@@ -123,7 +123,9 @@ expert mode only.
 | `EMERGENCY_AFTER_ALERTS` | `3` | open (unconfirmed) alerts needed… |
 | `EMERGENCY_AFTER_MINUTES` | `30` | …the oldest open for at least this long |
 | `EMERGENCY_BACKUP_MINUTES` | `10` | an alert open this long goes to contacts with the role *second line* first |
-| `TELEGRAM_DELIVERY` (and `SIGNAL_`, `DISCORD_`, `WHATSAPP_`, `EMAIL_`) | `both` | what the messenger sends by itself: `alerts`, `emergency`, `both`, or `commands` (nothing, only commands); an SOS always arrives |
+| `TELEGRAM_DELIVERY` (and `SIGNAL_`, `DISCORD_`, `WHATSAPP_`, `EMAIL_`) | `both` | what the messenger sends by itself: `alerts`, `emergency` (the second line, escalations and their notes), `both`, or `commands` (nothing, only commands); an SOS always arrives |
+| `MOBILE_DELIVERY`, `PUSH_DELIVERY` | `both` | the same for the phone app and browser push. Alarms in the app only: app `both`, messengers `emergency` |
+| `TELEGRAM_ADMIN_USER_IDS` (and Discord, Signal, WhatsApp) | – | needed only without the dashboard; with it, admins join with a one-time code from the Messenger page |
 
 An alert (movement, person, unknown person) that was sent stays open until
 someone presses *Everything is fine*, sends `ok`, says they are at home
@@ -150,7 +152,9 @@ With linked households on, each linked household is also a way to reach a contac
 
 See [dashboard.md](dashboard.md) and [network.md](network.md): `DASHBOARD_*`,
 `WEBPUSH_ENABLED`, `WEBPUSH_CONTACT`, `PIHOLE_ENABLED`, `PIHOLE_URL`,
-`PIHOLE_PASSWORD`, `WIREGUARD_ENABLED`, `WIREGUARD_INTERFACE`.
+`PIHOLE_PASSWORD`, `WIREGUARD_ENABLED`, `WIREGUARD_INTERFACE`, and dynamic DNS: `DDNS_PROVIDER` (`off` or
+`cloudflare`), `DDNS_HOSTNAME`, `DDNS_CLOUDFLARE_TOKEN`, `DDNS_IPV6` ([network.md](network.md#a-name-that-follows-your-address-cloudflare-ddns)).
+With DDNS on and no `WIREGUARD_ENDPOINT`, the VPN uses the DDNS name.
 Settings saved in the dashboard go to `DATA_DIR/dashboard.env` and
 `DATA_DIR/dashboard.yaml`, which take precedence over the files here.
 

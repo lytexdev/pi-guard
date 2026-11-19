@@ -7,7 +7,6 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-from pi_guard.addons.assistant import AssistantError
 from pi_guard.addons.mobile import map_link
 from pi_guard.addons.remote import ConfirmationError
 from pi_guard.addons.smarthome import SmartHomeError
@@ -214,25 +213,9 @@ async def confirm(ctx: CommandContext, args: dict[str, Any]) -> Reply:
 
 
 async def answer(ctx: CommandContext, question: str) -> Reply:
-    assistant = ctx.app.addons.assistant
-    if assistant is None:
-        return _off(ctx, "assistant")
-    commander = ctx.app.addons.commander
-    if commander is not None and ctx.user.role is Role.ADMIN and not ctx.is_group:
-        try:
-            outcome = await commander.propose(question, ctx.lang, ctx.user.key)
-        except AssistantError:
-            outcome = None
-        if outcome is not None:
-            return _outcome(ctx, outcome)
-    try:
-        private = ctx.user.role is Role.ADMIN and not ctx.is_group
-        result = await assistant.ask(question, ctx.lang, ctx.chat_key, private)
-    except AssistantError as exc:
-        return Reply(ctx.t(exc.key), buttons=(menu_row(ctx),))
-    if result.documents:
-        return Reply(f"{result.text}\n\n📄 {', '.join(result.documents)}")
-    return Reply(result.text)
+    """Chats never reach the AI assistant: it answers in the dashboard and the apps only."""
+    del question
+    return Reply(ctx.t("assistant.chat_off"), buttons=(menu_row(ctx),))
 
 
 async def ask(ctx: CommandContext, args: dict[str, Any]) -> Reply:

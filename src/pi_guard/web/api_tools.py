@@ -301,6 +301,7 @@ async def discord_status(request: web.Request) -> web.Response:
         "enabled": d.settings.discord_enabled, "connected": bool(provider and provider.connected),
         "name": getattr(provider, "username", None), "invite": invite,
         "problem": getattr(provider, "problem", None),
+        "admins": sum(1 for u in d.app.users.all("discord") if u.role is Role.ADMIN),
     })  # fmt: skip
 
 
@@ -393,6 +394,7 @@ async def signal_status(request: web.Request) -> web.Response:
         "accounts": len(accounts),
         "connected": bool(provider and provider.connected),
         "commands": s.signal_commands,
+        "admins": sum(1 for u in d.app.users.all("signal") if u.role is Role.ADMIN),
         "link": {k: v for k, v in _links.items() if k != "task"},
     })  # fmt: skip
 
