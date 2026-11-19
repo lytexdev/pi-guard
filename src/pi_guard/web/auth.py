@@ -721,8 +721,12 @@ class AuthStore:
                                (_digest(token),)).fetchone()  # fmt: skip
         if row is None:
             return None
-        self._db.execute("UPDATE web_tokens SET last_used = ? WHERE id = ?",
-                         (utcnow().isoformat(), row["id"]))  # fmt: skip
+        now = utcnow()
+        last = row["last_used"]
+        # Like sessions: one write a minute at most, not one per request on the SD card.
+        if not last or now - datetime.fromisoformat(last) > timedelta(minutes=1):
+            self._db.execute("UPDATE web_tokens SET last_used = ? WHERE id = ?",
+                             (now.isoformat(), row["id"]))  # fmt: skip
         return dict(row)
 
     # Passkeys and hardware keys (WebAuthn).

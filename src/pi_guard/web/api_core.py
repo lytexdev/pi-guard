@@ -188,10 +188,15 @@ async def set_mode(request: web.Request) -> web.Response:
         if target == "AUTO":
             app.modes.set_auto(actor=actor)
         elif target in ("HOME", "AWAY"):
+            minutes = data.get("minutes")
+            try:
+                duration = timedelta(minutes=int(minutes)) if minutes else None
+            except (TypeError, ValueError, OverflowError):
+                raise web.HTTPBadRequest(text="minutes must be a number") from None
+            if duration is not None and not timedelta(0) < duration <= timedelta(days=366):
+                raise web.HTTPBadRequest(text="minutes out of range")
             if target == "HOME":
                 app.escalation.acknowledge(actor)
-            minutes = data.get("minutes")
-            duration = timedelta(minutes=int(minutes)) if minutes else None
             app.modes.set_manual(Mode(target), duration, actor=actor)
         else:
             raise web.HTTPBadRequest(text="mode must be HOME, AWAY or AUTO")

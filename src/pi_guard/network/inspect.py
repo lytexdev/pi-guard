@@ -99,17 +99,29 @@ async def _open(ip: str, port: int) -> bool:
     return True
 
 
+WEB_HEAD_BYTES = 64 * 1024
+
+
 async def _web_info(ip: str, port: int) -> tuple[str | None, str | None]:
     """Title and server name of a web page, to recognise routers, NAS and the like."""
     import httpx
 
     scheme = "https" if port in (443, 8443) else "http"
     try:
-        async with httpx.AsyncClient(timeout=3, verify=False) as client:  # noqa: S501 - own LAN
-            response = await client.get(f"{scheme}://{ip}:{port}/")
+        async with (
+            httpx.AsyncClient(timeout=3, verify=False) as client,  # noqa: S501 - own LAN
+            client.stream("GET", f"{scheme}://{ip}:{port}/") as response,
+        ):
+            # The title is near the top; a device sending endlessly must not fill the memory.
+            head = bytearray()
+            async for chunk in response.aiter_bytes():
+                head += chunk
+                if len(head) >= WEB_HEAD_BYTES:
+                    break
     except httpx.HTTPError:
         return None, None
-    match = re.search(r"<title[^>]*>([^<]{1,80})", response.text, re.IGNORECASE)
+    text = bytes(head[:WEB_HEAD_BYTES]).decode(response.encoding or "utf-8", errors="replace")
+    match = re.search(r"<title[^>]*>([^<]{1,80})", text, re.IGNORECASE)
     server = response.headers.get("server", "")[:60] or None
     return (match.group(1).strip() if match else None), server
 

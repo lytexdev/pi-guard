@@ -21,6 +21,18 @@ All notable changes are documented here. The format follows
 - *Learn at the camera* said *no face* when the picture was too dark; it says so now.
 - *Who is this?* refused a person's own camera faces while they had only one or two pictures ("looks too different"),
   so nobody with few pictures could be taught. The check against wrong clicks starts with the third picture now.
+- Importing a WireGuard file refused about one key in 64: base64 keys may start with `/`, which looked like a path.
+- JSON requests without a length (chunked) were read up to the 60 MB upload limit, also on the login; they now stop
+  at the route's own limit. Broken JSON gets 400 instead of 500.
+- *Away for N minutes* with a wrong number gave 500 and still acknowledged the alarm; it is refused first now.
+- The device check read a LAN device's whole start page for its title; it reads 64 kB at most.
+- Failed logins and bans from many addresses are pruned, so the lists cannot grow for good.
+
+### Changed
+
+- `pi-guard.db` uses `synchronous=NORMAL` with WAL: one fsync less per write on the SD card. It stays consistent after a
+  power cut; only the last commits before it can be lost.
+- API tokens write their last use once a minute at most, like sessions, not on every request.
 
 ### Added
 

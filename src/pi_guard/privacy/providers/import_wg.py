@@ -92,8 +92,12 @@ def parse_wireguard_conf(text: str) -> dict[str, Any]:
             raise PrivacyError("web.priv_conf_keyfmt")
     if "PresharedKey" in peer and not _KEY_RE.match(peer["PresharedKey"]):
         raise PrivacyError("web.priv_conf_keyfmt")
-    # Reject values that look like options or paths.
-    for value in (*iface.values(), *peer.values()):
+    # Reject values that look like options or paths. Keys are checked above: base64 may start
+    # with "/", which made about one key in 64 look like a path.
+    keys = ("PrivateKey", "PublicKey", "PresharedKey")
+    for name, value in (*iface.items(), *peer.items()):
+        if name in keys:
+            continue
         looks_bad = value.startswith("-") or ("/" in value and key_looks_path(value))
         if looks_bad and not _is_cidr_or_dns(value):
             raise PrivacyError("web.priv_conf_value")

@@ -101,6 +101,24 @@ AllowedIPs = 0.0.0.0/0
         )
 
 
+def test_import_accepts_keys_starting_with_slash() -> None:
+    # Base64 keys may start with "/"; they once failed the path check.
+    key = "/" + "A" * 42 + "="
+    conf = f"""
+[Interface]
+PrivateKey = {key}
+Address = 10.64.0.2/32
+[Peer]
+PublicKey = {key}
+PresharedKey = {key}
+Endpoint = 1.2.3.4:51820
+AllowedIPs = 0.0.0.0/0
+"""
+    assert parse_wireguard_conf(conf)["public_key"] == key
+    with pytest.raises(PrivacyError, match="value"):
+        parse_wireguard_conf(conf.replace("Address = 10.64.0.2/32", "Address = /etc/x"))
+
+
 def test_custom_server_and_peer_file(privacy: PrivacyService) -> None:
     private, public = generate_keypair()
     CustomWireGuard().add_manual(

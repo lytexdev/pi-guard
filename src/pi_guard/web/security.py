@@ -32,6 +32,7 @@ HONEYPOT_PATHS = (
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 LOGIN_FAILURES = 8
 LOGIN_WINDOW = 900.0
+MAX_TRACKED = 5000  # addresses kept for failed logins and bans
 TARPIT_SECONDS = 3.0
 
 CSP = (
@@ -111,8 +112,15 @@ class Guard:
         return self._login_limiter.allow(ip)
 
     def login_failed(self, ip: str) -> None:
-        failures = self._failures[ip]
         now = time.monotonic()
+        if len(self._failures) > MAX_TRACKED:
+            # Many addresses (IPv6) must not grow this for good: old failures say nothing.
+            self._failures = defaultdict(deque, {
+                k: v for k, v in self._failures.items() if v and now - v[-1] <= LOGIN_WINDOW
+            })  # fmt: skip
+        if len(self._bans) > MAX_TRACKED:
+            self._bans = {k: until for k, until in self._bans.items() if until > now}
+        failures = self._failures[ip]
         failures.append(now)
         while failures and now - failures[0] > LOGIN_WINDOW:
             failures.popleft()

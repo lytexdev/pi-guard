@@ -114,7 +114,12 @@ def json_body_limit(limit: int) -> Callable[[web.Request], Awaitable[dict[str, A
     async def read(request: web.Request) -> dict[str, Any]:
         if request.content_length and request.content_length > limit:
             raise web.HTTPRequestEntityTooLarge(max_size=limit, actual_size=request.content_length)
-        data = await request.json()
+        # Read with the limit: a chunked body has no length and would otherwise be buffered up
+        # to the app's upload limit, also on routes anyone may call, such as the login.
+        try:
+            data = json.loads(await read_body(request, limit))
+        except (UnicodeDecodeError, ValueError):
+            raise web.HTTPBadRequest(text="invalid JSON") from None
         if not isinstance(data, dict):
             raise web.HTTPBadRequest(text="expected a JSON object")
         return data
