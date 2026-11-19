@@ -264,8 +264,10 @@ Die alten Adressen *Einstellungen → Apps* und *Einstellungen → Updates* leit
 - **Wochenplan** (*Einstellungen → Zuhause & Abwesend*): Zieh in einem Tag, wann normalerweise niemand zu Hause ist. pi-guard
   wechselt dann auf Abwesend und zurück. Was du von Hand einstellst, bleibt bis zum nächsten Wechsel im
   Plan. Mit Anwesenheitserkennung bleibt es auf Zuhause, solange jemand erkannt wird.
-- **Support** (*Einstellungen*): Name, Telefon, E-Mail und Adresse, alles optional. Erscheint klein in der
-  Übersicht, den Einstellungen, den Logs und beim KI-Assistenten.
+- **Support** (*Einstellungen → Support*): Name, Telefon, E-Mail und Adresse, alles optional. Erscheint klein in der
+  Übersicht, den Einstellungen, den Logs und beim KI-Assistenten. Eingetragen wird es bei der Installation oder in der
+  env-Datei (`PI_GUARD_SUPPORT_*`), nicht im Dashboard: Die Seite zeigt es nur an. Was eine ältere Version im Dashboard
+  gespeichert hat, erscheint, bis die env-Datei jemanden nennt.
 - **Logs:** *Einstellungen → Logs* filtert nach genau einem Level (INFO zeigt keine WARNING). Bekannte
   aiohttp-Meldungen „SSL connection is closed“ werden auf etwa eine pro Minute gedrosselt.
 
@@ -364,7 +366,7 @@ Im Expertenmodus endet *Messenger* mit *Testnachrichten*: eine Testnachricht üb
 jeden Admin dort oder in den Kanal von Slack, Matrix, Rocket.Chat oder Mastodon. Add-ons, die zu pi-guard gehören,
 tragen ein Häkchen; Darüberfahren, Fokus oder Antippen zeigt *Verifiziert*.
 
-Die Einstellungen sind in Grundlagen, Benachrichtigen, Geräte & Zugang und System gruppiert. Jeder Bereich beginnt
+Die Einstellungen sind in Grundlagen, Benachrichtigen, Geräte & Zugang und System (mit Add-ons) gruppiert. Jeder Bereich beginnt
 mit einer Zeile, was er enthält, und jede Einstellung zeigt ihre Erklärung direkt unter dem Namen. Ein/Aus ist ein
 Schalter. *Daten & Sicherung* hat vier Tabs: *Backup*, *Speicher*, *Umzug* und in der Expertenansicht *Export*; alte
 Links (`#/settings/backup`, `/storage`, `/move`, `/data`) öffnen den passenden Tab.

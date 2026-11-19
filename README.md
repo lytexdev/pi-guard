@@ -57,7 +57,8 @@ movement, and lets you look at your home with two buttons: **View photo** and
   router or Pi (see [backups](docs/backup.md#moving)).
 - **Linked households (optional).** Look after a grandmother's pi-guard from your own: her state, her alarms and every
   SOS, and her dashboard, without being in her Wi-Fi or VPN and with nothing opened at her home. She decides what you
-  may do. See [linked households](docs/federation.md).
+  may do, and each household can be a contact of the other: second line, emergency contact, SOS. See
+  [linked households](docs/federation.md).
 - **Optional, off by default:** Signal (via signal-cli), person detection,
   recognition of enrolled people, microphone clips, speaker playback, MQTT /
   Home Assistant.

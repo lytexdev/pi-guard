@@ -251,3 +251,54 @@ def test_a_household_answer_never_becomes_a_page_on_the_helper() -> None:
         assert _shown(evil, "inline") == ("application/octet-stream", "attachment")
     assert _shown("application/pdf", 'attachment; filename="sheet.pdf"') == (
         "application/octet-stream", 'attachment; filename="sheet.pdf"')  # fmt: skip
+
+
+async def test_households_reach_each_others_admins_as_contacts(two, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from pi_guard.federation import service
+    from pi_guard.messaging.base import ProviderUnavailableError, Reply
+
+    _, helper, helped_client, helped = two
+    hub, home = helper.dashboard.federation, helped.dashboard.federation
+    heard: dict[str, list[tuple[str, bool]]] = {"helper": [], "helped": []}
+
+    def listener(side: str) -> Callable[..., Any]:
+        async def notify(text: str, *_: Any, sos: bool = False, **__: Any) -> None:
+            heard[side].append((text, sos))
+
+        return notify
+
+    helper.messenger.notify_admins = listener("helper")
+    helped.messenger.notify_admins = listener("helped")
+    link_id = await home.join(p.parse_code(hub.invite()), "viewer", [])
+    [helping] = hub.store.links("helper")
+    await _until(lambda: link_id in home.connected and helping.id in hub.peers)
+    heard["helper"].clear()  # "new linked household"
+
+    # Both ways, through the provider every contact uses; only words, cleaned.
+    await helped.providers["household"].send(str(link_id), Reply("Bitte \x07melden", tone="alert"))
+    await _until(lambda: bool(heard["helper"]))
+    text, urgent = heard["helper"][0]
+    assert "Bitte melden" in text and urgent
+    await helper.providers["household"].send(str(helping.id), Reply("Alles gut?"))
+    await _until(lambda: bool(heard["helped"]))
+    assert "Alles gut?" in heard["helped"][0][0] and not heard["helped"][0][1]
+
+    with pytest.raises(ProviderUnavailableError):
+        await helped.providers["household"].send("999", Reply("x"))
+
+    # A flood from one household is cut off (one note came already in this window).
+    monkeypatch.setattr(service, "NOTES_PER_WINDOW", 2)
+    for n in range(4):
+        await helper.providers["household"].send(str(helping.id), Reply(f"spam {n}"))
+    await asyncio.sleep(0.3)
+    assert len(heard["helped"]) == 2
+
+    # The household is a way like a messenger: offered to contacts, valid as an address.
+    h = {"X-CSRF-Token": await _login(helped_client)}
+    data = await (await helped_client.get("/api/contacts")).json()
+    assert "household" in data["providers"] and data["households"][0]["id"] == link_id
+    contact = {"name": "Familie", "channels": [{"provider": "household", "address": str(link_id)}],
+               "share": {"sos": ["location"]}}  # fmt: skip
+    saved = await helped_client.post("/api/contacts", json={"contact": contact}, headers=h)
+    assert saved.status == 200
+    assert helped.escalation.contacts.recipients("sos")[0][:2] == ("household", str(link_id))

@@ -48,6 +48,20 @@ updates for devices, live video and sound, and the links themselves. Whatever ne
 helper never has it. The helped side can change the rights or remove the link at any time; the helper can remove it too.
 Removing ends an open connection at once.
 
+## Households as contacts
+
+A linked household is also a way to reach someone, like a messenger: in a contact's ways, *Linked household* picks
+one of the links. Such a contact can have any role: second line, emergency contact, gets alerts, SOS, trusted person.
+*As a contact* on a link opens the contact form with the household already filled in. This works on both sides of a
+link: the helper can name the helped household, and the helped household its helper.
+
+What goes through: the words of the message only. They reach the other household's admins on their messengers, under
+the household's name; an urgent message (an alarm, an escalation, an SOS) arrives there like an SOS, on every
+messenger. Pictures, sound, files and the emergency data sheet stay home. A household that sends more than 20 messages
+in 10 minutes is cut off until it calms down. A household that is not connected right now is skipped like a messenger
+that is down. Invitations with login details never go through a link: they would reach the other household's admins
+instead of the person.
+
 ## How it is protected
 
 - The helped Pi opens the connection: TLS to a certificate that is **pinned** in the code (no certificate authority

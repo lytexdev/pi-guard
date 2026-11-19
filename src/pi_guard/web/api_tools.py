@@ -1,4 +1,4 @@
-"""Tools in the dashboard: Signal linking, Wi-Fi access, weekly plan, support contact,
+"""Tools in the dashboard: Signal linking, Wi-Fi access, weekly plan,
 navigation, security scan and storage. Everything here is for admins, see VIEWER_GET."""
 
 from __future__ import annotations
@@ -61,7 +61,6 @@ NEEDS_NO_SETUP = ("chatapps", "vpn", "pihole")
 LINK_SECONDS = 300
 LINK_VALID = 110  # signal-cli gives up on a code after 120 s; a new one comes just before
 TEST_SECONDS = 3
-SUPPORT_FIELDS = {"name": 100, "phone": 40, "email": 100, "address": 300}
 NAV_ROUTES = re.compile(r"^[a-z]{2,20}$")
 MAX_NAV = 20
 ENCRYPTED_DNS_PORTS = (443, 853)
@@ -101,7 +100,6 @@ def routes() -> list[web.RouteDef]:
         web.delete("/api/calendars/{id}", calendars_remove),
         web.get("/api/schedule", schedule_get),
         web.put("/api/schedule", schedule_put),
-        web.put("/api/support", support_put),
         web.post("/api/me/nav", nav_put),
         web.get("/api/scan", scan_get),
         web.post("/api/scan", scan_start),
@@ -762,7 +760,7 @@ async def exposure(request: web.Request) -> web.Response:
     })  # fmt: skip
 
 
-# --- plan, support, navigation --------------------------------------------------------------
+# --- plan, navigation ------------------------------------------------------------------------
 
 
 async def schedule_get(request: web.Request) -> web.Response:
@@ -780,14 +778,6 @@ async def schedule_put(request: web.Request) -> web.Response:
     d.app.db.set(PLAN_KEY, plan)
     d.app.db.audit(_actor(request), "schedule.save", str(len(plan["blocks"])))
     return web.json_response(plan)
-
-
-async def support_put(request: web.Request) -> web.Response:
-    d = dashboard(request)
-    data = await read_json(request)
-    saved = {k: str(data.get(k, "")).strip()[:size] for k, size in SUPPORT_FIELDS.items()}
-    d.app.db.set("web.support", saved)
-    return web.json_response(saved)
 
 
 async def nav_put(request: web.Request) -> web.Response:

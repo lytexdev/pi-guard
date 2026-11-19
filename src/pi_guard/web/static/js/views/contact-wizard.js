@@ -15,6 +15,7 @@ const BRAND = {
   discord: "brand-discord",
   whatsapp: "brand-whatsapp",
   email: "mail",
+  household: "link",
 };
 const FITS = {
   sos: ["location", "phone_photo", "phone_audio", "pi_photo", "events", "home_audio", "medical"],
@@ -65,18 +66,26 @@ function rolePicker(roles, selected) {
   return { node, value: () => roles.filter((r) => boxes[r].checked), boxes };
 }
 
+// Where to write on one way: an address, or for a linked household the household itself.
+export function channelAddress(data, provider, value = "") {
+  if (provider === "household") {
+    const homes = data.households || [];
+    return h("select", { "aria-label": t("web.ec_address") }, homes.length
+      ? homes.map((home) => h("option", { value: String(home.id), selected: String(home.id) === String(value) },
+        `${home.name}${home.online ? "" : ` (${t("web.ec_household_offline")})`}`))
+      : h("option", { value: "" }, t("web.ec_household_none")));
+  }
+  return h("input", { value, maxlength: 200, placeholder: t(`web.ec_hint_${provider}`), "aria-label": t("web.ec_address") });
+}
+
 function messengerPicker(contactsData, existing = []) {
   // Only providers that are running get a clear on/off; others stay folded as optional.
   const byProvider = Object.fromEntries(existing.map((c) => [c.provider, c.address]));
   const rows = {};
   const card = (provider, active) => {
-    const on = h("input", { type: "checkbox", checked: Boolean(byProvider[provider]) || active });
-    const address = h("input", {
-      value: byProvider[provider] || "",
-      maxlength: 200,
-      placeholder: t(`web.ec_hint_${provider}`),
-      "aria-label": t("web.ec_address"),
-    });
+    // A household is never chosen by itself: it would add the first link to every new contact.
+    const on = h("input", { type: "checkbox", checked: Boolean(byProvider[provider]) || (active && provider !== "household") });
+    const address = channelAddress(contactsData, provider, byProvider[provider] || "");
     const body = h("div", { class: on.checked ? "cw-channel-body" : "cw-channel-body hidden" },
       address, h("small", { class: "muted" }, t(`web.ec_hint_${provider}`)));
     on.addEventListener("change", () => {
@@ -374,7 +383,7 @@ async function maybeSaveMedical(medicalVal, accountName) {
  */
 export async function openContactWizard(personsData, contactsData, person = {}, onDone = () => {}) {
   contactsData ||= await attempt(() => api("/api/contacts")) || {
-    providers: [], all_providers: ["telegram", "signal", "discord", "whatsapp", "email"],
+    providers: [], all_providers: ["telegram", "signal", "discord", "whatsapp", "email"], households: [],
     occasions: ["sos", "escalation"], shares: Object.keys(SHARE_ICON), medical: false,
     medical_modes: ["note", "sheet"], contacts: [], accounts: personsData.accounts || [],
   };
@@ -482,7 +491,7 @@ export async function openContactWizard(personsData, contactsData, person = {}, 
         h("div", { class: "row wrap" }, picked.map((r) =>
           h("span", { class: `badge person-role-${r}` }, icon(ROLE_ICONS[r]), " ", t(`web.person_role_${r}`)))),
         messengers.value().length
-          ? h("p", { class: "muted" }, messengers.value().map((c) => `${t(`web.ec_p_${c.provider}`)}: ${c.address}`).join(" · "))
+          ? h("p", { class: "muted" }, messengers.value().map((c) => `${t(`web.ec_p_${c.provider}`)}: ${c.provider === "household" ? (contactsData.households || []).find((x) => String(x.id) === c.address)?.name || c.address : c.address}`).join(" · "))
           : h("p", { class: "muted" }, t("web.cw_review_no_reach")),
         medical.value() ? h("p", { class: "muted" }, t("web.cw_review_medical")) : null,
         h("p", { class: "muted" }, t("web.cw_review_save"))));

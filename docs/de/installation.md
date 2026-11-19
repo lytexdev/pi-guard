@@ -52,6 +52,9 @@ Das Installationsprogramm fragt nach:
 - **Signal**: einfach mit `n` überspringen
 - **Anwesenheitserkennung über das WLAN-Handy**: optional, siehe unten
 - **Speicherort und Aufbewahrungsdauer** der Aufnahmen: Vorschläge übernehmen
+- **Ansprechpartner für Hilfe** (optional): Name, Telefon, E-Mail und Adresse, die klein im Dashboard stehen. Später
+  in `/etc/pi-guard/pi-guard.env` als `PI_GUARD_SUPPORT_NAME`, `…_PHONE`, `…_EMAIL`, `…_ADDRESS` änderbar (Werte mit
+  Leerzeichen in Anführungszeichen), danach `sudo systemctl restart pi-guard`
 
 Dashboard und Handy-App sind standardmäßig an. Notieren Sie die Zeile
 `first login: admin / …` und die Adresse `https://<pi>:8443`. Am Ende sollte

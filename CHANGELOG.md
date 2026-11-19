@@ -16,12 +16,19 @@ All notable changes are documented here. The format follows
   step (minutes, alarms, who takes part and what comes with the message), with a warning when the second line would
   come after the emergency contacts.
 - Tutorial chapters for notifications and the System page.
+- Linked households as contacts: a household link is a way to reach a contact, like a messenger, so a household can be
+  the second line, an emergency contact or get SOS, on both sides of a link. Only the words go through, to the other
+  household's admins; at most 20 messages in 10 minutes per household. *As a contact* on a link fills in the form.
 
 - Cameras can record narrower than they capture (`recording_width`): faces and snapshots keep 1080p while recordings
   stay 720p. *Sharper for faces* sets this when the camera offers 1080p.
 
 ### Changed
 
+- The support contact is set in the env file (`PI_GUARD_SUPPORT_NAME`, `_PHONE`, `_EMAIL`, `_ADDRESS`) or asked by
+  `install.sh`; *Settings → Support* only shows it. Values stored by an older dashboard show until the env file names
+  someone.
+- *Add-ons* moved in the settings from *Devices & access* down to *System*.
 - The phone app's tutorial text no longer names quick actions (removed in 1.12).
 - Dark faces: a head where no face was found is searched again with more local contrast, for events and for *Learn at
   the camera*. In night pictures of a USB webcam it found a few faces where there had been none; by day 24 more to 336.

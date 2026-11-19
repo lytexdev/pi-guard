@@ -33,6 +33,7 @@ All names start with `PI_GUARD_`. Lists are comma-separated.
 | `VOICE_WAKE_ENABLED` | `false` | listen for a wake phrase, offline, see [voice.md](voice.md) |
 | `VOICE_WAKE_PHRASES` | `hallo lytex,hi piguard` | wake phrases, comma separated |
 | `VOICE_BUTTON_GPIO` | `0` | BCM line of a talk button to ground; 0 = none |
+| `SUPPORT_NAME`, `SUPPORT_PHONE`, `SUPPORT_EMAIL`, `SUPPORT_ADDRESS` | – | who to ask for help, shown small in the dashboard and named by the assistant; set here or by `install.sh`, not in the dashboard. Values with spaces in double quotes |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `LOG_FORMAT` | `text` | `json` for one JSON object per line |
 | `LOG_FILE` | – | optional rotating log file (journald is used anyway) |
@@ -141,6 +142,9 @@ See [federation.md](federation.md). All off by default.
 | `FEDERATION_LISTEN` | `false` | other households may connect here (the helper's Pi); needs the port forwarded |
 | `FEDERATION_PORT` | `8444` | TCP port of the link, with its own certificate; never the dashboard |
 | `FEDERATION_ADDRESS` | – | public name or address of this Pi for codes; empty: the VPN's public name |
+
+With linked households on, each linked household is also a way to reach a contact (`household`), see
+[federation.md](federation.md#households-as-contacts).
 
 ### Dashboard, push, network
 

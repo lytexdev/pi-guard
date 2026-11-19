@@ -1792,7 +1792,7 @@
   "web.wd_5": "Sat",
   "web.wd_6": "Sun",
   "web.set_support": "Support",
-  "web.support_hint": "Who helps when something does not work. Shown small on the overview, in settings, logs and the assistant. All optional.",
+  "web.support_hint": "Who helps when something does not work. Shown small on the overview, in the settings, the logs and with the AI assistant.",
   "web.support_note": "Help:",
   "web.support_name": "Name",
   "web.support_phone": "Phone",
@@ -3699,5 +3699,14 @@
   "web.tut_notifications": "Notifications",
   "web.tut_notifications_text": "A staircase of four steps: what reaches you at once, when the second line and when the emergency contacts hear of an unanswered alarm, and what an SOS does.",
   "web.tut_system": "System",
-  "web.tut_system_text": "Whether everything runs: cameras, storage, temperature, power, messengers and backup. Also what the Pi is, and the updates for the Pi and the apps."
+  "web.tut_system_text": "Whether everything runs: cameras, storage, temperature, power, messengers and backup. Also what the Pi is, and the updates for the Pi and the apps.",
+  "web.support_none": "No support contact yet.",
+  "web.support_where": "Set it during installation or in /etc/pi-guard/pi-guard.env, then restart pi-guard (sudo systemctl restart pi-guard):",
+  "web.ec_p_household": "Linked household",
+  "web.ec_hint_household": "The message goes through the link to that household's admins, on their messengers. Pictures and sound stay here.",
+  "web.ec_household_offline": "not connected right now",
+  "web.ec_household_none": "No linked household yet",
+  "web.fed_as_contact": "As a contact",
+  "web.fed_as_contact_tip": "Add or edit this household as a contact, for example as emergency contact, second line or for SOS",
+  "federation.note": "🏠 Message from the household {name}:\n{text}"
 }

@@ -223,8 +223,10 @@ class Assistant:
         knowledge: Knowledge | None = None,
         searchers: tuple[Any, ...] = (),
         secret_key: bytes | None = None,
+        app_settings: Any = None,
     ) -> None:
         self.settings = settings
+        self.app_settings = app_settings  # the service's settings: the support contact
         self._db = db
         self._tz = tz
         self._api_key = api_key
@@ -383,9 +385,11 @@ class Assistant:
     # --- answers ------------------------------------------------------------------------
 
     def _support(self) -> str:
-        """Who helps with this system, as set in the dashboard. Never needs the AI."""
-        contact = self._db.get("web.support") or {}
-        return "\n".join(str(v) for v in contact.values() if v)
+        """Who helps with this system, from the env file. Never needs the AI."""
+        from pi_guard.config.support import support_contact
+
+        contact = support_contact(self.app_settings, self._db)
+        return "\n".join(v for v in contact.values() if v)
 
     async def ask(
         self,

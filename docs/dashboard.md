@@ -263,8 +263,11 @@ off for now.
 - **Weekly plan** (*Settings → Home & Away*): drag in a day to mark when nobody is usually home. pi-guard switches
   to Away and back at those times. What you set by hand stays until the next change in the plan. If
   presence detection is on, it stays at Home while someone is detected at home.
-- **Support** (*Settings*): optional name, phone, email and address, shown small on the overview, in
-  settings, logs and the assistant. The assistant answers with them when asked for help.
+- **Support** (*Settings → Support*): optional name, phone, email and address, shown small on the overview, in
+  settings, logs and the assistant. The assistant answers with them when asked for help. They are set during
+  installation or in the env file (`PI_GUARD_SUPPORT_*`, see [configuration](configuration.md)), not in the
+  dashboard: the page only shows them. Values an older version stored from the dashboard show until the env file names
+  someone.
 - **Logs:** *Settings → Logs* filters the service log by exact level (INFO does not include WARNING). Known noisy
   “SSL connection is closed” lines from aiohttp are rate-limited to once a minute.
 
@@ -415,7 +418,7 @@ clears it; the microphone records a spoken question where the browser allows it.
 
 ## Normal and expert view
 
-Settings are grouped into Basics, Alerts, Devices & access and System; each section starts with a line on what it
+Settings are grouped into Basics, Alerts, Devices & access and System (with Add-ons); each section starts with a line on what it
 holds, and each setting shows its explanation under its name. Switches are drawn as toggles. *Data & backup* holds
 four tabs: *Backup*, *Storage*, *Moving* and, in the expert view, *Export*; the old links (`#/settings/backup`,
 `/storage`, `/move`, `/data`) open the right tab.

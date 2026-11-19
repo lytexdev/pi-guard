@@ -434,6 +434,11 @@ class Dashboard:
         request[SESSION_KEY] = Session(f"api:{found['name']}", "", False)
         return await handler(request)
 
+    def support(self) -> dict[str, str]:
+        from pi_guard.config.support import support_contact
+
+        return support_contact(self.settings, self.app.db)
+
     def modules(self) -> dict[str, bool]:
         """Optional messengers and network parts as add-on cards."""
         saved = self.app.db.get("web.modules") or {}
@@ -530,7 +535,7 @@ class Dashboard:
             "appearance": self.app.db.get("web.appearance") or {},
             "pinned": (self.app.db.get("web.pinned") or []) if active else [],
             "nav": self.app.db.get(f"web.nav.{session.username}") or [] if session else [],
-            "support": (self.app.db.get("web.support") or {}) if active else {},
+            "support": self.support() if active else {},
             "modules": self.modules() if active else {},
             "version": __version__ if active else None,  # not before login: no hint for attackers
             "permissions": self.auth.permissions_of(session.username) if active and session else [],

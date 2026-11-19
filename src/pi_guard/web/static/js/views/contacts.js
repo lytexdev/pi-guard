@@ -1,8 +1,8 @@
 // Emergency contacts: who they are, how to reach them, and what each gets on which occasion.
 import { api, attempt, confirmDialog, fill, h, icon, t, toast } from "../api.js";
-import { openContactWizard } from "./contact-wizard.js";
+import { channelAddress, openContactWizard } from "./contact-wizard.js";
 
-const BRAND = { telegram: "brand-telegram", signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail" };
+const BRAND = { telegram: "brand-telegram", signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", household: "link" };
 export const SHARE_ICON = { location: "map-pin", phone_photo: "device-mobile", phone_audio: "microphone-off", pi_photo: "camera", events: "list-details", home_audio: "volume", medical: "user-check" };
 // What makes sense on which occasion: no phone and no place when alerts go unanswered at home.
 export const FITS = { sos: ["location", "phone_photo", "phone_audio", "pi_photo", "events", "home_audio", "medical"], escalation: ["events", "pi_photo"] };
@@ -21,12 +21,7 @@ function channelCards(data, channels) {
   const rows = {};
   const card = (provider, ready) => {
     const on = h("input", { type: "checkbox", checked: Boolean(byProvider[provider]) });
-    const address = h("input", {
-      value: byProvider[provider] || "",
-      maxlength: 200,
-      placeholder: t(`web.ec_hint_${provider}`),
-      "aria-label": t("web.ec_address"),
-    });
+    const address = channelAddress(data, provider, byProvider[provider] || "");
     const body = h("div", { class: on.checked ? "cw-channel-body" : "cw-channel-body hidden" },
       address, h("small", { class: "muted" }, t(`web.ec_hint_${provider}`)));
     on.addEventListener("change", () => {

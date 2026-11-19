@@ -200,6 +200,21 @@ fi
 chown root:"$USER_NAME" "$ENV_FILE"
 chmod 0640 "$ENV_FILE"
 
+# Who to ask for help: kept in the env file, not in the dashboard. Asked once, when none is set.
+env_quote() {  # a value for the env file: one line, no quotes, backslashes, $ or backticks
+    local value="${1//[$'\001'-$'\037'\"\\\$\`]/}"
+    printf '"%s"' "${value:0:$2}"
+}
+if (( ! ASSUME_YES )) && ! grep -q '^PI_GUARD_SUPPORT_\(NAME\|PHONE\|EMAIL\|ADDRESS\)=' "$ENV_FILE"; then
+    say "support contact (optional): who people in the home can ask for help, shown small in the dashboard"
+    if yes_no "Enter a support contact now?" n; then
+        ask "Name" ""; [[ -n "$REPLY" ]] && set_env PI_GUARD_SUPPORT_NAME "$(env_quote "$REPLY" 100)"
+        ask "Phone" ""; [[ -n "$REPLY" ]] && set_env PI_GUARD_SUPPORT_PHONE "$(env_quote "$REPLY" 40)"
+        ask "Email" ""; [[ -n "$REPLY" ]] && set_env PI_GUARD_SUPPORT_EMAIL "$(env_quote "$REPLY" 100)"
+        ask "Address (one line)" ""; [[ -n "$REPLY" ]] && set_env PI_GUARD_SUPPORT_ADDRESS "$(env_quote "$REPLY" 300)"
+    fi
+fi
+
 if [[ -f "$CONF/config.yaml" ]] && ! "$PREFIX/venv/bin/python" -c '
 import sys
 from pathlib import Path

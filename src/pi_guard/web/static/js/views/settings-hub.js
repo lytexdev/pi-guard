@@ -36,8 +36,8 @@ const SECTIONS = [
   ["messaging", "message", ["telegram", "discord", "email", "whatsapp", "signal", "chatapps"], "alerts"], ["notifications", "bell-ringing", null, "alerts"],
   ["emergency", "alert-triangle", ["emergency"], "alerts"],
   ["devices", "camera", null, "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
-  ["addons", "cpu", null, "home"], ["federation", "link", ["federation"], "home"],
-  ["data", "database", ["backup"], "system"], ["integrations", "router", ["integrations", "network"], "system"],
+  ["federation", "link", ["federation"], "home"],
+  ["data", "database", ["backup"], "system"], ["addons", "cpu", null, "system"], ["integrations", "router", ["integrations", "network"], "system"],
   ["updates", "refresh", ["updates", "mobile"], "system"],
   ["logs", "list-details", null, "system"], ["support", "headset", null, "system"],
 ];
@@ -288,17 +288,14 @@ async function emergencyOverview(body) {
   h("p", { class: "muted" }, h("small", {}, t("web.em_medical_hint"))));
 }
 
+// Who to ask: set in the env file or during installation, shown here as it is.
 async function supportSection(box) {
-  const saved = state.session.support || {};
-  const input = (key, type = "text") => h("input", { id: `sp_${key}`, type, value: saved[key] || "" });
-  const fields = { name: input("name"), phone: input("phone", "tel"), email: input("email", "email"), address: h("textarea", { id: "sp_address", rows: 3 }, saved.address || "") };
+  const s = state.session.support || {};
+  const rows = ["name", "phone", "email", "address"].filter((key) => s[key]).map((key) => [h("dt", {}, t(`web.support_${key}`)), h("dd", {}, s[key])]);
   fill(box, h("section", { class: "panel stack" }, h("h2", {}, t("web.set_support")), h("p", { class: "muted" }, t("web.support_hint")),
-    Object.entries(fields).map(([key, el]) => h("div", { class: "field" }, h("label", { for: el.id }, t(`web.support_${key}`)), el)),
-    h("button", { class: "primary", onclick: async () => {
-      const values = Object.fromEntries(Object.entries(fields).map(([key, el]) => [key, el.value]));
-      const result = await attempt(() => api("/api/support", { method: "PUT", body: values }), t("web.saved"));
-      if (result) state.session.support = result;
-    } }, icon("check"), t("web.save"))),
+    rows.length ? h("dl", { class: "kv" }, rows) : h("p", { class: "notice" }, t("web.support_none")),
+    h("p", { class: "muted" }, h("small", {}, t("web.support_where"))),
+    h("pre", { class: "mono wrap" }, "PI_GUARD_SUPPORT_NAME=\"Max Mustermann\"\nPI_GUARD_SUPPORT_PHONE=+49 170 1234567\nPI_GUARD_SUPPORT_EMAIL=hilfe@example.org\nPI_GUARD_SUPPORT_ADDRESS=\"Musterstraße 1, 12345 Musterstadt\"")),
     await donationPanel());
 }
 

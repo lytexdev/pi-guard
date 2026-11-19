@@ -4,6 +4,8 @@ Frames are JSON over one WebSocket that the helped Pi opens:
   hello -> challenge -> auth -> ok         (both sides prove their key, see protocol.py)
   helped -> helper: status, alert, res     (answers carry the helped dashboard's reply)
   helper -> helped: req                    (a dashboard request, checked again on arrival)
+  both ways:        note                   (a message for the other household's admins, from
+                                            a contact that is reached through the link)
 """
 
 from __future__ import annotations
@@ -48,6 +50,9 @@ FORWARD = {EventType.UNKNOWN_PERSON, EventType.PERSON_DETECTED, EventType.EMERGE
            EventType.SERVICE_DOWN}  # fmt: skip
 FORWARD_EVERY = 300  # the same kind of alarm at most this often
 HEARD_EVERY = 60  # helper side: messages per household and kind, whatever arrives
+NOTE_MAX = 3000  # characters of a note; pictures do not go through the link
+NOTES_PER_WINDOW = 20  # notes taken from one household per NOTE_WINDOW seconds
+NOTE_WINDOW = 600
 HEADER = "X-PiGuard-Federation"
 HEADER_LINK = "X-PiGuard-Federation-Link"
 CERT_DAYS = 3650
@@ -80,6 +85,7 @@ class Federation:
         self._clients: dict[int, asyncio.Task[None]] = {}
         self._forwarded: dict[tuple[int, str], float] = {}  # (link, kind) -> monotonic
         self._heard: dict[tuple[int, str], float] = {}
+        self._notes: dict[int, deque[float]] = defaultdict(deque)  # link -> when notes came
         self._events = self.app.bus.subscribe("federation", 50)
         self._sockets: dict[int, aiohttp.ClientWebSocketResponse] = {}
 
@@ -250,6 +256,8 @@ class Federation:
             await asyncio.to_thread(self.store.seen, peer.link.id)
         elif kind == "alert":
             await self._alert(peer.link, frame)
+        elif kind == "note":
+            await self._note(peer.link, frame)
 
     async def _alert(self, link: Link, frame: dict[str, Any]) -> None:
         what = str(frame.get("kind", ""))[:40]
@@ -393,11 +401,14 @@ class Federation:
                     if message.type is not aiohttp.WSMsgType.TEXT:
                         break
                     frame = message.json()
-                    if frame.get("t") != "req":
-                        continue
                     current = self.store.get(link.id)  # rights may have changed meanwhile
                     if current is None:
                         break
+                    if frame.get("t") == "note":
+                        await self._note(current, frame)
+                        continue
+                    if frame.get("t") != "req":
+                        continue
                     task = asyncio.create_task(self._answer(ws, gate, current, frame))
                     tasks.add(task)
                     task.add_done_callback(tasks.discard)
@@ -515,6 +526,57 @@ class Federation:
                 await ws.send_json(frame)
                 self._forwarded[key] = now
 
+    # --- both sides: notes for the other household's admins -------------------------------
+
+    def reachable(self, link_id: int) -> bool:
+        link = self.store.get(link_id)
+        if link is None:
+            return False
+        if link.side == "helper":
+            return link.id in self.peers
+        ws = self._sockets.get(link.id)
+        return ws is not None and not ws.closed
+
+    async def note(self, link_id: int, text: str, urgent: bool = False) -> None:
+        """A message to the admins of a linked household, in either direction. Raises
+        ProviderUnavailableError when the household is not connected now."""
+        from pi_guard.messaging.base import ProviderUnavailableError
+
+        link = self.store.get(link_id)
+        frame = {"t": "note", "text": _clean_text(text), "urgent": bool(urgent)}
+        if link is None:
+            raise ProviderUnavailableError(f"no household link {link_id}")
+        if link.side == "helper":
+            peer = self.peers.get(link.id)
+            ws: Any = peer.ws if peer else None
+        else:
+            ws = self._sockets.get(link.id)
+        if ws is None or ws.closed:
+            raise ProviderUnavailableError(f"household {link.name} is not connected")
+        try:
+            await ws.send_json(frame)
+        except (aiohttp.ClientError, ConnectionError, RuntimeError) as exc:
+            raise ProviderUnavailableError(str(exc)) from exc
+
+    async def _note(self, link: Link, frame: dict[str, Any]) -> None:
+        """A note from the other household: its words, under its name, to this Pi's admins."""
+        text = _clean_text(frame.get("text"))
+        if not text:
+            return
+        now = time.monotonic()
+        recent = self._notes[link.id]
+        while recent and now - recent[0] > NOTE_WINDOW:
+            recent.popleft()
+        if len(recent) >= NOTES_PER_WINDOW:
+            log.warning("too many notes from household %s; dropped one", link.name)
+            return
+        recent.append(now)
+        urgent = bool(frame.get("urgent"))
+        words = self._t("federation.note", name=link.name, text=text)
+        await self.app.messenger.notify_admins(
+            words, tone="alert" if urgent else "info", sos=urgent
+        )
+
     # --- helped side: who a tunnelled request is --------------------------------------------
 
     def session_for(self, request: web.Request) -> Session | None:
@@ -572,3 +634,9 @@ def _clean_status(raw: object) -> dict[str, Any]:
         status["last_event"] = {"ts": str(last.get("ts", ""))[:40],
                                 "type": str(last.get("type", ""))[:40]}  # fmt: skip
     return status
+
+
+def _clean_text(raw: object) -> str:
+    """Words only: no control characters but line breaks, and not too long."""
+    text = "".join(c for c in str(raw or "") if c == "\n" or c.isprintable())
+    return text.strip()[:NOTE_MAX]

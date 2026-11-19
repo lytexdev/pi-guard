@@ -62,7 +62,8 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
   Pi ([Umzug](docs/de/backup.md#umzug)). Siehe [docs/de/netzwerk.md](docs/de/netzwerk.md).
 - **Verbundene Haushalte (optional):** Den pi-guard der Oma vom eigenen aus betreuen: ihren Zustand, ihre Alarme und
   jedes SOS, und ihr Dashboard, ohne in ihrem WLAN oder VPN zu sein und ohne dass bei ihr etwas geöffnet wird. Sie
-  bestimmt, was Sie dürfen. Siehe [Verbundene Haushalte](docs/de/haushalte.md).
+  bestimmt, was Sie dürfen, und jeder Haushalt kann Kontakt des anderen sein: zweite Instanz, Notfallkontakt, SOS. Siehe
+  [Verbundene Haushalte](docs/de/haushalte.md).
 - **Optional und standardmäßig aus:** Signal, [Discord](docs/de/discord.md), [E-Mail](docs/de/email.md), Personenerkennung,
   Gesichtserkennung eingetragener Personen, Mikrofon, Lautsprecher, MQTT /
   Home Assistant. Die [Handy-App](docs/de/mobile.md) ist standardmäßig an.

@@ -79,7 +79,7 @@ class Addons:
             self.assistant = Assistant(
                 settings.assistant, app.db, s.tz, api_key or None, deepl or None, app.media_dir,
                 Knowledge(s.data_dir / "knowledge.db"), _searchers(settings.assistant, s),
-                secret_key=secret,
+                secret_key=secret, app_settings=s,
             )  # fmt: skip
         self.agents: AgentHub | None = None
         if settings.agents.enabled:

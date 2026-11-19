@@ -6,7 +6,7 @@ import { openContactWizard } from "./contact-wizard.js";
 import { captureDialog } from "./capture.js";
 
 const ROLE_ICONS = { household: "home", trusted: "user-check", backup: "users", emergency: "alert-triangle", alert: "bell", viewer: "eye" };
-const BRAND = { telegram: "brand-telegram", signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail" };
+const BRAND = { telegram: "brand-telegram", signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", household: "link" };
 
 const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
 const hue = (name) => [...name].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 360;
@@ -81,7 +81,8 @@ function channelsOf(p, contacts) {
     if (c.email) found.push(["email", c.email]);
   }
   const seen = new Set();
-  return found.filter(([p, a]) => { const key = `${p}:${a}`; if (seen.has(key)) return false; seen.add(key); return true; });
+  // Invitations carry logins; a linked household would pass them to its own admins (api_persons._channels).
+  return found.filter(([p, a]) => { const key = `${p}:${a}`; if (p === "household" || seen.has(key)) return false; seen.add(key); return true; });
 }
 
 // What a start needs, chosen part by part. A login and a VPN access outlive the session: they

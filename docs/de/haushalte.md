@@ -50,6 +50,21 @@ Sicherungen, Exporte, Geräte-Updates, Live-Bild und -Ton und die Verbindungen s
 vor Ort: Die helfende Person hat es nie. Der betreute Haushalt kann die Rechte jederzeit ändern oder die Verbindung
 trennen; die helfende Person kann sie auch trennen. Trennen beendet eine offene Verbindung sofort.
 
+## Haushalte als Kontakte
+
+Ein verbundener Haushalt ist auch ein Weg, jemanden zu erreichen, wie ein Messenger: Bei den Wegen eines Kontakts wählt
+*Verbundener Haushalt* eine der Verbindungen. So ein Kontakt kann jede Rolle haben: zweite Instanz, Notfallkontakt,
+bekommt Alarme, SOS, vertraute Person. *Als Kontakt* bei einer Verbindung öffnet das Kontaktformular mit dem Haushalt
+schon eingetragen. Das geht auf beiden Seiten: Die helfende Person kann den betreuten Haushalt eintragen und der
+betreute Haushalt die helfende Person.
+
+Was durchgeht: nur der Text der Nachricht. Er erreicht die Admins des anderen Haushalts auf ihren Messengern, unter dem
+Namen des Haushalts; eine dringende Nachricht (Alarm, Eskalation, SOS) kommt dort wie ein SOS an, auf jedem Messenger.
+Bilder, Ton, Dateien und das Notfalldatenblatt bleiben zu Hause. Ein Haushalt, der mehr als 20 Nachrichten in
+10 Minuten schickt, wird gebremst. Ist ein Haushalt gerade nicht verbunden, wird er übersprungen wie ein Messenger, der
+nicht läuft. Einladungen mit Zugangsdaten gehen nie über eine Verbindung: Sie kämen bei den Admins des anderen Haushalts
+an statt bei der Person.
+
 ## Wie es geschützt ist
 
 - Der betreute Pi baut die Verbindung auf: TLS zu einem Zertifikat, das im Code **festgelegt** ist (keine

@@ -32,7 +32,8 @@ What the installer does, in order:
 5. installs pi-guard into `/opt/pi-guard/venv` and links `/usr/local/bin/pi-guard`
 6. asks for language, time zone, optional bot token and admin user ID, optional
    Signal, optional presence detection, recording location and retention, and
-   writes `/etc/pi-guard/pi-guard.env` (mode `0640 root:pi-guard`)
+   writes `/etc/pi-guard/pi-guard.env` (mode `0640 root:pi-guard`); then, once while
+   none is set, an optional support contact (name, phone, email, address) for the dashboard
 7. turns the dashboard and phone app on by default, prints a one-time first
    login (`admin` / random password) and the address `https://<pi>:8443`
 8. writes `/etc/pi-guard/config.yaml` for the detected hardware

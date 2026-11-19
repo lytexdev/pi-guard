@@ -242,6 +242,12 @@ class Settings(BaseSettings):
     update_channel: Literal["stable", "beta"] = "stable"
     # Where anonymous statistics go when the owner switches them on (diagnostics/contribution.py).
     support_url: str | None = None
+    # Who to ask for help: shown small in the dashboard. Set in the env file or by install.sh,
+    # not in the dashboard, so a lost login cannot change where people turn to.
+    support_name: str = Field("", max_length=100)
+    support_phone: str = Field("", max_length=40)
+    support_email: str = Field("", max_length=100)
+    support_address: str = Field("", max_length=300)
     dashboard_allow_unauthenticated: bool = False
     dashboard_rate_limit_per_minute: int = Field(240, ge=30, le=10000)
     dashboard_honeypot: bool = True

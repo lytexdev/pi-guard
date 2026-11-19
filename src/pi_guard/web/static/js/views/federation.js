@@ -61,6 +61,18 @@ function statusLine(link) {
     s.last_event ? `${t(`event.${s.last_event.type}`)} ${when(s.last_event.ts)}` : null, s.version ? `v${s.version}` : null].filter(Boolean).join(" · ");
 }
 
+// A linked household as a contact: a person whose way is the link, with any role there,
+// for example emergency contact or second line.
+async function asContact(link) {
+  const [persons, contacts] = await Promise.all([attempt(() => api("/api/persons")), api("/api/contacts").catch(() => null)]);
+  if (!persons) return;
+  const ref = `household:${link.id}`;
+  const known = (persons.persons || []).find((p) => (p.links || []).some((l) => l.kind === "messenger" && l.ref === ref));
+  const { openContactWizard } = await import("./contact-wizard.js");
+  await openContactWizard(persons, contacts, known || { display_name: link.name, roles: [], links: [{ kind: "messenger", ref }] },
+    () => toast(t("web.saved")));
+}
+
 function linkRow(link, data, redraw) {
   const helper = link.side === "helper";
   const remove = async () => {
@@ -88,6 +100,7 @@ function linkRow(link, data, redraw) {
         h("small", { class: "muted block" }, helper ? statusLine(link) : [link.extras.map((x) => t(`web.fed_extra_${x}`)).join(", ") || t("web.fed_no_extras"), link.host ? ` · ${link.host}` : ""]),
         h("small", { class: "muted block" }, t("web.fed_key", { fingerprint: link.fingerprint }), link.last_seen ? ` · ${t("web.fed_last_seen", { time: when(link.last_seen) })}` : "")),
       helper ? h("a", { class: `button small${link.online ? " primary" : ""}`, href: `/fed/${link.id}/`, target: "_blank", rel: "noopener", "aria-disabled": String(!link.online) }, icon("home"), t("web.fed_open")) : h("button", { class: "small", onclick: rights }, icon("key"), t("web.fed_rights")),
+      h("button", { class: "small", title: t("web.fed_as_contact_tip"), onclick: () => asContact(link) }, icon("user-plus"), t("web.fed_as_contact")),
       h("button", { class: "icon-only", title: t("web.fed_rename"), onclick: rename }, icon("pencil")),
       h("button", { class: "icon-only danger", title: t("web.fed_remove"), onclick: remove }, icon("trash"))),
     helper && link.alerts?.length ? h("ul", { class: "list compact" }, link.alerts.map((a) => h("li", {}, icon(a.kind === "sos" ? "alert-triangle" : "bell"),

@@ -53,11 +53,17 @@ async def listing(request: web.Request) -> web.Response:
         linked = persons.find_by_link("emergency_contact", str(c.id))
         item["person_id"] = linked.id if linked else None
         contacts.append(item)
+    # Linked households can be reached like a messenger; without the feature they are not offered.
+    households = [{"id": link.id, "name": link.name, "side": link.side,
+                   "online": d.federation.reachable(link.id)}
+                  for link in d.federation.store.links()] if d.federation else []  # fmt: skip
+    offered = [p for p in PROVIDERS if p != "household" or d.federation]
     return web.json_response({
         "accounts": accounts,
         "contacts": contacts,
-        "providers": [p for p in PROVIDERS if p in app.providers],
-        "all_providers": list(PROVIDERS), "occasions": list(OCCASIONS), "shares": list(SHARES),
+        "providers": [p for p in offered if p in app.providers],
+        "all_providers": offered, "households": households,
+        "occasions": list(OCCASIONS), "shares": list(SHARES),
         "medical_modes": list(MEDICAL_MODES), "medical": app.addons.medical is not None,
         "after_alerts": app.settings.emergency_after_alerts,
         "after_minutes": app.settings.emergency_after_minutes,

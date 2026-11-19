@@ -25,7 +25,8 @@ OCCASIONS = ("sos", "escalation")
 SHARES = ("location", "phone_photo", "phone_audio", "pi_photo", "events", "home_audio",
           "medical")  # fmt: skip
 MEDICAL_MODES = ("note", "sheet")  # note: only that data exist; sheet: the PDF goes to the chat
-PROVIDERS = ("telegram", "signal", "discord", "whatsapp", "email")
+# "household": a linked household (federation/), the address is the link's id.
+PROVIDERS = ("telegram", "signal", "discord", "whatsapp", "email", "household")
 # What the old settings sent; new contacts start with this as well, without medical data.
 DEFAULT_SHARE = {
     "sos": ["location", "phone_photo", "phone_audio", "pi_photo", "home_audio"],
@@ -39,6 +40,7 @@ _ADDRESS = {
     "discord": re.compile(r"^\d{5,25}$"),
     "whatsapp": re.compile(r"^\+?\d{6,16}$"),
     "email": re.compile(r"^[^@\s<>]{1,64}@[^@\s<>]{1,190}\.[A-Za-z]{2,}$"),
+    "household": re.compile(r"^[1-9]\d{0,8}$"),
 }
 
 

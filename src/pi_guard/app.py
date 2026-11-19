@@ -178,6 +178,10 @@ class App:
         if s.mobile_enabled:
             self.mobile = MobileHub(self.db)
             self.providers["mobile"] = MobileProvider(self.mobile)
+        if s.federation_enabled and s.dashboard_enabled:
+            from pi_guard.federation.provider import HouseholdProvider
+
+            self.providers["household"] = HouseholdProvider(self)  # linked households as contacts
         if s.presence_enabled:
             presence = config.file.presence
             self.presence = PresenceMonitor(

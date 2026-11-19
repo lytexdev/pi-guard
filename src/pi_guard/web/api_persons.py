@@ -176,7 +176,8 @@ def _channels(request: web.Request, person: Any) -> list[tuple[str, str]]:
                 found += list(contact.channels)
                 if contact.email:
                     found.append(("email", contact.email))
-    return list(dict.fromkeys(found))
+    # Invitations carry logins: through a linked household they would reach its admins instead.
+    return [c for c in dict.fromkeys(found) if c[0] != "household"]
 
 
 # What an invitation can hold, and the area a member needs for each.

@@ -208,17 +208,19 @@ async def test_fritzbox_sends_arguments_escaped(monkeypatch: pytest.MonkeyPatch)
 
 
 async def test_support_navigation_and_plan_api(tmp_path: Path) -> None:
-    client, app = await _client(tmp_path)
+    client, app = await _client(tmp_path, support_name="Lytex", support_phone="+49 170")
     try:
         headers = {"X-CSRF-Token": await _login(client)}
-        body = {"name": "Lytex", "phone": "+49 170", "email": "", "address": "", "x": "no"}
-        assert (await client.put("/api/support", json=body, headers=headers)).status == 200
+        # The support contact comes from the env file; the dashboard cannot change it.
+        body = {"name": "Someone else"}
+        assert (await client.put("/api/support", json=body, headers=headers)).status in (404, 405)
         order = {"order": ["live", "overview"]}
         assert (await client.post("/api/me/nav", json=order, headers=headers)).status == 200
         bad = {"order": ["../x"]}
         assert (await client.post("/api/me/nav", json=bad, headers=headers)).status == 400
         session = await (await client.get("/api/session")).json()
-        assert session["support"]["name"] == "Lytex" and "x" not in session["support"]
+        assert session["support"] == {"name": "Lytex", "phone": "+49 170", "email": "",
+                                      "address": ""}  # fmt: skip
         assert session["nav"] == ["live", "overview"]
         plan = {"enabled": True, "blocks": [{"day": 1, "start": 60, "end": 120, "label": "x"}]}
         assert (await client.put("/api/schedule", json=plan, headers=headers)).status == 200
@@ -1003,3 +1005,35 @@ def test_the_forecast_counts_the_last_day(tmp_path: Path) -> None:
     old.write_bytes(b"x" * 99)
     os.utime(old, (1, 1))
     assert per_day(tmp_path, new.stat().st_mtime + 1) == 10
+
+
+async def test_support_from_an_older_dashboard_shows_until_the_env_file_names_someone(
+    tmp_path: Path,
+) -> None:
+    client, app = await _client(tmp_path)
+    try:
+        await _login(client)
+        app.db.set("web.support", {"name": "Alt", "phone": "1", "extra": "no"})
+        session = await (await client.get("/api/session")).json()
+        assert session["support"] == {"name": "Alt", "phone": "1"}
+        app.dashboard.settings.support_name = "Neu"
+        session = await (await client.get("/api/session")).json()
+        assert session["support"]["name"] == "Neu" and session["support"]["phone"] == ""
+    finally:
+        await client.close()
+        app.db.close()
+
+
+def test_the_support_contact_comes_from_the_settings() -> None:
+    from types import SimpleNamespace
+
+    from pi_guard.config.support import support_contact
+
+    class Db:
+        def get(self, key: str) -> object:
+            return {"name": "Alt", "email": "a@b.de", "other": "x"} if key == "web.support" else None
+
+    empty = SimpleNamespace(support_name="", support_phone="", support_email="", support_address="")
+    assert support_contact(empty, Db()) == {"name": "Alt", "email": "a@b.de"}
+    own = SimpleNamespace(**{**vars(empty), "support_phone": "+49 170"})
+    assert support_contact(own, Db())["phone"] == "+49 170"

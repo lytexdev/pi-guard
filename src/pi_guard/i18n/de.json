@@ -1792,7 +1792,7 @@
   "web.wd_5": "Sa",
   "web.wd_6": "So",
   "web.set_support": "Support",
-  "web.support_hint": "Wer hilft, wenn etwas nicht klappt. Erscheint klein in der Übersicht, den Einstellungen, den Logs und beim KI-Assistenten. Alles optional.",
+  "web.support_hint": "Wer hilft, wenn etwas nicht klappt. Erscheint klein in der Übersicht, den Einstellungen, den Logs und beim KI-Assistenten.",
   "web.support_note": "Hilfe:",
   "web.support_name": "Name",
   "web.support_phone": "Telefon",
@@ -3699,5 +3699,14 @@
   "web.tut_notifications": "Benachrichtigungen",
   "web.tut_notifications_text": "Eine Treppe mit vier Stufen: was sofort an euch geht, wann die zweite Instanz und wann die Notfallkontakte von einem unbeantworteten Alarm hören, und was ein SOS tut.",
   "web.tut_system": "System",
-  "web.tut_system_text": "Ob alles läuft: Kameras, Speicher, Temperatur, Strom, Messenger und Sicherung. Dazu was für ein Gerät der Pi ist und die Updates für Pi und Apps."
+  "web.tut_system_text": "Ob alles läuft: Kameras, Speicher, Temperatur, Strom, Messenger und Sicherung. Dazu was für ein Gerät der Pi ist und die Updates für Pi und Apps.",
+  "web.support_none": "Noch kein Ansprechpartner eingetragen.",
+  "web.support_where": "Eingetragen wird er bei der Installation oder in /etc/pi-guard/pi-guard.env, danach pi-guard neu starten (sudo systemctl restart pi-guard):",
+  "web.ec_p_household": "Verbundener Haushalt",
+  "web.ec_hint_household": "Die Nachricht geht über die Verbindung an die Admins dieses Haushalts, auf ihren Messengern. Bilder und Ton bleiben hier.",
+  "web.ec_household_offline": "gerade nicht verbunden",
+  "web.ec_household_none": "Noch kein verbundener Haushalt",
+  "web.fed_as_contact": "Als Kontakt",
+  "web.fed_as_contact_tip": "Diesen Haushalt als Kontakt anlegen oder bearbeiten, etwa als Notfallkontakt, zweite Instanz oder für SOS",
+  "federation.note": "🏠 Nachricht aus dem Haushalt {name}:\n{text}"
 }
