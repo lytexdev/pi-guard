@@ -1108,3 +1108,38 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .fed-banner { position: sticky; top: 0; z-index: 30; grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: color-mix(in srgb, var(--accent) 22%, var(--surface)); border-bottom: 1px solid var(--accent); }
 .fed-boot { display: grid; place-items: center; min-height: 60vh; }
 .fed-link .dot { margin-top: 6px; }
+
+/* Notifications as a staircase: each later step sits one stair further in. */
+.stairs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.stair-body { min-width: 0; } .stair-body select { max-width: 100%; min-width: 0; }
+.stair-body .list li > select { flex: 0 1 auto; width: auto; }
+.stair { position: relative; margin-left: calc((var(--stair, 1) - 1) * 28px); }
+.stair-1 { --stair: 1; } .stair-2 { --stair: 2; } .stair-3 { --stair: 3; } .stair-4 { --stair: 4; }
+.stair + .stair::before { content: ""; position: absolute; left: -14px; top: -12px; width: 14px; height: 34px;
+  border-left: 2px solid var(--line); border-bottom: 2px solid var(--line); border-bottom-left-radius: 8px; }
+.stair > details { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--stair-color, var(--accent)); border-radius: 10px; }
+.stair.warn { --stair-color: var(--warn); } .stair.danger { --stair-color: var(--danger); }
+.stair.sos > details { background: color-mix(in srgb, var(--danger) 7%, var(--surface)); }
+.stair summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; }
+.stair summary::-webkit-details-marker { display: none; }
+.stair-number { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  background: var(--stair-color, var(--accent)); color: var(--accent-ink); font-weight: 700; }
+.stair-text { flex: 1 1 9rem; min-width: 0; }
+.stair summary { flex-wrap: wrap; }
+.stair summary > .badge { flex: none; white-space: nowrap; margin-left: auto; }
+.stair-body { padding: 0 14px 14px; }
+.stair-field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stair-field input { width: 6rem; }
+.stair-contact { flex-direction: column; align-items: stretch; }
+.stair-contact > .row, .stair-shares { justify-content: flex-start; width: 100%; }
+.stair-shares { padding-left: 2.5rem; gap: 6px; }
+.stair-shares .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+@media (max-width: 640px) { .stair { margin-left: calc((var(--stair, 1) - 1) * 10px); } .stair + .stair::before { display: none; } .stair-shares { padding-left: 0; } }
+
+/* System page: one line per health check, the summary on top. */
+.health-summary { display: flex; align-items: center; gap: 14px; border-left: 4px solid var(--ok); }
+.health-summary.warn { border-left-color: var(--warn); } .health-summary.danger { border-left-color: var(--danger); }
+.health-summary h2 { margin: 0; }
+.health-dot { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--surface-2); color: var(--ok); }
+.health-dot.warn { color: var(--warn); } .health-dot.danger { color: var(--danger); }
+.health-list li { align-items: center; }

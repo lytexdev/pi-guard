@@ -42,6 +42,8 @@ const SECTIONS = [
   ["logs", "list-details", null, "system"], ["support", "headset", null, "system"],
 ];
 const NAV_GROUPS = ["basics", "alerts", "home", "system"];
+// Sections that open elsewhere: still found by the search, not listed in the settings menu.
+const ELSEWHERE = { updates: "system/updates" };
 
 // Sections for people who know what they are looking for.
 const EXPERT_SECTIONS = ["integrations"];
@@ -246,6 +248,28 @@ async function updateSection(root) {
   await Promise.all([draw(), api("/api/apps").then(drawApps).catch(() => fill(apps))]);
 }
 
+// Updates of the Pi and the apps (System page): versions first, then the settings with their
+// own save bar, then invitations and phones.
+export async function updatesPage(root) {
+  const status = h("div");
+  const body = h("div", { class: "hub-body stack" });
+  const extra = h("div", { class: "stack" });
+  const saveBar = h("div", { class: "save-bar hidden", role: "status" });
+  fill(root, status, body, saveBar, extra);
+  let save = null;
+  await updateSection(status);
+  const view = await import("./settings.js");
+  await view.render(body, [], { embedded: true, groups: ["updates", "mobile"], register: (fn) => { save = fn; },
+    onSaved: (changed) => { saveBar.classList.add("hidden"); if (Object.keys(changed || {}).length) restartPrompt(); else toast(t("web.saved")); } });
+  const showSave = () => {
+    fill(saveBar, h("span", { class: "grow" }, t("web.set_unsaved")), h("button", { class: "primary", onclick: () => save?.() }, icon("check"), t("web.save")));
+    saveBar.classList.remove("hidden");
+  };
+  body.addEventListener("input", showSave);
+  body.addEventListener("change", showSave);
+  await (await import("./mobile.js")).render(extra, { embedded: true, skipVersions: true });
+}
+
 // What an emergency would use, on one page: who is told, and whose emergency data exist.
 async function emergencyOverview(body) {
   const contacts = h("div");
@@ -304,7 +328,7 @@ function searchIndex(fields) {
   ].filter((item) => allowed(item.path));
 }
 
-function jumpTo(target) {
+export function jumpTo(target) {
   // A field by its id, a topic by its heading.
   const found = document.getElementById(target)?.closest(".switch-row, .field") || document.getElementById(target)
     || [...document.querySelectorAll(".hub-body h2, .hub-body h3, .hub-extra h2, .hub-extra h3, .hub-body label")].find((el) => el.textContent.trim() === t(target));
@@ -330,7 +354,7 @@ function place(params) {
 }
 
 function navigation(current) {
-  const items = shown();
+  const items = shown().filter(([id]) => !(id in ELSEWHERE));
   return h("nav", { class: "hub-nav", "aria-label": t("web.nav_settings") }, NAV_GROUPS.map((group) => {
     const own = items.filter(([, , , g]) => g === group);
     return own.length ? h("div", { class: "hub-group" }, h("small", { class: "hub-group-title" }, t(`web.set_group_${group}`)),
@@ -341,6 +365,7 @@ function navigation(current) {
 
 export async function render(main, params = []) {
   const { current, tab, target } = place(params);
+  if (current in ELSEWHERE) { location.hash = `#/${ELSEWHERE[current]}${target ? `/${target}` : ""}`; return null; }
   const body = h("div", { class: "hub-body stack" });
   const extra = h("div", { class: "hub-extra stack" });
   const saveBar = h("div", { class: "save-bar hidden", role: "status" });
@@ -408,13 +433,6 @@ export async function render(main, params = []) {
     if (current === "modes") await (await import("./plan.js")).render(extra);
     if (current === "emergency") await emergencyOverview(body);
     if (current === "federation") await (await import("./federation.js")).render(extra);
-    if (current === "updates") {
-      // Pi + app versions first, then settings, then invitations and phones.
-      const status = h("div");
-      body.before(status);
-      await updateSection(status);
-      await (await import("./mobile.js")).render(extra, { embedded: true, skipVersions: true });
-    }
     if (current === "data") {  // what happened last first, the settings below
       const status = h("div");
       body.before(status);
@@ -456,8 +474,6 @@ export async function render(main, params = []) {
   } else if (current === "access") {
     await (await import("./access.js")).render(body);
     await apiSection(extra);
-  } else {
-    await updateSection(body);
   }
   waiting.remove();
   if (target) jumpTo(target);

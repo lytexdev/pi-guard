@@ -59,7 +59,7 @@ export async function render(main) {
     ["settings", "settings", "web.nav_settings"],
     ["settings/appearance", "palette", "web.set_appearance"],
     ["contacts", "users", "web.nav_contacts"],
-    ["settings/logs", "list-details", "web.nav_logs"], ["settings/updates", "refresh", "web.set_updates"],
+    ["system", "server", "web.nav_system_page"], ["settings/logs", "list-details", "web.nav_logs"], ["system/updates", "refresh", "web.set_updates"],
     ["logout", "logout", "web.logout"]];
   fill(main,
     h("div", { class: "topbar" }, h("h1", {}, t("web.nav_more"))),

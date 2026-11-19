@@ -115,7 +115,7 @@ Telegram, Signal, Discord, WhatsApp, E-Mail und die Chatdienste sind Module unte
 verschwindet aus *Einstellungen → Messenger* und stoppt beim nächsten Neustart; seine Einträge bleiben erhalten. Was zu
 pi-guard gehört, trägt das Abzeichen *Verifiziert*. Das Menü jeder Karte (drei Punkte) heftet sie an die Navigation,
 zeigt Hilfe und den Weg zur Tour und entfernt sie. Das Plus neben der Suche fügt eigene Add-ons hinzu. Die Handy-App
-ist kein Modul: Sie ist standardmäßig an, unter *Einstellungen → Updates*, mit den Versionen, die dieser Pi weitergibt, und
+ist kein Modul: Sie ist standardmäßig an, unter *System → Updates*, mit den Versionen, die dieser Pi weitergibt, und
 Einladungslinks (sieben Tage, nur Downloads, gespeichert als Hash) für Leute, die die Android- oder Desktop-App bekommen
 sollen.
 
@@ -221,19 +221,35 @@ steuerst du hier; die alten Admin-/Betrachter-Listen unter Nachrichten bleiben n
   Alarm, der nach *Zweite Instanz informieren nach (Minuten)* (Standard 10, `emergency_backup_minutes`) noch offen ist,
   geht an ihre Messenger, noch vor den Notfallkontakten; die Admins erfahren, wer informiert wurde.
 - **Notfallkontakt** und **bekommt Alarme**: Nachricht bei einem SOS oder wenn Meldungen unbestätigt bleiben.
-- *Einstellungen → Benachrichtigungen → Wo was ankommt* stellt pro Messenger ein, was er von sich aus schickt: Alarme und
-  Notfälle, nur eins davon, oder *nur Befehle*, etwa wenn Alarme über die App kommen sollen und Signal oder Discord nur
-  für Befehle bleiben. Ein SOS kommt immer auf jedem Messenger an, mit den Notfalldaten als PDF für Kontakte, die so
-  eingestellt sind. Darunter stellst du pro Meldung die Wege ein.
+- *Einstellungen → Benachrichtigungen* zeigt alles als Treppe mit vier Stufen, jede dort einstellbar:
+  1. **Sofort an euch:** pro Messenger, was er von sich aus schickt (Alarme und Notfälle, nur eins davon oder *nur
+     Befehle*, etwa wenn Alarme über die App kommen sollen), und pro Meldung wann, an wen und über welche Wege.
+  2. **Zweite Instanz:** nach wie vielen Minuten ein unbestätigter Alarm an die Menschen mit dieser Rolle geht.
+  3. **Notfallkontakte:** nach wie vielen offenen Alarmen und Minuten sie informiert werden, wer mitmacht und was
+     mitkommt (letzte Ereignisse, Bilder vom Pi).
+  4. **SOS:** immer sofort an alle Admins auf jedem Messenger, an verbundene Haushalte und an die Kontakte, die
+     mitmachen, mit dem, was bei ihnen angekreuzt ist (Standort, Fotos und Ton vom Handy, Bilder vom Pi, Ton von zu
+     Hause, Notfalldaten). Ein Hinweis erscheint, wenn die zweite Instanz erst nach den Notfallkontakten käme.
 - *Einstellungen → Notfall* zeigt die Notfallkontakte und für wen Notfalldaten hinterlegt sind, über den
   Eskalations-Einstellungen. Der Sicherheitscheck liegt unter *Einstellungen → Daten & Sicherung → Sicherheitscheck*.
 
+## System
+
+*System* in der Navigation hat drei Reiter. **Zustand** prüft den laufenden Dienst alle 30 Sekunden, ohne die Kamera
+anzufassen: pi-guard und seine Teile, jede Kamera (Zustand, letztes Bild, Aufnahme), Speicher, Arbeitsspeicher,
+Prozessor, Temperatur, die Stromversorgung des Pi (Unterspannung und Drosselung, jetzt oder seit dem Start), die
+Datenbank, jeden Messenger, die Erkennungsmodelle, die letzte Sicherung und die Uhrzeit; ein Problem verlinkt dorthin,
+wo es behoben wird. Mehr prüft `sudo pi-guard doctor` (FFmpeg, Encoder, Kameras). **Gerät** zeigt Modell, Prozessor,
+Arbeitsspeicher, Betriebssystem, Kernel, Laufzeit, die Daten- und Aufnahme-Laufwerke, Kameras und Tongeräte,
+USB-Geräte und die Adressen im Netz. **Updates** steht unten. Mitglieder sehen die Systemseite nur für Updates, wenn
+sie Apps verwalten dürfen; Zustand und Gerät bleiben bei Admins.
+
 ## Updates und Versionen
 
-*Einstellungen → Updates* zeigt die Version des Pi (sie steht auch neben dem Hinweis unten in der Navigation), die
+*System → Updates* zeigt die Version des Pi (sie steht auch neben dem Hinweis unten in der Navigation), die
 neueste Version, woher Updates kommen (Repository und Kanal Stabil/Beta), die Instanz-ID dieser Installation, alle
 App-Versionen (*Nach App-Updates suchen*), Einladungen und Telefone. Die anonymen Statistiken sind vorerst aus.
-Die alte Adresse *Einstellungen → Apps* leitet hierhin um.
+Die alten Adressen *Einstellungen → Apps* und *Einstellungen → Updates* leiten hierhin um.
 
 ## Werkzeuge im Alltag
 
@@ -318,8 +334,8 @@ Text oder der ganzen Seite und eine Tour.
 
 *Hilfe & Tutorial* in der Navigation erklärt jeden Teil von pi-guard in wenigen Sätzen, jeweils mit Knopf dorthin, und
 *Rundgang starten* geht sie Seite für Seite durch; Betrachter sehen nur ihre Seiten. Die Kapitel sind: Übersicht, Live,
-Ereignisse, Personen, Netzwerk, VPN, Kid Protect, Notfallkontakte, Notfalldaten, Apps, Assistent, Umzug und
-Einstellungen. Dasselbe Tutorial gibt es überall:
+Ereignisse, Personen, Netzwerk, VPN, Kid Protect, Benachrichtigungen, Notfallkontakte, Notfalldaten, Apps, Assistent,
+Umzug, System und Einstellungen. Dasselbe Tutorial gibt es überall:
 
 - in der **Desktop-App** unter *PiGuard › Hilfe & Tutorial* (F1) und in der **Handy-App** unter *Mehr → Hilfe*;
   beide öffnen diese Seite mit dem Rundgang;

@@ -8,11 +8,21 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- *System* in the navigation: health checks of the running service (cameras, storage, memory, processor, temperature,
+  the Pi's power supply, database, messengers, models, backup, clock) every 30 seconds, the device and its hardware
+  (model, processor, disks, cameras, USB devices, addresses), and the updates of the Pi and the apps, moved here from
+  the settings. Old links to *Settings → Updates* open it.
+- Notifications as a staircase: at once to you, the second line, the emergency contacts and SOS, each set up in its own
+  step (minutes, alarms, who takes part and what comes with the message), with a warning when the second line would
+  come after the emergency contacts.
+- Tutorial chapters for notifications and the System page.
+
 - Cameras can record narrower than they capture (`recording_width`): faces and snapshots keep 1080p while recordings
   stay 720p. *Sharper for faces* sets this when the camera offers 1080p.
 
 ### Changed
 
+- The phone app's tutorial text no longer names quick actions (removed in 1.12).
 - Dark faces: a head where no face was found is searched again with more local contrast, for events and for *Learn at
   the camera*. In night pictures of a USB webcam it found a few faces where there had been none; by day 24 more to 336.
 

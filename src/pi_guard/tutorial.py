@@ -19,12 +19,15 @@ CHAPTERS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
      ("netzwerk", "network", "pi-hole", "pihole", "sperr", "block")),
     ("vpn", "#/network/vpn", ("vpn", "wireguard", "unterwegs")),
     ("kids", "#/addons/kids", ("kid protect", "kinder", "kids", "children", "jugendschutz")),
+    ("notifications", "#/settings/notifications",
+     ("benachrichtigung", "notification", "zweite instanz", "second line", "staffel")),
     ("emergency", "#/settings/emergency", ("notfallkontakt", "emergency contact", "sos")),
     ("medical", "#/addons/medical",
      ("notfalldaten", "medikament", "medical", "bmp", "organspende")),
-    ("apps", "#/settings/updates", ("app", "handy", "android", "desktop", "phone")),
+    ("apps", "#/system/updates", ("app", "handy", "android", "desktop", "phone")),
     ("assistant", "#/addons/assistant", ("assistent", "assistant", "ki ", "sprachsteuerung")),
     ("move", "#/settings/data/move", ("umzug", "umziehen", "moving", "neuer router", "new router")),
+    ("system", "#/system/health", ("system", "zustand", "health", "hardware", "update")),
     ("settings", "#/settings", ("einstellung", "setting", "backup", "barrierefrei", "accessib")),
 )  # fmt: skip
 _ASK = re.compile(

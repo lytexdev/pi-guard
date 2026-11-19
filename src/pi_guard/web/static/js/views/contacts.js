@@ -3,9 +3,9 @@ import { api, attempt, confirmDialog, fill, h, icon, t, toast } from "../api.js"
 import { openContactWizard } from "./contact-wizard.js";
 
 const BRAND = { telegram: "brand-telegram", signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail" };
-const SHARE_ICON = { location: "map-pin", phone_photo: "device-mobile", phone_audio: "microphone-off", pi_photo: "camera", events: "list-details", home_audio: "volume", medical: "user-check" };
+export const SHARE_ICON = { location: "map-pin", phone_photo: "device-mobile", phone_audio: "microphone-off", pi_photo: "camera", events: "list-details", home_audio: "volume", medical: "user-check" };
 // What makes sense on which occasion: no phone and no place when alerts go unanswered at home.
-const FITS = { sos: ["location", "phone_photo", "phone_audio", "pi_photo", "events", "home_audio", "medical"], escalation: ["events", "pi_photo"] };
+export const FITS = { sos: ["location", "phone_photo", "phone_audio", "pi_photo", "events", "home_audio", "medical"], escalation: ["events", "pi_photo"] };
 
 function modal(...children) {
   const dialog = h("dialog", { class: "editor wide" }, ...children);

@@ -48,7 +48,7 @@ runs with `UMask=0077`; databases are `0600`).
 | Messages and pictures | Meta, if you use WhatsApp | WhatsApp set up |
 | Model files (download) | from GitHub | only when you run `pi-guard models download` |
 | Backups, encrypted with your passphrase before they leave | your Nextcloud, server or Borg repository | only if backups are set up, see [backup.md](backup.md) |
-| A request for the newest app release and Pi release, and their files when there is a new one | GitHub (the repository chosen under Settings › Updates) | every hour, unless switched off |
+| A request for the newest app release and Pi release, and their files when there is a new one | GitHub (the repository chosen under System › Updates) | every hour, unless switched off |
 | Mode, cameras online, number of open alerts, the last event's kind and time, the version; alarms (kind, camera name, time) if allowed; every SOS | a **linked helper's Pi**, encrypted | only with a household link, see [federation.md](federation.md) |
 | Answers to the helper's requests in this dashboard: never pictures or emergency data unless ticked, never logins, keys, backups or exports | a **linked helper's Pi**, encrypted | only while the helper has this household open |
 

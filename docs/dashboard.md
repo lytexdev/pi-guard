@@ -122,7 +122,7 @@ Telegram, Signal, Discord, WhatsApp, email and the chat services are modules und
 disappears from *Settings → Messenger* and stops at the next restart; its entries are kept. Modules that are part of
 pi-guard carry a *Verified* badge. Each card's menu (three dots) pins it to the navigation, shows help and a way to the
 tour, and removes it. The plus beside the search adds your own add-ons, see [plugins](plugins.md). The phone app is no
-module: it is on by default, under *Settings → Updates*, with the versions this Pi hands out and invitation links (seven
+module: it is on by default, under *System → Updates*, with the versions this Pi hands out and invitation links (seven
 days, downloads only, kept as a hash) for people who should get the Android or desktop app. The old *Settings → Apps*
 address redirects there.
 
@@ -221,15 +221,31 @@ Messaging stay in expert mode only.
   *Tell the second line after (minutes)* (default 10, `emergency_backup_minutes`) goes to their messengers, before the
   emergency contacts; admins are told who was informed.
 - **Emergency contact** and **gets alerts**: written to on an SOS or when alerts stay unconfirmed, see [mobile](mobile.md).
-- *Settings → Notifications → Where what arrives* sets per messenger what it sends by itself: alerts and emergencies,
-  only one of them, or *commands only*, for example when alarms should come through the app while Signal or Discord
-  stay for commands. An SOS always arrives on every messenger, with the emergency data as a PDF for contacts set up for
-  it. The kinds of messages and their ways are set below on the same page.
+- *Settings → Notifications* shows everything as a staircase of four steps, each set up where it is:
+  1. **At once to you:** per messenger what it sends by itself (alerts and emergencies, only one of them, or *commands
+     only*, for example when alarms should come through the app), and each kind of message with when, to whom and
+     which ways.
+  2. **Second line:** after how many minutes an unconfirmed alarm goes to the people with that role.
+  3. **Emergency contacts:** after how many open alarms and minutes they are told, who takes part and what comes with
+     the message (latest events, pictures from the Pi).
+  4. **SOS:** always at once to every admin on every messenger, to linked households and to the contacts that take
+     part, with what is ticked for each (place, phone photos and sound, pictures from the Pi, sound from home,
+     emergency data). A warning shows when the second line would come after the emergency contacts.
 - *Settings → Emergency* shows the emergency contacts and whose emergency data exist, above the escalation settings.
+
+## System
+
+*System* in the navigation has three tabs. **Health** checks the running service every 30 seconds without touching the
+camera: pi-guard and its parts, each camera (state, last picture, recording), storage, memory, processor, temperature,
+the Pi's power supply (undervoltage and throttling, now or since boot), the database, each messenger, the detection
+models, the last backup and the clock; a problem links to where it is fixed. `sudo pi-guard doctor` checks more
+(FFmpeg, encoders, cameras). **Device** shows model, processor, memory, operating system, kernel, uptime, the data and
+recording disks, cameras and sound devices, USB devices and the network addresses. **Updates** is described below.
+Members see the System page only for updates, when they may manage apps; health and device stay with admins.
 
 ## Updates and versions
 
-*Settings → Updates* shows the Pi's version (it is also next to the credit in the navigation), the newest release,
+*System → Updates* shows the Pi's version (it is also next to the credit in the navigation), the newest release,
 where updates come from (repository and channel, see [updates.md](updates.md)), this installation's instance ID,
 every app version the Pi hands out (*Check for app updates*), invitations and phones. The anonymous statistics are
 off for now.
@@ -322,11 +338,12 @@ tapped text or the whole page aloud, and a guided tour.
 
 *Help & tutorial* in the navigation explains every part of pi-guard in a few sentences, each with a button to it, and
 *Start the tour* walks through them one page at a time; viewers see only their pages. The chapters are: overview, live,
-events, people, network, VPN, Kid Protect, emergency contacts, emergency data, apps, assistant, moving, and settings.
+events, people, network, VPN, Kid Protect, notifications, emergency contacts, emergency data, apps, assistant, moving,
+system, and settings.
 The same tutorial is everywhere:
 
-- in the **desktop app** under *PiGuard › Help & tutorial* (F1), and in the **phone app** as the *Tutorial* quick
-  action; both open this page with the tour;
+- in the **desktop app** under *PiGuard › Help & tutorial* (F1), and in the **phone app** under *More → Help*; both
+  open this page with the tour;
 - in the **assistant**: typing or saying "Tutorial" or "Rundgang" in the dashboard's chat starts the tour, and questions
   such as "How does Kid Protect work?" are answered from the tutorial, without an AI provider and without cost;
 - in **chats**: `/tutorial` (also *Anleitung*, *Rundgang*) sends the overview.

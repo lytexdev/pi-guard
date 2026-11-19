@@ -665,7 +665,7 @@ export async function setEnabled(id, enabled, opts = {}) {
 export async function render(main, params = [], opts = {}) {
   const id = params[0];
   if (id === "plugin") { await pluginPage(main, params[1]); return; }
-  if (id === "mobile") { location.hash = "#/settings/updates"; return; }  // phones and app versions live under Updates
+  if (id === "mobile") { location.hash = "#/system/updates"; return; }  // phones and app versions live under Updates
   if (id in DETAILS) {
     const box = h("div", { class: "stack" });
     fill(main, opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t(`addons.${id}`)), h("a", { class: "button", href: "#/addons" }, t("web.back"))), box);

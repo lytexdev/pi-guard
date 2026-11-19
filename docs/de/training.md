@@ -64,6 +64,6 @@ die geteilt werden dürfen: eigene, öffentliche mit passender Lizenz oder gespe
 
 Die Statistiken sind in pi-guard vorerst aus (1.10): Kein Pi schickt Berichte. Der Empfänger unten bleibt für später.
 
-Pis, deren Besitzer *pi-guard besser machen* unter Einstellungen → Updates einschalten, schicken einmal pro Woche
+Kommen sie zurück, schicken Pis, deren Besitzer *pi-guard besser machen* einschalten, einmal pro Woche
 einen Bericht an `PI_GUARD_SUPPORT_URL`. Den Empfänger startet `pgtrain reports receive`, hinter HTTPS.
 `pgtrain faces calibrate --reports ORDNER` nimmt die Korrekturen aus allen Berichten in die Schwellen mit auf.

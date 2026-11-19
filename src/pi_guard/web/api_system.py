@@ -1,4 +1,4 @@
-"""Updates, own add-ons and pinned navigation entries."""
+"""System health and hardware, updates, own add-ons and pinned navigation entries."""
 
 from __future__ import annotations
 
@@ -41,6 +41,7 @@ _ID_RE = re.compile(r"^[a-z0-9_]{2,32}$")
 
 def routes() -> list[web.RouteDef]:
     return [
+        web.get("/api/system/health", system_health),
         web.get("/api/system/update", update_status),
         web.post("/api/system/update", update_start),
         web.put("/api/navigation/pinned", save_pinned),
@@ -62,6 +63,20 @@ def routes() -> list[web.RouteDef]:
         web.put("/api/plugin-manager/{id}/source", plugin_save_source),
         web.delete("/api/plugin-manager/{id}", plugin_delete),
     ]
+
+
+# --- health and hardware --------------------------------------------------------------------
+
+
+async def system_health(request: web.Request) -> web.Response:
+    """What the System page shows: checks of the running service, and what the device is."""
+    from pi_guard.diagnostics import health
+
+    app = dashboard(request).app
+    checks, hardware = await asyncio.gather(
+        asyncio.to_thread(health.checks, app), asyncio.to_thread(health.hardware, app)
+    )
+    return web.json_response({"checks": checks, "hardware": hardware, "time": time.time()})
 
 
 # --- backups --------------------------------------------------------------------------------

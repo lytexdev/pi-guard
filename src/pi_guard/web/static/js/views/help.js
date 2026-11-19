@@ -8,9 +8,9 @@ import { state } from "../app.js";
 export const CHAPTERS = [
   ["overview", "#/overview", "home"], ["live", "#/live", "video"], ["events", "#/events", "bell"],
   ["people", "#/contacts", "users"], ["network", "#/network/overview", "network"], ["vpn", "#/network/vpn", "brand-wireguard"],
-  ["kids", "#/addons/kids", "mood-happy"], ["emergency", "#/settings/emergency", "alert-triangle"], ["medical", "#/addons/medical", "user-check"],
-  ["apps", "#/settings/updates", "device-mobile"], ["assistant", "#/addons/assistant", "speakerphone"], ["move", "#/settings/data/move", "map-pin"],
-  ["settings", "#/settings", "settings"],
+  ["kids", "#/addons/kids", "mood-happy"], ["notifications", "#/settings/notifications", "bell-ringing"], ["emergency", "#/settings/emergency", "alert-triangle"], ["medical", "#/addons/medical", "user-check"],
+  ["apps", "#/system/updates", "device-mobile"], ["assistant", "#/addons/assistant", "speakerphone"], ["move", "#/settings/data/move", "map-pin"],
+  ["system", "#/system/health", "server"], ["settings", "#/settings", "settings"],
 ];
 // What viewers can open; the rest of the tour is for admins.
 const VIEWER = ["overview", "live", "events"];

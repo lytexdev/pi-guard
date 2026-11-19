@@ -156,7 +156,7 @@ export async function render(main, { embedded = false, skipVersions = false } = 
     const file = h("input", { type: "file", accept: ".apk", "aria-label": t("web.mob_apk") });
     const code = h("input", { type: "number", min: 1, placeholder: t("web.mob_version_code"), "aria-label": t("web.mob_version_code") });
     const version = h("input", { placeholder: t("web.mob_version_name"), "aria-label": t("web.mob_version_name") });
-    fill(main, embedded ? top : h("div", { class: "topbar" }, h("h1", {}, t("addons.mobile")), h("a", { class: "button", href: "#/settings/updates" }, t("web.back"))),
+    fill(main, embedded ? top : h("div", { class: "topbar" }, h("h1", {}, t("addons.mobile")), h("a", { class: "button", href: "#/system/updates" }, t("web.back"))),
       h("section", { class: "panel stack" }, h("h2", {}, t("web.mob_devices")), h("p", { class: "muted" }, t("web.mob_hint")),
         h("ul", { class: "list" }, data.devices.length ? data.devices.map((d) => card(d, draw)) : h("li", { class: "empty" }, t("web.nothing")))),
       h("section", { class: "panel stack" }, h("h2", {}, t("web.mob_app")),

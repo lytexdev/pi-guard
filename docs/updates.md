@@ -30,7 +30,7 @@ at once (at most every 5 minutes, since anyone in the home network may ask).
 
 ## Where updates come from
 
-*Settings → Updates* names the GitHub repository (`owner/name`, default `lytexdev/pi-guard`) and the channel:
+*System → Updates* names the GitHub repository (`owner/name`, default `lytexdev/pi-guard`) and the channel:
 
 - **Stable** takes `release-*` tags for the Pi and normal `apps-*` releases for the apps.
 - **Beta** also takes `beta-*` tags and pre-releases, newest by date. `./scripts/ship.sh --beta` makes one
