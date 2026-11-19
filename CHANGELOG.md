@@ -35,6 +35,17 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- The dashboard did not start when the browser blocks its storage (private window, cleared site data, some
+  WebViews), or when the accessibility settings stored there were broken. Reading aloud says it is not available in
+  the phone app's WebView instead of failing. Inverted colours turn pictures and video back.
+- Backups and the moving file check the free space first (with recordings about three times their size) instead of
+  filling the disk and stopping the recording.
+- A restore on a new Pi no longer replaces its `update.conf` (the old Pi's repository folder and owner), and prepares a
+  recordings folder outside the data folder. Backups leave that file out.
+- Updates on 32-bit boards keep the distribution's OpenCV, as the installer chose, instead of failing on the wheel.
+- The installer no longer points at a "first login above" when it printed none.
+- *System → Health* no longer counts a linked household that is offline as a broken messenger.
+- Docs and tutorial named *Settings → Apps*, *Access* and *People* where apps, invitations and contacts now are.
 - Linked households crashed every few minutes with "address already in use" when the Pi-hole block page was on: both
   wanted port 8444. Such a conflict is now named on the page and under *System → Health* instead of retried, and the
   settings refuse a port the dashboard or the block page uses.

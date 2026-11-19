@@ -96,7 +96,7 @@ Knöpfen: **Foto ansehen** und **Video ansehen**.
 | Andere Linux-Systeme | `./scripts/install-desktop.sh`, `.AppImage`, Flatpak |
 | Windows | `scripts/install-desktop.ps1`, oder der `.exe`-Installer |
 | macOS | `.zip` |
-| Android | `.apk` im Dashboard unter Einstellungen › Apps, oder per Einladungslink von dort |
+| Android | `.apk` im Dashboard unter System › Updates, oder per Einladungslink von dort |
 
 ## Installation
 

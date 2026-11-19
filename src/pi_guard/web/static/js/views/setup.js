@@ -2,15 +2,15 @@
 // contacts, trusted people and design. Only the login step is mandatory (while
 // the default password is in use); every other step can be skipped and the
 // assistant can be opened again under More.
-import { api, attempt, fill, h, icon, lang, t, toast } from "../api.js";
+import { api, attempt, fill, h, icon, keepForTab, lang, storedForTab, t, toast } from "../api.js";
 import { state, switchLanguage } from "../app.js";
-import { chosenTheme, logoUrl, setDesign, SIZES, THEMES } from "../theme.js";
+import { chosenSize, chosenTheme, logoUrl, setDesign, SIZES, THEMES } from "../theme.js";
 import { sharedDesign } from "./appearance.js";
 
 const STEPS = ["welcome", "account", "devices", "telegram", "alerts", "emergency", "people", "addons", "design", "finish"];
-const restartNeeded = () => sessionStorage.getItem("pg.restart") === "1";
+const restartNeeded = () => storedForTab("pg.restart") === "1";
 let status = {};  // what the installer already set up (GET /api/setup/status)
-const needRestart = () => sessionStorage.setItem("pg.restart", "1");
+const needRestart = () => keepForTab("pg.restart", "1");
 
 function go(step) { location.hash = `#/setup/${step}`; }
 function next(step) { go(STEPS[Math.min(STEPS.indexOf(step) + 1, STEPS.length - 1)]); }
@@ -37,7 +37,7 @@ function frame(root, step, body, { canSkip = true, nextLabel = null, onNext = nu
 
 function welcome(root) {
   const later = state.session.setup_required ? null : h("button", { class: "ghost", onclick: () => {
-    sessionStorage.setItem("pg.setup_later", "1");
+    keepForTab("pg.setup_later", "1");
     location.hash = "#/overview";
   } }, t("web.setup_later"));
   frame(root, "welcome", h("div", { class: "stack" }, later,
@@ -247,7 +247,7 @@ function design(root) {
       }, t(`web.theme_${theme}`))))),
     h("section", { class: "panel" }, h("h2", {}, t("web.text_size")),
       h("div", { class: "choice" }, SIZES.map((size) => h("button", {
-        class: (localStorage.getItem("text") || "normal") === size ? "on" : "",
+        class: chosenSize() === size ? "on" : "",
         onclick: () => { setDesign(null, size); draw(); },
       }, t(`web.text_${size}`)))),
       h("p", { class: "muted" }, t("web.design_per_device"))), shared), { onNext: () => next("design") });
@@ -258,7 +258,7 @@ function finish(root) {
   const done = async (restart) => {
     await attempt(() => api("/api/setup/done", { method: "POST" }));
     if (restart) {
-      sessionStorage.removeItem("pg.restart");
+      keepForTab("pg.restart", null);
       await attempt(() => api("/api/system/restart", { method: "POST" }), t("web.restarting"));
       setTimeout(() => { location.hash = "#/overview"; location.reload(); }, 9000);
     } else {

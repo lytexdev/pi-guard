@@ -17,7 +17,7 @@ All but the assistant are for admins.
 
 Each card has a switch and a menu (three dots): *Pin to navigation*, *Help & guide* (what the add-on does and how to
 start, with the tour or its documentation) and *Remove*. Telegram, Signal, WhatsApp, Discord, email and the chat
-services are add-ons too; the phone app is not: it is part of pi-guard, on by default, under **Settings › Apps**.
+services are add-ons too; the phone app is not: it is part of pi-guard, on by default, under **System › Updates**.
 Add-ons from others appear as the same cards under *Own & community*; see [plugins.md](plugins.md) for building and
 publishing one.
 

@@ -1,7 +1,7 @@
 // Appearance. Theme and text size belong to this device, the rest to everyone.
 import { api, attempt, confirmDialog, fill, h, icon, t } from "../api.js";
 import { navItems, state } from "../app.js";
-import { applyAppearance, applyDesign, chosenTheme, FONTS, setDesign, SIZES, THEMES } from "../theme.js";
+import { applyAppearance, applyDesign, chosenSize, chosenTheme, FONTS, setDesign, SIZES, THEMES } from "../theme.js";
 
 const DEFAULT_ACCENT = "#5cb3ff";
 const SWATCHES = [DEFAULT_ACCENT, "#4fd18b", "#f2b64c", "#ff7a59", "#e36bd2", "#9a8cff"];
@@ -108,7 +108,7 @@ export function render(box) {
     h("div", { class: "choice" }, THEMES.map((theme) => h("button", { class: chosenTheme() === theme ? "on" : "",
       onclick: () => { setDesign(theme); drawDevice(); } }, t(`web.theme_${theme}`)))),
     h("h3", {}, t("web.text_size")),
-    h("div", { class: "choice" }, SIZES.map((size) => h("button", { class: (localStorage.getItem("text") || "normal") === size ? "on" : "",
+    h("div", { class: "choice" }, SIZES.map((size) => h("button", { class: chosenSize() === size ? "on" : "",
       onclick: () => { setDesign(null, size); drawDevice(); } }, t(`web.text_${size}`)))));
   drawDevice();
   const isAdmin = state.session.role === "admin";

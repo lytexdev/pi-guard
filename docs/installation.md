@@ -49,7 +49,7 @@ env file).
 ## After installation
 
 ```bash
-pi-guard doctor          # everything green?
+pi-guard doctor          # everything green? (in the dashboard: System → Health)
 pi-guard status
 sudo journalctl -u pi-guard -f
 ```
@@ -65,7 +65,7 @@ sudo journalctl -u pi-guard -f
    contacts, trusted people, add-ons and design. Skip any step and reopen it
    under *More → Setup assistant*.
 4. Optional: install the [Android](mobile.md) or [desktop](desktop.md) app from
-   *Settings → Apps*, or invite household members under *Access*. On a computer you can also run
+   *System → Updates*, or add household members under *Contacts* and invite them. On a computer you can also run
    `./scripts/install-desktop.sh` (Linux) or `scripts/install-desktop.ps1` (Windows) with no file: they download the
    newest release, then the app updates itself from this Pi.
 5. Open *Help & tutorial* (or F1 in the desktop app) for the guided tour.

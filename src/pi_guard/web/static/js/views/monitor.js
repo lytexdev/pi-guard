@@ -1,5 +1,5 @@
 // Camera room: every camera at once, like a security desk.
-import { api, attempt, fill, h, icon, t, toast } from "../api.js";
+import { api, attempt, fill, h, icon, keep, stored, t, toast } from "../api.js";
 import { state } from "../app.js";
 import { assistantIcon, liveSwitch } from "../widgets.js";
 
@@ -9,8 +9,8 @@ export async function render(main) {
   const overview = await api("/api/overview");
   const grid = h("div", { class: "monitor" });
   const clock = h("span", { class: "mono" });
-  const columns = (n) => { grid.dataset.columns = n; localStorage.setItem(KEY, n); };
-  columns(localStorage.getItem(KEY) || (overview.cameras.length > 4 ? 3 : 2));
+  const columns = (n) => { grid.dataset.columns = n; keep(KEY, n); };
+  columns(stored(KEY) || (overview.cameras.length > 4 ? 3 : 2));
   const describe = async (camera, out) => {
     out.textContent = t("web.mon_looking");
     const first = await attempt(() => api("/api/assistant/chat", { method: "POST", body: { text: `Schau auf die Kamera ${camera.name}` } }));

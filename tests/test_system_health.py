@@ -20,6 +20,8 @@ async def test_the_owner_sees_checks_and_hardware_a_viewer_does_not(tmp_path: Pa
         ids = {c["id"] for c in data["checks"]}
         assert {"service", "camera", "storage", "memory", "cpu", "database", "backup"} <= ids
         assert all(c["level"] in ("ok", "warn", "fail", "skip") for c in data["checks"])
+        names = {c["params"].get("name") for c in data["checks"] if c["id"] == "messenger"}
+        assert not names & {"household", "mobile"}  # not messengers that can be down
         database = next(c for c in data["checks"] if c["id"] == "database")
         assert database["level"] == "ok"
         hw = data["hardware"]

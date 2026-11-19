@@ -52,6 +52,9 @@ CHECK_SECONDS = 600
 BULKY = {"recordings", "media", "models", "apps", "update"}
 SKIP = {"__pycache__", "maint", "backup-ssh"}
 MIN_PASSPHRASE = 12
+# Files of /etc/pi-guard that belong to this machine, not to the home: update.conf names where
+# the repository is and who owns it, and root reads it. A new Pi keeps its own.
+MACHINE_FILES = {"update.conf"}
 
 
 class BackupError(Exception):
@@ -142,6 +145,18 @@ def _files(root: Path, bulky: bool) -> Iterator[Path]:
         yield path
 
 
+def ensure_room(data_dir: Path, bulky: bool, reserve_mb: int = 0, copies: int = 3) -> None:
+    """A backup is built next to the data: a copy, the archive and the sealed file. With
+    recordings that is three times their size (Borg reads the copy: one); refuse before the
+    disk fills and recording stops, rather than after."""
+    size = sum(path.stat().st_size for path in _files(data_dir, bulky))
+    need = copies * size + reserve_mb * 1_000_000
+    free = shutil.disk_usage(data_dir).free
+    if need > free:
+        raise BackupError(f"not enough free space: needs {need / 1e9:.1f} GB, "
+                          f"{free / 1e9:.1f} GB free")  # fmt: skip
+
+
 def collect(data_dir: Path, config_dir: Path | None, staging: Path, bulky: bool = False) -> int:
     """Copy everything into `staging/data` and `staging/config`; returns the number of files."""
     count = 0
@@ -158,6 +173,8 @@ def collect(data_dir: Path, config_dir: Path | None, staging: Path, bulky: bool 
         count += 1
     if config_dir is not None and config_dir.is_dir():
         for path in sorted(config_dir.iterdir()):
+            if path.name in MACHINE_FILES:
+                continue
             if path.is_file() and os.access(path, os.R_OK):
                 target = staging / "config" / path.name
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -315,6 +332,8 @@ def run_backup(s: Any, config_dir: Path | None) -> dict[str, Any]:
     if len(passphrase) < MIN_PASSPHRASE:
         raise BackupError(f"set a backup passphrase of at least {MIN_PASSPHRASE} characters")
     stamp = utcnow().strftime("%Y%m%dT%H%M%SZ")
+    copies = 1 if s.backup_target == "borg" else 3
+    ensure_room(s.data_dir, s.backup_recordings, s.recording_min_free_mb, copies)
     with tempfile.TemporaryDirectory(prefix="pg-backup-", dir=s.data_dir) as tmp:
         work = Path(tmp)
         work.chmod(0o700)

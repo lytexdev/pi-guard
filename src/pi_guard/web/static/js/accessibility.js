@@ -10,7 +10,14 @@ const VISION = {
   tritanopia: "0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0",
 };
 
-const load = () => ({ ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") });
+// Storage can be blocked (private window, cleared site data) or hold something broken: the
+// dashboard must still start, with the defaults.
+function load() {
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch { return { ...DEFAULTS }; }
+}
+function store(value) {
+  try { if (value === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, JSON.stringify(value)); } catch { /* kept for this page only */ }
+}
 let state = load();
 let ruler = null, lens = null;
 
@@ -54,12 +61,19 @@ function readTarget(event) {
 
 export const readsAloud = () => state.read;
 
+// The phone app's WebView has no speech output; there reading aloud says so instead of failing.
+export const canSpeak = () => "speechSynthesis" in window && typeof SpeechSynthesisUtterance === "function";
+
 export function speak(text) {
+  if (!canSpeak()) return false;
   speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = document.documentElement.lang || "de";
   speechSynthesis.speak(utterance);
+  return true;
 }
+
+const stopSpeaking = () => { if (canSpeak()) speechSynthesis.cancel(); };
 
 export function applyAccessibility() {
   const root = document.documentElement;
@@ -72,6 +86,7 @@ export function applyAccessibility() {
   if (state.vision) { filters(); parts.push(`url(#a11y-${state.vision})`); }
   root.style.filter = parts.join(" ");
   root.classList.toggle("a11y-cursor", state.cursor);
+  root.classList.toggle("a11y-invert", state.invert);
   root.classList.toggle("a11y-links", state.links);
   root.classList.toggle("a11y-still", state.motion);
   if (state.ruler && !ruler) { ruler = h("div", { class: "a11y-ruler", "aria-hidden": "true" }); document.body.append(ruler); }
@@ -113,7 +128,7 @@ export function accessibilityCommand(text) {
   const flag = (key) => { save({ [key]: !off }); return t(off ? "web.a11y_cmd_off" : "web.a11y_cmd_on", { what: t(`web.a11y_${key}`) }); };
   if (/(schrift|text|font|zoom).*(groesser|bigger|larger|in\b)|(groesser|bigger|larger).*(schrift|text|font)|vergroesser/.test(s)) { save({ scale: Math.min(180, state.scale + 20) }); return t("web.a11y_cmd_scale", { value: state.scale }); }
   if (/(schrift|text|font|zoom).*(kleiner|smaller|out\b)|(kleiner|smaller).*(schrift|text|font)|verkleiner/.test(s)) { save({ scale: Math.max(80, state.scale - 20) }); return t("web.a11y_cmd_scale", { value: state.scale }); }
-  if (/(lies|read).*(seite|page)|seite vorlesen/.test(s)) { speak(document.getElementById("main")?.innerText.slice(0, 4000) || ""); return t("web.a11y_read_page"); }
+  if (/(lies|read).*(seite|page)|seite vorlesen/.test(s)) return speak(document.getElementById("main")?.innerText.slice(0, 4000) || "") ? t("web.a11y_read_page") : t("web.a11y_no_speech");
   if (/vorlesen|read aloud/.test(s)) return flag("read");
   if (/kontrast|contrast|invert/.test(s)) return flag("invert");
   if (/graustuf|grayscale|greyscale/.test(s)) return flag("gray");
@@ -127,14 +142,14 @@ export function accessibilityCommand(text) {
     return t("web.a11y_vision") + ": " + t(`web.a11y_vision_${vision || "off"}`);
   }
   if (/(barrierefrei|accessib|bedienungshilfe).*(zuruecksetzen|reset)|^(zuruecksetzen|reset)$/.test(s.trim())) {
-    state = { ...DEFAULTS }; localStorage.removeItem(KEY); applyAccessibility(); return t("web.a11y_reset");
+    state = { ...DEFAULTS }; store(null); applyAccessibility(); return t("web.a11y_reset");
   }
   return null;
 }
 
 function save(change) {
   state = { ...state, ...change };
-  localStorage.setItem(KEY, JSON.stringify(state));
+  store(state);
   applyAccessibility();
 }
 
@@ -166,15 +181,15 @@ function panel() {
     toggle("invert", t("web.a11y_invert")), toggle("gray", t("web.a11y_gray")),
     h("label", { class: "a11y-row" }, h("span", { class: "grow" }, t("web.a11y_vision")), vision),
     h("h3", {}, t("web.a11y_help")),
-    toggle("read", t("web.a11y_read")), toggle("cursor", t("web.a11y_cursor")), toggle("ruler", t("web.a11y_ruler")),
+    toggle("read", t("web.a11y_read")), canSpeak() ? null : h("p", { class: "muted" }, h("small", {}, t("web.a11y_no_speech"))), toggle("cursor", t("web.a11y_cursor")), toggle("ruler", t("web.a11y_ruler")),
     toggle("lens", t("web.a11y_lens")), toggle("links", t("web.a11y_links")), toggle("motion", t("web.a11y_motion")),
     toggle("flash", t("web.a11y_flash")),
     h("p", { class: "muted" }, h("small", {}, t("web.a11y_voice_hint"))),
     h("div", { class: "row" },
-      h("button", { onclick: () => speak(document.getElementById("main")?.innerText.slice(0, 4000) || "") }, icon("volume"), t("web.a11y_read_page")),
-      h("button", { onclick: () => speechSynthesis.cancel() }, t("web.a11y_read_stop")),
+      h("button", { disabled: !canSpeak(), onclick: () => speak(document.getElementById("main")?.innerText.slice(0, 4000) || "") }, icon("volume"), t("web.a11y_read_page")),
+      h("button", { disabled: !canSpeak(), onclick: stopSpeaking }, t("web.a11y_read_stop")),
       h("button", { onclick: () => { dialog.close(); tutorial(); } }, t("web.a11y_tour"))),
-    h("button", { class: "ghost", onclick: () => { state = { ...DEFAULTS }; localStorage.removeItem(KEY); applyAccessibility(); dialog.close(); } }, t("web.a11y_reset")));
+    h("button", { class: "ghost", onclick: () => { state = { ...DEFAULTS }; store(null); applyAccessibility(); dialog.close(); } }, t("web.a11y_reset")));
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();

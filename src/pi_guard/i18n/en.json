@@ -2905,8 +2905,8 @@
   "web.tut_live_text": "The live picture of your cameras, with listening, talking and photos. The camera room shows all cameras at once.",
   "web.tut_events": "Events",
   "web.tut_events_text": "Everything that happened: movement, people and evidence videos. \"Who is this?\" on a person event teaches pi-guard a face.",
-  "web.tut_people": "People",
-  "web.tut_people_text": "Who belongs to the family, with their consent. Swipe through faces of recent events: right for yes, left for no.",
+  "web.tut_people": "Contacts",
+  "web.tut_people_text": "Everyone in one place: face (with consent), account, messengers and roles such as second line or emergency contact, also linked households. Swipe through faces of recent events: right for yes, left for no.",
   "web.tut_network": "Network",
   "web.tut_network_text": "The state of the home network: devices, Pi-hole, Wi-Fi with QR codes, blocking websites and block lists.",
   "web.tut_vpn": "VPN",
@@ -3713,5 +3713,7 @@
   "web.fed_port_dashboard": "Port {port} is the dashboard's port. Choose another port for linked households.",
   "web.fed_port_in_use": "Port {port} is already in use, other households cannot connect. Choose another port or stop what uses it.",
   "web.sy_c_federation": "Linked households",
-  "web.sy_c_federation_ok": "listening on port {port}"
+  "web.sy_c_federation_ok": "listening on port {port}",
+  "web.mv_no_space": "Not enough free space: the package needs about three times its size while it is built. Leave out the recordings or clean up under Data & backup → Storage.",
+  "web.a11y_no_speech": "Reading aloud does not work on this device: the browser or app has no speech output."
 }

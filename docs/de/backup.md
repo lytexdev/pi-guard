@@ -3,9 +3,13 @@
 pi-guard sichert seine Konfiguration und Daten auf Wunsch selbst: in eine Nextcloud, per rsync auf einen Server oder in
 ein Borg-Repository. Einrichten unter *Einstellungen → Daten & Sicherung → Backup*. Ausführlich: [backup.md](../backup.md).
 
-- **Was drin ist:** `/etc/pi-guard` mit Konfiguration und `.env` (also auch Tokens und Passwörter), die Datenbanken,
-  Gesichtsabdrücke, Schlüssel, Töne, die Signal-Verknüpfung. Aufnahmen und Bilder nur, wenn *Auch Aufnahmen und Bilder*
-  an ist.
+- **Was drin ist:** `/etc/pi-guard` mit Konfiguration und `.env` (also auch Tokens und Passwörter), aber nicht
+  `update.conf`, die zu diesem Gerät gehört; die Datenbanken, Gesichtsabdrücke, Schlüssel, Töne, die
+  Signal-Verknüpfung. Aufnahmen und Bilder nur, wenn *Auch Aufnahmen und Bilder* an ist, und nur aus dem Datenordner:
+  Liegen die Aufnahmen woanders (`PI_GUARD_RECORDINGS_DIR`, etwa auf einer USB-Platte), diese Platte selbst sichern.
+- **Platz:** Ein Backup entsteht zuerst neben den Daten (Kopie, Archiv, verschlüsselte Datei), mit Aufnahmen also etwa
+  dreimal so groß wie sie (bei Borg einmal). pi-guard prüft das vorher und lehnt mit *zu wenig freier Speicher* ab, statt
+  die Platte zu füllen und die Aufnahme anzuhalten; die Umzugsdatei ebenso.
 - **Verschlüsselt:** Ein Backup verlässt den Pi nur verschlüsselt, mit AES-256-GCM und einem Schlüssel aus deiner
   Backup-Passphrase (mindestens 12 Zeichen). Nextcloud oder der Server sehen nur die verschlüsselte Datei. Ohne die
   Passphrase kann niemand ein Backup wiederherstellen, auch du nicht: bewahre sie getrennt auf, etwa im
@@ -13,7 +17,9 @@ ein Borg-Repository. Einrichten unter *Einstellungen → Daten & Sicherung → B
 - **Ziele:** Nextcloud (mit App-Passwort), rsync über SSH (mit dem SSH-Schlüssel des Pi, den *Schlüssel erzeugen*
   zeigt) oder Borg (verschlüsselt selbst, braucht `borgbackup`).
 - **Wiederherstellen:** `sudo ./scripts/restore.sh DATEI` fragt nach der Passphrase, stoppt pi-guard, legt Vorhandenes
-  als `*.before-restore-DATUM` daneben, setzt Konfiguration und Daten des Backups ein und startet pi-guard. Von Hand:
+  als `*.before-restore-DATUM` daneben, setzt Konfiguration und Daten des Backups ein und startet pi-guard. Der neue
+  Pi behält seine eigene `update.conf`; liegen die Aufnahmen laut Backup außerhalb des Datenordners, wird der Ordner
+  angelegt und freigegeben. Danach *Einstellungen → Daten & Sicherung → Umzug* durchgehen. Von Hand:
   `pi-guard backup restore DATEI --into ordner` entpackt nur in den Ordner.
 
 ## Umzug

@@ -249,7 +249,7 @@ sie Apps verwalten dürfen; Zustand und Gerät bleiben bei Admins.
 *System → Updates* zeigt die Version des Pi (sie steht auch neben dem Hinweis unten in der Navigation), die
 neueste Version, woher Updates kommen (Repository und Kanal Stabil/Beta), die Instanz-ID dieser Installation, alle
 App-Versionen (*Nach App-Updates suchen*), Einladungen und Telefone. Die anonymen Statistiken sind vorerst aus.
-Die alten Adressen *Einstellungen → Apps* und *Einstellungen → Updates* leiten hierhin um.
+Die alten Adressen *System → Updates* und *Einstellungen → Updates* leiten hierhin um.
 
 ## Werkzeuge im Alltag
 
@@ -336,7 +336,7 @@ Text oder der ganzen Seite und eine Tour.
 
 *Hilfe & Tutorial* in der Navigation erklärt jeden Teil von pi-guard in wenigen Sätzen, jeweils mit Knopf dorthin, und
 *Rundgang starten* geht sie Seite für Seite durch; Betrachter sehen nur ihre Seiten. Die Kapitel sind: Übersicht, Live,
-Ereignisse, Personen, Netzwerk, VPN, Kid Protect, Benachrichtigungen, Notfallkontakte, Notfalldaten, Apps, Assistent,
+Ereignisse, Kontakte, Netzwerk, VPN, Kid Protect, Benachrichtigungen, Notfallkontakte, Notfalldaten, Apps, Assistent,
 Umzug, System und Einstellungen. Dasselbe Tutorial gibt es überall:
 
 - in der **Desktop-App** unter *PiGuard › Hilfe & Tutorial* (F1) und in der **Handy-App** unter *Mehr → Hilfe*;

@@ -1,12 +1,29 @@
 // Fetch wrapper (session cookie + CSRF header), translations and small DOM helpers.
 
+// Per-browser conveniences. Storage can be blocked (private window, cleared site data, some
+// WebViews); then nothing is remembered, and nothing fails.
+export function stored(key, fallback = null) {
+  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+}
+export function keep(key, value) {
+  try { if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, String(value)); } catch { /* not remembered */ }
+}
+
+// The same for this tab only (sessionStorage).
+export function storedForTab(key) {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+export function keepForTab(key, value) {
+  try { if (value === null) sessionStorage.removeItem(key); else sessionStorage.setItem(key, String(value)); } catch { /* not remembered */ }
+}
+
 let csrf = null;
 let texts = {};
-export let lang = localStorage.getItem("lang") || "de";
+export let lang = stored("lang", "de");
 
 // Everyday settings by default; the rest appears on request, per device.
-export const expertMode = () => localStorage.getItem("expert") === "1";
-export const setExpertMode = (on) => localStorage.setItem("expert", on ? "1" : "0");
+export const expertMode = () => stored("expert") === "1";
+export const setExpertMode = (on) => keep("expert", on ? "1" : "0");
 
 export class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -40,7 +57,7 @@ export async function api(path, { method = "GET", body, raw } = {}) {
 
 export async function loadTexts(language) {
   lang = language;
-  localStorage.setItem("lang", language);
+  keep("lang", language);
   document.documentElement.lang = language;
   texts = await (await fetch(`/api/i18n/${language}`)).json();
 }

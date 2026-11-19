@@ -20,7 +20,7 @@ What happens then:
 
 | | New minor or major (1.9.0, 2.0.0) | New patch (1.8.1) |
 | --- | --- | --- |
-| Pi and dashboard | installs itself within an hour and tells you (`update_auto`, *Install new versions by itself*) | tells you; *System › Update* installs it |
+| Pi and dashboard | installs itself within an hour and tells you (`update_auto`, *Install new versions by itself*) | tells you; *System → Updates → Update now* installs it |
 | Phone app | notification, installs by itself on Wi-Fi (on mobile data a tap does it) | notification, a tap installs it |
 | Desktop app | installs by itself | notification, a click installs it |
 | Agent | installs by itself | installs by itself |
@@ -132,6 +132,11 @@ but no Pi will run it. A Pi takes the newest tag with a valid signature, and onl
 an old release cannot be brought back.
 
 Git commits on `main` alone are no release: after a merge, the Pi keeps its version until you sign one.
+
+After installing, the service must report healthy within a minute; otherwise the previous version is put back and the
+dashboard says *new version did not start; previous version restored*. Database changes of the new version stay, so a
+rollback is a way out of a start failure, not a downgrade path. On 32-bit boards the update keeps using the
+distribution's OpenCV, as the installer chose.
 
 **Once, on your own computer, never on a Pi:**
 

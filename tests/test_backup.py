@@ -63,11 +63,13 @@ def test_what_goes_into_a_backup(tmp_path: Path) -> None:
     (data / "pi-guard.db-wal").write_bytes(b"half written")
     config.mkdir()
     (config / "pi-guard.env").write_text("PI_GUARD_TELEGRAM_BOT_TOKEN=secret")
+    (config / "update.conf").write_text("REPO=/home/old/pi-guard\nOWNER=old\n")  # this machine's
     staging = tmp_path / "staging"
     count = collect(data, config, staging)
     names = {str(p.relative_to(staging)) for p in staging.rglob("*") if p.is_file()}
     assert {"data/pi-guard.db", "data/sounds/bell.wav", "config/pi-guard.env"} <= names
     assert "data/recordings/cam.mp4" not in names and "data/pi-guard.db-wal" not in names
+    assert "config/update.conf" not in names
     with sqlite3.connect(staging / "data/pi-guard.db") as db:
         assert db.execute("SELECT x FROM t").fetchone() == (42,)
     assert count == 3
@@ -175,3 +177,18 @@ async def test_backing_up_from_the_dashboard_needs_the_password(tmp_path: Path) 
     finally:
         await client.close()
         app.db.close()
+
+
+def test_a_backup_that_would_fill_the_disk_is_refused_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import shutil
+    from collections import namedtuple
+
+    (tmp_path / "recordings").mkdir()
+    (tmp_path / "recordings/cam.mp4").write_bytes(b"v" * 1000)
+    usage = namedtuple("usage", "total used free")
+    monkeypatch.setattr(shutil, "disk_usage", lambda _: usage(10_000, 7_500, 2_500))
+    backup.ensure_room(tmp_path, bulky=False)  # without recordings it fits
+    with pytest.raises(BackupError, match="not enough free space"):
+        backup.ensure_room(tmp_path, bulky=True)  # 3 x 1000 bytes do not

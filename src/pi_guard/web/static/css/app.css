@@ -365,6 +365,8 @@ td.actions { white-space: nowrap; }
 .a11y-row select { width: auto; }
 .a11y-cursor, .a11y-cursor * { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><path d='M6 3l30 24-14 2 9 15-6 3-9-15-10 9z' fill='white' stroke='black' stroke-width='2'/></svg>") 6 3, auto !important; }
 .a11y-links a { text-decoration: underline !important; text-underline-offset: 3px; }
+/* Inverted colours: pictures and video turned back, so the camera shows what it sees. */
+.a11y-invert img, .a11y-invert video, .a11y-invert canvas { filter: invert(1) hue-rotate(180deg); }
 .a11y-still *, .a11y-still *::before, .a11y-still *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 .a11y-ruler { position: fixed; left: 0; right: 0; height: 48px; z-index: 40; pointer-events: none; background: rgba(92, 179, 255, .14);
   border-block: 2px solid var(--accent); }

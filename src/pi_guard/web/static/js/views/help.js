@@ -1,7 +1,7 @@
 // Help and tutorial: every part of pi-guard in a few sentences, with a way to it, and a guided
 // tour. The same chapters as tutorial.py, which the chats (/tutorial) and the assistant use.
-// The apps show this page too: the desktop app under PiGuard › Tutorial, the phone app as a
-// quick action. "#/help/tour" starts the tour at once.
+// The apps show this page too: the desktop app under PiGuard › Help & tutorial, the phone app
+// under More → Help. "#/help/tour" starts the tour at once.
 import { h, icon, t } from "../api.js";
 import { state } from "../app.js";
 

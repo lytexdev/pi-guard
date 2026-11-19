@@ -2905,8 +2905,8 @@
   "web.tut_live_text": "Das Live-Bild deiner Kameras, mit Mithören, Sprechen und Fotos. Der Kameraraum zeigt alle Kameras auf einmal.",
   "web.tut_events": "Ereignisse",
   "web.tut_events_text": "Alles, was passiert ist: Bewegung, Personen und Beweisvideos. „Wer ist das?“ an einem Personen-Ereignis bringt pi-guard ein Gesicht bei.",
-  "web.tut_people": "Personen",
-  "web.tut_people_text": "Wer zur Familie gehört, mit Einverständnis. Wische durch Gesichter der letzten Ereignisse: rechts für ja, links für nein.",
+  "web.tut_people": "Kontakte",
+  "web.tut_people_text": "Alle Menschen an einem Ort: Gesicht (mit Einverständnis), Konto, Messenger und Rollen wie zweite Instanz oder Notfallkontakt, auch verbundene Haushalte. Wische durch Gesichter der letzten Ereignisse: rechts für ja, links für nein.",
   "web.tut_network": "Netzwerk",
   "web.tut_network_text": "Der Zustand des Heimnetzes: Geräte, Pi-hole, WLAN mit QR-Codes, Webseiten sperren und Sperrlisten.",
   "web.tut_vpn": "VPN",
@@ -3713,5 +3713,7 @@
   "web.fed_port_dashboard": "Port {port} ist der Port des Dashboards. Wähle einen anderen Port für verbundene Haushalte.",
   "web.fed_port_in_use": "Port {port} ist schon belegt, andere Haushalte können sich nicht verbinden. Wähle einen anderen Port oder beende, was ihn benutzt.",
   "web.sy_c_federation": "Verbundene Haushalte",
-  "web.sy_c_federation_ok": "erreichbar auf Port {port}"
+  "web.sy_c_federation_ok": "erreichbar auf Port {port}",
+  "web.mv_no_space": "Zu wenig freier Speicher: Das Paket braucht etwa das Dreifache seiner Größe, während es gebaut wird. Lass die Aufnahmen weg oder räume unter Daten & Sicherung → Speicher auf.",
+  "web.a11y_no_speech": "Vorlesen geht auf diesem Gerät nicht: Der Browser oder die App hat keine Sprachausgabe."
 }

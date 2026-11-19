@@ -15,7 +15,7 @@ pi-guard. Alles funktioniert im Dashboard und in jedem Messenger.
 Jede Karte hat einen Schalter und ein Menü (drei Punkte): *An Navigation anheften*, *Hilfe & Anleitung* (was das Add-on
 macht und wie man anfängt, mit der Tour oder seiner Anleitung) und *Entfernen*. Telegram, Signal, WhatsApp, Discord,
 E-Mail und die Chatdienste sind ebenfalls Add-ons; die Handy-App nicht: Sie gehört zu pi-guard, ist standardmäßig an und
-liegt unter **Einstellungen › Apps**. Add-ons von anderen erscheinen als gleiche Karten unter *Eigene & Community*.
+liegt unter **System › Updates**. Add-ons von anderen erscheinen als gleiche Karten unter *Eigene & Community*.
 
 **KI-Assistent als Notfallkontakt:** Mit *Bei Alarm Bilder ansehen und einschätzen* (aus, fragt vor dem Einschalten)
 schaut sich der Assistent höchstens alle 10 Minuten das Alarmbild an, zusammen mit dem, was die Gesichtserkennung auf dem

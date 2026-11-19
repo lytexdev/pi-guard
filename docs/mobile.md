@@ -1,12 +1,12 @@
 # Mobile app (Android)
 
 PiGuard is the dashboard as an Android app, with what only a phone can do. The phone app is on by
-default (`PI_GUARD_MOBILE_ENABLED`); manage downloads and paired phones under *Settings → Apps*. The
+default (`PI_GUARD_MOBILE_ENABLED`); manage downloads and paired phones under *System → Updates*. The
 server side does not depend on Android, so an iOS app could use the same APIs.
 
 ## Install
 
-1. Under *Settings → Apps*, open the page on your phone in the home network and press **Download app**, or open an
+1. Under *System → Updates*, open the page on your phone in the home network and press **Download app**, or open an
    invitation link from there (valid seven days, downloads only).
 2. Open PiGuard while in the home network. It searches the network for pi-guard, or you type the address.
 3. Check the certificate fingerprint and log in with a dashboard account. The phone then has its own token and
@@ -14,7 +14,7 @@ server side does not depend on Android, so an iOS app could use the same APIs.
    viewers only change their own login under *Access*.
 
 New phones can only be connected from the home network or the VPN. Only admins get a VPN access: it reaches the whole
-home network, and viewers may only watch. Remove a phone under *Settings → Apps* and its token stops working at once.
+home network, and viewers may only watch. Remove a phone under *System → Updates* and its token stops working at once.
 
 ## What it does
 
@@ -31,7 +31,7 @@ home network, and viewers may only watch. Remove a phone under *Settings → App
   it uses. With Tailscale, it finds the dashboard at that address by itself.
   The first access needs the app opened once at home or through another VPN. WireGuard must be set up on pi-guard.
   Do this once at home. All traffic then goes through your home.
-- **Find a phone:** from *Settings → Apps* or `/findphone name` in chat. It rings at full volume and
+- **Find a phone:** from *System → Updates* or `/findphone name` in chat. It rings at full volume and
   vibrates. Location, map and details are only sent if the phone's owner switched on *Share location*. The phone
   shows that someone is looking for it. The Pi fetches map tiles from OpenStreetMap, and only when someone opens the map.
 - **Place link:** *Place link* asks the phone for its place right now, without ringing, and shows a link with how exact
@@ -54,7 +54,7 @@ home network, and viewers may only watch. Remove a phone under *Settings → App
   is chosen for it under *Settings → Emergency* (place, pictures, events, the person's emergency data if the phone's
   account is linked to a sheet). **This does not replace 112.** It needs a connection
   to pi-guard, and pi-guard must be running.
-  - For 30 minutes after an SOS the phone sends its place every minute, and admins follow it under *Settings → Apps
+  - For 30 minutes after an SOS the phone sends its place every minute, and admins follow it under *System → Updates
     → Places*. *I am safe*, on the emergency screen or in the notification, ends it and tells everyone; the places are
     then deleted.
   - With *App settings → Photos and sound after an SOS* (off by default), both cameras take a photo and the
@@ -92,7 +92,7 @@ This runs on a computer with the Android SDK, not on the Pi. The first run creat
 `~/.config/pi-guard/android`. **Back it up.** Android only accepts updates signed with the same key: without
 it, every phone has to uninstall and connect again. It must never enter the repository.
 
-A new version can also be uploaded under *Settings → Apps*. Phones look every three hours: a new minor or major
+A new version can also be uploaded under *System → Updates*. Phones look every three hours: a new minor or major
 version installs on Wi-Fi by itself, a patch is offered with a notification. Android
 always asks before installing an app that does not come from a store, so updates cannot be fully silent.
 
@@ -122,5 +122,5 @@ pi-guard's own certificate authority after you compared its fingerprint.
 | Way | How it updates |
 |---|---|
 | The official APK | From the GitHub releases (`apps-*`), signed. Your pi-guard fetches new versions by itself and offers them to the phone. |
-| Uploaded to your pi-guard | Dashboard → *Settings → Apps*; your pi-guard hands it to its phones. |
+| Uploaded to your pi-guard | Dashboard → *System → Updates*; your pi-guard hands it to its phones. |
 | Built from the source | `./scripts/build-android.sh VERSION` with your own keystore. Android refuses updates signed with another key, so switch off *Fetch app updates from GitHub* (`PI_GUARD_APP_UPDATES_FROM_GITHUB=false`) and publish your builds with `--publish HOST`. |

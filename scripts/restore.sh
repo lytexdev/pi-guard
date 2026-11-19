@@ -37,6 +37,8 @@ if [[ -d "$SRC/config" ]]; then
     install -d -m 0750 -o root -g "$USER_NAME" "$CONF"
     for file in "$SRC/config"/*; do
         [[ -f "$file" && ! -L "$file" ]] || continue
+        # update.conf belongs to this machine (its repository and owner) and root reads it.
+        [[ "$(basename "$file")" == update.conf ]] && continue
         install -m 0640 -o root -g "$USER_NAME" "$file" "$CONF/$(basename "$file")"
     done
 fi
@@ -51,8 +53,19 @@ mv "$NEW" "$DATA"
 chown -R --no-dereference "$USER_NAME:$USER_NAME" "$DATA"
 chmod 0700 "$DATA"
 
+# Recordings outside the data folder (a USB disk on the old Pi): the folder must exist here and
+# the service may write there, as install.sh arranges for its own choice.
+RECORDINGS="$(sed -n 's/^PI_GUARD_RECORDINGS_DIR=//p' "$CONF/pi-guard.env" 2>/dev/null | tail -1 | tr -d '"')"
+if [[ -n "$RECORDINGS" && "$RECORDINGS" == /* && "$RECORDINGS" != "$DATA"* ]]; then
+    install -d -m 0700 -o "$USER_NAME" -g "$USER_NAME" "$RECORDINGS" \
+        || say "warning: $RECORDINGS cannot be made; recording fails until it exists"
+    install -d -m 0755 /etc/systemd/system/pi-guard.service.d
+    printf '[Service]\nReadWritePaths=%s\n' "$RECORDINGS" > /etc/systemd/system/pi-guard.service.d/recordings.conf
+    systemctl daemon-reload
+fi
+
 say "starting pi-guard"
 systemctl start pi-guard
 sleep 3
-systemctl is-active --quiet pi-guard && say "done. Open the dashboard and go through Settings → Moving." \
+systemctl is-active --quiet pi-guard && say "done. Open the dashboard and go through Settings → Data & backup → Moving." \
     || die "pi-guard did not start: journalctl -u pi-guard -n 50"

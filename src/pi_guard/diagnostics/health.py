@@ -129,10 +129,16 @@ def _database(app: App) -> list[dict[str, Any]]:
     return [_check("database", "ok" if result == "ok" else "fail", result=result)]
 
 
+# Not messengers that can be down: a linked household is offline by itself (its own check is
+# "federation"), and the phone app's provider always says connected, which tells nothing.
+NOT_MESSENGERS = {"household", "mobile"}
+
+
 def _messengers(app: App) -> list[dict[str, Any]]:
     return [
         _check("messenger", "ok" if getattr(provider, "connected", True) else "fail", name=name)
         for name, provider in sorted(app.providers.items())
+        if name not in NOT_MESSENGERS
     ]
 
 

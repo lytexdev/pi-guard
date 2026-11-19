@@ -135,8 +135,12 @@ if [[ "${1:-}" == "--refresh-helpers" ]]; then
     exit $?
 fi
 
+# 32-bit boards use the distribution's OpenCV, as install.sh chose: no wheel for "vision" there.
+EXTRAS="vision,mqtt,web"
+case "$(uname -m)" in armv7l|armv6l) EXTRAS="mqtt,web" ;; esac
+
 install_code() {
-    "$PREFIX/venv/bin/pip" install --quiet "$REPO[vision,mqtt,web]" \
+    "$PREFIX/venv/bin/pip" install --quiet "$REPO[$EXTRAS]" \
         && install -m 0644 "$REPO/deploy/systemd/pi-guard.service" /etc/systemd/system/pi-guard.service \
         && install -m 0755 "$REPO/scripts/update.sh" /usr/local/sbin/pi-guard-update \
         && { [[ ! -e "$REPO/deploy/maint/pi-guard-maint" ]] \

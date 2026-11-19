@@ -92,7 +92,7 @@ movement, and lets you look at your home with two buttons: **View photo** and
 | Other Linux | `./scripts/install-desktop.sh`, `.AppImage`, Flatpak |
 | Windows | `scripts/install-desktop.ps1`, or the `.exe` installer |
 | macOS | `.zip` |
-| Android | `.apk` from the dashboard under Settings › Apps, or an invitation link from there |
+| Android | `.apk` from the dashboard under System › Updates, or an invitation link from there |
 
 Build them with `scripts/build-desktop.sh` and `scripts/build-android.sh`, see [desktop app](docs/desktop.md).
 

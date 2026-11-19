@@ -12,7 +12,16 @@ from pathlib import Path
 
 from aiohttp import web
 
-from pi_guard.backup import MIN_PASSPHRASE, PREFIX, SUFFIX, archive, collect, encrypt
+from pi_guard.backup import (
+    MIN_PASSPHRASE,
+    PREFIX,
+    SUFFIX,
+    BackupError,
+    archive,
+    collect,
+    encrypt,
+    ensure_room,
+)
 from pi_guard.core.timeutil import utcnow
 from pi_guard.network import move
 from pi_guard.network.reach import with_port
@@ -85,6 +94,12 @@ async def package(request: web.Request) -> web.StreamResponse:
         work = Path(tmp)
         work.chmod(0o700)
         staging, plain, sealed = work / "staging", work / "move.tar.gz", work / name
+
+        try:
+            await asyncio.to_thread(ensure_room, s.data_dir, bool(data.get("recordings")),
+                                    s.recording_min_free_mb)  # fmt: skip
+        except BackupError:
+            raise web.HTTPInsufficientStorage(text="web.mv_no_space") from None
 
         def build() -> None:
             config = CONFIG_DIR if CONFIG_DIR.is_dir() else None

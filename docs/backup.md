@@ -5,12 +5,18 @@ repository. Set it up under *Settings → Data & backup → Backup*, or with the
 
 ## What is in a backup
 
-- `/etc/pi-guard`: the configuration and the `.env` file, with its tokens and passwords
+- `/etc/pi-guard`: the configuration and the `.env` file, with its tokens and passwords; not `update.conf`, which
+  names this Pi's repository folder and its owner and stays with the machine
 - the data directory: the databases (copied with SQLite's own backup, so nothing half-written), face prints of enrolled
   people, keys and certificates, sounds, the Signal link, added languages, dashboard settings
 
 Left out unless *Recordings and pictures too* is on: recordings, snapshots and evidence videos (large), models and app
-files (fetched again by themselves). The Pi's SSH key for backups is left out as well.
+files (fetched again by themselves). The Pi's SSH key for backups is left out as well. Only recordings inside the data
+directory go in: with `PI_GUARD_RECORDINGS_DIR` elsewhere (a USB disk), back that disk up on its own.
+
+A backup is built next to the data first: a copy, the archive and the encrypted file, so with recordings about three
+times their size (Borg reads the copy: once). pi-guard checks this before it starts and refuses with *not enough free
+space* rather than filling the disk and stopping the recording; the moving file does the same.
 
 ## Encryption
 
@@ -46,7 +52,9 @@ sudo ./scripts/restore.sh pi-guard-backup-20261109T030000Z.pgbk
 
 It asks for the passphrase, stops pi-guard, keeps the current configuration and data next to them
 (`*.before-restore-DATE`), puts the backup's in their place and starts pi-guard. Root never writes into a folder the
-`pi-guard` user owns: the data folder is built new and handed over at the end.
+`pi-guard` user owns: the data folder is built new and handed over at the end. The new Pi keeps its own `update.conf`;
+when the restored settings keep recordings outside the data folder, that folder is made and the service may write there.
+Afterwards go through *Settings → Data & backup → Moving*.
 
 By hand:
 

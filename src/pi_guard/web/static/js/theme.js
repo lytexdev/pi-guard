@@ -37,20 +37,23 @@ export function applyAppearance(appearance = shared) {
 
 const systemLight = matchMedia("(prefers-color-scheme: light)");
 export const chosenTheme = () => { try { return localStorage.getItem("theme") || "auto"; } catch { return "auto"; } };
+export const chosenSize = () => { try { return localStorage.getItem("text") || "normal"; } catch { return "normal"; } };
 
 export function applyDesign() {
   const root = document.documentElement;
   const chosen = chosenTheme();
   root.dataset.theme = chosen === "auto" ? (systemLight.matches ? "light" : "dark") : chosen;
-  root.dataset.text = localStorage.getItem("text") || "normal";
+  root.dataset.text = chosenSize();
   const color = getComputedStyle(root).getPropertyValue("--bg").trim();
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color || "#121418");
   applyAppearance();
 }
 
 export function setDesign(theme, size) {
-  if (theme) localStorage.setItem("theme", theme);
-  if (size) localStorage.setItem("text", size);
+  try {
+    if (theme) localStorage.setItem("theme", theme);
+    if (size) localStorage.setItem("text", size);
+  } catch { /* this page only: storage is blocked */ }
   applyDesign();
 }
 

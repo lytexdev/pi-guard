@@ -2,7 +2,7 @@
 import { accessibilityButton, applyAccessibility } from "./accessibility.js";
 import { installTooltips } from "./tooltip.js";
 import { assistantButton, installLightbox, scrollTopButton, skeleton } from "./widgets.js";
-import { api, h, icon, loadIcons, loadTexts, lang, setCsrf, t, fill } from "./api.js";
+import { api, h, icon, loadIcons, loadTexts, lang, setCsrf, stored, storedForTab, t, fill } from "./api.js";
 import { applyAppearance, applyDesign, logoUrl } from "./theme.js";
 
 const VIEWS = {
@@ -180,7 +180,7 @@ async function show(turn) {
   if (session.setup_required && name !== "setup") { location.hash = "#/setup/welcome"; return; }
   if (session.password_renew && name !== "account") { location.hash = "#/account"; return; }
   if (session.authenticated && session.role === "admin" && !session.setup_done && name === "overview"
-      && !sessionStorage.getItem("pg.setup_later")) { location.hash = "#/setup/welcome"; return; }
+      && !storedForTab("pg.setup_later")) { location.hash = "#/setup/welcome"; return; }
   const loader = VIEWS[name] || VIEWS.overview;
   if (name === "login" || name === "setup") {
     const view = await loader();
@@ -211,7 +211,7 @@ async function show(turn) {
 async function start() {
   applyDesign();
   loadIcons().catch(() => {});
-  const saved = localStorage.getItem("lang");
+  const saved = stored("lang");
   const [session] = await Promise.all([refreshSession(), saved && loadTexts(saved)]);
   if (!saved) await loadTexts(session.language || lang);
   window.addEventListener("hashchange", route);

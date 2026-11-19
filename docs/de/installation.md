@@ -73,8 +73,8 @@ neues Erstpasswort, wenn die Datenbank schon existiert.
    Der Einrichtungsassistent führt durch Kameras, Messenger, Meldungen,
    Notfallkontakte, vertraute Personen, Add-ons und Design. Schritte
    überspringen und später unter *Mehr → Einrichtungsassistent* nachholen.
-4. Optional: Android- oder Desktop-App unter *Einstellungen → Apps*, oder
-   Haushaltsmitglieder unter *Zugang* anlegen. Am Computer geht auch
+4. Optional: Android- oder Desktop-App unter *System → Updates*, oder
+   Haushaltsmitglieder unter *Kontakte* anlegen und einladen. Am Computer geht auch
    `./scripts/install-desktop.sh` (Linux) bzw. `scripts/install-desktop.ps1` (Windows) ohne Datei: sie laden die
    neueste Version; danach aktualisiert sich die App über diesen Pi. Details: [desktop.md](../desktop.md).
 5. *Hilfe & Tutorial* (oder F1 in der Desktop-App) für den Rundgang.
@@ -85,12 +85,13 @@ Falls etwas nicht funktioniert:
 pi-guard doctor
 ```
 
-zeigt, was fehlt. Weitere Hilfe: [Fehlersuche](../troubleshooting.md) (Englisch).
+zeigt, was fehlt; im Dashboard zeigt *System → Zustand*, was gerade nicht läuft. Weitere Hilfe: [Fehlersuche](../troubleshooting.md) (Englisch).
 
 ## 5. Angehörige einladen
 
-Im Dashboard unter *Zugang → Dashboard-Benutzer* legst du Personen mit Rolle
-Admin, Mitglied oder Betrachter an. Per Telegram: **Weitere Funktionen →
+Im Dashboard unter *Kontakte* legst du eine Person an und schickst ihr mit *Einladen* auf einem ihrer Messenger, was
+sie braucht: den Link zum Dashboard, die Apps, Zugangsdaten mit vorläufigem Passwort und einen VPN-Zugang. Ob sie
+Admin, Mitglied oder Betrachter ist, legst du dabei fest; die Konten stehen unter *Einstellungen → Zugang*. Per Telegram: **Weitere Funktionen →
 Jemanden einladen**; der Bot schickt einen Link. Die Person öffnet ihn und
 drückt auf **Start**.
 
@@ -160,7 +161,7 @@ Foto. Bitte lesen Sie vorher [Datenschutz](datenschutz.md).
 
 3. In Telegram: *Weitere Funktionen → Vertraute Personen → Person hinzufügen*,
    siehe [Bedienung](bedienung.md).
-4. Danach im Dashboard unter *Personen* *Vor der Kamera lernen* nutzen, damit die Ansichten der eigenen Kamera
+4. Danach im Dashboard unter *Kontakte* *Vor der Kamera lernen* nutzen, damit die Ansichten der eigenen Kamera
    gelernt werden. *Warum die Erkennung klappt oder nicht* zeigt, was noch fehlt.
 
 ## Mit dem Pi sprechen (optional)
