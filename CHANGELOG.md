@@ -35,6 +35,9 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Linked households crashed every few minutes with "address already in use" when the Pi-hole block page was on: both
+  wanted port 8444. Such a conflict is now named on the page and under *System → Health* instead of retried, and the
+  settings refuse a port the dashboard or the block page uses.
 - *Learn at the camera* said *no face* when the picture was too dark; it says so now.
 - *Who is this?* refused a person's own camera faces while they had only one or two pictures ("looks too different"),
   so nobody with few pictures could be taught. The check against wrong clicks starts with the third picture now.

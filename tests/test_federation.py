@@ -302,3 +302,36 @@ async def test_households_reach_each_others_admins_as_contacts(two, monkeypatch)
     saved = await helped_client.post("/api/contacts", json={"contact": contact}, headers=h)
     assert saved.status == 200
     assert helped.escalation.contacts.recipients("sos")[0][:2] == ("household", str(link_id))
+
+
+def test_the_link_port_must_not_be_the_block_page_or_dashboard() -> None:
+    from types import SimpleNamespace
+
+    from pi_guard.federation.service import port_taken_by
+
+    base = {"federation_port": 8444, "dashboard_port": 8443, "blockpage_ip": None}
+    assert port_taken_by(SimpleNamespace(**base)) is None
+    assert port_taken_by(SimpleNamespace(**{**base, "blockpage_ip": "192.168.1.20"})) == "blockpage"
+    assert port_taken_by(SimpleNamespace(**{**base, "federation_port": 8443})) == "dashboard"
+
+
+async def test_a_taken_port_is_reported_not_retried_and_cannot_be_saved(tmp_path: Path) -> None:
+    client, app = await _client(tmp_path, federation_enabled=True, federation_listen=True,
+                                blockpage_ip="192.168.1.20")  # fmt: skip
+    try:
+        federation = app.dashboard.federation
+        task = asyncio.create_task(federation.listen())
+        await asyncio.sleep(0.2)
+        assert not task.done() and federation.listen_problem == "web.fed_port_blockpage"
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        h = {"X-CSRF-Token": await _login(client)}
+        data = await (await client.get("/api/federation")).json()
+        assert data["listen_problem"] == "web.fed_port_blockpage"
+        bad = await client.put("/api/settings", json={"federation_port": 8088}, headers=h)
+        assert bad.status == 400 and await bad.text() == "web.fed_port_blockpage"
+        good = await client.put("/api/settings", json={"federation_port": 8445}, headers=h)
+        assert good.status == 200, await good.text()
+    finally:
+        await client.close()
+        app.db.close()

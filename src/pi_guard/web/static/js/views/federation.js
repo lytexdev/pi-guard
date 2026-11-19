@@ -119,6 +119,7 @@ export async function render(box) {
         h("div", { class: "row between wrap" }, h("h2", {}, icon("users"), " ", t("web.fed_helping")),
           h("button", { class: "primary", disabled: !data.listen || !data.address, onclick: () => makeCode(draw) }, icon("plus"), t("web.fed_make_code"))),
         h("p", { class: "muted" }, t("web.fed_helping_text")),
+        data.listen_problem ? h("p", { class: "notice danger" }, icon("alert-triangle"), " ", t(data.listen_problem, { port: data.port })) : null,
         !data.listen ? h("p", { class: "notice" }, t("web.fed_listen_hint", { port: data.port }))
           : data.address ? h("p", { class: "muted" }, h("small", {}, t("web.fed_address", { address: data.address, port: data.port })))
             : h("p", { class: "notice" }, t(data.address_problem || "web.fed_need_address")),

@@ -1031,7 +1031,9 @@ def test_the_support_contact_comes_from_the_settings() -> None:
 
     class Db:
         def get(self, key: str) -> object:
-            return {"name": "Alt", "email": "a@b.de", "other": "x"} if key == "web.support" else None
+            return (
+                {"name": "Alt", "email": "a@b.de", "other": "x"} if key == "web.support" else None
+            )
 
     empty = SimpleNamespace(support_name="", support_phone="", support_email="", support_address="")
     assert support_contact(empty, Db()) == {"name": "Alt", "email": "a@b.de"}

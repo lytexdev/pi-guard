@@ -195,12 +195,18 @@ async def _write_overrides(d: Any, rendered: dict[str, str], actor: str, source:
     """Validate the whole result, write it, and keep what it replaced so it can be undone."""
     before = read_overrides(d.settings.data_dir)
     try:
-        Settings(**{**_base_values(d.settings), **rendered})
+        candidate = Settings(**{**_base_values(d.settings), **rendered})
     except ValidationError as exc:
         # Only messages: the input (possibly a token) is never echoed back.
         text = "; ".join(f"{'.'.join(map(str, e['loc'])) or 'settings'}: {e['msg']}"
                          for e in exc.errors())  # fmt: skip
         raise web.HTTPBadRequest(text=text[:500]) from None
+    if candidate.federation_enabled and candidate.federation_listen:
+        from pi_guard.federation.service import port_taken_by
+
+        taken = port_taken_by(candidate)
+        if taken:
+            raise web.HTTPBadRequest(text=f"web.fed_port_{taken}")
     lines = ["# Written by the pi-guard dashboard; takes precedence over pi-guard.env."]
     lines += [f"PI_GUARD_{key.upper()}={value}" for key, value in sorted(rendered.items())]
     path = d.settings.data_dir / OVERRIDE_ENV

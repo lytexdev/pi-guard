@@ -3708,5 +3708,10 @@
   "web.ec_household_none": "Noch kein verbundener Haushalt",
   "web.fed_as_contact": "Als Kontakt",
   "web.fed_as_contact_tip": "Diesen Haushalt als Kontakt anlegen oder bearbeiten, etwa als Notfallkontakt, zweite Instanz oder für SOS",
-  "federation.note": "🏠 Nachricht aus dem Haushalt {name}:\n{text}"
+  "federation.note": "🏠 Nachricht aus dem Haushalt {name}:\n{text}",
+  "web.fed_port_blockpage": "Port {port} benutzt schon die Sperrseite von Pi-hole. Wähle unten einen anderen Port für verbundene Haushalte, etwa 8445, gib ihn in der Firewall frei und leite ihn im Router weiter.",
+  "web.fed_port_dashboard": "Port {port} ist der Port des Dashboards. Wähle einen anderen Port für verbundene Haushalte.",
+  "web.fed_port_in_use": "Port {port} ist schon belegt, andere Haushalte können sich nicht verbinden. Wähle einen anderen Port oder beende, was ihn benutzt.",
+  "web.sy_c_federation": "Verbundene Haushalte",
+  "web.sy_c_federation_ok": "erreichbar auf Port {port}"
 }

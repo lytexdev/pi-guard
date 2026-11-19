@@ -170,7 +170,17 @@ def _clock() -> list[dict[str, Any]]:
     return [_check("clock", "ok" if synced else "warn", synced=synced)]
 
 
-PARTS = ("service", "cameras", "resources", "database", "messengers", "models", "backup")
+def _federation(app: App) -> list[dict[str, Any]]:
+    federation = getattr(app.dashboard, "federation", None) if app.dashboard else None
+    if federation is None or not app.settings.federation_listen:
+        return []
+    problem = federation.listen_problem
+    return [_check("federation", "fail" if problem else "ok", problem=problem,
+                   port=app.settings.federation_port)]  # fmt: skip
+
+
+PARTS = ("service", "cameras", "resources", "database", "messengers", "models", "backup",
+         "federation")  # fmt: skip
 
 
 def checks(app: App) -> list[dict[str, Any]]:

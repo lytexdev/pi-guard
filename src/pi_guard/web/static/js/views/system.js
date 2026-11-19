@@ -42,13 +42,14 @@ function describe(check) {
     case "models": return [t("web.sy_c_models"), p.missing?.length ? t("web.sy_c_models_missing", { names: p.missing.join(", ") }) : t("web.sy_c_models_ok")];
     case "backup": return [t("web.sy_c_backup"), check.level === "skip" ? t("web.sy_c_backup_off") : !p.time ? t("web.bk_never")
       : `${p.ok ? t("web.bk_ok") : t("web.bk_failed")} · ${when(p.time)}`];
+    case "federation": return [t("web.sy_c_federation"), p.problem ? t(p.problem, { port: p.port }) : t("web.sy_c_federation_ok", { port: p.port })];
     case "clock": return [t("web.sy_c_clock"), p.synced ? t("web.sy_c_clock_ok") : t("web.sy_c_clock_not")];
     default: return [check.id, p.error || ""];
   }
 }
 
 // Where a problem is fixed.
-const FIX = { camera: "#/settings/devices", storage: "#/settings/data/storage", backup: "#/settings/data/backup", messenger: "#/settings/messaging", service: "#/settings/logs" };
+const FIX = { federation: "#/settings/federation", camera: "#/settings/devices", storage: "#/settings/data/storage", backup: "#/settings/data/backup", messenger: "#/settings/messaging", service: "#/settings/logs" };
 
 async function healthTab(box) {
   const draw = async () => {

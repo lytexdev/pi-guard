@@ -88,6 +88,7 @@ class Federation:
         self._notes: dict[int, deque[float]] = defaultdict(deque)  # link -> when notes came
         self._events = self.app.bus.subscribe("federation", 50)
         self._sockets: dict[int, aiohttp.ClientWebSocketResponse] = {}
+        self.listen_problem: str | None = None  # translation key while the port cannot be used
 
     # --- certificate of the listener: its own, long-lived, pinned in every code -------------
 
@@ -144,6 +145,13 @@ class Federation:
     # --- helper side: the listener ----------------------------------------------------------
 
     async def listen(self) -> None:
+        taken = port_taken_by(self.settings)
+        if taken:
+            # Retrying cannot help while the other part keeps the port: say so once and wait.
+            self.listen_problem = f"web.fed_port_{taken}"
+            log.error("linked households cannot listen: port %d is used by the %s; choose "
+                      "another federation_port", self.settings.federation_port, taken)  # fmt: skip
+            await asyncio.Event().wait()
         cert, key = await asyncio.to_thread(self.certificate)
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         context.minimum_version = ssl.TLSVersion.TLSv1_2
@@ -155,7 +163,13 @@ class Federation:
         await runner.setup()
         # All addresses on purpose: the router forwards this port from outside.
         site = web.TCPSite(runner, None, self.settings.federation_port, ssl_context=context)
-        await site.start()
+        try:
+            await site.start()
+        except OSError:
+            self.listen_problem = "web.fed_port_in_use"
+            await runner.cleanup()
+            raise
+        self.listen_problem = None
         log.info("linked households may connect on port %d", self.settings.federation_port)
         try:
             await asyncio.Event().wait()
@@ -634,6 +648,19 @@ def _clean_status(raw: object) -> dict[str, Any]:
         status["last_event"] = {"ts": str(last.get("ts", ""))[:40],
                                 "type": str(last.get("type", ""))[:40]}  # fmt: skip
     return status
+
+
+def port_taken_by(settings: Any) -> str | None:
+    """Which other part of pi-guard uses the link's port: "dashboard", "blockpage" or None.
+    The block page takes 8088 and 8444, the link's default, when it has an address."""
+    from pi_guard.addons.blockpage import HTTP_PORT, HTTPS_PORT
+
+    port = settings.federation_port
+    if port == settings.dashboard_port:
+        return "dashboard"
+    if settings.blockpage_ip and port in (HTTP_PORT, HTTPS_PORT):
+        return "blockpage"
+    return None
 
 
 def _clean_text(raw: object) -> str:

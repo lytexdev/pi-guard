@@ -3708,5 +3708,10 @@
   "web.ec_household_none": "No linked household yet",
   "web.fed_as_contact": "As a contact",
   "web.fed_as_contact_tip": "Add or edit this household as a contact, for example as emergency contact, second line or for SOS",
-  "federation.note": "🏠 Message from the household {name}:\n{text}"
+  "federation.note": "🏠 Message from the household {name}:\n{text}",
+  "web.fed_port_blockpage": "Port {port} is already used by the Pi-hole block page. Choose another port for linked households below, for example 8445, allow it in the firewall and forward it in the router.",
+  "web.fed_port_dashboard": "Port {port} is the dashboard's port. Choose another port for linked households.",
+  "web.fed_port_in_use": "Port {port} is already in use, other households cannot connect. Choose another port or stop what uses it.",
+  "web.sy_c_federation": "Linked households",
+  "web.sy_c_federation_ok": "listening on port {port}"
 }

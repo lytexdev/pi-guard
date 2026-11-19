@@ -20,7 +20,10 @@ On the **helper's** Pi (once):
    restart pi-guard.
 2. In the router, forward **TCP port 8444** (`federation_port`) to this Pi. Only the link answers there, with its own
    certificate; the dashboard is never reachable on it. *Public address* (`federation_address`) is how the other Pi
-   reaches yours: a DynDNS name, or empty for the public name of the VPN (`wireguard_endpoint`).
+   reaches yours: a DynDNS name, or empty for the public name of the VPN (`wireguard_endpoint`). The Pi-hole block
+   page (`blockpage_ip`, [network](network.md)) uses 8088 and 8444 itself: with it, choose another port such as 8445.
+   The settings refuse a port the dashboard or the block page uses, and the page and *System → Health* say when the
+   port is taken.
 3. *Make a code* (with your password). The code works **once and for 24 hours**. Send it a safe way, for example by
    Signal, or type it in yourself at the other home.
 

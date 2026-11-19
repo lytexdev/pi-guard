@@ -77,6 +77,7 @@ async def overview(request: web.Request) -> web.Response:
         links.append(entry)
     return web.json_response({
         "enabled": True, "listen": s.federation_listen, "port": s.federation_port,
+        "listen_problem": federation.listen_problem if s.federation_listen else None,
         "address": address, "address_problem": problem, "name": federation.own_name(),
         "fingerprint": p.fingerprint(federation.store.public()), "links": links,
         "roles": list(p.ROLES), "extras": list(p.EXTRAS),
