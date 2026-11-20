@@ -144,8 +144,16 @@ class SelfUpdate:
         automatic = (kind in ("major", "minor") and bool(self._app.settings.update_auto)
                      and installed_commit() is not None)  # fmt: skip
         if automatic:
-            request.parent.mkdir(parents=True, exist_ok=True)
-            request.write_text(str(time.time()))
+            try:
+                request.parent.mkdir(parents=True, exist_ok=True)
+                request.write_text(str(time.time()))
+            except OSError:
+                log.warning("cannot leave the update request in %s; run "
+                            "sudo ./scripts/install.sh --yes once", request.parent)  # fmt: skip
+                await self._app.messenger.notify_admins(
+                    t("update.available", lang, version=version)
+                )
+                return "offered"
             self._app.db.audit("system", "system.update", f"auto {version}")
             await self._app.messenger.notify_admins(t("update.installing", lang, version=version))
             return "installing"

@@ -3766,5 +3766,6 @@
   "web.ddns_token_refused": "Cloudflare refused the token. Check it and its rights (Zone · DNS · Edit).",
   "web.ddns_refused": "Cloudflare refused the change.",
   "web.ddns_no_zone": "There is no zone for this name that the token may see.",
-  "web.ddns_no_address": "The public address could not be found."
+  "web.ddns_no_address": "The public address could not be found.",
+  "web.up_no_permission": "The update cannot be started: the folder /var/lib/pi-guard/update belongs to root. Run once on the Pi: cd ~/pi-guard && sudo ./scripts/install.sh --yes"
 }

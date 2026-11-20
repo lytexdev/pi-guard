@@ -6,6 +6,14 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- *Update now* failed with a server error on freshly installed Pis, and the automatic update with PermissionError:
+  `install.sh` made `/var/lib/pi-guard/update` as root before pi-guard ever ran. The update job now makes that folder
+  for pi-guard and hands back one made as root; the button says what to do instead of a server error. The update also
+  compares the release with the installed commit, so a `git pull` by hand no longer looks up to date.
+
+
 ### Added
 
 - Alarms in the app only: the phone app and browser push have their own delivery setting, like the messengers, at

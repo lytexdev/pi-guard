@@ -146,6 +146,20 @@ card. If few moments show a face, the camera sees people from the side or behind
 - Live picture black: `PI_GUARD_DASHBOARD_LIVE_FPS` is 0, or the camera is
   reconnecting (see Overview).
 
+## The update button fails
+
+*Update now* answered with a server error, or now says the folder belongs to root: an `install.sh` before 1.16.1 made
+`/var/lib/pi-guard/update` as root on a fresh install, so pi-guard could not leave its request there (the automatic
+update failed the same way, "release not considered: PermissionError" in the log). Once, on the Pi:
+
+```bash
+cd ~/pi-guard && git pull --ff-only && sudo ./scripts/install.sh --yes
+```
+
+Newer versions hand the folder back by themselves. The update also compares the release with what is installed
+(`/opt/pi-guard/commit`), not with the checkout, so a `git pull` by hand no longer makes it say *already up to date*
+while the old code runs.
+
 ## Home server does not connect
 
 - *invalid peer certificate: certificate not valid for name*: the agent checks that the certificate lists the name it

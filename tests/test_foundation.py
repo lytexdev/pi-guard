@@ -199,3 +199,14 @@ def test_root_jobs_never_write_where_pi_guard_can() -> None:
     for line in server.splitlines():
         if "fs::write" in line or "fs::copy" in line or "File::create" in line:
             assert "DATA" not in line, line
+
+
+def test_the_update_job_leaves_its_request_folder_to_pi_guard() -> None:
+    """install.sh runs the update job before pi-guard ever started: a folder it made as root
+    kept the dashboard's update button failing with "Permission denied"."""
+    update = (Path(__file__).parents[1] / "scripts/update.sh").read_text()
+    assert 'mkdir -p "$STATE"' not in update
+    assert 'install -d -o pi-guard -g pi-guard -m 0750 "$STATE"' in update
+    assert 'chown --no-dereference pi-guard:pi-guard "$STATE"' in update
+    # What runs counts, not the checkout: a `git pull` by hand must not look up to date.
+    assert '"$PREFIX/commit"' in update.split('report running "installing"')[0]

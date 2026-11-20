@@ -133,6 +133,10 @@ an old release cannot be brought back.
 
 Git commits on `main` alone are no release: after a merge, the Pi keeps its version until you sign one.
 
+The request folder `/var/lib/pi-guard/update` belongs to pi-guard; the root job only reads and removes the note, and
+gives back a folder an older version made as root. It compares the signed release with the installed commit
+(`/opt/pi-guard/commit`), so a checkout moved by `git pull` still gets installed.
+
 After installing, the service must report healthy within a minute; otherwise the previous version is put back and the
 dashboard says *new version did not start; previous version restored*. Database changes of the new version stay, so a
 rollback is a way out of a start failure, not a downgrade path. On 32-bit boards the update keeps using the

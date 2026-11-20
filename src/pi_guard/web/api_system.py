@@ -173,8 +173,13 @@ async def update_status(request: web.Request) -> web.Response:
 async def update_start(request: web.Request) -> web.Response:
     """Only leaves a note: a root job (pi-guard-update.path) does the work and checks health."""
     directory = _update_dir(request)
-    directory.mkdir(parents=True, exist_ok=True)
-    (directory / "request").write_text(str(time.time()))
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "request").write_text(str(time.time()))
+    except OSError:
+        # The folder belongs to root after an older install.sh; `sudo ./scripts/install.sh --yes`
+        # (or the next update by hand) gives it back.
+        raise web.HTTPConflict(text="web.up_no_permission") from None
     d = dashboard(request)
     d.app.db.audit(f"web:{current(request).username}", "system.update")
     return web.json_response({"ok": True})

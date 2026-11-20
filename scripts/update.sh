@@ -20,7 +20,15 @@ ENV_FILE=/etc/pi-guard/pi-guard.env
 [[ -f "$CONF" ]] || { echo "$CONF missing; run scripts/install.sh" >&2; exit 1; }
 # shellcheck source=/dev/null
 . "$CONF"   # REPO, OWNER
-mkdir -p "$STATE"
+# The request folder belongs to pi-guard, which leaves its note there. A fresh install.sh runs
+# this before pi-guard ever did: a folder made here as root kept the update button failing
+# with "Permission denied". Make it for pi-guard, and hand back one an older run made as root.
+[[ -L "$STATE" ]] && rm -f "$STATE"
+if [[ ! -d "$STATE" ]]; then
+    install -d -o pi-guard -g pi-guard -m 0750 "$STATE"
+elif [[ "$(stat -c %U "$STATE")" == root ]]; then
+    chown --no-dereference pi-guard:pi-guard "$STATE" && chmod 0750 "$STATE"
+fi
 rm -f "$STATE/request"
 
 report() {  # report STATE MESSAGE
@@ -181,13 +189,20 @@ git_as_owner fetch --quiet --force --tags origin || { report failed "download fa
 old="$(git_as_owner rev-parse HEAD)"
 new="$(runuser -u "$OWNER" -- "$CHECK" "$REPO" "$SIGNERS" "$CHANNEL")" \
     || { report failed "no signed release found"; exit 1; }
-if [[ "$old" == "$new" ]]; then report done "already up to date"; exit 0; fi
-if git_as_owner merge-base --is-ancestor "$new" "$old"; then
-    report done "this device is ahead of the repository"; exit 0
+# What runs is what install wrote down, not the checkout: after a `git pull` by hand the
+# clone can be on the new release while the old code still runs.
+installed="$(head -c 64 "$PREFIX/commit" 2>/dev/null | tr -dc '0-9a-f')"
+git_as_owner cat-file -e "${installed:-none}^{commit}" 2>/dev/null || installed="$old"
+if [[ "$installed" == "$new" ]]; then report done "already up to date"; exit 0; fi
+if [[ "$old" != "$new" ]]; then
+    if git_as_owner merge-base --is-ancestor "$new" "$old"; then
+        report done "this device is ahead of the repository"; exit 0
+    fi
+    git_as_owner merge-base --is-ancestor "$old" "$new" \
+        || { report failed "history differs; update by hand"; exit 1; }
+    git_as_owner merge --quiet --ff-only "$new" || { report failed "local changes in the way"; exit 1; }
 fi
-git_as_owner merge-base --is-ancestor "$old" "$new" \
-    || { report failed "history differs; update by hand"; exit 1; }
-git_as_owner merge --quiet --ff-only "$new" || { report failed "local changes in the way"; exit 1; }
+old="$installed"  # a failed start goes back to what ran before
 report running "installing"
 if install_code && healthy; then
     report done "updated to ${new:0:10}"

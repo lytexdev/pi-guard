@@ -300,6 +300,14 @@ async def test_update_only_leaves_a_request(tmp_path: Path, monkeypatch: Any) ->
         assert status["instance"] and status["source"]["repository"] == "lytexdev/pi-guard"
         assert (await client.post("/api/system/update", headers=h)).status == 200
         assert (app.settings.data_dir / "update" / "request").exists()
+        # A folder pi-guard may not write (left by root): a clear answer, not a server error.
+        (app.settings.data_dir / "update" / "request").unlink()
+        (app.settings.data_dir / "update").chmod(0o500)
+        try:
+            refused = await client.post("/api/system/update", headers=h)
+            assert refused.status == 409 and await refused.text() == "web.up_no_permission"
+        finally:
+            (app.settings.data_dir / "update").chmod(0o700)
     finally:
         await client.close()
         app.db.close()
