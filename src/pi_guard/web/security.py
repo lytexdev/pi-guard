@@ -32,6 +32,8 @@ HONEYPOT_PATHS = (
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 LOGIN_FAILURES = 8
 LOGIN_WINDOW = 900.0
+CONFIRM_FAILURES = 5  # wrong passwords in a confirmation dialog, then a pause
+CONFIRM_WINDOW = 60.0
 MAX_TRACKED = 5000  # addresses kept for failed logins and bans
 TARPIT_SECONDS = 3.0
 
@@ -64,6 +66,7 @@ class Guard:
         self.on_event: Callable[[str, str], None] = lambda action, detail: None
         self.allowed_hosts: set[str] = set()  # empty: any Host header
         self._failures: dict[str, deque[float]] = defaultdict(deque)
+        self._confirm_failures: dict[str, deque[float]] = defaultdict(deque)
 
     def client_ip(self, request: web.Request) -> str:
         peer = request.remote or "unknown"
@@ -110,6 +113,24 @@ class Guard:
 
     def login_allowed(self, ip: str) -> bool:
         return self._login_limiter.allow(ip)
+
+    def confirm_blocked(self, *keys: str) -> bool:
+        """Too many wrong passwords lately for a confirmation (per person or address). Only
+        failures count: asking for the password several times in a row is normal."""
+        now = time.monotonic()
+        for key in keys:
+            failures = self._confirm_failures.get(key)
+            while failures and now - failures[0] > CONFIRM_WINDOW:
+                failures.popleft()
+            if failures and len(failures) >= CONFIRM_FAILURES:
+                return True
+        return False
+
+    def confirm_failed(self, *keys: str) -> None:
+        if len(self._confirm_failures) > MAX_TRACKED:
+            self._confirm_failures.clear()
+        for key in keys:
+            self._confirm_failures[key].append(time.monotonic())
 
     def login_failed(self, ip: str) -> None:
         now = time.monotonic()

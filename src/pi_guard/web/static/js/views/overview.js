@@ -137,13 +137,16 @@ export async function render(main) {
     if (turn !== drawing) return;  // an older answer must not bring back the previous mode
     const cameras = Object.fromEntries(o.cameras.map((c) => [c.id, c.name]));
     const mode = o.mode;
-    const modeButtons = h("div", { class: "segmented" },
+    const modeButtons = h("div", { class: "segmented presence-switch", role: "group", "aria-label": t("web.mode") },
       ["HOME", "AWAY", ...(mode.presence_enabled ? ["AUTO"] : [])].map((m) => {
         const on = m === "AUTO" ? mode.selection === "AUTO" : mode.selection !== "AUTO" && mode.effective === m;
-        return h("button", { class: on ? "on" : "", title: t(`web.tip_mode_${m.toLowerCase()}`), onclick: async () => {
-          await attempt(() => api("/api/mode", { method: "POST", body: { mode: m } }), t("web.saved"));
-          draw();
-        } }, icon(m === "HOME" ? "home-shield" : m === "AWAY" ? "walk" : "wifi"), t(`web.mode_${m.toLowerCase()}`));
+        // The chosen one is filled and ticked, not only coloured: readable in every design.
+        return h("button", { class: `mode-${m.toLowerCase()}${on ? " on" : ""}`, "aria-pressed": on ? "true" : "false",
+          title: t(`web.tip_mode_${m.toLowerCase()}`), onclick: async () => {
+            await attempt(() => api("/api/mode", { method: "POST", body: { mode: m } }), t("web.saved"));
+            draw();
+          } }, icon(m === "HOME" ? "home-shield" : m === "AWAY" ? "walk" : "wifi"), t(`web.mode_${m.toLowerCase()}`),
+          on ? icon("circle-check", "mode-tick") : null);
       }));
     const sys = o.system;
     const problems = o.cameras.filter((c) => c.state !== "running").length + o.components.filter((c) => !c.running && c.restarts).length;

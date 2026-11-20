@@ -17,6 +17,7 @@ class LockActivity : AppCompatActivity() {
     private var wrong = 0
 
     override fun onCreate(state: Bundle?) {
+        Look.apply(this)
         super.onCreate(state)
         setContentView(R.layout.activity_lock)
         store = Store(this)

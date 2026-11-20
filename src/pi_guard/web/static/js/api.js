@@ -126,8 +126,17 @@ export function svg(tag, attrs = {}) {
 }
 
 export function toast(message, error = false) {
-  const el = h("div", { class: `toast${error ? " error" : ""}`, role: "status" }, message);
+  const el = h("div", { class: `toast${error ? " error" : ""}`, role: error ? "alert" : "status" }, message);
   document.body.append(el);
+  // An open dialog is in the top layer: a plain element stays behind it, and a wrong password
+  // or a refused code only showed once the dialog was closed. A popover goes above it.
+  if (typeof el.showPopover === "function") {
+    el.popover = "manual";
+    el.showPopover();
+  } else {
+    const open = [...document.querySelectorAll("dialog[open]")].pop();
+    if (open) open.append(el);
+  }
   setTimeout(() => el.remove(), error ? 6000 : 3000);
 }
 

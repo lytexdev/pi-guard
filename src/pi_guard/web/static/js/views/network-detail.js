@@ -250,6 +250,14 @@ function vpnLayers(d, part) {
     el.className = `badge ${live ? "ok" : ""}`;
     el.textContent = t(live ? "web.vpn_layer_on" : way ? "web.vpn_layer_off" : "web.vpn_layer_setup");
     layers.querySelector("[data-layer=awg]")?.classList.toggle("live", Boolean(live));
+    if (r.mode === "other") {
+      // Another VPN brings the devices home: the layers on top of pi-guard's WireGuard do nothing.
+      for (const name of ["awg", "quantum"]) {
+        const badge = layers.querySelector(`[data-state=${name}]`);
+        if (badge) { badge.className = "badge"; badge.textContent = t("web.vpn_layer_not_needed"); }
+        layers.querySelector(`[data-layer=${name}]`)?.classList.add("idle");
+      }
+    }
   }).catch(() => {});
   api("/api/privacy/diagnostics").then((diag) => {
     const el = layers.querySelector("[data-state=privacy]");
@@ -279,10 +287,33 @@ function vpnSummary(d, part) {
     vpnLayers(d, part));
 }
 
+const VPN_NAMES = { tailscale: "Tailscale", zerotier: "ZeroTier", netbird: "NetBird" };
+
+// Another VPN (Tailscale, ZeroTier, NetBird) on the Pi: say what that means for the page below,
+// and offer to switch off AmneziaWG, which only disguises pi-guard's own WireGuard.
+function otherVpnNotice(redraw) {
+  const box = h("div");
+  api("/api/network/reach").then((r) => {
+    if (!box.isConnected || !(r.others || []).length) return;
+    const names = r.others.map((id) => VPN_NAMES[id] || id).join(", ");
+    const off = h("button", { type: "button", onclick: async () => {
+      off.disabled = true;
+      if (await attempt(() => api("/api/privacy/modules", { method: "PUT", body: { amneziawg: false } }), t("web.saved"))) redraw();
+      off.disabled = false;
+    } }, icon("eye-off"), t("web.vpn_other_awg_off"));
+    fill(box, h("section", { class: "panel stack other-vpn" },
+      h("h2", {}, icon("plug-connected"), " ", t("web.vpn_other_title", { names })),
+      h("p", {}, t(r.mode === "other" ? "web.vpn_other_only" : "web.vpn_other_both", { names })),
+      r.mode === "other" ? h("p", { class: "muted" }, t("web.vpn_other_ways")) : null,
+      r.awg_idle ? h("div", { class: "row wrap" }, h("p", { class: "notice grow" }, t("web.vpn_other_awg")), off) : null));
+  }).catch(() => {});
+  return box;
+}
+
 function vpnTab(body, d, params, redraw) {
   const part = VPN_PARTS.includes(params[1]) ? params[1] : "devices";
   const hint = (key) => h("p", { class: "muted" }, t(key));
-  fill(body, vpnSummary(d, part),
+  fill(body, vpnSummary(d, part), otherVpnNotice(redraw),
     part === "devices" ? [wireguardPanel(d, redraw), h("details", { class: "panel guide" }, h("summary", {}, icon("world"), " ", t("web.reach_title")), reachPanel()),
       h("details", { class: "panel guide" }, h("summary", {}, icon("world"), " ", t("web.ddns_title")), ddnsPanel())] : null,
     part === "privacy" ? [hint("web.vpn_part_privacy_hint"), privacyPanels()] : null,

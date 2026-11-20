@@ -319,8 +319,9 @@ async def test_signal_only_sends_alerts_unless_commands_are_allowed(tmp_path: Pa
                    signal_admin_numbers=["+491701234567"])  # fmt: skip
     await app.messenger.handle(msg("/status", "+491701234567", provider="signal"))
     await app.messenger.handle(msg("hallo", "+491709999999", provider="signal"))
-    # No command runs; only the admin hears why, once; the stranger gets nothing at all.
-    assert [chat for chat, _ in signal.sent] == ["+491701234567"]
+    # No command runs and nobody gets an answer, also not the admin: with the owner's own
+    # number every answer is a note to oneself, and a hint each time was felt as spam.
+    assert signal.sent == []
     assert app.db.execute("SELECT COUNT(*) FROM audit WHERE action = 'rejected'").fetchone()[0] == 0
     app.db.close()
     talking = make_app(tmp_path / "on", providers={"telegram": FakeProvider(), "signal": signal},

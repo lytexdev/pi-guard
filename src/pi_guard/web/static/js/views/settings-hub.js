@@ -293,9 +293,10 @@ async function supportSection(box) {
   const s = state.session.support || {};
   const rows = ["name", "phone", "email", "address"].filter((key) => s[key]).map((key) => [h("dt", {}, t(`web.support_${key}`)), h("dd", {}, s[key])]);
   fill(box, h("section", { class: "panel stack" }, h("h2", {}, t("web.set_support")), h("p", { class: "muted" }, t("web.support_hint")),
-    rows.length ? h("dl", { class: "kv" }, rows) : h("p", { class: "notice" }, t("web.support_none")),
-    h("p", { class: "muted" }, h("small", {}, t("web.support_where"))),
-    h("pre", { class: "mono wrap" }, "PI_GUARD_SUPPORT_NAME=\"Max Mustermann\"\nPI_GUARD_SUPPORT_PHONE=+49 170 1234567\nPI_GUARD_SUPPORT_EMAIL=hilfe@example.org\nPI_GUARD_SUPPORT_ADDRESS=\"Musterstraße 1, 12345 Musterstadt\"")),
+    // The example for the env file only while nobody is set: next to real data it looked like data too.
+    rows.length ? h("dl", { class: "kv" }, rows) : [h("p", { class: "notice" }, t("web.support_none")),
+      h("p", { class: "muted" }, h("small", {}, t("web.support_where"))),
+      h("pre", { class: "mono wrap" }, "PI_GUARD_SUPPORT_NAME=\"Max Mustermann\"\nPI_GUARD_SUPPORT_PHONE=+49 170 1234567\nPI_GUARD_SUPPORT_EMAIL=hilfe@example.org\nPI_GUARD_SUPPORT_ADDRESS=\"Musterstraße 1, 12345 Musterstadt\"")]),
     await donationPanel());
 }
 

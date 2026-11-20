@@ -325,7 +325,9 @@ and the assistant's answers appear because they take a while anyway. More in [Pe
 page. The logo is pi-guard's own and cannot be changed (the phone app can still disguise itself). Theme (as the
 system, dark, light, high contrast) and text size are chosen per device; the light theme keeps every text colour at
 4.5:1 or more. *Reset to default* puts all of it back after a confirmation. No fonts are loaded from the internet: the
-choices use what the device has. The high-contrast theme keeps its own colours.
+choices use what the device has. The high-contrast theme keeps its own colours. The phone app (from 1.17) takes the
+theme for its own screens and the system bars too. On the overview, the chosen mode (*Home* or *Away*) is filled and
+ticked.
 
 ## Logs
 

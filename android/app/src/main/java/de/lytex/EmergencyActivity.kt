@@ -19,6 +19,7 @@ class EmergencyActivity : AppCompatActivity() {
     private var timer: CountDownTimer? = null
 
     override fun onCreate(state: Bundle?) {
+        Look.apply(this)
         super.onCreate(state)
         setContentView(R.layout.activity_emergency)
         text = findViewById(R.id.count)

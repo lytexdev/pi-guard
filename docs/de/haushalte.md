@@ -20,7 +20,8 @@ Auf dem Pi der **helfenden Person** (einmal):
    verbinden* einschalten, pi-guard neu starten.
 2. Im Router **TCP-Port 8444** an diesen Pi weiterleiten. Dort antwortet nur die Verbindung, mit eigenem Zertifikat; das
    Dashboard ist dort nie erreichbar. *Öffentliche Adresse* ist, wie der andere Pi deinen erreicht: ein DynDNS-Name, oder
-   leer für den öffentlichen Namen des VPN. Die Sperrseite von Pi-hole (`blockpage_ip`) benutzt selbst 8088 und 8444:
+   leer für den öffentlichen Namen des VPN. Es zählt nur der Name: ein eingefügtes `https://name/` oder
+   `name:8445` wird auf den Namen gekürzt, der Port ist `federation_port`. Die Sperrseite von Pi-hole (`blockpage_ip`) benutzt selbst 8088 und 8444:
    Mit ihr einen anderen Port wählen, etwa 8445. Die Einstellungen lehnen einen Port des Dashboards oder der Sperrseite
    ab, und die Seite und *System → Zustand* sagen, wenn der Port belegt ist.
 3. *Code erstellen* (mit deinem Passwort). Der Code gilt **einmal und 24 Stunden**. Schick ihn auf einem sicheren Weg,

@@ -190,6 +190,11 @@ app finds the dashboard at its Tailscale address by itself. Open the app once at
 Tailscale is a company's service in between; its connections stay end-to-end encrypted, but your
 devices are listed there.
 
+**Another VPN instead of pi-guard's WireGuard.** When Tailscale, ZeroTier or NetBird is up on the Pi (found by its
+network interface) and pi-guard's WireGuard is off, *Network → VPN* says so: the WireGuard ways, AmneziaWG and the
+post-quantum keys only work with pi-guard's WireGuard and are shown as *not needed*. If AmneziaWG still runs, the page
+offers to switch it off. With both on, the page says that devices in the other VPN need no WireGuard access.
+
 ### A name that follows your address (Cloudflare DDNS)
 
 With a domain at Cloudflare, pi-guard keeps a name such as `home.example.org` pointed at your home by itself:

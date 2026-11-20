@@ -38,6 +38,7 @@ class VpnActivity : AppCompatActivity() {
     }
 
     override fun onCreate(state: Bundle?) {
+        Look.apply(this)
         super.onCreate(state)
         setContentView(R.layout.activity_vpn)
         store = Store(this)
@@ -121,13 +122,13 @@ class VpnActivity : AppCompatActivity() {
         val fresh = status != null && now - status.handshake < HANDSHAKE_VALID
         val waiting = status != null && !fresh && now - Vpn.upSince < PATIENCE
         val (title, color) = when {
-            busy || waiting -> R.string.vpn_connecting to R.color.warn
-            fresh -> R.string.vpn_on to R.color.ok
-            status != null -> R.string.vpn_no_answer to R.color.danger
-            problem != null -> R.string.vpn_failed to R.color.danger
-            else -> R.string.vpn_off to R.color.muted
+            busy || waiting -> R.string.vpn_connecting to R.attr.pgWarn
+            fresh -> R.string.vpn_on to R.attr.pgOk
+            status != null -> R.string.vpn_no_answer to R.attr.pgDanger
+            problem != null -> R.string.vpn_failed to R.attr.pgDanger
+            else -> R.string.vpn_off to R.attr.pgMuted
         }
-        findViewById<ImageView>(R.id.shield).imageTintList = ColorStateList.valueOf(getColor(color))
+        findViewById<ImageView>(R.id.shield).imageTintList = ColorStateList.valueOf(Look.color(this, color))
         findViewById<TextView>(R.id.title).setText(title)
         val detail = findViewById<TextView>(R.id.detail)
         detail.setText(when {

@@ -320,7 +320,9 @@ Unter *Einstellungen → Erscheinungsbild* wählst du Akzentfarbe, Schriftart, A
 alle, auch für die Anmeldeseite. Das Logo ist das von pi-guard und lässt sich nicht mehr ändern (die Handy-App kann sich
 weiter tarnen). Farbschema (wie System, dunkel, hell, hoher Kontrast) und Schriftgröße gelten pro Gerät; das helle
 Schema hält bei jeder Textfarbe mindestens 4,5:1 Kontrast. *Auf Standard zurücksetzen* stellt alles nach einer
-Rückfrage wieder her. Schriften werden nicht aus dem Internet geladen.
+Rückfrage wieder her. Schriften werden nicht aus dem Internet geladen. Die Handy-App (ab 1.17) übernimmt das
+Farbschema auch für ihre eigenen Bildschirme und die Systemleisten. In der Übersicht ist der gewählte Modus
+(*Zuhause* oder *Abwesend*) gefüllt und mit Haken markiert.
 
 ## Logs
 

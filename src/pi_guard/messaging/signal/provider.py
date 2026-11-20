@@ -16,6 +16,7 @@ import asyncio
 import itertools
 import json
 import logging
+import time
 from typing import Any
 
 from pi_guard.messaging.base import Incoming, MessageHandler, ProviderUnavailableError, Reply
@@ -25,6 +26,7 @@ log = logging.getLogger(__name__)
 REQUEST_TIMEOUT = 120.0
 LINE_LIMIT = 16 * 1024 * 1024
 RECONNECT_SECONDS = 60
+ECHO_SECONDS = 300.0  # how long a message pi-guard sent to its own number may come back
 
 
 def render(reply: Reply) -> str:
@@ -77,6 +79,9 @@ class SignalProvider:
         self._ids = itertools.count(1)
         self._tasks: set[asyncio.Task[None]] = set()
         self._waiting = False
+        # What pi-guard sent to its own number lately (time sent, text): with the owner's own
+        # number, each answer came back as Note to Self and was answered again, in a loop.
+        self._sent_to_self: list[tuple[float, str]] = []
 
     @property
     def connected(self) -> bool:
@@ -131,6 +136,8 @@ class SignalProvider:
             return
         if message.get("method") == "receive":
             incoming = parse_envelope(message.get("params") or {}, self._account)
+            if incoming is not None and self._echo(incoming):
+                return
             if incoming is not None:
                 task = asyncio.create_task(on_message(incoming))
                 self._tasks.add(task)
@@ -153,9 +160,25 @@ class SignalProvider:
         finally:
             self._pending.pop(request_id, None)
 
+    def _echo(self, incoming: Incoming) -> bool:
+        """Whether this is a copy of a message pi-guard itself sent to its own number."""
+        if incoming.sender_id != self._account:
+            return False
+        now = time.monotonic()
+        self._sent_to_self = [
+            (at, text) for at, text in self._sent_to_self if now - at < ECHO_SECONDS
+        ]
+        for index, (_, text) in enumerate(self._sent_to_self):
+            if text.strip() == incoming.text.strip():
+                del self._sent_to_self[index]
+                return True
+        return False
+
     async def send(self, chat_id: str, reply: Reply) -> None:
         params: dict[str, Any] = {"account": self._account, "recipient": [chat_id],
                                   "message": render(reply)}  # fmt: skip
+        if chat_id == self._account:
+            self._sent_to_self = [*self._sent_to_self[-49:], (time.monotonic(), params["message"])]
         if reply.media is not None:
             # signal-cli reads the file itself, so it must run as the pi-guard user.
             params["attachments"] = [str(reply.media)]

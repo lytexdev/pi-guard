@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app's colours as theme attributes, so the contrast theme can replace them all. -->
+    <attr name="pgBg" format="color" />
+    <attr name="pgSurface" format="color" />
+    <attr name="pgSurface2" format="color" />
+    <attr name="pgLine" format="color" />
+    <attr name="pgText" format="color" />
+    <attr name="pgMuted" format="color" />
+    <attr name="pgAccent" format="color" />
+    <attr name="pgAccentInk" format="color" />
+    <attr name="pgOk" format="color" />
+    <attr name="pgWarn" format="color" />
+    <attr name="pgDanger" format="color" />
+</resources>

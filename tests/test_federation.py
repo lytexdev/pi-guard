@@ -335,3 +335,30 @@ async def test_a_taken_port_is_reported_not_retried_and_cannot_be_saved(tmp_path
     finally:
         await client.close()
         app.db.close()
+
+
+@pytest.mark.parametrize(
+    ("typed", "kept"),
+    [("https://Pi.Example.org/", "pi.example.org"), ("pi.example.org:8445", "pi.example.org"),
+     ("wss://pi.example.org:8445/federation/ws", "pi.example.org"), ("203.0.113.7", "203.0.113.7"),
+     ("[2001:db8::1]:8445", "2001:db8::1"), ("", "")],
+)  # fmt: skip
+def test_the_public_address_keeps_only_the_name(typed: str, kept: str) -> None:
+    from pi_guard.config.settings import Settings
+
+    settings = Settings(_env_file=None, telegram_enabled=False, federation_address=typed)  # type: ignore[call-arg]
+    assert settings.federation_address == kept
+
+
+async def test_a_pasted_url_as_address_still_makes_a_code_the_other_pi_reads(
+    tmp_path: Path,
+) -> None:
+    # The owner's Pi had "https://…" here, and every code it made was "not a valid code".
+    client, app = await _client(tmp_path, federation_enabled=True, federation_listen=True,
+                                federation_port=8445,
+                                federation_address="https://pi.example.org")  # fmt: skip
+    try:
+        code = p.parse_code(app.dashboard.federation.invite())
+        assert code.url == "wss://pi.example.org:8445/federation/ws"
+    finally:
+        await client.close()

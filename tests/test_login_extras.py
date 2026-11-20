@@ -467,3 +467,25 @@ async def test_a_question_comes_on_top_of_the_code_word(tmp_path: Path) -> None:
     finally:
         await client.close()
         app.db.close()
+
+
+async def test_wrong_passwords_in_confirmations_are_limited(tmp_path: Path) -> None:
+    # A stolen session must not try passwords here instead of at the login.
+    client, app = await _client(tmp_path)
+    try:
+        csrf = {"X-CSRF-Token": await _login(client)}
+        for _ in range(5):
+            wrong = {"name": "x", "password": "not the password"}
+            assert (await client.post("/api/keyfiles", json=wrong, headers=csrf)).status == 403
+        right = await client.post(
+            "/api/keyfiles", json={"name": "x", "password": PASSWORD}, headers=csrf
+        )
+        assert right.status == 429 and await right.text() == "web.login_rate_limited"
+        assert (
+            app.db.execute("SELECT COUNT(*) FROM audit WHERE action = 'confirm.failed'").fetchone()[
+                0
+            ]
+            == 5
+        )
+    finally:
+        await client.close()

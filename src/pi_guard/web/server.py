@@ -106,7 +106,16 @@ def confirm_password(request: web.Request, password: str, owner: bool = False) -
     if current(request).username.startswith("fed:"):
         raise web.HTTPForbidden(text="web.fed_needs_local")  # a helper never has the password
     name = d.auth.account(None if owner else current(request).username)["username"]
+    # Limited like the login, per person and per address: a stolen session must not be able
+    # to try passwords here instead.
+    ip = d.guard.client_ip(request)
+    keys = (f"user:{name}", f"ip:{ip}")
+    if d.guard.confirm_blocked(*keys):
+        raise web.HTTPTooManyRequests(text="web.login_rate_limited")
     if d.auth.check_password(name, password) is None:
+        d.guard.confirm_failed(*keys)
+        d.guard.login_failed(ip)
+        d.app.db.audit(f"web:{current(request).username}", "confirm.failed", ip)
         raise web.HTTPForbidden(text="web.wrong_password")
 
 

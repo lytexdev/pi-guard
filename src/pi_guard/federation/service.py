@@ -134,9 +134,13 @@ class Federation:
     def invite(self) -> str:
         if not self.settings.federation_listen:
             raise FederationError("web.fed_listen_off")
-        code = p.Code(self.address(), self.pin(), self.store.public(), self.store.invite(),
-                      self.own_name())  # fmt: skip
-        return code.encode()
+        text = p.Code(self.address(), self.pin(), self.store.public(), self.store.invite(),
+                      self.own_name()).encode()  # fmt: skip
+        try:
+            p.parse_code(text)  # never hand out a code the other Pi would refuse
+        except p.ProtocolError:
+            raise FederationError("web.fed_bad_address") from None
+        return text
 
     def own_name(self) -> str:
         appearance = self.app.db.get("web.appearance") or {}

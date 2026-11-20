@@ -38,6 +38,7 @@ class AppSettingsActivity : AppCompatActivity() {
     private val pickPicture = registerForActivityResult(ActivityResultContracts.GetContent()) { shortcutPicture = it }
 
     override fun onCreate(state: Bundle?) {
+        Look.apply(this)
         super.onCreate(state)
         setContentView(R.layout.activity_settings)
         store = Store(this)
@@ -122,7 +123,7 @@ class AppSettingsActivity : AppCompatActivity() {
         val title = android.widget.TextView(this).apply {
             setText(R.string.pin_hint)
             gravity = android.view.Gravity.CENTER
-            setTextColor(getColor(R.color.muted))
+            setTextColor(Look.color(this@AppSettingsActivity, R.attr.pgMuted))
         }
         lateinit var dialog: androidx.appcompat.app.AlertDialog
         val pad = PinPad(this) { pin ->

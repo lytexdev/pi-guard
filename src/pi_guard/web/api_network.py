@@ -30,11 +30,14 @@ from pi_guard.network.reach import (
     endpoints,
     ipv4_way,
     ipv6_way,
+    not_needed,
+    other_vpns,
     own_ipv6,
     relay_way,
     resolve,
     tailscale,
     tailscale_way,
+    vpn_mode,
 )
 from pi_guard.network.wgpeers import (
     PQ_FOLDER,
@@ -617,17 +620,26 @@ async def reach(request: web.Request) -> web.Response:
     used = carried(status, public)
     v4, _ = await asyncio.to_thread(resolve, s.wireguard_endpoint or "")
     _, v6 = await asyncio.to_thread(resolve, s.wireguard_endpoint_v6 or "")
+    net = await asyncio.to_thread(tailscale)
+    others = await asyncio.to_thread(other_vpns, net)
+    mode = vpn_mode(s.wireguard_enabled, others)
+    awg_params = await asyncio.to_thread(awg.read)
+    wireguard_ways = [
+        ipv4_way(s.wireguard_endpoint, v4, public, used["ipv4"]),
+        ipv6_way(s.wireguard_endpoint_v6, v6, own_ipv6(), used["ipv6"]),
+        relay_way(s.wireguard_relay, relay, used["relay"]),
+        awg.way(awg_params, s.wireguard_endpoint, awg.running(), awg.enabled(s.data_dir)),
+    ]
+    if mode == "other":
+        wireguard_ways = [not_needed(way) for way in wireguard_ways]
     return web.json_response({
         "enabled": s.wireguard_enabled,
         "public": public,
-        "ways": [
-            ipv4_way(s.wireguard_endpoint, v4, public, used["ipv4"]),
-            ipv6_way(s.wireguard_endpoint_v6, v6, own_ipv6(), used["ipv6"]),
-            relay_way(s.wireguard_relay, relay, used["relay"]),
-            awg.way(await asyncio.to_thread(awg.read), s.wireguard_endpoint, awg.running(),
-                    awg.enabled(s.data_dir)),
-            tailscale_way(await asyncio.to_thread(tailscale)),
-        ],
+        "mode": mode,
+        "others": others,
+        # AmneziaWG still running although nothing uses it: the page offers to switch it off.
+        "awg_idle": mode == "other" and bool(awg_params) and awg.enabled(s.data_dir),
+        "ways": [*wireguard_ways, tailscale_way(net)],
     }, headers={"Cache-Control": "no-store"})  # fmt: skip
 
 

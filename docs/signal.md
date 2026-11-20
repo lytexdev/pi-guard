@@ -48,7 +48,8 @@ five times. After scanning, pi-guard takes the number from the phone, switches S
 restart. If no admin number is set yet, your number becomes the admin number.
 
 With your own number, pi-guard is a linked device of your account. Write to it in **Note to Self**
-and alerts arrive there too. Set your number as system number and as admin number. Messages you
+and alerts arrive there too. pi-guard's own messages come back to it there as copies; it recognises and skips them, so
+it never answers itself. Set your number as system number and as admin number. Messages you
 write to other people are ignored.
 
 To register a separate number instead, use signal-cli directly:

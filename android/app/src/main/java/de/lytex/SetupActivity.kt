@@ -15,6 +15,7 @@ class SetupActivity : AppCompatActivity() {
     private lateinit var address: EditText
 
     override fun onCreate(state: Bundle?) {
+        Look.apply(this)
         super.onCreate(state)
         setContentView(R.layout.activity_setup)
         status = findViewById(R.id.status)

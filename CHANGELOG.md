@@ -8,6 +8,15 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- A valid household code was refused as "not a valid code" when the public address was entered as a URL
+  (`https://name`): the code then held `wss://https://…`. The setting keeps only the name now, and a Pi checks each
+  code it makes before showing it.
+- Messages of password dialogs (wrong password, refused code, saved) were hidden behind the dialog and only showed
+  after closing it; they appear above it now.
+- Signal with the owner's own number answered its own answers, which came back as Note to Self, in a loop. Copies of
+  its own messages are skipped now, and with commands off Signal answers nothing at all, not even a hint.
+- The support page showed the example lines for the env file next to the real contact; only while nobody is set now.
+
 - *Update now* failed with a server error on freshly installed Pis, and the automatic update with PermissionError:
   `install.sh` made `/var/lib/pi-guard/update` as root before pi-guard ever ran. The update job now makes that folder
   for pi-guard and hands back one made as root; the button says what to do instead of a server error. The update also
@@ -16,6 +25,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Another VPN (Tailscale, ZeroTier, NetBird) on the Pi is recognised: with pi-guard's WireGuard off, *Network → VPN*
+  says so, marks the WireGuard ways, AmneziaWG and post-quantum keys as not needed, and offers to switch AmneziaWG off.
+- The phone app follows the dashboard's theme, high contrast included, on its own screens and the system bars.
+- Wrong passwords in confirmation dialogs are limited like the login (five a minute per person and address), and
+  count towards the ban of an address.
 - Alarms in the app only: the phone app and browser push have their own delivery setting, like the messengers, at
   the top of the notification staircase. With messengers on *emergencies only*, they carry just the second line,
   escalations and SOS. Browser push can be switched on there, and SOS and emergency notes reach admins by push too.
@@ -27,6 +41,7 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- *Home* and *Away* on the overview are larger, and the chosen one is filled and ticked.
 - The AI assistant answers only in the dashboard, the apps and to the wake phrase, never in a messenger: plain text
   in a chat is no question for it any more, and `/frage` and `/wetter` say where to ask.
 - Discord, Signal and WhatsApp no longer need an admin list in the env file when the dashboard is on.

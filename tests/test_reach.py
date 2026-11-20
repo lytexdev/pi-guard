@@ -187,3 +187,35 @@ def test_a_tailnet_address_is_a_known_way_in() -> None:
     guard.allowed_hosts = {"guard.example"}
     assert guard._host_allowed("100.70.0.1:8443")
     assert not guard._host_allowed("93.184.216.34:8443")
+
+
+def test_another_vpn_is_found_by_its_interface(tmp_path: Path) -> None:
+    for name in ("lo", "eth0", "wg0", "tailscale0", "ztabc123"):
+        (tmp_path / name).mkdir()
+    running = {"state": "Running", "addresses": [], "login": None}
+    assert reach.other_vpns(running, tmp_path) == ["tailscale", "zerotier"]
+    stopped = {**running, "state": "Stopped"}
+    assert reach.other_vpns(stopped, tmp_path) == ["zerotier"]  # logged out: not a way home
+    assert reach.other_vpns(None, tmp_path / "missing") == []
+    assert reach.vpn_mode(False, ["tailscale"]) == "other"
+    assert reach.vpn_mode(True, ["tailscale"]) == "both"
+    assert reach.vpn_mode(True, []) == "wireguard" and reach.vpn_mode(False, []) == "none"
+
+
+async def test_with_only_tailscale_the_wireguard_ways_are_not_needed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("pi_guard.web.api_network.other_vpns", lambda net: ["tailscale"])
+    monkeypatch.setattr("pi_guard.network.awg.read", lambda path=None: {"port": 51821})
+    monkeypatch.setattr("pi_guard.network.awg.enabled", lambda data_dir: True)
+    client, app = await _client(tmp_path)
+    try:
+        await _login(client)
+        body = await (await client.get("/api/network/reach")).json()
+        assert body["mode"] == "other" and body["others"] == ["tailscale"]
+        wireguard = [w for w in body["ways"] if w["id"] != "tailscale"]
+        assert {(w["state"], w["key"]) for w in wireguard} == {("off", "web.reach_not_needed")}
+        assert body["awg_idle"]  # the page offers to switch AmneziaWG off
+    finally:
+        await client.close()
+        app.db.close()

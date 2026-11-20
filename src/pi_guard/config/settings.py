@@ -430,6 +430,24 @@ class Settings(BaseSettings):
             raise ValueError("expected a name like home.example.org")
         return value
 
+    @field_validator("federation_address")
+    @classmethod
+    def _check_federation_address(cls, value: str) -> str:
+        """Only the name or address: a pasted "https://name/" or "name:8445" made every code
+        unreadable on the other Pi (owner's Pi, 2026-11-20). The port is `federation_port`."""
+        from urllib.parse import urlsplit
+
+        value = value.strip()
+        if not value:
+            return ""
+        try:
+            host = urlsplit(value if "//" in value else f"//{value}").hostname or ""
+        except ValueError:
+            host = ""
+        if not re.fullmatch(r"[a-z0-9.\-:]{1,253}", host):
+            raise ValueError("expected a name like home.example.org")
+        return host.rstrip(".")
+
     @field_validator("wireguard_endpoint", "wireguard_endpoint_v6", "wireguard_relay")
     @classmethod
     def _check_endpoint(cls, value: str | None) -> str | None:

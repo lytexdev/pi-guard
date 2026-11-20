@@ -7,7 +7,6 @@ import android.view.HapticFeedbackConstants
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 
 /**
@@ -30,7 +29,7 @@ class PinPad(context: Context, private val onDone: (String) -> Unit) : LinearLay
             letterSpacing = 0.3f
             gravity = Gravity.CENTER
             minHeight = (48 * density).toInt()
-            setTextColor(ContextCompat.getColor(context, R.color.text))
+            setTextColor(Look.color(context, R.attr.pgText))
             contentDescription = context.getString(R.string.pin_entered, 0)
         }
         addView(dots, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))

@@ -46,6 +46,8 @@ export function applyDesign() {
   root.dataset.text = chosenSize();
   const color = getComputedStyle(root).getPropertyValue("--bg").trim();
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color || "#121418");
+  // The phone app colours its own screens and the system bars the same (Look.kt, app 1.17 on).
+  try { window.PiGuardLook?.theme(chosen); } catch { /* an older app */ }
   applyAppearance();
 }
 

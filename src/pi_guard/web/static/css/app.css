@@ -140,6 +140,16 @@ button.on { border-color: var(--accent); color: var(--accent); }
 .segmented button { border: 0; border-radius: 0; background: transparent; min-width: 0; }
 .segmented button + button { border-left: 1px solid var(--line); }
 .segmented button.on { background: var(--surface-2); color: var(--accent); }
+/* Home / away on the overview: big, and the chosen one filled with a tick, so it reads at a
+   glance in every design, also without telling colours apart. */
+.presence-switch { border-width: 2px; border-radius: 12px; }
+.presence-switch button { min-height: calc(var(--tap) + 8px); padding: 10px 18px; font-weight: 600; color: var(--muted); display: inline-flex; align-items: center; gap: 8px; }
+.presence-switch button + button { border-left-width: 2px; }
+.presence-switch button.on { background: var(--accent); color: var(--accent-ink); }
+.presence-switch button.mode-away.on { background: var(--warn); color: #1a1200; }
+.presence-switch .mode-tick { width: 18px; height: 18px; }
+:root[data-theme="light"] .presence-switch button.mode-away.on { color: #ffffff; }
+:root[data-theme="contrast"] .presence-switch button.on { outline: 3px solid #000000; outline-offset: -6px; }
 
 label { display: block; font-weight: 500; margin-bottom: 4px; }
 .field { margin-bottom: 14px; }
@@ -248,7 +258,7 @@ html.fs-open .tabbar, html.fs-open .a11y-open, html.fs-open .to-top, html.fs-ope
 
 /* feedback */
 .toast {
-  position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  position: fixed; inset: auto; margin: 0; overflow: visible; color: var(--text); left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   background: var(--surface-2); border: 1px solid var(--line); padding: 10px 16px; border-radius: 8px;
   z-index: 50; max-width: calc(100vw - 32px); box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
 }
@@ -1004,6 +1014,8 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .vpn-layer:hover { border-color: var(--accent); text-decoration: none; }
 .vpn-layer.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .vpn-layer.live { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); }
+.vpn-layer.idle { opacity: .6; }
+.other-vpn { border-left: 4px solid var(--accent); }
 .vpn-layer > .icon { color: var(--accent); flex: none; margin-top: 2px; }
 .vpn-layer .grow { min-width: 0; }
 .vpn-layer strong, .vpn-layer small { display: block; overflow-wrap: anywhere; }

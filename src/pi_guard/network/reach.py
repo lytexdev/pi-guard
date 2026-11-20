@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 import shutil
 import socket
 import subprocess
@@ -72,6 +73,39 @@ def tailscale() -> dict[str, Any] | None:
         "addresses": [str(a) for a in data.get("TailscaleIPs") or []],
         "login": data.get("AuthURL") or None,
     }
+
+
+# Other VPNs by their network interface: when one of them brings devices home, pi-guard's own
+# WireGuard, its ways and AmneziaWG (which only mirrors wg0) are not needed.
+OTHER_VPNS = (
+    ("tailscale", re.compile(r"^tailscale\d*$")),
+    ("zerotier", re.compile(r"^zt[0-9a-z]+$")),
+    ("netbird", re.compile(r"^wt\d+$")),
+)
+
+
+def other_vpns(net: dict[str, Any] | None, interfaces: Path = Path("/sys/class/net")) -> list[str]:
+    """The other VPNs that are up on this Pi, such as ["tailscale"]."""
+    try:
+        names = sorted(p.name for p in interfaces.iterdir())
+    except OSError:
+        names = []
+    found = [vpn for vpn, pattern in OTHER_VPNS if any(pattern.match(name) for name in names)]
+    if net is not None and net.get("state") != "Running" and "tailscale" in found:
+        found.remove("tailscale")  # installed, but logged out or stopped
+    return found
+
+
+def vpn_mode(wireguard: bool, others: list[str]) -> str:
+    """ "wireguard", "other" (only another VPN), "both" or "none"."""
+    if wireguard:
+        return "both" if others else "wireguard"
+    return "other" if others else "none"
+
+
+def not_needed(way: dict[str, Any]) -> dict[str, Any]:
+    """A WireGuard way while another VPN brings the devices home and pi-guard's is off."""
+    return {**way, "state": "off", "key": "web.reach_not_needed"}
 
 
 def addresses(s: Settings, net: dict[str, Any] | None) -> list[str]:

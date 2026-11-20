@@ -55,6 +55,9 @@ class FakeSignalCli:
             "sourceName": "Owner",
             "dataMessage": {"timestamp": 1, "message": message},
         }
+        await self.push_envelope(envelope)
+
+    async def push_envelope(self, envelope: dict[str, Any]) -> None:
         payload = {
             "jsonrpc": "2.0",
             "method": "receive",
@@ -213,3 +216,29 @@ async def test_mqtt_queue_is_bounded(tmp_path: Path) -> None:
     sizes = [q.qsize() for name, q in app.bus._queues if name == "mqtt"]
     assert sizes == [200]
     app.db.close()
+
+
+async def test_signal_drops_its_own_answers_to_its_own_number() -> None:
+    """With the owner's own number each answer came back as Note to Self and was answered again."""
+    cli = FakeSignalCli()
+    address = await cli.start()
+    received: list[Incoming] = []
+
+    async def on_message(incoming: Incoming) -> None:
+        received.append(incoming)
+
+    provider = SignalProvider(ACCOUNT, address)
+    task = asyncio.create_task(provider.run(on_message))
+    await asyncio.sleep(0.05)
+
+    def note_to_self(text: str) -> dict[str, Any]:
+        sent = {"destinationNumber": ACCOUNT, "message": text}
+        return {"sourceNumber": ACCOUNT, "syncMessage": {"sentMessage": sent}}
+
+    await provider.send(ACCOUNT, Reply("Menu", buttons=((Button("Foto", "photo"),),)))
+    await cli.push_envelope(note_to_self("Menu\n\n1  Foto"))  # the copy of our own answer
+    await cli.push_envelope(note_to_self("status"))  # the owner writing to themselves
+    await asyncio.sleep(0.05)
+    assert [m.text for m in received] == ["status"]
+    task.cancel()
+    await cli.stop()

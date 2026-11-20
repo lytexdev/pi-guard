@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     private val askPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
 
     override fun onCreate(state: Bundle?) {
+        Look.apply(this)
         super.onCreate(state)
         store = Store(this)
         if (store.url == null) {
@@ -79,7 +80,7 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun prepareWeb() {
-        web.setBackgroundColor(getColor(R.color.bg)) // no white flash before the dashboard paints
+        web.setBackgroundColor(Look.color(this, R.attr.pgBg)) // no white flash before the dashboard paints
         web.overScrollMode = View.OVER_SCROLL_NEVER
         web.isHorizontalScrollBarEnabled = false
         web.isVerticalScrollBarEnabled = false
@@ -93,6 +94,11 @@ class MainActivity : AppCompatActivity() {
         web.settings.userAgentString = "${web.settings.userAgentString} PiGuardApp/$version"
         web.settings.mediaPlaybackRequiresUserGesture = false
         CookieManager.getInstance().setAcceptCookie(true)
+        // A new design in the dashboard: the app's own screens and bars follow, on the same page.
+        web.addJavascriptInterface(Look.Bridge(this) {
+            reopen = web.url
+            recreate()
+        }, "PiGuardLook")
         web.webViewClient = object : WebViewClient() {
             @SuppressLint("WebViewClientOnReceivedSslError")
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
@@ -155,7 +161,7 @@ class MainActivity : AppCompatActivity() {
     private fun open() {
         offline.visibility = View.GONE
         if (store.token == null) return web.loadUrl(store.url!!)
-        val page = store.url!! + route()
+        val page = reopened() ?: (store.url!! + route())
         thread {
             runCatching { Net.pick(store) }
             val cookie = runCatching {
@@ -205,6 +211,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** A dashboard page asked for by a quick action, such as #/live for a call. Only those. */
+    /** The page shown before the design changed, only if it is on the Pi. */
+    private fun reopened(): String? {
+        val wanted = reopen?.let(Uri::parse) ?: return null
+        reopen = null
+        val home = Uri.parse(store.url!!)
+        return wanted.toString().takeIf { wanted.scheme == home.scheme && wanted.authority == home.authority }
+    }
+
     private fun route(): String {
         val wanted = intent?.getStringExtra(QuickActions.ROUTE)
         intent?.removeExtra(QuickActions.ROUTE)
@@ -225,7 +239,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        findViewById<ImageButton>(R.id.vpn_open).imageTintList = ColorStateList.valueOf(getColor(if (Vpn.running) R.color.ok else R.color.text))
+        findViewById<ImageButton>(R.id.vpn_open).imageTintList = ColorStateList.valueOf(Look.color(this, if (Vpn.running) R.attr.pgOk else R.attr.pgText))
         if (Vpn.running && offline.visibility == View.VISIBLE) open()
         val app = application as PiGuardApp
         if (store.locked && SystemClock.elapsedRealtime() - app.leftAt > LOCK_AFTER) {
@@ -246,5 +260,6 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val LOCK_AFTER = 30_000L
         private val ROUTES = setOf("#/live", "#/help/tour")
+        private var reopen: String? = null // across recreate() after a new design
     }
 }

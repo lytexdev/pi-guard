@@ -28,5 +28,48 @@
         <item name="android:windowLightStatusBar">@bool/light_bars</item>
         <item name="android:windowLightNavigationBar">@bool/light_bars</item>
         <item name="materialButtonStyle">@style/Button</item>
+        <item name="pgBg">@color/bg</item>
+        <item name="pgSurface">@color/surface</item>
+        <item name="pgSurface2">@color/surface2</item>
+        <item name="pgLine">@color/line</item>
+        <item name="pgText">@color/text</item>
+        <item name="pgMuted">@color/muted</item>
+        <item name="pgAccent">@color/accent</item>
+        <item name="pgAccentInk">@color/accent_ink</item>
+        <item name="pgOk">@color/ok</item>
+        <item name="pgWarn">@color/warn</item>
+        <item name="pgDanger">@color/danger</item>
+    </style>
+    <!-- The dashboard's high-contrast theme: black, white lines, bright colours. Chosen in the
+         dashboard (Look.kt), always with the dark system bars. -->
+    <style name="Theme.PiGuard.Contrast" parent="Theme.PiGuard">
+        <item name="colorPrimary">#7FD0FF</item>
+        <item name="colorOnPrimary">#000000</item>
+        <item name="colorSecondaryContainer">#141414</item>
+        <item name="colorOnSecondaryContainer">#FFFFFF</item>
+        <item name="colorSurface">#000000</item>
+        <item name="colorSurfaceContainerHigh">#141414</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+        <item name="colorOnSurfaceVariant">#E0E0E0</item>
+        <item name="colorOutline">#FFFFFF</item>
+        <item name="colorOutlineVariant">#FFFFFF</item>
+        <item name="colorError">#FF8A8A</item>
+        <item name="android:colorBackground">#000000</item>
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="pgBg">#000000</item>
+        <item name="pgSurface">#000000</item>
+        <item name="pgSurface2">#141414</item>
+        <item name="pgLine">#FFFFFF</item>
+        <item name="pgText">#FFFFFF</item>
+        <item name="pgMuted">#E0E0E0</item>
+        <item name="pgAccent">#7FD0FF</item>
+        <item name="pgAccentInk">#000000</item>
+        <item name="pgOk">#6DFF9E</item>
+        <item name="pgWarn">#FFD166</item>
+        <item name="pgDanger">#FF8A8A</item>
     </style>
 </resources>

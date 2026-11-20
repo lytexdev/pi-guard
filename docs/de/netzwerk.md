@@ -125,6 +125,11 @@ PiGuard-App findet das Dashboard selbst unter der Tailscale-Adresse. Öffnen Sie
 zu Hause. Tailscale ist ein Dienst einer Firma: Die Verbindungen sind Ende-zu-Ende verschlüsselt,
 Ihre Geräte stehen aber dort in einer Liste.
 
+**Ein anderes VPN statt WireGuard von pi-guard:** Läuft Tailscale, ZeroTier oder NetBird auf dem Pi und ist das
+WireGuard von pi-guard aus, sagt *Netzwerk → VPN* das. Die WireGuard-Wege, AmneziaWG und die Quanten-Schlüssel wirken
+nur mit dem WireGuard von pi-guard und stehen dann auf *nicht nötig*. Läuft AmneziaWG noch, bietet die Seite an, es
+auszuschalten.
+
 Details: [network.md](../network.md#ways-home-from-outside).
 
 Dashboard › **Netzwerk › VPN › Geräte › Gerät hinzufügen**: Namen eingeben
