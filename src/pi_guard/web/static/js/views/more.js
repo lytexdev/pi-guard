@@ -55,7 +55,7 @@ function languagePanel() {
 }
 
 export async function render(main) {
-  const entries = [["setup/welcome", "settings", "web.setup_open"], ["addons", "cpu", "web.nav_addons"], ["monitor", "camera", "web.nav_monitor"],
+  const entries = [["find", "map-pin", "web.nav_find"], ["setup/welcome", "settings", "web.setup_open"], ["addons", "cpu", "web.nav_addons"], ["monitor", "camera", "web.nav_monitor"],
     ["settings", "settings", "web.nav_settings"],
     ["settings/appearance", "palette", "web.set_appearance"],
     ["contacts", "users", "web.nav_contacts"],

@@ -118,7 +118,9 @@ async def test_finding_through_the_live_connection(tmp_path: Path) -> None:
         assert offline.status == 409
         socket = await client.ws_connect("/api/mobile/ws", headers=bearer)
         assert (await client.post(url, headers=headers)).status == 200
-        assert (await socket.receive_json()) == {"type": "find", "ring": True}
+        assert (await socket.receive_json()) == {"type": "find", "ring": True, "sound": True}
+        assert (await client.post(url, json={"sound": False}, headers=headers)).status == 200
+        assert (await socket.receive_json()) == {"type": "find", "ring": True, "sound": False}
         await socket.send_json({"type": "report", "battery": 12})
         await socket.close()
         for _ in range(50):

@@ -219,7 +219,8 @@ class GuardService : Service() {
             // A fresh place for a map link, without ringing; only if this phone shares it.
             "locate" -> work.execute { runCatching { send(Locator.report(this, store.shareLocation)) } }
             "find" -> if (message.optBoolean("ring")) {
-                main.post(::ring)
+                val sound = message.optBoolean("sound", true)  // false: only vibrate
+                main.post { ring(sound) }
                 // The owner decides: the phone rings either way, its location only goes out if shared.
                 work.execute { runCatching { send(Locator.report(this, store.shareLocation)) } }
             } else {
@@ -250,15 +251,17 @@ class GuardService : Service() {
         getSystemService(NotificationManager::class.java).notify(id, builder.build())
     }
 
-    private fun ring() {
+    private fun ring(sound: Boolean = true) {
         stopRing()
-        val audio = getSystemService(AudioManager::class.java)
-        audio.setStreamVolume(AudioManager.STREAM_ALARM, audio.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0)
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-        ringtone = RingtoneManager.getRingtone(this, uri)?.apply {
-            audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) isLooping = true
-            play()
+        if (sound) {
+            val audio = getSystemService(AudioManager::class.java)
+            audio.setStreamVolume(AudioManager.STREAM_ALARM, audio.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0)
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            ringtone = RingtoneManager.getRingtone(this, uri)?.apply {
+                audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) isLooping = true
+                play()
+            }
         }
         @Suppress("DEPRECATION")
         getSystemService(Vibrator::class.java).vibrate(VibrationEffect.createWaveform(longArrayOf(0, 800, 400), 0))

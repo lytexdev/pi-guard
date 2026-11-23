@@ -3874,5 +3874,20 @@
   "web.ts_step_phone": "Install the Tailscale app on phones and computers and log in with the same account. The pi-guard app then reaches the Pi at its home address or the tailnet address above.",
   "web.ts_owner_runs": "These commands change the Pi's network and only run when you run them yourself.",
   "web.refresh": "Refresh",
-  "web.no": "no"
+  "web.no": "no",
+  "web.nav_find": "Find devices",
+  "web.tip_nav_find": "Ring or vibrate a phone, see where it is, report it lost",
+  "web.find_intro": "Every phone with the pi-guard app: ring it or let it vibrate, get its place, report it lost. A lost phone reports its place until you mark it found.",
+  "web.find_missing": "Reported lost: {names}",
+  "web.find_none": "No phone with the app connected yet. Get the app with an invitation and log in.",
+  "web.find_how_title": "How it works",
+  "web.find_how_ring": "Ring: loud, also on silent, until someone stops it on the phone or after a while by itself.",
+  "web.find_how_vibrate": "Vibrate only: search quietly, say at night at home (app 1.18 and newer; older apps ring).",
+  "web.find_how_place": "Place: only with “Share location” on in the phone. The map loads through the Pi.",
+  "web.find_how_lost": "Lost: shows your message on the lock screen and reports the place every minute. Only the dashboard can end it, never the phone.",
+  "web.mob_vibrate": "Vibrate",
+  "web.mob_vibrate_tip": "Vibrate only, without sound",
+  "web.mob_vibrating": "The phone is vibrating.",
+  "web.tut_find": "Find devices",
+  "web.tut_find_text": "Under Find devices a phone with the app rings or vibrates, shows its place or is reported lost; it then reports its place until you mark it found in the dashboard."
 }

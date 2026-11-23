@@ -3874,5 +3874,20 @@
   "web.ts_step_phone": "Auf Handy und Computer die Tailscale-App installieren und mit demselben Konto anmelden. Die pi-guard-App erreicht den Pi dann über seine Heimadresse oder die Tailnet-Adresse oben.",
   "web.ts_owner_runs": "Diese Befehle ändern das Netz des Pi und laufen nur, wenn du sie selbst ausführst.",
   "web.refresh": "Aktualisieren",
-  "web.no": "nein"
+  "web.no": "nein",
+  "web.nav_find": "Geräte finden",
+  "web.tip_nav_find": "Handy klingeln oder vibrieren lassen, Standort sehen, als vermisst melden",
+  "web.find_intro": "Alle Handys mit der pi-guard-App: klingeln oder vibrieren lassen, den Standort holen, als vermisst melden. Ein vermisstes Handy meldet seinen Standort, bis du es als gefunden markierst.",
+  "web.find_missing": "Als vermisst gemeldet: {names}",
+  "web.find_none": "Noch kein Handy mit der App verbunden. Lade die App über eine Einladung herunter und melde dich an.",
+  "web.find_how_title": "So funktioniert es",
+  "web.find_how_ring": "Klingeln: laut, auch im Lautlos-Modus, bis jemand es am Handy stoppt oder nach einer Weile von selbst.",
+  "web.find_how_vibrate": "Nur vibrieren: leise suchen, etwa nachts im Haus (ab App 1.18; ältere Apps klingeln).",
+  "web.find_how_place": "Standort: nur wenn auf dem Handy „Standort teilen“ an ist. Die Karte lädt über den Pi.",
+  "web.find_how_lost": "Vermisst: zeigt deine Nachricht auf dem Sperrbildschirm und meldet den Standort jede Minute. Beenden kann das nur das Dashboard, nie das Handy.",
+  "web.mob_vibrate": "Vibrieren",
+  "web.mob_vibrate_tip": "Nur vibrieren lassen, ohne Ton",
+  "web.mob_vibrating": "Das Handy vibriert.",
+  "web.tut_find": "Geräte finden",
+  "web.tut_find_text": "Unter Geräte finden klingelt oder vibriert ein Handy mit der App, zeigt seinen Standort oder wird als vermisst gemeldet; dann meldet es seinen Standort, bis du es im Dashboard als gefunden markierst."
 }

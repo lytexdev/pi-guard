@@ -1207,3 +1207,6 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .copy-line { display: flex; gap: 6px; align-items: flex-start; margin-top: 6px; }
 .copy-line pre { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); overflow-wrap: anywhere; }
 .quick-links { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Find devices: the phone cards with room for their buttons */
+.find-list .phone-card { padding: 12px 4px; }
+.find-list .phone-actions { display: flex; flex-wrap: wrap; gap: 8px; }

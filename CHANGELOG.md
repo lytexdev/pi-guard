@@ -35,6 +35,9 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- **Find devices**: one page in the navigation for every phone with the app (ring, vibrate only, place, lost and
+  found), also in the tutorial; *Vibrate* needs app 1.18.
+
 - Settings: *Detection* and the sound switches moved into *Devices & cameras*, wake words and the talk button onto the
   AI assistant's page; new sections **System** (health and updates) and **Network** (router, Pi-hole, VPN, DNS).
 - *Pin to navigation* on every add-on's own page; pinned add-ons also show under *More* on phones, with their icon.

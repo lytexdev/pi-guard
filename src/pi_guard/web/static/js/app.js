@@ -21,6 +21,7 @@ const VIEWS = {
   setup: () => import("./views/setup.js"),
   help: () => import("./views/help.js"),
   system: () => import("./views/system.js"),
+  find: () => import("./views/find.js"),
 };
 const PRIMARY = [
   ["overview", "home", "web.nav_overview"],
@@ -28,6 +29,7 @@ const PRIMARY = [
   ["events", "bell", "web.nav_events"],
   ["network", "network", "web.nav_network"],
   ["contacts", "users", "web.nav_contacts"],
+  ["find", "map-pin", "web.nav_find"],
 ];
 const SECONDARY = [
   ["system", "server", "web.nav_system_page"],
@@ -45,6 +47,7 @@ export function memberRoutes(session = state.session) {
   if (granted.includes("people")) routes.push("people");
   if (granted.includes("network")) routes.push("network");
   if (granted.includes("contacts")) routes.push("contacts");
+  if (granted.includes("apps")) routes.push("find");
   if (["apps", "settings:updates", "settings:apps"].some((p) => granted.includes(p))) routes.push("system");
   if (granted.some((p) => p.startsWith("addon:"))) routes.push("addons");
   if (granted.includes("logs") || granted.some((p) => p.startsWith("settings:"))
