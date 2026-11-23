@@ -39,8 +39,10 @@ was die Installation schon erledigt hat, erscheint als *Bereits eingerichtet*):
 6. Notfallkontakte
 7. Vertraute Personen: Erkennung einschalten, Modelle laden, Personen eintragen
 8. Add-ons: optionale Teile einschalten
-9. Design: dunkel, hell oder hoher Kontrast, normale oder große Schrift
-10. Fertig: Neustart, wenn sich Einstellungen geändert haben
+9. Apps: welche Apps dieser Pi anbietet, ein Download-Link mit QR-Code zum Scannen mit dem Handy (einige Tage gültig),
+   wie man die App verbindet, und ein Hinweis fürs iPhone (Dashboard zum Home-Bildschirm)
+10. Design: dunkel, hell oder hoher Kontrast, normale oder große Schrift
+11. Fertig: Neustart, wenn sich Einstellungen geändert haben
 
 **Mitglieder und Betrachter** bekommen den Assistenten nicht. Nach der ersten
 Anmeldung ändern sie Passwort und Zwei-Faktor unter *Zugang*. *Hilfe & Tutorial*
@@ -242,7 +244,9 @@ steuerst du hier; die alten Admin-/Betrachter-Listen unter Nachrichten bleiben n
 anzufassen: pi-guard und seine Teile, jede Kamera (Zustand, letztes Bild, Aufnahme), Speicher, Arbeitsspeicher,
 Prozessor, Temperatur, die Stromversorgung des Pi (Unterspannung und Drosselung, jetzt oder seit dem Start), die
 Datenbank, jeden Messenger, die Erkennungsmodelle, die letzte Sicherung und die Uhrzeit; ein Problem verlinkt dorthin,
-wo es behoben wird. Mehr prüft `sudo pi-guard doctor` (FFmpeg, Encoder, Kameras). **Gerät** zeigt Modell, Prozessor,
+wo es behoben wird. Mehr prüft `sudo pi-guard doctor` (FFmpeg, Encoder, Kameras). Oben steht ein Ring, wie viele
+Prüfungen in Ordnung sind, mit *Neu prüfen*, darunter Kacheln für Last, Arbeitsspeicher, Temperatur und freien Platz
+mit Balken, dann eine Karte je Prüfung, Probleme zuerst. **Gerät** zeigt Modell, Prozessor,
 Arbeitsspeicher, Betriebssystem, Kernel, Laufzeit, die Daten- und Aufnahme-Laufwerke, Kameras und Tongeräte,
 USB-Geräte und die Adressen im Netz. **Updates** steht unten. Mitglieder sehen die Systemseite nur für Updates, wenn
 sie Apps verwalten dürfen; Zustand und Gerät bleiben bei Admins.
@@ -252,6 +256,12 @@ sie Apps verwalten dürfen; Zustand und Gerät bleiben bei Admins.
 *System → Updates* zeigt die Version des Pi (sie steht auch neben dem Hinweis unten in der Navigation), die
 neueste Version, woher Updates kommen (Repository und Kanal Stabil/Beta), die Instanz-ID dieser Installation, alle
 App-Versionen (*Nach App-Updates suchen*), Einladungen und Telefone. Die anonymen Statistiken sind vorerst aus.
+Dasselbe steht unter *Einstellungen → System*.
+
+*Jetzt aktualisieren* zeigt die echten Schritte des Updates, wie der Root-Job sie meldet: angefordert, signierte Version
+holen und prüfen, installieren, neu starten (die Seite wartet, solange pi-guard weg ist, und sagt es, wenn die alte
+Version zurückkommt), fertig, mit *Seite neu laden*. Ein fehlgeschlagener Schritt wird rot, mit der Meldung des Jobs.
+*Nach Updates suchen* zeigt, dass es sucht, und danach kurz *Neue Version gefunden* oder *Keine neue Version*.
 Die alten Adressen *System → Updates* und *Einstellungen → Updates* leiten hierhin um.
 
 ## Werkzeuge im Alltag

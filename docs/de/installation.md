@@ -71,7 +71,7 @@ neues Erstpasswort, wenn die Datenbank schon existiert.
 2. `https://<pi>:8443` öffnen und als **admin** mit dem Erstpasswort anmelden.
 3. Eigenen Benutzernamen und eigenes Passwort wählen (mindestens 10 Zeichen).
    Der Einrichtungsassistent führt durch Kameras, Messenger, Meldungen,
-   Notfallkontakte, vertraute Personen, Add-ons und Design. Schritte
+   Notfallkontakte, vertraute Personen, Add-ons, Apps (Link und QR-Code fürs Handy) und Design. Schritte
    überspringen und später unter *Mehr → Einrichtungsassistent* nachholen.
 4. Optional: Android- oder Desktop-App unter *System → Updates*, oder
    Haushaltsmitglieder unter *Kontakte* anlegen und einladen. Am Computer geht auch

@@ -243,32 +243,93 @@ function networkLinks(body) {
     h("div", { class: "quick-links" }, links.map(([href, ic, label]) => h("a", { class: "button", href }, icon(ic), t(label))))));
 }
 
+// The update's real steps, from the root job's report (scripts/update.sh): it says "checking",
+// "installing" or "rolling back" while it runs, then done or failed. While pi-guard restarts the
+// page cannot ask, so that step is shown until it answers again.
+const UPDATE_STEPS = ["request", "check", "install", "restart", "done"];
+
+function updateStep(u, since, offline) {
+  const s = u?.state || {};
+  const fresh = s.time && Date.parse(s.time) >= since - 5000;
+  if (offline) return { at: "restart" };
+  if (u?.pending) return { at: "request" };
+  if (s.state === "running" && fresh) return { at: s.message === "installing" ? "install" : s.message === "rolling back" ? "restart" : "check", rollback: s.message === "rolling back" };
+  if (s.state === "done" && fresh) return { at: "done", ok: true };
+  // "new version did not start" comes after the restart; every other failure before installing.
+  if (s.state === "failed" && fresh) return { at: /did not start/.test(s.message || "") ? "restart" : "check", failed: true };
+  return null;
+}
+
+function stepper(step, message) {
+  const at = UPDATE_STEPS.indexOf(step.at);
+  return h("ol", { class: `up-steps${step.failed ? " failed" : ""}`, "aria-live": "polite" }, UPDATE_STEPS.map((id, i) => {
+    const state = step.ok || i < at ? "done" : i === at ? (step.failed ? "failed" : "current") : "pending";
+    return h("li", { class: `up-step ${state}` },
+      h("span", { class: "up-dot", "aria-hidden": "true" }, state === "done" ? icon("check") : state === "failed" ? icon("x") : state === "current" ? h("span", { class: "scan-spinner" }) : String(i + 1)),
+      h("span", { class: "up-label" }, t(`web.up_step_${id}`)),
+      state === "current" && id === "restart" ? h("small", { class: "muted" }, t(step.rollback ? "web.up_rolling_back" : "web.up_restart_wait")) : null,
+      state === "failed" && message ? h("small", { class: "danger-text" }, message) : null);
+  }));
+}
+
 async function updateSection(root) {
   const box = h("div");
   const apps = h("div");
   fill(root, box, apps);
-  const draw = async () => {
-    const u = await api("/api/system/update");
-    const state = u.state?.state;
-    fill(box, h("section", { class: "panel stack" }, h("h2", {}, icon("brand-raspberrypi"), " ", t("web.up_title")),
-      h("dl", { class: "kv" }, h("dt", {}, t("web.up_version")), h("dd", {}, `${u.version}${u.commit ? ` (${u.commit})` : ""}`),
-        u.remote?.commit ? [h("dt", {}, t("web.up_latest")), h("dd", {}, `${u.remote.version ? `${u.remote.version} · ` : ""}${u.remote.commit} · ${when(u.remote.date)}`)] : null,
-        u.source ? [h("dt", {}, t("web.up_source")), h("dd", { class: "mono" }, `${u.source.repository} · ${t(`web.opt_update_channel_${u.source.channel}`)}`)] : null,
-        u.instance ? [h("dt", {}, t("web.up_instance"), " ", infoTip(t("web.up_instance_hint"))), h("dd", { class: "mono" }, u.instance)] : null),
-      u.remote?.message ? h("p", { class: "muted" }, u.remote.message) : null,
-      u.available ? h("p", { class: "notice" }, t("web.up_available")) : h("p", {}, icon("circle-check"), " ", t("web.up_current")),
-      u.state?.message ? h("p", { class: `notice ${state === "failed" ? "danger" : ""}` }, `${u.state.message} (${when(u.state.time)})`) : null,
-      h("div", { class: "row" },
-        h("button", { class: "primary", disabled: u.pending || state === "running" || !u.installed_by_script, onclick: async () => {
-          if (await attempt(() => api("/api/system/update", { method: "POST" }), t("web.up_started"))) whileShown(box, draw, 3000);
-        } }, icon("refresh"), u.pending || state === "running" ? t("web.up_running") : t("web.up_now")),
-        h("button", { onclick: draw }, t("web.up_check"))),
-      h("p", { class: "muted" }, h("small", {}, t("web.up_hint"))),
+  let since = 0;  // when this page started an update: older reports do not count
+  let last = null;
+  let checked = null;  // the result of the last *Check*, shown for a moment
+  const draw = async ({ checking = false } = {}) => {
+    let u = null;
+    let offline = false;
+    try { u = await api("/api/system/update"); last = u; } catch { offline = since > 0; u = last; }
+    if (!box.isConnected || !u) return;
+    const step = since ? updateStep(u, since, offline) : (u.pending || u.state?.state === "running" ? updateStep(u, Date.parse(u.state?.time || 0) || Date.now(), false) : null);
+    const busy = Boolean(step && !step.ok && !step.failed);
+    const tone = busy ? "accent" : u.available ? "accent" : "ok";
+    const finished = since && step?.ok;
+    const check = h("button", { class: checking ? "busy" : "", disabled: checking || busy, onclick: async () => {
+      const before = Date.now();
+      await draw({ checking: true });
+      await new Promise((r) => { setTimeout(r, Math.max(0, 700 - (Date.now() - before))); });  // long enough to see it worked
+      checked = last?.available ? "available" : "current";
+      draw();
+      setTimeout(() => { checked = null; if (box.isConnected) draw(); }, 4000);
+    } }, checking ? h("span", { class: "scan-spinner", "aria-hidden": "true" }) : icon("search"), checking ? t("web.up_checking") : t("web.up_check"));
+    fill(box, h("section", { class: `panel stack up-card ${tone}` },
+      h("div", { class: "up-head" },
+        h("span", { class: `up-badge ${tone}${u.available && !busy ? " pulse" : ""}` }, icon(busy ? "refresh" : u.available ? "download" : "circle-check")),
+        h("div", { class: "grow" }, h("h2", {}, t("web.up_title")),
+          h("p", { class: "up-version" }, h("strong", {}, `pi-guard ${u.version}`), u.commit ? h("small", { class: "muted mono" }, ` ${u.commit}`) : null),
+          h("p", { class: "muted" }, busy ? t("web.up_running") : u.available ? t("web.up_available") : t("web.up_current"),
+            u.remote?.commit && u.available ? ` → ${u.remote.version || u.remote.commit} · ${when(u.remote.date)}` : "")),
+        checked ? h("span", { class: `badge ${checked === "available" ? "accent" : "ok"} up-checked`, role: "status" }, icon(checked === "available" ? "download" : "circle-check"), " ",
+          t(checked === "available" ? "web.up_found" : "web.up_none_found")) : null),
+      step ? stepper(step, u.state?.message) : null,
+      finished ? h("p", { class: "notice ok" }, icon("circle-check"), " ", t("web.up_done_reload", { version: u.version }), " ",
+        h("button", { class: "small primary", onclick: () => location.reload() }, t("web.up_reload"))) : null,
+      !step && u.state?.message && u.state.state === "failed" ? h("p", { class: "notice danger" }, `${u.state.message} (${when(u.state.time)})`) : null,
+      h("div", { class: "row wrap" },
+        h("button", { class: "primary", disabled: busy || !u.installed_by_script, onclick: async () => {
+          if (!await attempt(() => api("/api/system/update", { method: "POST" }), t("web.up_started"))) return;
+          since = Date.now();
+          draw();
+        } }, icon("refresh"), busy ? t("web.up_running") : t("web.up_now")),
+        check),
+      !u.installed_by_script ? h("p", { class: "muted" }, h("small", {}, t("web.up_not_script"))) : null,
+      h("details", { class: "up-details" }, h("summary", {}, t("web.up_details")),
+        h("dl", { class: "kv" }, h("dt", {}, t("web.up_version")), h("dd", {}, `${u.version}${u.commit ? ` (${u.commit})` : ""}`),
+          u.remote?.commit ? [h("dt", {}, t("web.up_latest")), h("dd", {}, `${u.remote.version ? `${u.remote.version} · ` : ""}${u.remote.commit} · ${when(u.remote.date)}`)] : null,
+          u.source ? [h("dt", {}, t("web.up_source")), h("dd", { class: "mono" }, `${u.source.repository} · ${t(`web.opt_update_channel_${u.source.channel}`)}`)] : null,
+          u.instance ? [h("dt", {}, t("web.up_instance"), " ", infoTip(t("web.up_instance_hint"))), h("dd", { class: "mono" }, u.instance)] : null),
+        u.remote?.message ? h("p", { class: "muted" }, u.remote.message) : null,
+        h("p", { class: "muted" }, h("small", {}, t("web.up_hint")))),
       (u.changelog || []).length ? h("details", { class: "guide", open: Boolean(u.available) },
         h("summary", {}, icon("list-details"), " ", t("web.up_changelog")),
         h("div", { class: "stack changelog" }, u.changelog.map((entry) => h("article", { class: "changelog-entry" },
           h("h3", {}, entry.title || entry.version),
           h("pre", { class: "changelog-body mono wrap" }, entry.body))))) : null));
+    if (busy || (since && !step)) whileShown(box, draw, offline ? 3000 : 1500);
   };
   const drawApps = (info) => {
     const row = (iconName, label, value, note) => h("li", {}, icon(iconName), h("div", { class: "grow" }, h("div", {}, label), note ? h("small", { class: "muted" }, note) : null), h("strong", {}, value || "–"));

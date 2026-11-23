@@ -7,7 +7,7 @@ import { state, switchLanguage } from "../app.js";
 import { chosenSize, chosenTheme, logoUrl, setDesign, SIZES, THEMES } from "../theme.js";
 import { sharedDesign } from "./appearance.js";
 
-const STEPS = ["welcome", "account", "devices", "telegram", "alerts", "emergency", "people", "addons", "design", "finish"];
+const STEPS = ["welcome", "account", "devices", "telegram", "alerts", "emergency", "people", "addons", "apps", "design", "finish"];
 const restartNeeded = () => storedForTab("pg.restart") === "1";
 let status = {};  // what the installer already set up (GET /api/setup/status)
 const needRestart = () => keepForTab("pg.restart", "1");
@@ -236,6 +236,54 @@ async function addons(root) {
   })), { onNext: () => next("addons") });
 }
 
+// The apps, right away: a link and a QR code to scan with the phone, valid for some days, and
+// how to connect it. The Pi hands out the apps itself (fetched from GitHub, signed).
+async function apps(root) {
+  const info = await api("/api/apps").catch(() => ({}));
+  const desktop = Object.entries(info.desktop || {});
+  const out = h("div", { class: "stack" });
+  const any = () => info.android || desktop.length;
+  const make = async () => {
+    const made = await attempt(() => api("/api/apps/invite", { method: "POST", body: { note: "setup", qr: true } }));
+    if (!made) return;
+    const url = new URL(made.path, location.origin).href;
+    fill(out, h("div", { class: "setup-qr" },
+      h("img", { class: "qr light", src: made.qr, alt: t("web.setup_apps_qr_alt") }),
+      h("div", { class: "stack" },
+        h("p", {}, t("web.setup_apps_scan", { days: info.invite_days || 7 })),
+        h("input", { class: "mono", readonly: true, value: url, "aria-label": t("web.apps_invite") }),
+        h("div", { class: "row wrap" },
+          h("button", { onclick: async () => { try { await navigator.clipboard.writeText(url); toast(t("web.copied")); } catch { toast(t("web.error"), true); } } }, icon("copy"), t("web.copy")),
+          navigator.share ? h("button", { onclick: () => navigator.share({ title: "pi-guard", url }).catch(() => {}) }, icon("share"), t("web.share")) : null,
+          h("a", { class: "button ghost", href: url, target: "_blank", rel: "noopener" }, icon("download"), t("web.setup_apps_open"))))));
+  };
+  const look = async () => {
+    const next = await attempt(() => api("/api/apps/check", { method: "POST", body: {} }), t("web.up_apps_checked"));
+    if (next) { Object.assign(info, next); apps(root); }
+  };
+  const row = (iconName, label, version) => h("li", {}, icon(iconName), h("span", { class: "grow" }, label),
+    version ? h("span", { class: "badge ok" }, version) : h("span", { class: "badge" }, t("web.apps_none")));
+  frame(root, "apps", h("div", { class: "stack" },
+    h("section", { class: "panel stack" }, h("h2", {}, icon("device-mobile"), " ", t("web.setup_apps_which")),
+      h("ul", { class: "list compact" },
+        row("brand-android", t("web.apps_android"), info.android),
+        desktop.length ? desktop.map(([platform, version]) => row(platform.startsWith("win") ? "brand-windows" : "device-laptop",
+          t("web.apps_desktop", { platform: platform.startsWith("win") ? "Windows" : "Linux" }), version))
+          : row("device-laptop", t("web.apps_desktop", { platform: "" }), null),
+        row("brand-apple", t("web.setup_apps_iphone"), null)),
+      h("p", { class: "muted" }, h("small", {}, t("web.setup_apps_iphone_hint"))),
+      any() ? h("div", { class: "row wrap" }, h("button", { class: "primary", onclick: make }, icon("qrcode"), t("web.setup_apps_make")))
+        : h("div", { class: "stack" }, h("p", { class: "notice" }, t("web.setup_apps_none")), h("div", {}, h("button", { onclick: look }, icon("refresh"), t("web.up_apps_check")))),
+      out),
+    h("section", { class: "panel stack" }, h("h2", {}, icon("list-details"), " ", t("web.setup_apps_how")),
+      h("ol", { class: "guide-steps stack" },
+        h("li", {}, t("web.setup_apps_step_install")),
+        h("li", {}, t("web.setup_apps_step_address"), " ", h("code", { class: "mono" }, location.origin)),
+        h("li", {}, t("web.setup_apps_step_login")),
+        h("li", {}, t("web.setup_apps_step_allow"))),
+      h("p", { class: "muted" }, h("small", {}, t("web.setup_apps_later"))))), { onNext: () => next("apps") });
+}
+
 function design(root) {
   const shared = h("div", { class: "stack" });
   sharedDesign(shared);
@@ -301,6 +349,7 @@ export async function render(root, params) {
   else if (step === "emergency") await embedded(root, "emergency", () => import("./settings.js"), { groups: ["emergency"] });
   else if (step === "people") await people(root);
   else if (step === "addons") await addons(root);
+  else if (step === "apps") await apps(root);
   else if (step === "design") design(root);
   else finish(root);
 }

@@ -40,8 +40,10 @@ finished show as *Already set up*:
 7. Trusted people: switch recognition on (the model files are only downloaded
    after you press the button, with size and source shown), then enroll people
 8. Add-ons: which optional parts to switch on
-9. Design: dark, light or high contrast, normal or large text (per device)
-10. Finish: restart pi-guard if settings changed
+9. Apps: which apps this Pi hands out, a download link with a QR code to scan with the phone (valid for some days),
+   how to connect the app, and a note for iPhone (add the dashboard to the home screen)
+10. Design: dark, light or high contrast, normal or large text (per device)
+11. Finish: restart pi-guard if settings changed
 
 Until the default password has been changed, the default login is the only
 way in; keep the dashboard off the internet until then. While pi-guard still
@@ -241,7 +243,8 @@ Messaging stay in expert mode only.
 camera: pi-guard and its parts, each camera (state, last picture, recording), storage, memory, processor, temperature,
 the Pi's power supply (undervoltage and throttling, now or since boot), the database, each messenger, the detection
 models, the last backup and the clock; a problem links to where it is fixed. `sudo pi-guard doctor` checks more
-(FFmpeg, encoders, cameras). **Device** shows model, processor, memory, operating system, kernel, uptime, the data and
+(FFmpeg, encoders, cameras). It opens with a ring of how many checks are fine and *Check again*, then tiles for
+load, memory, temperature and free space with meters, then one card per check, problems first. **Device** shows model, processor, memory, operating system, kernel, uptime, the data and
 recording disks, cameras and sound devices, USB devices and the network addresses. **Updates** is described below.
 Members see the System page only for updates, when they may manage apps; health and device stay with admins.
 
@@ -250,7 +253,12 @@ Members see the System page only for updates, when they may manage apps; health 
 *System → Updates* shows the Pi's version (it is also next to the credit in the navigation), the newest release,
 where updates come from (repository and channel, see [updates.md](updates.md)), this installation's instance ID,
 every app version the Pi hands out (*Check for app updates*), invitations and phones. The anonymous statistics are
-off for now.
+off for now. The same is under *Settings → System*.
+
+*Update now* shows the update's real steps as the root job reports them: requested, fetching and checking the signed
+release, installing, restarting (the page waits while pi-guard is away, and says so when the old version comes back),
+done, with *Reload the page*. A failed step turns red with the job's message. *Check for updates* shows that it is
+looking and then, for a moment, *New version found* or *No new version*.
 
 ## Everyday tools
 

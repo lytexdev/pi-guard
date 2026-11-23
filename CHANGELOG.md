@@ -35,6 +35,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- A setup step **Apps**: a download link with a QR code for the phone, what the Pi offers and how to connect.
+- *Update now* shows the update's real steps (check, install, restart, done) and waits through the restart; *Check
+  for updates* shows its result. The System page opens with a ring of the checks, vital numbers and cards.
+
 - **Computer-Connect** (was *Remote commands*): media remote, sending files (through the Pi, never kept), ringing
   and texts for computers with the agent, each part allowed on the computer (`CONNECT`, `CONNECT_USER`) and run in
   that person's session. Agent 0.5.
