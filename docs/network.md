@@ -190,15 +190,35 @@ app finds the dashboard at its Tailscale address by itself. Open the app once at
 Tailscale is a company's service in between; its connections stay end-to-end encrypted, but your
 devices are listed there.
 
+The **Tailscale** add-on (*Add-ons → Network*) shows Tailscale's state on the Pi, its tailnet addresses, the devices
+online, whether the Pi is offered as exit node, and the dashboard's address in the tailnet; a login link when Tailscale
+waits for one. It lists the setup steps (the script above, then optionally `tailscale set --advertise-routes=<home
+network> --advertise-exit-node`, the approval in Tailscale's admin console, and Pi-hole as DNS there). pi-guard never
+installs or changes Tailscale itself. The add-on's switch says whether pi-guard counts Tailscale as the home's VPN:
+off, the next paragraph does not apply.
+
 **Another VPN instead of pi-guard's WireGuard.** When Tailscale, ZeroTier or NetBird is up on the Pi (found by its
 network interface) and pi-guard's WireGuard is off, *Network → VPN* says so: the WireGuard ways, AmneziaWG and the
 post-quantum keys only work with pi-guard's WireGuard and are shown as *not needed*. If AmneziaWG still runs, the page
 offers to switch it off. With both on, the page says that devices in the other VPN need no WireGuard access.
 
+### Any router
+
+The VPN works with every router, not only a FRITZ!Box: it needs a fixed address for the Pi, UDP 51820 forwarded to
+the Pi, and a name that follows the line's address. *Network → VPN → Set up the router* (also on the Cloudflare DDNS
+add-on) shows where these are on a FRITZ!Box, a Vodafone Station (cable), a Vodafone EasyBox (DSL), a Telekom
+Speedport, an o2 HomeBox, and what to look for on others (TP-Link, ASUS, Netgear, …). Menus differ by model and
+firmware; the steps name the usual ones. They were written from the makers' menus, not tried on each router.
+
+Without a public IPv4 address of its own (DS-Lite or CGNAT, common with cable and fibre, often with a Vodafone
+Station) no forwarding over IPv4 helps: use the IPv6 way, a relay server or Tailscale, or ask the provider for dual
+stack, which is often free. Only the FRITZ!Box can also be asked by pi-guard (Wi-Fi list, Kid Protect times, the
+moving check); other routers work for everything else.
+
 ### A name that follows your address (Cloudflare DDNS)
 
 With a domain at Cloudflare, pi-guard keeps a name such as `home.example.org` pointed at your home by itself:
-**Network › VPN › Dynamic DNS (Cloudflare)**. Make an API token at Cloudflare (*My Profile → API Tokens → Create
+the **Cloudflare DDNS** add-on (*Add-ons → Network*; since 1.18 an add-on of its own, before under *Network › VPN*). Make an API token at Cloudflare (*My Profile → API Tokens → Create
 Token*, template *Edit zone DNS*, only for that zone), enter the name and the token, switch it on and save. Every five
 minutes the Pi looks up its public IPv4 address (api.ipify.org) and, when it changed, sets the A record; with *IPv6
 too* it also sets the AAAA record to the Pi's own global IPv6 address. Records are never proxied (orange cloud off):

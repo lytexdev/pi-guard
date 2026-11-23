@@ -5,7 +5,7 @@ offline und standardmäßig aus. Englisch: [../voice.md](../voice.md).
 
 ## Was es kann
 
-- **Weckwort:** Mit *Einstellungen → Ton → Auf ein Weckwort hören* hört der Pi auf „Hallo lytex“ oder „Hi piguard“
+- **Weckwort:** Mit *Add-ons → KI-Assistent → Auf ein Weckwort hören* (vor 1.18 unter *Einstellungen → Ton*) hört der Pi auf „Hallo lytex“ oder „Hi piguard“
   (*Weckwörter*, mit Kommas getrennt). Die Erkennung läuft auf dem Pi mit [Vosk](https://alphacephei.com/vosk/), gegen
   eine kleine feste Liste. Erfundene Wörter wie *lytex* werden nach ihrem Klang erkannt („lei tex“). Weckwörter, deren
   Wörter das Modell nicht kennt, fallen weg, und das Dashboard sagt es.

@@ -39,8 +39,10 @@ was die Installation schon erledigt hat, erscheint als *Bereits eingerichtet*):
 6. Notfallkontakte
 7. Vertraute Personen: Erkennung einschalten, Modelle laden, Personen eintragen
 8. Add-ons: optionale Teile einschalten
-9. Design: dunkel, hell oder hoher Kontrast, normale oder große Schrift
-10. Fertig: Neustart, wenn sich Einstellungen geändert haben
+9. Apps: welche Apps dieser Pi anbietet, ein Download-Link mit QR-Code zum Scannen mit dem Handy (einige Tage gültig),
+   wie man die App verbindet, und ein Hinweis fürs iPhone (Dashboard zum Home-Bildschirm)
+10. Design: dunkel, hell oder hoher Kontrast, normale oder große Schrift
+11. Fertig: Neustart, wenn sich Einstellungen geändert haben
 
 **Mitglieder und Betrachter** bekommen den Assistenten nicht. Nach der ersten
 Anmeldung ändern sie Passwort und Zwei-Faktor unter *Zugang*. *Hilfe & Tutorial*
@@ -242,7 +244,9 @@ steuerst du hier; die alten Admin-/Betrachter-Listen unter Nachrichten bleiben n
 anzufassen: pi-guard und seine Teile, jede Kamera (Zustand, letztes Bild, Aufnahme), Speicher, Arbeitsspeicher,
 Prozessor, Temperatur, die Stromversorgung des Pi (Unterspannung und Drosselung, jetzt oder seit dem Start), die
 Datenbank, jeden Messenger, die Erkennungsmodelle, die letzte Sicherung und die Uhrzeit; ein Problem verlinkt dorthin,
-wo es behoben wird. Mehr prüft `sudo pi-guard doctor` (FFmpeg, Encoder, Kameras). **Gerät** zeigt Modell, Prozessor,
+wo es behoben wird. Mehr prüft `sudo pi-guard doctor` (FFmpeg, Encoder, Kameras). Oben steht ein Ring, wie viele
+Prüfungen in Ordnung sind, mit *Neu prüfen*, darunter Kacheln für Last, Arbeitsspeicher, Temperatur und freien Platz
+mit Balken, dann eine Karte je Prüfung, Probleme zuerst. **Gerät** zeigt Modell, Prozessor,
 Arbeitsspeicher, Betriebssystem, Kernel, Laufzeit, die Daten- und Aufnahme-Laufwerke, Kameras und Tongeräte,
 USB-Geräte und die Adressen im Netz. **Updates** steht unten. Mitglieder sehen die Systemseite nur für Updates, wenn
 sie Apps verwalten dürfen; Zustand und Gerät bleiben bei Admins.
@@ -252,6 +256,12 @@ sie Apps verwalten dürfen; Zustand und Gerät bleiben bei Admins.
 *System → Updates* zeigt die Version des Pi (sie steht auch neben dem Hinweis unten in der Navigation), die
 neueste Version, woher Updates kommen (Repository und Kanal Stabil/Beta), die Instanz-ID dieser Installation, alle
 App-Versionen (*Nach App-Updates suchen*), Einladungen und Telefone. Die anonymen Statistiken sind vorerst aus.
+Dasselbe steht unter *Einstellungen → System*.
+
+*Jetzt aktualisieren* zeigt die echten Schritte des Updates, wie der Root-Job sie meldet: angefordert, signierte Version
+holen und prüfen, installieren, neu starten (die Seite wartet, solange pi-guard weg ist, und sagt es, wenn die alte
+Version zurückkommt), fertig, mit *Seite neu laden*. Ein fehlgeschlagener Schritt wird rot, mit der Meldung des Jobs.
+*Nach Updates suchen* zeigt, dass es sucht, und danach kurz *Neue Version gefunden* oder *Keine neue Version*.
 Die alten Adressen *System → Updates* und *Einstellungen → Updates* leiten hierhin um.
 
 ## Werkzeuge im Alltag
@@ -302,8 +312,16 @@ zählen als bekannt. Ein gutes Ergebnis ist keine Garantie, dass ein System saub
 SSH nur mit Schlüssel (abgelehnt ohne hinterlegten Schlüssel), automatische Sicherheitsupdates, rkhunter-Stand
 übernehmen, Firewall einschalten (alles heute Erreichbare und SSH bleiben offen). Jede läuft im Root-Job mit Sicherung,
 nach zwei Bestätigungen, dem eingetippten Namen und dem Passwort; *Rückgängig* stellt den alten Zustand her. Die
-**KI-Prüfung** schickt nach Bestätigung Status und kurze Details an den KI-Anbieter und schlägt Schritte vor; sie kann
-auf eine Korrektur der Liste zeigen, andere Befehle stehen nur zum Kopieren da und werden nie ausgeführt.
+**KI-Prüfung** schickt nach Bestätigung Status und kurze Details an den KI-Anbieter. Sie läuft im Hintergrund, man kann
+die Seite verlassen, und zeigt ihren echten Stand. Das Ergebnis bleibt bis zur nächsten Prüfung: eine Gesamteinschätzung,
+Schritte nach Wichtigkeit (wichtig, mittel, gering) mit dem Check, um den es geht, ein Knopf, wenn eine Korrektur der
+Liste es erledigt, und andere Befehle eingeklappt zum Kopieren, nie ausgeführt. Ist die Prüfung älter als der letzte
+Check, steht das dabei.
+
+Der Root-Job meldet sich nach jedem Schritt, der Fortschritt zeigt also den Schritt, an dem er wirklich ist. Stürzt ein
+Schritt ab oder laufen seine Befehle in eine Zeitüberschreitung, stehen seine Checks auf *unbekannt* mit dem Grund statt
+auf *ok*; die anderen Schritte zählen trotzdem. pi-guard wartet, solange der Job Fortschritt meldet (30 Minuten ohne,
+zwei Stunden insgesamt).
 
 *Einstellungen → Daten & Sicherung → Speicher* zeigt, was den Platz belegt, und kann alte Aufnahmen, Fotos und Clips löschen, die
 Datenbank verdichten sowie alte Systemprotokolle und den Paket-Cache leeren (im Chat auch `/speicher`).
@@ -326,9 +344,12 @@ Farbschema auch für ihre eigenen Bildschirme und die Systemleisten. In der Übe
 
 ## Logs
 
-*Logs* hat drei Reiter: einen Überblick der letzten sieben Tage (Anmeldungen, Fehlversuche, Honeypot, Sperren,
-Empfehlungen), das Dienst-Log mit Stufen-Filtern, Suche, Anhalten, Kopieren und Herunterladen, und das Protokoll nach
-Tagen gruppiert und durchsuchbar.
+*Logs* hat vier Reiter: einen Überblick der letzten sieben Tage (Anmeldungen, Fehlversuche, Honeypot, Sperren,
+Empfehlungen), das Dienst-Log mit Stufen-Filtern, Suche, Anhalten, Kopieren und Herunterladen, das Protokoll nach
+Tagen gruppiert und durchsuchbar, und **KI-Blick**. Dort liest der Assistent nach Bestätigung die Warnungen und Fehler
+des Dienst-Logs (Wiederholungen zu einer Zeile mit Anzahl zusammengefasst, lange Tokens gekürzt) und die letzten 80
+Einträge der Aktivität und antwortet mit einer Einschätzung und Funden nach Schwere, jeweils mit Bedeutung und was zu tun
+ist. Nur für Admins; er ändert nichts.
 
 ## Barrierefreiheit
 
@@ -346,7 +367,7 @@ Videos) und in der Handy-App füllt es stattdessen das Fenster; der runde Knopf,
 
 *Hilfe & Tutorial* in der Navigation erklärt jeden Teil von pi-guard in wenigen Sätzen, jeweils mit Knopf dorthin, und
 *Rundgang starten* geht sie Seite für Seite durch; Betrachter sehen nur ihre Seiten. Die Kapitel sind: Übersicht, Live,
-Ereignisse, Kontakte, Netzwerk, VPN, Kid Protect, Benachrichtigungen, Notfallkontakte, Notfalldaten, Apps, Assistent,
+Ereignisse, Kontakte, Netzwerk, VPN, Kid Protect, Benachrichtigungen, Notfallkontakte, Notfalldaten, Apps, Geräte finden, Computer-Connect, Assistent,
 Umzug, System und Einstellungen. Dasselbe Tutorial gibt es überall:
 
 - in der **Desktop-App** unter *PiGuard › Hilfe & Tutorial* (F1) und in der **Handy-App** unter *Mehr → Hilfe*;
@@ -380,6 +401,14 @@ Die Einstellungen sind in Grundlagen, Benachrichtigen, Geräte & Zugang und Syst
 mit einer Zeile, was er enthält, und jede Einstellung zeigt ihre Erklärung direkt unter dem Namen. Ein/Aus ist ein
 Schalter. *Daten & Sicherung* hat vier Tabs: *Backup*, *Speicher*, *Umzug* und in der Expertenansicht *Export*; alte
 Links (`#/settings/backup`, `/storage`, `/move`, `/data`) öffnen den passenden Tab.
+
+Seit 1.18: *Erkennung* und die Ton-Schalter (Ton aufnehmen, Ton abspielen, größte Lautstärke) gehören zu *Geräte &
+Kameras*, unter die Geräte, zu denen sie gehören. Weckwörter, der Sprechknopf und *Mit dem Pi sprechen* stehen auf der
+Seite des Add-ons KI-Assistent. **System** zeigt den Zustand des Pi in einer Zeile (Details und Hardware auf der
+Systemseite) und die Updates von pi-guard und den Apps mit ihren Einstellungen. **Netzwerk** enthält Router, Pi-hole,
+VPN und dynamisches DNS, mit Links zu den Netzwerk-Seiten und den Add-ons Cloudflare DDNS und Tailscale. *Integrationen*
+(Expertenansicht) behält MQTT und die gespeicherten Schlüssel. Alte Links (`#/settings/detection`, `/audio`, `/updates`)
+öffnen den neuen Ort.
 
 ## Der Chat des Assistenten
 

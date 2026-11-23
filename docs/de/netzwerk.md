@@ -141,10 +141,31 @@ nach wenigen Sekunden ausgesperrt.
 
 Technische Details: [network.md](../network.md#wireguard-home-vpn).
 
+### Jeder Router
+
+Das VPN geht mit jedem Router, nicht nur mit der FRITZ!Box: Es braucht eine feste Adresse für den Pi, eine Weiterleitung
+von UDP 51820 an den Pi und einen Namen, der der Adresse des Anschlusses folgt. *Netzwerk → VPN → Router einrichten*
+(auch im Add-on Cloudflare DDNS) zeigt, wo das bei FRITZ!Box, Vodafone Station (Kabel), Vodafone EasyBox (DSL), Telekom
+Speedport und o2 HomeBox steht, und wonach man bei anderen sucht (TP-Link, ASUS, Netgear, …). Die Menüs heißen je nach
+Modell und Firmware anders; die Schritte nennen die üblichen. Sie sind nach den Menüs der Hersteller geschrieben, nicht an
+jedem Router ausprobiert.
+
+Ohne eigene öffentliche IPv4-Adresse (DS-Lite oder CGNAT, häufig bei Kabel und Glasfaser, oft mit Vodafone Station) hilft
+keine Weiterleitung über IPv4: Dann der IPv6-Weg, ein Relay-Server oder Tailscale, oder beim Anbieter Dual-Stack anfragen,
+das ist oft kostenlos. Nur die FRITZ!Box kann pi-guard zusätzlich abfragen (WLAN-Liste, Zeiten von Kinderschutz, die
+Umzugsprüfung); mit anderen Routern geht alles andere.
+
+Das Add-on **Tailscale** (*Add-ons → Netzwerk*) zeigt den Stand von Tailscale auf dem Pi, die Adressen im Tailnet, die
+Geräte online, ob der Pi Exit-Node ist, und die Adresse des Dashboards im Tailnet; wartet Tailscale auf eine Anmeldung,
+den Link dazu. Es nennt die Schritte (`sudo ./scripts/tailscale.sh setup`, optional `tailscale set
+--advertise-routes=<Heimnetz> --advertise-exit-node`, die Freigabe in Tailscales Verwaltung und Pi-hole als DNS dort).
+pi-guard installiert oder ändert Tailscale nie selbst. Der Schalter des Add-ons sagt, ob pi-guard Tailscale als VPN des
+Zuhauses zählt; aus, gelten die WireGuard-Wege weiter als nötig.
+
 ### Ein Name, der deiner Adresse folgt (Cloudflare-DDNS)
 
 Mit einer Domain bei Cloudflare hält pi-guard einen Namen wie `home.example.org` selbst auf deinem Zuhause:
-**Netzwerk › VPN › Dynamisches DNS (Cloudflare)**. Bei Cloudflare einen API-Token erstellen (*Mein Profil → API-Tokens →
+das Add-on **Cloudflare DDNS** (*Add-ons → Netzwerk*; seit 1.18 ein eigenes Add-on, vorher unter *Netzwerk › VPN*). Bei Cloudflare einen API-Token erstellen (*Mein Profil → API-Tokens →
 Token erstellen*, Vorlage *DNS-Zone bearbeiten*, nur für diese Zone), Name und Token eintragen, einschalten und
 speichern. Alle fünf Minuten fragt der Pi seine öffentliche IPv4-Adresse ab (api.ipify.org) und setzt bei einer Änderung
 den A-Eintrag; mit *Auch IPv6* zusätzlich den AAAA-Eintrag auf die eigene IPv6-Adresse des Pi. Einträge laufen nie über

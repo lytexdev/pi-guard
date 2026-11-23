@@ -31,8 +31,9 @@ home network, and viewers may only watch. Remove a phone under *System → Updat
   it uses. With Tailscale, it finds the dashboard at that address by itself.
   The first access needs the app opened once at home or through another VPN. WireGuard must be set up on pi-guard.
   Do this once at home. All traffic then goes through your home.
-- **Find a phone:** from *System → Updates* or `/findphone name` in chat. It rings at full volume and
-  vibrates. Location, map and details are only sent if the phone's owner switched on *Share location*. The phone
+- **Find a phone:** on the **Find devices** page (navigation, under *More* on phones; also under *System →
+  Updates*) or `/findphone name` in chat. It rings at full volume and vibrates; *Vibrate* only vibrates, without
+  sound (app 1.18 and newer; older apps ring). Phones reported lost are listed first there. Location, map and details are only sent if the phone's owner switched on *Share location*. The phone
   shows that someone is looking for it. The Pi fetches map tiles from OpenStreetMap, and only when someone opens the map.
 - **Place link:** *Place link* asks the phone for its place right now, without ringing, and shows a link with how exact
   it is (± metres), to open, copy or share. Indoors a phone may have no GPS fix; then nothing new comes. The link opens

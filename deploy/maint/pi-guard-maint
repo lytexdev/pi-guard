@@ -20,10 +20,19 @@ REPORTS = Path("/var/lib/pi-guard-scan")
 LIMIT = 20
 
 
+# Commands of the current scan step that did not finish (timeout) or could not start: their
+# empty output must not read as "nothing found".
+INCOMPLETE = []
+
+
 def run(*command, timeout=900):
     try:
         done = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
-    except (OSError, subprocess.TimeoutExpired):
+    except subprocess.TimeoutExpired:
+        INCOMPLETE.append(f"{command[0]}: timeout")
+        return ""
+    except OSError:
+        INCOMPLETE.append(f"{command[0]}: did not start")
         return ""
     return done.stdout
 
@@ -70,13 +79,19 @@ def firewall(report):
         report["firewall"] = True
         report["firewall_detail"] = "ufw"
         return
+    if shutil.which("firewall-cmd") and run("firewall-cmd", "--state").strip() == "running":
+        report["firewall"] = True
+        report["firewall_detail"] = "firewalld"
+        return
     rules = run("nft", "list", "ruleset") if shutil.which("nft") else ""
-    report["firewall"] = "policy drop" in rules
+    # An input chain that drops what no rule allows; a drop policy on forward alone is no firewall.
+    report["firewall"] = bool(re.search(r"hook input priority \S+; policy drop", rules))
     report["firewall_detail"] = "nftables" if report["firewall"] else ""
 
 
 def ssh(report):
     if not shutil.which("sshd"):
+        report["ssh"] = {}  # no SSH server: nothing to log in with
         return
     wanted = ("permitrootlogin", "passwordauthentication")
     settings = [x.split(None, 1) for x in run("sshd", "-T").splitlines()]
@@ -128,11 +143,27 @@ def rootkits(report):
     report["rootkit_warnings"] = [x.strip()[:160] for x in output.splitlines()][:LIMIT]
 
 
+SCAN_STEPS = (updates, firewall, ssh, files, suspicious, accounts, rootkits)
+
+
 def scan():
-    report = {}
-    for step in (updates, firewall, ssh, files, suspicious, accounts, rootkits):
-        step(report)
+    """Every step on its own: one that fails or times out is reported as such, the others still
+    count. After each step a progress file says where the scan is, so the page shows the truth."""
+    report = {"failed_steps": [], "incomplete_steps": {}}
+    started = int(time.time())
+    done = []
+    for step in SCAN_STEPS:
+        write("scan-progress", {"started": started, "step": step.__name__, "done": done})
+        INCOMPLETE.clear()
+        try:
+            step(report)
+        except Exception as exc:  # noqa: BLE001 - one broken step must not lose the whole report
+            report["failed_steps"].append(f"{step.__name__}: {type(exc).__name__}")
+        if INCOMPLETE:
+            report["incomplete_steps"][step.__name__] = INCOMPLETE[:3]
+        done.append(step.__name__)
     write("scan", report)
+    write("scan-progress", {"started": started, "step": None, "done": done})
 
 
 def disk():

@@ -55,6 +55,25 @@ export async function api(path, { method = "GET", body, raw } = {}) {
   return type.includes("json") ? response.json() : response.text();
 }
 
+// An upload that tells how far it is (fetch cannot): onProgress gets 0…1. Errors like api().
+export function upload(path, form, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", path);
+    xhr.setRequestHeader("X-CSRF-Token", csrf || "");
+    xhr.upload.addEventListener("progress", (e) => { if (e.lengthComputable) onProgress?.(e.loaded / e.total); });
+    xhr.addEventListener("load", () => {
+      if (xhr.status === 401) { location.hash = "#/login"; reject(new ApiError(401, t("web.login_required"))); return; }
+      if (xhr.status < 200 || xhr.status >= 300) { reject(new ApiError(xhr.status, xhr.responseText || xhr.statusText)); return; }
+      try { resolve(JSON.parse(xhr.responseText)); } catch { resolve(xhr.responseText); }
+    });
+    xhr.addEventListener("error", () => reject(new ApiError(0, "web.error")));
+    xhr.addEventListener("abort", () => reject(new ApiError(0, "web.cc_cancelled")));
+    xhr.send(form);
+    upload.current = xhr;
+  });
+}
+
 export async function loadTexts(language) {
   lang = language;
   keep("lang", language);

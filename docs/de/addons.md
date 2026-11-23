@@ -9,10 +9,12 @@ pi-guard. Alles funktioniert im Dashboard und in jedem Messenger, außer dem KI-
 | Dienste-Wächter | `/dienste` |
 | Netzwerkanalyse | `/analyse [IP]` |
 | Smart Home | `/smart [Name] [an\|aus]` |
-| Fernbefehle | `/aktion` |
+| Computer-Connect (Befehle per SSH) | `/aktion` |
 
 Jede Karte hat einen Schalter und ein Menü (drei Punkte): *An Navigation anheften*, *Hilfe & Anleitung* (was das Add-on
-macht und wie man anfängt, mit der Tour oder seiner Anleitung) und *Entfernen*. Telegram, Signal, WhatsApp, Discord,
+macht und wie man anfängt, mit der Tour oder seiner Anleitung) und *Entfernen*. Auch die eigene Seite jedes Add-ons hat
+oben *An Navigation anheften*; angeheftete Add-ons stehen in der Seitenleiste und auf dem Handy unter *Mehr*.
+Cloudflare DDNS und Tailscale sind seit 1.18 eigene Add-ons (*Netzwerk*), siehe [netzwerk.md](netzwerk.md#jeder-router). Telegram, Signal, WhatsApp, Discord,
 E-Mail und die Chatdienste sind ebenfalls Add-ons; die Handy-App nicht: Sie gehört zu pi-guard, ist standardmäßig an und
 liegt unter **System › Updates**. Add-ons von anderen erscheinen als gleiche Karten unter *Eigene & Community*.
 
@@ -35,12 +37,25 @@ Menschen in Ihrem Netz bitte, dass es diese Auswertung gibt.
 **Smart Home:** Braucht einen MQTT-Broker. Geräte werden über die Home-Assistant-Erkennung
 gefunden (Zigbee2MQTT, Tasmota, ESPHome) oder von Hand eingetragen.
 
-**Fernbefehle:** Führt feste Befehle per SSH auf einem anderen Computer aus, zum Beispiel
+**Computer-Connect** (vor 1.18 *Fernbefehle*): Deine Computer vom Dashboard und der Handy-App aus, ähnlich wie KDE
+Connect, für Computer mit dem pi-guard-Agenten. **Medien:** was läuft (Titel, Interpret, Player), Wiedergabe/Pause, vor,
+zurück, lauter, leiser, stumm, Auswahl des Players; über MPRIS mit `busctl` (kommt mit systemd) und `wpctl` oder `pactl`,
+ohne Zusatzprogramm. Nur Titel, Interpret und Album verlassen den Computer. **Dateien schicken:** mehrere auf einmal, mit
+Fortschritt und *Abbrechen*, bis 2 GB je Datei; sie landen in `~/Downloads/pi-guard` (oder `RECEIVE_DIR`), ersetzen nie
+eine Datei und gehen in Stücken über den Pi, ohne dort gespeichert zu werden. Der Computer prüft Größe und SHA-256.
+**Klingeln:** Meldung und dreimal ein Klingelton. **Text senden:** als Meldung, auf Wunsch in die Zwischenablage
+(Wayland, `wl-copy`). Jeder Computer erlaubt das selbst in `/etc/pi-guard-agent/agent.conf` mit `CONNECT_USER=anna` und
+`CONNECT=media,files,ring,text`. Alles läuft als diese Person in ihrer Sitzung (`systemd-run --user`), nie als root in
+ihrem Ordner; sie muss angemeldet sein (oder `loginctl enable-linger anna`). Getestet auf einem Arch-PC mit Spotify und
+Firefox über `systemd-run` als dieser Nutzer, noch nicht über den als root laufenden Agenten. Details:
+[addons.md](../addons.md#computer-connect).
+
+**Befehle per SSH:** Führt feste Befehle per SSH auf einem anderen Computer aus, zum Beispiel
 „PC herunterfahren“, damit die verschlüsselte Festplatte gesperrt ist. Freie Eingaben
 gibt es nicht. Jeder Lauf braucht zwei Bestätigungen derselben Person innerhalb einer
 Minute. Den Schlüssel von pi-guard tragen Sie auf dem anderen Computer in
 `authorized_keys` ein, am besten beschränkt auf genau einen Befehl
-(siehe [addons.md](../addons.md#remote-commands)). Herunterfahren schützt die Festplatte
+(siehe [addons.md](../addons.md#commands-over-ssh)). Herunterfahren schützt die Festplatte
 nur, wenn sie verschlüsselt ist.
 
 **KI-Assistent:** Er antwortet nur im Dashboard und in den Apps (runder Knopf unten rechts) und auf das Weckwort zu

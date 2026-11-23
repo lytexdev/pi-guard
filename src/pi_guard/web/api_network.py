@@ -30,6 +30,7 @@ from pi_guard.network.reach import (
     endpoints,
     ipv4_way,
     ipv6_way,
+    lan_network,
     not_needed,
     other_vpns,
     own_ipv6,
@@ -64,6 +65,7 @@ def routes() -> list[web.RouteDef]:
     return [
         web.get("/api/network", overview),
         web.get("/api/network/ddns", ddns_status),
+        web.get("/api/network/tailscale", tailscale_status),
         web.post("/api/network/ddns/update", ddns_update),
         web.post("/api/network/pihole/blocking", blocking),
         web.post("/api/network/trust", trust_device),
@@ -622,6 +624,9 @@ async def reach(request: web.Request) -> web.Response:
     _, v6 = await asyncio.to_thread(resolve, s.wireguard_endpoint_v6 or "")
     net = await asyncio.to_thread(tailscale)
     others = await asyncio.to_thread(other_vpns, net)
+    switched = dashboard(request).app.db.get("web.modules") or {}
+    if switched.get("tailscale") is False and "tailscale" in others:
+        others.remove("tailscale")  # its add-on is off: Tailscale is not this home's VPN
     mode = vpn_mode(s.wireguard_enabled, others)
     awg_params = await asyncio.to_thread(awg.read)
     wireguard_ways = [
@@ -825,6 +830,17 @@ def _ddns_view(d: Any) -> dict[str, Any]:
         "token": bool(s.ddns_cloudflare_token and s.ddns_cloudflare_token.get_secret_value()),
         "endpoint": s.wireguard_endpoint, "status": d.app.ddns.status(),
     }  # fmt: skip
+
+
+async def tailscale_status(request: web.Request) -> web.Response:
+    """What Tailscale on this Pi says, for its add-on page. The login link stays out of logs."""
+    d = dashboard(request)
+    net = await asyncio.to_thread(tailscale)
+    return web.json_response({
+        "installed": net is not None, **(net or {}), "lan": await asyncio.to_thread(lan_network),
+        "used": d.modules()["tailscale"], "wireguard": d.settings.wireguard_enabled,
+        "dashboard_port": d.settings.dashboard_port, "tls": d.settings.dashboard_tls,
+    }, headers={"Cache-Control": "no-store"})  # fmt: skip
 
 
 async def ddns_status(request: web.Request) -> web.Response:

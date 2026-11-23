@@ -43,6 +43,7 @@ runs with `UMask=0077`; databases are `0600`).
 | A camera picture | the AI provider | only if allowed, and after you confirm each time |
 | An alarm picture and what the Pi's face recognition concluded (names of trusted people seen, never their pictures) | the AI provider | only with *Look at alarm pictures* on, at most every 10 minutes |
 | Statuses and short details of the security check | the AI provider | only when you press *Review the result* and confirm |
+| Warnings and errors of the service log (secrets redacted, long tokens cut) and the last 80 audit entries, with addresses and account names | the AI provider | only when you press *Review the logs* under *Logs → AI look* and confirm |
 | Names of cameras, rooms, devices and commands (never people's names) as a hint, with the recording | the speech provider (OpenAI) | when you talk to the assistant in the chat |
 | Town for the weather | Open-Meteo | add-on on, when you ask for the weather |
 | Text to translate | DeepL | add-on on and a DeepL key set |

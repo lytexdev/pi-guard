@@ -3,7 +3,7 @@ import { askDialog, api, attempt, confirmDialog, fill, h, icon, t, toast, when }
 import { topologyPanel } from "./topology.js";
 import { meter } from "./overview.js";
 import { restartPrompt } from "./settings.js";
-import { ddnsPanel, quantumPanel, reachPanel } from "./reach.js";
+import { quantumPanel, reachPanel, routerGuide } from "./reach.js";
 import { privacyPanels } from "./privacy.js";
 
 function piholePanel(p, redraw) {
@@ -315,7 +315,8 @@ function vpnTab(body, d, params, redraw) {
   const hint = (key) => h("p", { class: "muted" }, t(key));
   fill(body, vpnSummary(d, part), otherVpnNotice(redraw),
     part === "devices" ? [wireguardPanel(d, redraw), h("details", { class: "panel guide" }, h("summary", {}, icon("world"), " ", t("web.reach_title")), reachPanel()),
-      h("details", { class: "panel guide" }, h("summary", {}, icon("world"), " ", t("web.ddns_title")), ddnsPanel())] : null,
+      h("details", { class: "panel guide" }, h("summary", {}, icon("router"), " ", t("web.rg_title")), routerGuide()),
+      h("a", { class: "panel link-row", href: "#/addons/ddns" }, icon("cloud"), h("span", { class: "grow" }, t("web.ddns_title"), h("small", { class: "muted block" }, t("web.ddns_moved"))), icon("chevron-right"))] : null,
     part === "privacy" ? [hint("web.vpn_part_privacy_hint"), privacyPanels()] : null,
     part === "quantum" ? [hint("web.vpn_part_quantum_hint"), quantumPanel()] : null);
 }

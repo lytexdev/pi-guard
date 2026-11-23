@@ -30,8 +30,9 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
   läuft. Mit Tailscale findet sie das Dashboard selbst unter dieser Adresse. Für den ersten Zugang muss die App einmal zu Hause oder über ein
   anderes VPN geöffnet werden. WireGuard muss auf pi-guard eingerichtet sein.
   Mach das einmal zu Hause. Der gesamte Verkehr läuft dann über dein Zuhause.
-- **Handy finden:** unter *System → Updates* oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und
-  vibriert. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
+- **Handy finden:** auf der Seite **Geräte finden** (Navigation, auf dem Handy unter *Mehr*; auch unter *System →
+  Updates*) oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und vibriert; *Vibrieren* lässt es nur
+  vibrieren, ohne Ton (ab App 1.18, ältere Apps klingeln). Vermisste Handys stehen dort oben. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
   zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
 - **Standort-Link:** *Standort-Link* fragt das Handy sofort nach seinem Standort, ohne Klingeln, und zeigt einen Link mit
   der Genauigkeit (± Meter) zum Öffnen, Kopieren oder Teilen. Drinnen hat ein Handy manchmal kein GPS; dann kommt nichts

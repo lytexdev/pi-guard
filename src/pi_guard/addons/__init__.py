@@ -82,7 +82,8 @@ class Addons:
                 secret_key=secret, app_settings=s,
             )  # fmt: skip
         self.agents: AgentHub | None = None
-        if settings.agents.enabled:
+        # Computer-Connect (the "remote" add-on) talks to the same agents as the Server add-on.
+        if settings.agents.enabled or settings.remote.enabled:
             from pi_guard.addons.agents import AgentHub
 
             self.agents = AgentHub(app.db)

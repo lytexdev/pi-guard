@@ -31,7 +31,9 @@ Alle Dateien gehören dem Benutzer `pi-guard` und sind für andere nicht lesbar.
   Zahlen wurden gelöscht, und die Handy-App fragt nicht mehr danach. Die Instanz-ID bleibt auf dem Pi.
 - Mit *Bei Alarm Bilder ansehen* (aus) geht höchstens alle 10 Minuten das Alarmbild an den KI-Anbieter, mit dem, was die
   Gesichtserkennung auf dem Pi gefunden hat; Vergleichsbilder vertrauter Personen nie. *Ergebnis prüfen lassen* beim
-  Sicherheitscheck schickt Status und kurze Details, erst nach Bestätigung. Beim Sprechen mit dem Assistenten im Chat
+  Sicherheitscheck schickt Status und kurze Details, erst nach Bestätigung. *Protokolle prüfen lassen* unter
+  *Logs → KI-Blick* schickt nach Bestätigung Warnungen und Fehler des Dienst-Logs (Geheimnisse geschwärzt, lange Tokens
+  gekürzt) und die letzten 80 Einträge der Aktivität, mit Adressen und Kontonamen. Beim Sprechen mit dem Assistenten im Chat
   bekommt die Spracherkennung (OpenAI) Namen von Kameras, Räumen und Geräten als Hinweis, nie Namen von Menschen.
 - *Frag zu Einstellungen* mit eingeschaltetem KI-Assistenten schickt dem gewählten Anbieter Bezeichnungen, Hilfetexte
   und die Werte von Schaltern, Zahlen und Auswahlen, nie Geheimnisse, Listen oder die Zeitzone.

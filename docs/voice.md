@@ -5,7 +5,7 @@ default. German: [de/sprache.md](de/sprache.md).
 
 ## What it does
 
-- **Wake phrase:** with *Settings → Sound → Listen for a wake phrase*, the Pi listens for "Hallo lytex" or
+- **Wake phrase:** with *Add-ons → AI assistant → Listen for a wake phrase* (under *Settings → Sound* before 1.18), the Pi listens for "Hallo lytex" or
   "Hi piguard" (*Wake phrases*, comma separated). Recognition runs on the Pi with [Vosk](https://alphacephei.com/vosk/),
   against a small fixed list of phrases. Made-up words such as *lytex* are matched by how they sound ("lei tex").
   Phrases whose words the model does not know are left out, and the dashboard says so.

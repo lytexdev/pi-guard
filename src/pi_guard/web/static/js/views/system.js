@@ -50,28 +50,80 @@ function describe(check) {
 }
 
 // Where a problem is fixed.
-const FIX = { ddns: "#/network/vpn", federation: "#/settings/federation", camera: "#/settings/devices", storage: "#/settings/data/storage", backup: "#/settings/data/backup", messenger: "#/settings/messaging", service: "#/settings/logs" };
+const FIX = { ddns: "#/addons/ddns", federation: "#/settings/federation", camera: "#/settings/devices", storage: "#/settings/data/storage", backup: "#/settings/data/backup", messenger: "#/settings/messaging", service: "#/settings/logs" };
+
+// A ring with how many checks are fine: one look says whether anything needs a hand.
+function ring(ok, total, tone) {
+  const SVG = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", "0 0 44 44");
+  svg.setAttribute("class", `health-ring ${tone}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", t("web.sy_ring", { ok, total }));
+  const circle = (cls, dash) => {
+    const c = document.createElementNS(SVG, "circle");
+    c.setAttribute("cx", "22"); c.setAttribute("cy", "22"); c.setAttribute("r", "18"); c.setAttribute("class", cls);
+    if (dash != null) c.setAttribute("stroke-dasharray", `${dash} 200`);
+    return c;
+  };
+  const length = 2 * Math.PI * 18;
+  svg.append(circle("track"), circle("value", total ? (ok / total) * length : 0));
+  const label = document.createElementNS(SVG, "text");
+  label.setAttribute("x", "22"); label.setAttribute("y", "26"); label.setAttribute("text-anchor", "middle");
+  label.textContent = `${ok}/${total}`;
+  svg.append(label);
+  return svg;
+}
+
+// The numbers people look at first, from the checks themselves.
+function vitals(checks) {
+  const by = Object.fromEntries(checks.map((c) => [c.id, c]));
+  const tile = (iconName, label, value, pct, level) => {
+    const bar = h("i");
+    bar.style.width = `${Math.max(2, Math.min(100, pct ?? 0))}%`;
+    return h("div", { class: `vital ${LEVEL[level]?.[0] || ""}` }, h("div", { class: "row between" }, h("span", { class: "muted" }, icon(iconName), " ", label), h("strong", {}, value)),
+      pct != null ? h("div", { class: `meter ${level === "fail" ? "danger" : level === "warn" ? "warn" : ""}`, role: "meter", "aria-valuenow": Math.round(pct), "aria-valuemin": 0, "aria-valuemax": 100, "aria-label": label }, bar) : null);
+  };
+  const cpu = by.cpu?.params; const mem = by.memory?.params; const temp = by.temperature?.params; const disk = by.storage?.params;
+  return h("div", { class: "vitals" },
+    cpu ? tile("cpu", t("web.sy_c_cpu"), `${cpu.load}`, cpu.cores ? (cpu.load / cpu.cores) * 100 : null, by.cpu.level) : null,
+    mem ? tile("database", t("web.sy_c_memory"), `${Math.round(mem.available_mb)} MB`, mem.total_mb ? 100 - (mem.available_mb / mem.total_mb) * 100 : null, by.memory.level) : null,
+    temp ? tile("flame", t("web.sy_c_temperature"), `${temp.celsius} °C`, (temp.celsius / 85) * 100, by.temperature.level) : null,
+    disk ? tile("device-floppy", t("web.sy_c_storage"), `${disk.free_gb} GB`, disk.used, by.storage.level) : null);
+}
 
 async function healthTab(box) {
+  let refreshing = false;
+  let timer = null;
   const draw = async () => {
+    clearTimeout(timer);
     const data = await api("/api/system/health");
+    if (!box.isConnected) return;
     const checks = [...data.checks].sort((a, b) => ORDER[a.level] - ORDER[b.level]);
+    const counted = checks.filter((c) => c.level !== "skip");
     const bad = checks.filter((c) => c.level === "fail").length;
     const warn = checks.filter((c) => c.level === "warn").length;
     const tone = bad ? "danger" : warn ? "warn" : "ok";
+    const again = h("button", { class: refreshing ? "busy" : "", disabled: refreshing, onclick: async () => {
+      refreshing = true; await draw(); await new Promise((r) => { setTimeout(r, 500); }); refreshing = false; await draw();
+      const summary = box.querySelector(".health-summary");
+      summary?.classList.add("flash");
+      setTimeout(() => summary?.classList.remove("flash"), 1500);
+    } }, refreshing ? h("span", { class: "scan-spinner", "aria-hidden": "true" }) : icon("refresh"), t(refreshing ? "web.sy_checking" : "web.sy_check_again"));
     fill(box,
-      h("section", { class: `panel health-summary ${tone}` }, h("span", { class: `health-dot ${tone}` }, icon(LEVEL[bad ? "fail" : warn ? "warn" : "ok"][1])),
+      h("section", { class: `panel health-summary ${tone}` }, ring(counted.filter((c) => c.level === "ok").length, counted.length, tone),
         h("div", { class: "grow" }, h("h2", {}, bad ? t("web.sy_bad", { count: bad }) : warn ? t("web.sy_warn", { count: warn }) : t("web.sy_ok")),
-          h("small", { class: "muted" }, t("web.sy_checked", { time: when(new Date(data.time * 1000).toISOString()) })))),
-      h("section", { class: "panel" }, h("ul", { class: "list health-list" }, checks.map((c) => {
+          h("small", { class: "muted" }, t("web.sy_checked", { time: when(new Date(data.time * 1000).toISOString()) }))), again),
+      vitals(checks),
+      h("ul", { class: "health-cards" }, checks.map((c) => {
         const [title, detail] = describe(c);
         const [cls, ic] = LEVEL[c.level] || LEVEL.skip;
-        return h("li", {}, h("span", { class: `dot ${cls}`, role: "img", "aria-label": t(`web.sy_level_${c.level}`) }), icon(ic),
-          h("div", { class: "grow" }, h("div", {}, title), h("small", { class: "muted" }, detail)),
+        return h("li", { class: `health-card ${cls || "skip"}` }, h("span", { class: `health-icon ${cls}`, role: "img", "aria-label": t(`web.sy_level_${c.level}`) }, icon(ic)),
+          h("div", { class: "grow" }, h("strong", { class: "block" }, title), h("small", { class: "muted" }, detail)),
           c.level !== "ok" && c.level !== "skip" && FIX[c.id] ? h("a", { class: "button small", href: FIX[c.id] }, t("web.sy_fix")) : null);
-      }))),
+      })),
       h("p", { class: "muted" }, h("small", {}, t("web.sy_doctor_hint"))));
-    whileShown(box, draw, 30000);
+    if (!refreshing) timer = whileShown(box, draw, 30000);
   };
   await draw();
 }

@@ -55,6 +55,20 @@ def endpoints(s: Settings, port: str | int | None = None) -> list[dict[str, Any]
     return ways
 
 
+def lan_network() -> str | None:
+    """The home network as a /24 around the Pi's own address, for a subnet route. A connected
+    UDP socket sends nothing; it only picks the address the Pi would use."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("192.0.2.1", 9))  # TEST-NET-1, never reached
+            address = ipaddress.ip_address(sock.getsockname()[0])
+    except (OSError, ValueError):
+        return None
+    if not address.is_private or address in CGNAT:
+        return None
+    return str(ipaddress.ip_network(f"{address}/24", strict=False))
+
+
 def tailscale() -> dict[str, Any] | None:
     """None without Tailscale. The login link is for the dashboard only, never for logs."""
     program = shutil.which("tailscale")
@@ -68,10 +82,17 @@ def tailscale() -> dict[str, Any] | None:
         data = json.loads(done.stdout)
     except (OSError, subprocess.TimeoutExpired, ValueError):
         return {"state": "unknown", "addresses": [], "login": None}
+    me = data.get("Self") if isinstance(data.get("Self"), dict) else {}
+    peers = data.get("Peer") if isinstance(data.get("Peer"), dict) else {}
     return {
         "state": str(data.get("BackendState", "unknown")),
         "addresses": [str(a) for a in data.get("TailscaleIPs") or []],
         "login": data.get("AuthURL") or None,
+        "name": str(me.get("DNSName") or "").rstrip(".") or None,
+        "version": str(data.get("Version") or "").split("-")[0] or None,
+        "peers": len(peers),
+        "peers_online": sum(1 for p in peers.values() if isinstance(p, dict) and p.get("Online")),
+        "exit_node": bool(me.get("ExitNodeOption")),
     }
 
 

@@ -1,8 +1,9 @@
 // Logs: a security overview, the service log and the audit trail, each in its own tab.
-import { api, fill, h, icon, lang, t, toast, when } from "../api.js";
+import { api, attempt, confirmDialog, fill, h, icon, lang, t, toast, when, whileShown } from "../api.js";
 import { supportNote } from "../widgets.js";
+import { card, resultHead, reviewBox } from "./ai-review.js";
 
-const TABS = [["overview", "shield-check"], ["service", "list-details"], ["audit", "history"]];
+const TABS = [["overview", "shield-check"], ["service", "list-details"], ["audit", "history"], ["ai", "sparkles"]];
 const LEVELS = ["", "INFO", "WARNING", "ERROR"];
 const LEVEL_CLASS = { DEBUG: "", INFO: "info", WARNING: "warn", ERROR: "danger", CRITICAL: "danger" };
 // What an audit action is about, for its icon.
@@ -115,6 +116,37 @@ function auditLog(box) {
   return { load };
 }
 
+// The assistant reads the warnings, errors and audit entries and says what is worth a look.
+async function aiLogs(box) {
+  const panel = h("section", { class: "panel stack review-panel" });
+  fill(box, panel);
+  const draw = async () => {
+    const state = await api("/api/logs-review").catch(() => null);
+    if (!panel.isConnected) return;
+    if (!state) { fill(panel, h("p", { class: "notice danger" }, t("web.error"))); return; }
+    if (!state.available && !state.last) {
+      fill(panel, h("h2", {}, icon("sparkles"), " ", t("web.logs_ai_title")), h("p", { class: "muted" }, t("web.logs_ai_hint")),
+        h("p", { class: "notice" }, t("web.logs_ai_needs"), " ", h("a", { href: "#/addons/assistant" }, t("addons.assistant"))));
+      return;
+    }
+    const start = async () => {
+      if (!await confirmDialog(t("web.logs_ai_confirm"), t("web.logs_ai_start"))) return;
+      if (await attempt(() => api("/api/logs-review", { method: "POST", body: {} }))) draw();
+    };
+    const render = (r) => [resultHead(r, (r.findings || []).map((f) => f.severity)),
+      r.findings?.length ? h("ol", { class: "review-cards" }, r.findings.map((f, i) => card(i, f.severity, f.title,
+        h("div", { class: "row wrap" }, f.area ? h("span", { class: "badge" }, f.area) : null, f.count ? h("small", { class: "muted" }, t("web.logs_ai_count", { n: f.count })) : null),
+        f.why ? h("p", { class: "muted" }, f.why) : null,
+        f.advice ? h("p", { class: "review-advice" }, icon("bulb"), " ", f.advice) : null)))
+        : h("p", { class: "notice ok" }, icon("circle-check"), " ", t("web.logs_ai_nothing")),
+      h("p", { class: "muted" }, h("small", {}, t("web.logs_ai_note")))];
+    reviewBox(panel, state, { title: t("web.logs_ai_title"), working: t("web.logs_ai_working"), render, start, startLabel: t("web.logs_ai_start") });
+    if (!state.running && !state.last) panel.append(h("p", { class: "muted" }, t("web.logs_ai_hint")));
+    if (state.running) whileShown(panel, draw, 1000);
+  };
+  await draw();
+}
+
 export async function render(main, { embedded = false } = {}) {
   const body = h("div", { class: "stack" });
   const tabs = h("nav", { class: "tabs", "aria-label": t("web.nav_logs") });
@@ -131,6 +163,8 @@ export async function render(main, { embedded = false } = {}) {
       const view = serviceLog(body);
       await view.load();
       timer = setInterval(() => { if (view.live() && body.isConnected) view.load().catch(() => {}); }, 10000);
+    } else if (tab === "ai") {
+      await aiLogs(body);
     } else {
       const view = auditLog(body);
       await view.load();

@@ -40,8 +40,10 @@ finished show as *Already set up*:
 7. Trusted people: switch recognition on (the model files are only downloaded
    after you press the button, with size and source shown), then enroll people
 8. Add-ons: which optional parts to switch on
-9. Design: dark, light or high contrast, normal or large text (per device)
-10. Finish: restart pi-guard if settings changed
+9. Apps: which apps this Pi hands out, a download link with a QR code to scan with the phone (valid for some days),
+   how to connect the app, and a note for iPhone (add the dashboard to the home screen)
+10. Design: dark, light or high contrast, normal or large text (per device)
+11. Finish: restart pi-guard if settings changed
 
 Until the default password has been changed, the default login is the only
 way in; keep the dashboard off the internet until then. While pi-guard still
@@ -241,7 +243,8 @@ Messaging stay in expert mode only.
 camera: pi-guard and its parts, each camera (state, last picture, recording), storage, memory, processor, temperature,
 the Pi's power supply (undervoltage and throttling, now or since boot), the database, each messenger, the detection
 models, the last backup and the clock; a problem links to where it is fixed. `sudo pi-guard doctor` checks more
-(FFmpeg, encoders, cameras). **Device** shows model, processor, memory, operating system, kernel, uptime, the data and
+(FFmpeg, encoders, cameras). It opens with a ring of how many checks are fine and *Check again*, then tiles for
+load, memory, temperature and free space with meters, then one card per check, problems first. **Device** shows model, processor, memory, operating system, kernel, uptime, the data and
 recording disks, cameras and sound devices, USB devices and the network addresses. **Updates** is described below.
 Members see the System page only for updates, when they may manage apps; health and device stay with admins.
 
@@ -250,7 +253,12 @@ Members see the System page only for updates, when they may manage apps; health 
 *System → Updates* shows the Pi's version (it is also next to the credit in the navigation), the newest release,
 where updates come from (repository and channel, see [updates.md](updates.md)), this installation's instance ID,
 every app version the Pi hands out (*Check for app updates*), invitations and phones. The anonymous statistics are
-off for now.
+off for now. The same is under *Settings → System*.
+
+*Update now* shows the update's real steps as the root job reports them: requested, fetching and checking the signed
+release, installing, restarting (the page waits while pi-guard is away, and says so when the old version comes back),
+done, with *Reload the page*. A failed step turns red with the job's message. *Check for updates* shows that it is
+looking and then, for a moment, *New version found* or *No new version*.
 
 ## Everyday tools
 
@@ -302,8 +310,14 @@ known. A clean result is no guarantee that a system is not compromised.
 (refused when no key is set up), automatic security updates, accept the rkhunter state, firewall on (everything
 reachable today and SSH stay open). Each runs in the root job with a backup, after two confirmations, the fix's name
 typed and the password, and *Undo* puts the earlier state back. **AI review** sends statuses and short details to the
-assistant's provider after a confirmation and lists steps; it can point to a listed fix, any other command it names is
-shown to copy and never run.
+assistant's provider after a confirmation. It runs in the background, so you can leave the page, and shows its real
+stage. The result stays until the next review: an overall rating, steps sorted by priority (important, medium,
+minor) with the check each is about, a button when a listed fix does it, and any other command folded away to copy,
+never run. A review older than the last check says so.
+
+The root job reports after each of its steps, so the progress shows the step it is really on. A step that crashes or
+whose commands time out marks its checks *unknown* with the reason, instead of *ok*; the other steps still count.
+pi-guard waits as long as the job reports progress (30 minutes without any, two hours in all).
 
 *Settings → Data & backup → Storage* shows what uses the disk and can delete old recordings, photos and clips, compact
 the database, and clear old system logs and the package cache (also `/storage` in chat). Evidence videos
@@ -331,8 +345,11 @@ ticked.
 
 ## Logs
 
-*Logs* has three tabs: an overview of the last seven days (logins, failed logins, honeypot hits, bans, advice), the
-service log with level chips, search, pause, copy and download, and the audit trail grouped by day, searchable.
+*Logs* has four tabs: an overview of the last seven days (logins, failed logins, honeypot hits, bans, advice), the
+service log with level chips, search, pause, copy and download, the audit trail grouped by day, searchable, and
+**AI look**. There the assistant reads the warnings and errors of the service log (repeats folded into one line with a
+count, long tokens cut) and the last 80 audit entries, after a confirmation, and answers with a health rating and
+findings by severity, each with what it means and what to do. Admins only; it changes nothing.
 
 ## Accessibility
 
@@ -347,7 +364,7 @@ says so there. If the browser blocks storage (a private window), the settings la
 
 *Help & tutorial* in the navigation explains every part of pi-guard in a few sentences, each with a button to it, and
 *Start the tour* walks through them one page at a time; viewers see only their pages. The chapters are: overview, live,
-events, contacts, network, VPN, Kid Protect, notifications, emergency contacts, emergency data, apps, assistant, moving,
+events, contacts, network, VPN, Kid Protect, notifications, emergency contacts, emergency data, apps, find devices, Computer-Connect, assistant, moving,
 system, and settings.
 The same tutorial is everywhere:
 
@@ -428,6 +445,13 @@ Settings are grouped into Basics, Alerts, Devices & access and System (with Add-
 holds, and each setting shows its explanation under its name. Switches are drawn as toggles. *Data & backup* holds
 four tabs: *Backup*, *Storage*, *Moving* and, in the expert view, *Export*; the old links (`#/settings/backup`,
 `/storage`, `/move`, `/data`) open the right tab.
+
+Since 1.18: *Detection* and the sound switches (record sound, play sound, loudest volume) are part of *Devices &
+cameras*, below the devices they belong to. Wake words, the talk button and *Talk to the Pi* are on the AI assistant
+add-on's page. **System** shows the Pi's health in one line (details and hardware on the System page) and the updates
+of pi-guard and the apps with their settings. **Network** holds the router, Pi-hole, VPN and dynamic DNS settings, with
+links to the network pages and the Cloudflare DDNS and Tailscale add-ons. *Integrations* (expert view) keeps MQTT and
+the saved keys. Old links (`#/settings/detection`, `/audio`, `/updates`) open the new place.
 
 Settings open in the normal view with what most people need. The switch next to the title and the search shows everything, also the complex
 settings, the sections Integrations, Dashboard and Security, and the Export tab. It is remembered per device and works the same

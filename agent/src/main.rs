@@ -7,6 +7,7 @@
 
 mod commands;
 mod config;
+mod connect;
 mod maintenance;
 mod update;
 

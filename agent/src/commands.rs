@@ -82,6 +82,7 @@ pub fn status(config: &Config) -> Value {
         "can_upgrade": config.allow_upgrade,
         "compose_dirs": if config.allow_docker { config.compose_dirs.len() } else { 0 },
         "git_repos": config.git_repos.len(),
+        "connect": crate::connect::status(config),
     })
 }
 
@@ -146,6 +147,9 @@ pub fn run(config: &Config, request: &Value) -> Outcome {
     if let Some(result) = crate::maintenance::run(config, request) {
         return done(result);
     }
+    if let Some(result) = crate::connect::run(config, request) {
+        return done(result);
+    }
     match request["cmd"].as_str().unwrap_or("") {
         "status" => done(Ok(status(config))),
         "lock" if config.allow_power => {
@@ -169,7 +173,8 @@ mod tests {
     fn config(power: bool, docker: bool) -> Config {
         Config { url: "https://x".into(), token: "t".into(), ca_file: None, auto_update: true,
                  allow_power: power, allow_docker: docker, allow_logs: false, allow_upgrade: false,
-                 compose_dirs: vec![], git_repos: vec![] }
+                 compose_dirs: vec![], git_repos: vec![], connect_user: None, connect: vec![],
+                 receive_dir: None }
     }
 
     #[test]

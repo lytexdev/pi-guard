@@ -632,11 +632,14 @@ async def forget_devices(request: web.Request, username: str) -> int:
 async def device_find(request: web.Request) -> web.Response:
     d = dashboard(request)
     device_id = int(request.match_info["id"])
+    # Without sound the phone only vibrates (app 1.18 and newer; older apps ring either way).
+    sound = (await read_json(request)).get("sound") is not False if request.body_exists else True
     try:
-        await _hub(request).send(device_id, type="find", ring=True)
+        await _hub(request).send(device_id, type="find", ring=True, sound=sound)
     except ProviderUnavailableError:
         raise web.HTTPConflict(text="web.mobile_offline") from None
-    d.app.db.audit(f"web:{current(request).username}", "mobile.find", str(device_id))
+    d.app.db.audit(f"web:{current(request).username}", "mobile.find",
+                   f"{device_id}{'' if sound else ' vibrate'}")  # fmt: skip
     return web.json_response({"ok": True})
 
 

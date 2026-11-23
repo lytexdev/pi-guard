@@ -23,7 +23,10 @@ log = logging.getLogger(__name__)
 HELPER = Path("/usr/local/sbin/pi-guard-maint")
 REPORTS = Path("/var/lib/pi-guard-scan")
 LAST_KEY = "scan.last"
-ROOT_TIMEOUT = 30 * 60
+# The root job's steps each have their own time limit (the longest 25 minutes). It reports after
+# each one, so pi-guard waits as long as it hears of progress, up to ROOT_TIMEOUT in all.
+ROOT_IDLE = 30 * 60
+ROOT_TIMEOUT = 2 * 60 * 60
 POLL_SECONDS = 3
 EXPECTED_PORTS = {22, 53, 67, 80, 443, 546, 5353, 8443, 51820}
 EPHEMERAL_PORTS = 32768
@@ -43,6 +46,16 @@ ROOT_IDS = (
     "rootkits",
 )
 PROGRESS_IDS = OWN_IDS + ROOT_IDS
+# The root job's steps (functions in pi-guard-maint) and the checks each one answers.
+STEP_CHECKS = {
+    "updates": ("updates", "reboot", "auto_updates"),
+    "firewall": ("firewall",),
+    "ssh": ("ssh",),
+    "files": ("system_files", "suid"),
+    "suspicious": ("suspicious",),
+    "accounts": ("accounts",),
+    "rootkits": ("rootkits",),
+}
 
 
 def check(key: str, status: str, detail: Any = "", fix: str | None = None) -> dict[str, Any]:
@@ -154,7 +167,9 @@ def root_checks(report: dict[str, Any] | None) -> list[dict[str, Any]]:
     checks.append(check("firewall", "ok" if report.get("firewall") else "bad",
                         report.get("firewall_detail", "")))  # fmt: skip
     ssh = report.get("ssh")
-    if ssh:
+    if ssh == {}:
+        checks.append(check("ssh", "ok", "no SSH server"))
+    elif ssh:
         risky = ssh.get("permitrootlogin") == "yes"
         passwords = ssh.get("passwordauthentication") == "yes"
         checks.append(check("ssh", "bad" if risky else "warn" if passwords else "ok",
@@ -177,6 +192,26 @@ def root_checks(report: dict[str, Any] | None) -> list[dict[str, Any]]:
         checks.append(check("rootkits", "bad" if warnings else "ok",
                             "; ".join([note, *warnings[:3]]),
                             fix="web.scan_rootkits_found_fix"))  # fmt: skip
+    return _unfinished(checks, report)
+
+
+def _unfinished(checks: list[dict[str, Any]], report: dict[str, Any]) -> list[dict[str, Any]]:
+    """A step that crashed or whose commands timed out found nothing because it did not look:
+    its checks say unknown, with the reason, instead of ok."""
+    why: dict[str, str] = {}
+    for entry in report.get("failed_steps") or []:
+        step, _, error = str(entry).partition(": ")
+        why[step] = error or "failed"
+    for step, problems in (report.get("incomplete_steps") or {}).items():
+        why.setdefault(step, "; ".join(map(str, problems))[:160])
+    for step, reason in why.items():
+        for key in STEP_CHECKS.get(step, ()):
+            found = next((c for c in checks if c["id"] == key), None)
+            item = check(key, "unknown", reason, fix="web.scan_unfinished_fix")
+            if found is None:
+                checks.append(item)
+            elif found["status"] in ("ok", "unknown"):  # a finding stays a finding
+                found.update(item)
     return checks
 
 
@@ -225,16 +260,33 @@ class SecurityScan:
             self._current = []
             self._done = []
 
+    def _follow(self, progress: dict[str, Any] | None, begun: float) -> bool:
+        """Show the root job's real step. True when it reported since the scan began."""
+        if not progress or float(progress.get("started", 0)) < int(begun):
+            return False
+        done = [k for step in progress.get("done") or [] for k in STEP_CHECKS.get(step, ())]
+        self._done = [*OWN_IDS, *done]
+        self._current = list(STEP_CHECKS.get(str(progress.get("step")), ()))
+        return True
+
     async def _root(self) -> dict[str, Any] | None:
         if not HELPER.exists():
             return None
         begun = time.time()
+        heard = begun
+        last_step: Any = None
         request_root(self._app.settings.data_dir, "scan")
-        while time.time() - begun < ROOT_TIMEOUT:
+        while time.time() - begun < ROOT_TIMEOUT and time.time() - heard < ROOT_IDLE:
             await asyncio.sleep(POLL_SECONDS)
+            progress = read_report("scan-progress")
+            if progress is not None and self._follow(progress, begun):
+                step = (progress.get("step"), len(progress.get("done") or []))
+                if step != last_step:
+                    last_step, heard = step, time.time()
             with contextlib.suppress(OSError):
                 if (REPORTS / "scan.json").stat().st_mtime >= begun:
                     return read_report("scan")
+        log.warning("security scan: the root job did not finish")
         return None
 
     async def _run(self, report_to_admins: bool) -> None:

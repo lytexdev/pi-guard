@@ -71,7 +71,7 @@ neues Erstpasswort, wenn die Datenbank schon existiert.
 2. `https://<pi>:8443` öffnen und als **admin** mit dem Erstpasswort anmelden.
 3. Eigenen Benutzernamen und eigenes Passwort wählen (mindestens 10 Zeichen).
    Der Einrichtungsassistent führt durch Kameras, Messenger, Meldungen,
-   Notfallkontakte, vertraute Personen, Add-ons und Design. Schritte
+   Notfallkontakte, vertraute Personen, Add-ons, Apps (Link und QR-Code fürs Handy) und Design. Schritte
    überspringen und später unter *Mehr → Einrichtungsassistent* nachholen.
 4. Optional: Android- oder Desktop-App unter *System → Updates*, oder
    Haushaltsmitglieder unter *Kontakte* anlegen und einladen. Am Computer geht auch
@@ -172,7 +172,7 @@ Sprachsteuerung mit Weckwort, offline auf dem Pi. Sie ist aus, bis du sie einsch
 sudo -u pi-guard pi-guard voice download     # etwa 46 MB, es wird vorher gefragt
 ```
 
-Dann im Dashboard unter *Einstellungen → Ton* *Auf ein Weckwort hören* einschalten und neu starten. Mehr dazu in
+Dann im Dashboard unter *Add-ons → KI-Assistent* *Auf ein Weckwort hören* einschalten und neu starten. Mehr dazu in
 [Sprache](sprache.md).
 
 ## Einstellungen ändern

@@ -264,6 +264,56 @@ def test_root_report_is_judged() -> None:
     assert scan.root_checks(None)[0]["status"] == "unknown"
 
 
+def test_unfinished_root_steps_are_unknown_not_ok() -> None:
+    results = {c["id"]: c for c in scan.root_checks({
+        "updates": 0, "security_updates": 0, "firewall": True, "unattended": True, "ssh": {},
+        "changed_files": [], "unknown_suid": [], "tmp_programs": ["/tmp/miner"],
+        "rootkit_tool": "rkhunter", "rootkit_warnings": [],
+        "failed_steps": ["suspicious: PermissionError", "accounts: FileNotFoundError"],
+        "incomplete_steps": {"files": ["dpkg: timeout"]},
+    })}  # fmt: skip
+    assert results["ssh"]["status"] == "ok"  # no SSH server at all
+    assert results["system_files"]["status"] == "unknown" and "timeout" in results["suid"]["detail"]
+    assert results["accounts"]["status"] == "unknown"
+    assert results["suspicious"]["status"] == "bad"  # what it did find still counts
+    assert results["rootkits"]["status"] == "ok"
+
+
+def test_root_progress_follows_the_job() -> None:
+    class App:
+        pass
+
+    scanner = scan.SecurityScan(App())
+    assert not scanner._follow({"started": 10, "step": "files", "done": ["updates"]}, 20.0)
+    assert scanner._follow({"started": 20, "step": "files", "done": ["updates", "ssh"]}, 20.5)
+    assert scanner._current == ["system_files", "suid"]
+    assert {"password", "updates", "reboot", "ssh"} <= set(scanner._done)
+
+
+def test_the_root_job_survives_a_broken_step(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from .test_fixes import _maint
+
+    maint = _maint()
+    written: dict[str, Any] = {}
+    monkeypatch.setattr(maint, "write", lambda name, report: written.__setitem__(name, report))
+
+    def broken(report: dict[str, Any]) -> None:
+        raise PermissionError
+
+    def slow(report: dict[str, Any]) -> None:
+        maint.INCOMPLETE.append("dpkg: timeout")
+        report["changed_files"] = []
+
+    monkeypatch.setattr(maint, "SCAN_STEPS", (broken, slow))
+    maint.scan()
+    assert written["scan"]["failed_steps"] == ["broken: PermissionError"]
+    assert written["scan"]["incomplete_steps"] == {"slow": ["dpkg: timeout"]}
+    progress = written["scan-progress"]
+    assert progress["step"] is None and progress["done"] == ["broken", "slow"]
+
+
 async def test_scan_runs_and_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     client, app = await _client(tmp_path)
     monkeypatch.setattr(scan, "HELPER", tmp_path / "missing")
@@ -638,7 +688,8 @@ async def test_modules_can_be_switched_off(tmp_path: Path) -> None:
         assert state == {"telegram": app.settings.telegram_enabled, "signal": False,
                          "discord": False, "whatsapp": False, "email": False,
                          "chatapps": False, "vpn": app.settings.wireguard_enabled,
-                         "pihole": app.settings.pihole_enabled}  # fmt: skip
+                         "pihole": app.settings.pihole_enabled, "ddns": False,
+                         "tailscale": shutil.which("tailscale") is not None}  # fmt: skip
         assert "mobile" not in state  # part of pi-guard, under Settings > Apps
         on = await client.put("/api/modules/whatsapp", json={"enabled": True}, headers=headers)
         assert on.status == 200
@@ -652,6 +703,31 @@ async def test_modules_can_be_switched_off(tmp_path: Path) -> None:
             "PI_GUARD_DISCORD_ENABLED=false"
             in (app.settings.data_dir / "dashboard.env").read_text()
         )
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_ddns_starts_only_with_a_name_and_a_token(tmp_path: Path) -> None:
+    from pydantic import SecretStr
+
+    client, app = await _client(tmp_path)
+    try:
+        headers = {"X-CSRF-Token": await _login(client)}
+        r = await (
+            await client.put("/api/modules/ddns", json={"enabled": True}, headers=headers)
+        ).json()
+        assert r["setup"] and app.settings.ddns_provider == "off"  # the page asks for both first
+        app.settings.ddns_hostname = "home.example.org"
+        app.settings.ddns_cloudflare_token = SecretStr("t" * 40)
+        r = await (
+            await client.put("/api/modules/ddns", json={"enabled": True}, headers=headers)
+        ).json()
+        env = (app.settings.data_dir / "dashboard.env").read_text()
+        assert not r["setup"] and "PI_GUARD_DDNS_PROVIDER=cloudflare" in env
+        await client.put("/api/modules/tailscale", json={"enabled": False}, headers=headers)
+        state = {m["id"]: m["enabled"] for m in await (await client.get("/api/modules")).json()}
+        assert state["tailscale"] is False
     finally:
         await client.close()
         app.db.close()

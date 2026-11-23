@@ -115,7 +115,12 @@ async def invite_create(request: web.Request) -> web.Response:
     data = await read_json(request)
     note = " ".join(str(data.get("note", "")).split())[:40]
     path, expires = make_invite(d, note, f"web:{current(request).username}")
-    return web.json_response({"path": path, "expires": expires})
+    answer: dict[str, Any] = {"path": path, "expires": expires}
+    if data.get("qr") is True:  # for a phone's camera: the link as this browser reaches the Pi
+        from pi_guard.web.api_account import _qr_svg
+
+        answer["qr"] = _qr_svg(f"{request.scheme}://{request.host}{path}")
+    return web.json_response(answer)
 
 
 async def invite_clear(request: web.Request) -> web.Response:

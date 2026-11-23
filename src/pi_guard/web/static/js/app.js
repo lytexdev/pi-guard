@@ -21,6 +21,7 @@ const VIEWS = {
   setup: () => import("./views/setup.js"),
   help: () => import("./views/help.js"),
   system: () => import("./views/system.js"),
+  find: () => import("./views/find.js"),
 };
 const PRIMARY = [
   ["overview", "home", "web.nav_overview"],
@@ -28,6 +29,7 @@ const PRIMARY = [
   ["events", "bell", "web.nav_events"],
   ["network", "network", "web.nav_network"],
   ["contacts", "users", "web.nav_contacts"],
+  ["find", "map-pin", "web.nav_find"],
 ];
 const SECONDARY = [
   ["system", "server", "web.nav_system_page"],
@@ -45,6 +47,7 @@ export function memberRoutes(session = state.session) {
   if (granted.includes("people")) routes.push("people");
   if (granted.includes("network")) routes.push("network");
   if (granted.includes("contacts")) routes.push("contacts");
+  if (granted.includes("apps")) routes.push("find");
   if (["apps", "settings:updates", "settings:apps"].some((p) => granted.includes(p))) routes.push("system");
   if (granted.some((p) => p.startsWith("addon:"))) routes.push("addons");
   if (granted.includes("logs") || granted.some((p) => p.startsWith("settings:"))
@@ -78,6 +81,16 @@ export function navItems() {
   return items.map((item, index) => [item, index]).sort((a, b) => rank(a[0][0]) - rank(b[0][0]) || a[1] - b[1]).map(([item]) => item);
 }
 
+// Pinned add-ons as [route, icon, label]: own pages, built-in modules where they are set up,
+// and add-ons from others by their manifest name when the session knows it.
+const ADDON_ICONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "devices-pc", assistant: "speakerphone",
+  agents: "device-desktop", languages: "world", medical: "user-check", proxy: "network", kids: "mood-happy", ddns: "cloud", tailscale: "world-www" };
+const MODULE_PINS = { vpn: ["network/vpn", "brand-wireguard", "web.addon_vpn"], pihole: ["network", "brand-pihole", "web.addon_pihole"] };
+export function pinnedEntries(session = state.session) {
+  return (session?.pinned || []).map((id) => MODULE_PINS[id]
+    || (id.startsWith("plugin_") ? [`addons/plugin/${id.slice(7)}`, "cpu", "web.nav_addons"] : [`addons/${id}`, ADDON_ICONS[id] || "cpu", `addons.${id}`]));
+}
+
 function shell(route) {
   const main = h("main", { id: "main", tabindex: "-1" });
   // For keyboards and screen readers: past the navigation in one step. A button, because a
@@ -95,9 +108,9 @@ function shell(route) {
       h("h3", {}, t("web.nav_system")),
       items.filter(([r]) => SECONDARY.some(([p]) => p === r)).map(entry)],
     (state.session?.pinned || []).length ? h("h3", {}, t("web.nav_pinned")) : null,
-    (state.session?.pinned || []).map((id) => link(`addons/${id}`, "cpu", `addons.${id}`, route)),
+    pinnedEntries().map(([r, i, l]) => link(r, i, l, route)),
     h("div", { class: "spacer" }),
-    state.session?.voice_listening ? h("a", { href: "#/settings/audio", class: "voice-badge", title: t("web.vo_listening_tip") }, icon("microphone"), h("span", {}, t("web.vo_listening"))) : null,
+    state.session?.voice_listening ? h("a", { href: "#/addons/assistant", class: "voice-badge", title: t("web.vo_listening_tip") }, icon("microphone"), h("span", {}, t("web.vo_listening"))) : null,
     h("a", { href: "#/logout" }, icon("logout"), h("span", {}, t("web.logout"))),
     h("div", { class: "credit" }, "pi-guard", state.session?.version ? h("a", { href: "#/system/updates", title: t("web.up_title") }, ` v${state.session.version}`) : null,
       " · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex")));

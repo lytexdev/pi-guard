@@ -23,6 +23,10 @@ async def test_an_invitation_opens_the_downloads_and_nothing_else(tmp_path: Path
         assert info["android"] == "1.9.0" and info["invites"] == 0 and info["pi"]
         made = await (await client.post("/api/apps/invite", json={}, headers=headers)).json()
         path = made["path"]
+        assert "qr" not in made
+        scan = {"qr": True, "note": "setup"}
+        with_qr = await (await client.post("/api/apps/invite", json=scan, headers=headers)).json()
+        assert with_qr["qr"].startswith("data:image/svg+xml;base64,")
 
         client.session.cookie_jar.clear()  # someone without an account
         page = await client.get(path)

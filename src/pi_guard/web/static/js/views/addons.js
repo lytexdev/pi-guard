@@ -6,7 +6,7 @@ import { markdown } from "../markdown.js";
 import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
 
-export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone", agents: "device-desktop", languages: "world", medical: "user-check", proxy: "network", kids: "mood-happy" };
+export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "devices-pc", assistant: "speakerphone", agents: "device-desktop", languages: "world", medical: "user-check", proxy: "network", kids: "mood-happy", ddns: "cloud", tailscale: "world-www" };
 
 const slug = (text) => text.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 28) || "item";
 const uniqueId = (name, items) => {
@@ -234,7 +234,11 @@ async function remote(box, data, opts) {
     const action = { id: uniqueId(name.value, section.actions), name: name.value.trim(), host: host.value.trim(), user: user.value.trim(), port: Number(port.value), command: command.value.trim() };
     if (await save("remote", { ...section, actions: [...section.actions, action] }, opts)) redraw();
   });
+  const computers = h("div", { class: "stack" });
   fill(box,
+    h("p", { class: "muted" }, t("web.cc_intro")),
+    computers,
+    h("h2", { class: "section-title" }, icon("terminal-2"), " ", t("web.rc_ssh_title")), h("p", { class: "muted" }, t("web.rc_ssh_hint")),
     h("section", { class: "panel" }, h("h2", {}, t("web.rc_actions")),
       h("ul", { class: "list" }, section.actions.length ? section.actions.map((action) => h("li", {},
         icon("power"),
@@ -246,6 +250,7 @@ async function remote(box, data, opts) {
     live ? h("section", { class: "panel" }, h("h2", {}, t("web.rc_key")), h("p", { class: "muted" }, t("web.rc_key_hint")),
       h("pre", { class: "mono wrap" }, live.public_key)) : null,
     h("section", { class: "panel" }, h("h2", {}, t("web.add")), form));
+  await (await import("./connect.js")).connectPanel(computers);
 }
 
 // --- assistant ---------------------------------------------------------------------------
@@ -415,6 +420,7 @@ async function assistant(box, data, opts) {
   const amount = (input) => (input.value === "" ? null : Number(input.value));
   const keys = h("div");
   const wake = h("div");
+  const voice = h("div", { id: "web.vo_title" });  // talking to the Pi: wake words, talk button, what it heard
   let saveKeys = null;
   let saveWake = null;
   const button = h("button", { class: "primary", onclick: async () => {
@@ -438,6 +444,7 @@ async function assistant(box, data, opts) {
       field(t("web.as_name"), asName, t("web.as_name_hint")),
       field(t("web.as_extra"), extra, t("web.as_extra_hint")),
       h("h3", {}, t("web.as_wake_title")), h("p", { class: "muted" }, t("web.as_wake_hint")), wake),
+    voice,
     h("section", { class: "panel stack" }, h("h2", {}, t("web.as_usage_prices")), h("p", { class: "muted" }, t("web.as_usage_prices_hint")),
       field(t("web.as_price_input"), priceIn), field(t("web.as_price_output"), priceOut), field(t("web.as_budget"), budget, t("web.as_budget_hint")), field(t("web.as_currency"), currency)),
     h("section", { class: "panel stack" }, h("h2", {}, t("web.as_provider_title")),
@@ -464,7 +471,8 @@ async function assistant(box, data, opts) {
     h("p", { class: "muted" }, h("small", {}, t("web.as_privacy"))));
   const view = await import("./settings.js");
   await view.render(keys, [], { embedded: true, groups: ["assistant"], register: (fn) => { saveKeys = fn; }, onSaved: () => {} });
-  await view.render(wake, [], { embedded: true, groups: ["audio"], keys: ["voice_wake_enabled", "voice_wake_phrases"], register: (fn) => { saveWake = fn; }, onSaved: () => {} });
+  await view.render(wake, [], { embedded: true, groups: ["audio"], keys: ["voice_wake_enabled", "voice_wake_phrases", "voice_button_gpio"], register: (fn) => { saveWake = fn; }, onSaved: () => {} });
+  await (await import("./settings-hub.js")).voicePanel(voice);
 }
 
 function agentDialog(agent) {
@@ -658,7 +666,56 @@ async function proxy(box) {
   await (await import("./proxy.js")).proxyPanel(box);
 }
 
-const DETAILS = { heartbeat, analytics, smarthome, remote, assistant, agents, languages, medical, proxy, kids };
+// --- dynamic DNS and Tailscale: network parts with a page of their own ---------------------
+
+async function ddns(box) {
+  const { ddnsPanel, routerGuide } = await import("./reach.js");
+  fill(box, h("section", { class: "panel stack" }, h("h2", {}, icon("cloud"), " ", t("web.ddns_title")), ddnsPanel()),
+    h("section", { class: "panel stack" }, h("h2", {}, icon("router"), " ", t("web.rg_title")),
+      h("p", { class: "muted" }, t("web.ddns_router_hint")), routerGuide()));
+}
+
+async function tailscalePage(box) {
+  const draw = async () => {
+    const s = await status("/api/network/tailscale");
+    if (!s) { fill(box, h("p", { class: "notice danger" }, t("web.error"))); return; }
+    const running = s.state === "Running";
+    const tone = !s.installed ? "" : running ? "ok" : "warn";
+    const scheme = s.tls ? "https" : "http";
+    const v4 = (s.addresses || []).find((a) => a.includes("."));
+    const code = (text) => h("div", { class: "copy-line" }, h("pre", { class: "mono wrap grow" }, text),
+      h("button", { class: "icon-only ghost", title: t("web.copy"), onclick: async () => { try { await navigator.clipboard.writeText(text); toast(t("web.copied")); } catch { toast(t("web.error"), true); } } }, icon("copy")));
+    fill(box,
+      h("section", { class: `panel health-summary ${tone}` }, h("span", { class: `health-dot ${tone}` }, icon(running ? "circle-check" : "world-www")),
+        h("div", { class: "grow" }, h("h2", {}, t(!s.installed ? "web.ts_missing" : running ? "web.ts_running" : `web.ts_state_${s.state === "NeedsLogin" ? "login" : "off"}`)),
+          s.installed ? h("small", { class: "muted" }, [s.name, s.version ? `Tailscale ${s.version}` : null,
+            running ? t("web.ts_peers", { online: s.peers_online ?? 0, total: s.peers ?? 0 }) : null].filter(Boolean).join(" · ")) : null),
+        s.login ? h("a", { class: "button primary", href: s.login, target: "_blank", rel: "noopener" }, icon("login"), t("web.ts_login")) : null),
+      running ? h("section", { class: "panel stack" }, h("h2", {}, icon("link"), " ", t("web.ts_addresses")),
+        h("dl", { class: "kv" }, (s.addresses || []).map((a) => [h("dt", {}, a.includes(":") ? "IPv6" : "IPv4"), h("dd", { class: "mono" }, a)]),
+          s.name ? [h("dt", {}, "MagicDNS"), h("dd", { class: "mono" }, s.name)] : null,
+          h("dt", {}, t("web.ts_exit")), h("dd", {}, t(s.exit_node ? "web.yes" : "web.no"))),
+        v4 ? h("p", {}, t("web.ts_dashboard_at"), " ", h("a", { class: "mono", href: `${scheme}://${v4}:${s.dashboard_port}` }, `${scheme}://${v4}:${s.dashboard_port}`)) : null) : null,
+      h("section", { class: "panel stack" }, h("h2", {}, icon("route"), " ", t("web.ts_used_title")),
+        h("p", {}, t(s.used ? "web.ts_used_on" : "web.ts_used_off")),
+        s.used && s.wireguard ? h("p", { class: "notice" }, t("web.ts_both")) : null,
+        h("p", { class: "muted" }, h("small", {}, t("web.ts_used_hint")))),
+      h("details", { class: "panel guide", open: !running },
+        h("summary", {}, icon("list-details"), " ", t("web.ts_setup_title")),
+        h("ol", { class: "stack guide-steps" },
+          h("li", {}, t("web.ts_step_install"), code("cd ~/pi-guard && sudo ./scripts/tailscale.sh setup")),
+          h("li", {}, t("web.ts_step_up"), code(`sudo tailscale set --advertise-routes=${s.lan || "192.168.178.0/24"} --advertise-exit-node`),
+            s.lan ? null : h("small", { class: "muted" }, t("web.ts_step_up_lan"))),
+          h("li", {}, t("web.ts_step_approve")),
+          h("li", {}, t("web.ts_step_dns", { ip: v4 || "100.x.y.z" })),
+          h("li", {}, t("web.ts_step_phone"))),
+        h("p", { class: "muted" }, h("small", {}, t("web.ts_owner_runs")))),
+      h("div", { class: "row" }, h("button", { onclick: draw }, icon("refresh"), t("web.refresh"))));
+  };
+  await draw();
+}
+
+const DETAILS = { heartbeat, analytics, smarthome, remote, assistant, agents, languages, medical, proxy, kids, ddns, tailscale: tailscalePage };
 
 export async function renderDetail(id, box, opts = {}) {
   const data = await api("/api/addons");
@@ -670,30 +727,42 @@ export async function setEnabled(id, enabled, opts = {}) {
   return save(id, { ...data.config[id], enabled }, opts);
 }
 
+// Pins an add-on to the navigation (sidebar, and More on phones), or takes it off. The whole
+// page is built again so the navigation shows it at once.
+export async function togglePin(id) {
+  const pinned = new Set(state.session.pinned || []);
+  if (pinned.has(id)) pinned.delete(id); else pinned.add(id);
+  const saved = await attempt(() => api("/api/navigation/pinned", { method: "PUT", body: { pinned: [...pinned] } }));
+  if (saved) { state.session.pinned = saved.pinned; location.reload(); }
+}
+
+export function pinButton(id) {
+  const on = (state.session?.pinned || []).includes(id);
+  return h("button", { class: on ? "pin-toggle on" : "pin-toggle", "aria-pressed": String(on), title: t(on ? "web.ad_unpin_tip" : "web.ad_pin_tip"), onclick: () => togglePin(id) },
+    icon(on ? "pinned-off" : "pinned"), t(on ? "web.ad_unpin" : "web.ad_pin"));
+}
+
 export async function render(main, params = [], opts = {}) {
   const id = params[0];
   if (id === "plugin") { await pluginPage(main, params[1]); return; }
   if (id === "mobile") { location.hash = "#/system/updates"; return; }  // phones and app versions live under Updates
   if (id in DETAILS) {
     const box = h("div", { class: "stack" });
-    fill(main, opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t(`addons.${id}`)), h("a", { class: "button", href: "#/addons" }, t("web.back"))), box);
+    fill(main, opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, icon(ADDONS[id] || "cpu"), " ", t(`addons.${id}`)),
+      h("div", { class: "row" }, pinButton(id), h("a", { class: "button", href: "#/addons" }, t("web.back")))), box);
     await renderDetail(id, box);
     return;
   }
   const data = await api("/api/addons");
   const pinned = new Set(state.session.pinned || []);
-  const pin = async (id) => {
-    if (pinned.has(id)) pinned.delete(id); else pinned.add(id);
-    const saved = await attempt(() => api("/api/navigation/pinned", { method: "PUT", body: { pinned: [...pinned] } }));
-    if (saved) { state.session.pinned = saved.pinned; location.reload(); }
-  };
+  const pin = (id) => togglePin(id);
   // Cards in groups, each with its state at a glance. Pinning, help and removing sit in its menu.
-  const GROUPS = [["server", ["agents", "remote"]], ["network", ["vpn", "pihole", "analytics", "proxy"]],
+  const GROUPS = [["server", ["agents", "remote"]], ["network", ["vpn", "pihole", "ddns", "tailscale", "analytics", "proxy"]],
     ["home", ["smarthome"]], ["family", ["kids"]], ["health", ["medical"]], ["assistant", ["assistant", "languages"]],
     ["messages", ["telegram", "signal", "discord", "whatsapp", "email", "chatapps"]]];
-  const MODULE_ICONS = { vpn: "brand-wireguard", pihole: "brand-pihole", telegram: "brand-telegram",
+  const MODULE_ICONS = { vpn: "brand-wireguard", pihole: "brand-pihole", ddns: "cloud", tailscale: "world-www", telegram: "brand-telegram",
     signal: "brand-signal", discord: "brand-discord", whatsapp: "brand-whatsapp", email: "mail", chatapps: "message" };
-  const MODULE_OPEN = { vpn: "#/network/vpn", pihole: "#/network", telegram: "#/settings/messaging",
+  const MODULE_OPEN = { vpn: "#/network/vpn", pihole: "#/network", ddns: "#/addons/ddns", tailscale: "#/addons/tailscale", telegram: "#/settings/messaging",
     signal: "#/settings/messaging", discord: "#/settings/messaging", whatsapp: "#/settings/messaging",
     email: "#/settings/messaging", chatapps: "#/settings/messaging" };
   const stateBadge = (on, extra) => extra
@@ -742,6 +811,7 @@ export async function render(main, params = [], opts = {}) {
       onToggle: async (toggle) => {
         const done = await attempt(() => api(`/api/modules/${module.id}`, { method: "PUT", body: { enabled: toggle.checked } }), t("web.saved"));
         if (!done) { toggle.checked = !toggle.checked; return; }
+        if (done.setup) { location.hash = MODULE_OPEN[module.id]; return; }  // a name and a token first
         state.session.modules = { ...state.session.modules, [module.id]: toggle.checked };
         c.classList.toggle("on", toggle.checked);
         c.dataset.state = toggle.checked ? "on" : "off";
@@ -866,7 +936,7 @@ async function pluginPage(main, id) {
       : h("input", { type: f.type === "secret" ? "password" : f.type === "number" ? "number" : "text", value: plugin.values[f.key] ?? "" });
     return [f, input];
   });
-  fill(main, h("div", { class: "topbar" }, h("h1", {}, icon(plugin.icon), " ", plugin.name), h("a", { class: "button", href: "#/addons" }, t("web.back"))),
+  fill(main, h("div", { class: "topbar" }, h("h1", {}, icon(plugin.icon), " ", plugin.name), h("div", { class: "row" }, pinButton(`plugin_${id}`), h("a", { class: "button", href: "#/addons" }, t("web.back")))),
     h("section", { class: "panel stack" }, h("p", { class: "muted" }, plugin.description),
       h("dl", { class: "kv" }, h("dt", {}, "Version"), h("dd", {}, plugin.version),
         plugin.authors.length ? [h("dt", {}, t("web.pm_authors")), h("dd", {}, plugin.authors.join(", "))] : null,

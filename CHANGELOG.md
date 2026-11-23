@@ -27,7 +27,37 @@ All notable changes are documented here. The format follows
   compares the release with the installed commit, so a `git pull` by hand no longer looks up to date.
 
 
+- The security check said *ok* for a check whose command timed out, and one crashing step in the root job lost the
+  whole report (pi-guard then waited 30 minutes for nothing). Each step now runs on its own; unfinished ones say
+  *unknown* with the reason. The progress follows the root job's real step, a firewall needs a dropping *input* chain
+  (or firewalld), and a Pi without an SSH server is fine.
+- The AI review's progress ticked on a timer; it now shows the server's real stage.
+
 ### Added
+
+- A setup step **Apps**: a download link with a QR code for the phone, what the Pi offers and how to connect.
+- *Update now* shows the update's real steps (check, install, restart, done) and waits through the restart; *Check
+  for updates* shows its result. The System page opens with a ring of the checks, vital numbers and cards.
+
+- **Computer-Connect** (was *Remote commands*): media remote, sending files (through the Pi, never kept), ringing
+  and texts for computers with the agent, each part allowed on the computer (`CONNECT`, `CONNECT_USER`) and run in
+  that person's session. Agent 0.5.
+
+- **Find devices**: one page in the navigation for every phone with the app (ring, vibrate only, place, lost and
+  found), also in the tutorial; *Vibrate* needs app 1.18.
+
+- Settings: *Detection* and the sound switches moved into *Devices & cameras*, wake words and the talk button onto the
+  AI assistant's page; new sections **System** (health and updates) and **Network** (router, Pi-hole, VPN, DNS).
+- *Pin to navigation* on every add-on's own page; pinned add-ons also show under *More* on phones, with their icon.
+- **Cloudflare DDNS** and **Tailscale** are add-ons of their own. The Tailscale page shows its state, addresses and
+  setup; its switch says whether pi-guard counts Tailscale as the home's VPN. pi-guard never installs it.
+- *Set up the router* for any router: FRITZ!Box, Vodafone Station, EasyBox, Speedport, o2 HomeBox and others, and what
+  to do without a public IPv4 address (DS-Lite, CGNAT).
+
+- *Logs → AI look*: the assistant reads warnings, errors and recent audit entries and answers with a rating and
+  findings by severity.
+- The AI review of the security check runs in the background and keeps its result, with an overall rating, steps by
+  priority and the check each is about.
 
 - Another VPN (Tailscale, ZeroTier, NetBird) on the Pi is recognised: with pi-guard's WireGuard off, *Network → VPN*
   says so, marks the WireGuard ways, AmneziaWG and post-quantum keys as not needed, and offers to switch AmneziaWG off.

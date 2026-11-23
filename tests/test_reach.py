@@ -132,13 +132,18 @@ def test_reading_tailscale(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(reach.shutil, "which", lambda _: None)
     assert reach.tailscale() is None
     monkeypatch.setattr(reach.shutil, "which", lambda _: "/usr/bin/tailscale")
-    answer = {"BackendState": "Running", "TailscaleIPs": ["100.70.0.1"], "AuthURL": ""}
+    answer = {"BackendState": "Running", "TailscaleIPs": ["100.70.0.1"], "AuthURL": "",
+              "Version": "1.80.2-t123",
+              "Self": {"DNSName": "pi.tail1.ts.net.", "ExitNodeOption": True},
+              "Peer": {"a": {"Online": True}, "b": {"Online": False}}}  # fmt: skip
 
     def run(*_: Any, **__: Any) -> Any:
         return SimpleNamespace(stdout=json.dumps(answer).encode())
 
     monkeypatch.setattr(reach.subprocess, "run", run)
-    assert reach.tailscale() == {"state": "Running", "addresses": ["100.70.0.1"], "login": None}
+    assert reach.tailscale() == {"state": "Running", "addresses": ["100.70.0.1"], "login": None,
+                                 "name": "pi.tail1.ts.net", "version": "1.80.2", "peers": 2,
+                                 "peers_online": 1, "exit_node": True}  # fmt: skip
 
     def stuck(*_: Any, **__: Any) -> Any:
         raise subprocess.TimeoutExpired("tailscale", 3)
@@ -216,6 +221,10 @@ async def test_with_only_tailscale_the_wireguard_ways_are_not_needed(
         wireguard = [w for w in body["ways"] if w["id"] != "tailscale"]
         assert {(w["state"], w["key"]) for w in wireguard} == {("off", "web.reach_not_needed")}
         assert body["awg_idle"]  # the page offers to switch AmneziaWG off
+        headers = {"X-CSRF-Token": (await (await client.get("/api/session")).json())["csrf"]}
+        await client.put("/api/modules/tailscale", json={"enabled": False}, headers=headers)
+        body = await (await client.get("/api/network/reach")).json()
+        assert body["mode"] == "none" and body["others"] == []  # its add-on is off
     finally:
         await client.close()
         app.db.close()

@@ -13,6 +13,7 @@ import json
 import logging
 import re
 import secrets
+import shutil
 import socket
 import ssl
 import time
@@ -72,7 +73,10 @@ VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check", "/api
                "/api/account/totp/disable"}  # fmt: skip
 # Optional parts shown as add-on cards. Messengers are off until wanted; VPN and Pi-hole follow
 # their settings (usually on after install). The phone app is not one: Settings › Apps.
-MODULES = ("telegram", "signal", "discord", "whatsapp", "email", "chatapps", "vpn", "pihole")
+MODULES = ("telegram", "signal", "discord", "whatsapp", "email", "chatapps", "vpn", "pihole",
+           "ddns", "tailscale")  # fmt: skip
+# Tailscale is no setting of pi-guard: its card says whether pi-guard counts it as the home's VPN.
+TAILSCALE_INTERFACE = Path("/sys/class/net/tailscale0")
 MODULE_SETTINGS = {
     "vpn": "wireguard_enabled",
     "pihole": "pihole_enabled",
@@ -168,6 +172,9 @@ class Dashboard:
             s.dashboard_tls,
         )
         self.guard.on_event = lambda action, detail: app.db.audit("guard", action, detail)
+        from pi_guard.diagnostics.reviews import Reviews
+
+        self.reviews = Reviews(app.db)
         if s.dashboard_public_url:
             names = {
                 urlsplit(s.dashboard_public_url).hostname or "",
@@ -259,6 +266,7 @@ class Dashboard:
             api_addons,
             api_agents,
             api_apps,
+            api_connect,
             api_contacts,
             api_core,
             api_export,
@@ -298,10 +306,11 @@ class Dashboard:
         webapp.router.add_post("/api/login", self._login)
         webapp.router.add_post("/api/login/totp", self._login_totp)
         webapp.router.add_post("/api/logout", self._logout)
-        for module in (api_account, api_apps, api_addons, api_agents, api_contacts, api_persons,
-                       api_core, api_export, api_kids, api_login, api_live, api_manage, api_medical,
-                       api_move, api_network, api_privacy, api_proxy, api_security, api_system,
-                       api_mobile, api_tools, api_updates, api_v1, api_federation):  # fmt: skip
+        for module in (api_account, api_apps, api_addons, api_agents, api_connect, api_contacts,
+                       api_persons, api_core, api_export, api_kids, api_login, api_live, api_manage,
+                       api_medical, api_move, api_network, api_privacy, api_proxy, api_security,
+                       api_system, api_mobile, api_tools, api_updates, api_v1,
+                       api_federation):  # fmt: skip
             webapp.add_routes(module.routes())
         for plugin in self.app.addons.plugins:
             sub = web.Application()
@@ -453,8 +462,13 @@ class Dashboard:
         saved = self.app.db.get("web.modules") or {}
         out: dict[str, bool] = {}
         for module in MODULES:
-            key = MODULE_SETTINGS.get(module, f"{module}_enabled")
-            out[module] = bool(saved.get(module, getattr(self.settings, key)))
+            if module == "ddns":  # on while a provider is set, wherever it was set
+                out[module] = self.settings.ddns_provider != "off"
+            elif module == "tailscale":
+                out[module] = bool(saved.get(module, shutil.which("tailscale") is not None))
+            else:
+                key = MODULE_SETTINGS.get(module, f"{module}_enabled")
+                out[module] = bool(saved.get(module, getattr(self.settings, key)))
         return out
 
     @staticmethod

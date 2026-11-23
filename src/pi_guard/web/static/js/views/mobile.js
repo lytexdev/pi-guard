@@ -79,7 +79,7 @@ async function reportLost(device, draw) {
   if (await attempt(() => api(`/api/mobile/devices/${device.id}/lost`, { method: "POST", body: { message, password } }), t("web.mob_lost_done"))) draw();
 }
 
-function card(device, draw) {
+export function card(device, draw) {
   const info = device.info;
   const place = h("div", { class: "stack tight phone-place" });
   const facts = [info.model, info.os, info.battery != null ? `${info.battery} %${info.charging ? " ⚡" : ""}` : null, info.network, info.ssid, info.ip].filter(Boolean).join(" · ");
@@ -88,7 +88,8 @@ function card(device, draw) {
       device.tracking ? [" ", h("span", { class: "badge danger" }, t(device.tracking.kind === "lost" ? "web.mob_is_lost" : "web.mob_is_emergency"))] : null),
       h("small", { class: "block" }, device.last_seen ? t("web.last_used", { time: when(device.last_seen) }) : t("web.never_used")), facts ? h("small", { class: "block" }, facts) : null),
     h("div", { class: "phone-actions" },
-    h("button", { title: t("web.mob_find_tip"), disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/find`, { method: "POST" }), t("web.mob_ringing")) }, icon("bell-ringing"), t("web.mob_find")),
+    h("button", { title: t("web.mob_find_tip"), disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/find`, { method: "POST", body: { sound: true } }), t("web.mob_ringing")) }, icon("bell-ringing"), t("web.mob_find")),
+    h("button", { title: t("web.mob_vibrate_tip"), disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/find`, { method: "POST", body: { sound: false } }), t("web.mob_vibrating")) }, icon("device-mobile-vibration"), t("web.mob_vibrate")),
     h("button", { class: "ghost", disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/stop`, { method: "POST" })) }, t("web.mob_stop")),
     h("button", { title: t("web.mob_place_tip"), disabled: !device.online, onclick: () => placeLink(device, place) }, icon("map-pin"), t("web.mob_place_link")),
     info.latitude != null ? h("button", { class: "icon-only", title: t("web.mob_map_tip"), onclick: () => fill(place, mapOf(info), h("a", { href: device.map, target: "_blank", rel: "noopener" }, t("web.mob_open")), info.located_at ? h("small", { class: "muted" }, when(info.located_at)) : null) }, icon("world")) : null,
@@ -157,7 +158,8 @@ export async function render(main, { embedded = false, skipVersions = false } = 
     const code = h("input", { type: "number", min: 1, placeholder: t("web.mob_version_code"), "aria-label": t("web.mob_version_code") });
     const version = h("input", { placeholder: t("web.mob_version_name"), "aria-label": t("web.mob_version_name") });
     fill(main, embedded ? top : h("div", { class: "topbar" }, h("h1", {}, t("addons.mobile")), h("a", { class: "button", href: "#/system/updates" }, t("web.back"))),
-      h("section", { class: "panel stack" }, h("h2", {}, t("web.mob_devices")), h("p", { class: "muted" }, t("web.mob_hint")),
+      h("section", { class: "panel stack" }, h("div", { class: "row between wrap" }, h("h2", {}, t("web.mob_devices")),
+        h("a", { class: "button", href: "#/find" }, icon("map-pin"), t("web.nav_find"))), h("p", { class: "muted" }, t("web.mob_hint")),
         h("ul", { class: "list" }, data.devices.length ? data.devices.map((d) => card(d, draw)) : h("li", { class: "empty" }, t("web.nothing")))),
       h("section", { class: "panel stack" }, h("h2", {}, t("web.mob_app")),
         data.app ? [h("p", {}, t("web.mob_current", { version: data.app.version_name, size: Math.round(data.app.size / 1e6) })),

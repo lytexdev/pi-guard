@@ -89,3 +89,82 @@ async def test_a_fix_needs_the_password_and_its_name(tmp_path: Path, monkeypatch
     finally:
         await client.close()
         app.db.close()
+
+
+class _Assistant:
+    ready = True
+
+    def __init__(self, answer: str) -> None:
+        self.answer = answer
+        self.asked: list[str] = []
+
+    async def complete_checked(self, system: str, question: str) -> tuple[str, int]:
+        self.asked.append(question)
+        return self.answer, 10
+
+
+async def _wait_review(client, url: str, key: str | None = None):  # type: ignore[no-untyped-def]
+    import asyncio
+
+    for _ in range(100):
+        data = await (await client.get(url)).json()
+        state = data[key] if key else data
+        if not state["running"]:
+            return state
+        await asyncio.sleep(0.02)
+    raise AssertionError("review did not finish")
+
+
+async def test_the_scan_review_runs_in_the_background_and_stays(tmp_path: Path) -> None:
+    from pi_guard.diagnostics.scan import LAST_KEY
+
+    client, app = await _client(tmp_path)
+    try:
+        h = {"X-CSRF-Token": await _login(client)}
+        answer = ('{"summary": "One thing.", "rating": "fair", "steps": [{"title": "SSH", '
+                  '"priority": "high", "check": "ssh", "fix": "ssh-root"}, {"title": "x", '
+                  '"priority": "urgent!!", "check": "made-up"}]}')  # fmt: skip
+        app.addons.assistant = _Assistant(answer)  # type: ignore[assignment]
+        assert (await client.post("/api/scan/review", json={}, headers=h)).status == 409  # no scan
+        app.db.set(LAST_KEY, {"time": "2026-11-23T10:00:00", "checks": [
+            check("ssh", "bad", "permitrootlogin=yes")]})  # fmt: skip
+        assert (await client.post("/api/scan/review", json={}, headers=h)).status == 200
+        state = await _wait_review(client, "/api/scan", "review_state")
+        last = state["last"]
+        assert last["rating"] == "fair" and last["basis"] == "2026-11-23T10:00:00"
+        assert [(s["priority"], s["check"], s["fix"]) for s in last["steps"]] == [
+            ("high", "ssh", "ssh-root"), ("medium", None, None)]  # fmt: skip
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_the_logs_review_sends_only_folded_warnings(tmp_path: Path) -> None:
+    from pi_guard.logs import RECENT
+
+    client, app = await _client(tmp_path)
+    try:
+        h = {"X-CSRF-Token": await _login(client)}
+        app.addons.assistant = None
+        assert (await client.post("/api/logs-review", json={}, headers=h)).status == 409
+        found = '[{"title": "Camera 1", "severity": "high", "count": 3}]'
+        assistant = _Assistant('{"summary": "Drops.", "health": "fair", "findings": ' + found + "}")
+        app.addons.assistant = assistant  # type: ignore[assignment]
+
+        def line(level: str, message: str) -> None:
+            RECENT.records.append(
+                {"ts": "t", "level": level, "logger": "pi_guard.x", "message": message}
+            )
+
+        for n in range(3):
+            line("WARNING", f"camera 1 lost after {n}s")
+        line("INFO", "hello")
+        line("ERROR", "token " + "A" * 40)
+        assert (await client.post("/api/logs-review", json={}, headers=h)).status == 200
+        state = await _wait_review(client, "/api/logs-review")
+        assert state["last"]["findings"][0]["severity"] == "high"
+        sent = assistant.asked[0]
+        assert '"count": 3' in sent and "hello" not in sent and "A" * 40 not in sent
+    finally:
+        await client.close()
+        app.db.close()

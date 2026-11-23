@@ -42,6 +42,7 @@ from pi_guard.web.api_manage import apply_settings
 from pi_guard.web.server import (
     MODULE_SETTINGS,
     MODULES,
+    TAILSCALE_INTERFACE,
     confirm_password,
     current,
     dashboard,
@@ -105,6 +106,9 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/scan", scan_start),
         web.post("/api/scan/fix", scan_fix),
         web.post("/api/scan/review", scan_review),
+        # Not under /api/logs: members with the logs grant must not spend the owner's AI.
+        web.get("/api/logs-review", logs_review_get),
+        web.post("/api/logs-review", logs_review_start),
         web.get("/api/storage", storage_get),
         web.post("/api/storage/clean", storage_clean),
     ]
@@ -201,6 +205,10 @@ def _module_setting(module: str) -> str:
 
 
 def _module_running(d: Any, module: str) -> bool:
+    if module == "ddns":
+        return bool(d.settings.ddns_provider != "off")
+    if module == "tailscale":
+        return TAILSCALE_INTERFACE.exists()
     if module == "vpn":
         return bool(d.settings.wireguard_enabled and d.wg_peers is not None)
     if module == "pihole":
@@ -227,6 +235,8 @@ async def module_set(request: web.Request) -> web.Response:
     if module not in MODULES:
         raise web.HTTPNotFound()
     enabled = (await read_json(request)).get("enabled") is True
+    if module in ("ddns", "tailscale"):
+        return web.json_response(await _service_module(request, module, enabled))
     setting = _module_setting(module)
     running = getattr(d.settings, setting)
     if running != enabled and (not enabled or module in NEEDS_NO_SETUP):
@@ -241,6 +251,27 @@ async def module_set(request: web.Request) -> web.Response:
             and (not enabled or module in NEEDS_NO_SETUP),
         }
     )
+
+
+async def _service_module(request: web.Request, module: str, enabled: bool) -> dict[str, Any]:
+    """DDNS: off stops it; on needs a name and a token, so it only starts when they are there.
+    Tailscale: only whether pi-guard counts it as the home's VPN; pi-guard never installs it."""
+    d = dashboard(request)
+    setup = False
+    if module == "ddns":
+        token = d.settings.ddns_cloudflare_token
+        ready = bool(d.settings.ddns_hostname and token and token.get_secret_value())
+        if not enabled and d.settings.ddns_provider != "off":
+            await apply_settings(d, {"ddns_provider": "off"}, _actor(request))
+        elif enabled and d.settings.ddns_provider == "off":
+            if ready:
+                await apply_settings(d, {"ddns_provider": "cloudflare"}, _actor(request))
+            setup = not ready
+    else:
+        saved = d.app.db.get("web.modules") or {}
+        d.app.db.set("web.modules", {**saved, module: enabled})
+    d.app.db.audit(_actor(request), "module", f"{module} {'on' if enabled else 'off'}")
+    return {"ok": True, "restart": False, "setup": setup}
 
 
 # --- donations ------------------------------------------------------------------------------
@@ -806,6 +837,7 @@ async def scan_get(request: web.Request) -> web.Response:
         "fixes": {"offered": fixes.offered(last), "applied": fixes.applied(),
                   "result": fixes.result()},
         "review": assistant is not None and assistant.ready,
+        "review_state": dashboard(request).reviews.state("scan"),
     })  # fmt: skip
 
 
@@ -826,25 +858,81 @@ async def scan_fix(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
-async def scan_review(request: web.Request) -> web.Response:
-    """The assistant's view of the latest result: steps, and which fixed fix does each."""
-    from pi_guard.addons.assistant import LANGUAGE_NAMES, AssistantError
-
-    d = dashboard(request)
-    assistant = d.app.addons.assistant
-    last = d.app.scanner.last
+def _assistant_or_conflict(request: web.Request) -> Any:
+    assistant = dashboard(request).app.addons.assistant
     if assistant is None:
         raise web.HTTPConflict(text="web.addon_not_running")
+    if not assistant.ready:
+        raise web.HTTPConflict(text="assistant.no_key")
+    return assistant
+
+
+def _language(request: web.Request) -> str:
+    from pi_guard.addons.assistant import LANGUAGE_NAMES
+
+    return LANGUAGE_NAMES.get(dashboard(request).settings.language, "German")
+
+
+async def _ask(assistant: Any, system: str, text: str) -> str:
+    answer, _ = await assistant.complete_checked(system, text)
+    return str(answer)
+
+
+async def scan_review(request: web.Request) -> web.Response:
+    """Starts the assistant's view of the latest result: steps, and which fixed fix does each.
+    It runs in the background; GET /api/scan shows its stage and the result."""
+    d = dashboard(request)
+    assistant = _assistant_or_conflict(request)
+    last = d.app.scanner.last
     if not last:
         raise web.HTTPConflict(text="web.scan_none_yet")
-    language = LANGUAGE_NAMES.get(d.settings.language, "German")
-    try:
-        answer, _ = await assistant.complete_checked(fixes.review_prompt(language),
-                                                     fixes.review_input(last))  # fmt: skip
-    except AssistantError as exc:
-        raise web.HTTPConflict(text=exc.key) from None
+    language = _language(request)
+    ids = {str(c["id"]) for c in last.get("checks", [])}
+
+    async def prepare() -> tuple[str, str]:
+        return fixes.review_prompt(language), fixes.review_input(last)
+
+    started = d.reviews.start(
+        "scan", prepare, lambda system, text: _ask(assistant, system, text),
+        lambda answer: fixes.parse_review(answer, ids), basis=str(last.get("time")),
+    )  # fmt: skip
+    if not started:
+        raise web.HTTPConflict(text="web.review_busy")
     d.app.db.audit(_actor(request), "security.review")
-    return web.json_response(fixes.parse_review(answer))
+    return web.json_response({"ok": True})
+
+
+async def logs_review_get(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    assistant = d.app.addons.assistant
+    return web.json_response({"available": assistant is not None and assistant.ready,
+                              **d.reviews.state("logs")})  # fmt: skip
+
+
+async def logs_review_start(request: web.Request) -> web.Response:
+    """The assistant reads the warnings and errors of the service log and the audit trail."""
+    from pi_guard.diagnostics import log_review
+    from pi_guard.logs import RECENT
+
+    d = dashboard(request)
+    assistant = _assistant_or_conflict(request)
+    language = _language(request)
+
+    async def prepare() -> tuple[str, str]:
+        rows = d.app.db.execute(
+            "SELECT ts, actor, action, detail FROM audit ORDER BY id DESC LIMIT ?",
+            (log_review.MAX_AUDIT,),
+        ).fetchall()
+        text = log_review.collect(list(RECENT.records), [dict(r) for r in rows])
+        return log_review.prompt(language), text
+
+    started = d.reviews.start(
+        "logs", prepare, lambda system, text: _ask(assistant, system, text), log_review.parse
+    )
+    if not started:
+        raise web.HTTPConflict(text="web.review_busy")
+    d.app.db.audit(_actor(request), "logs.review")
+    return web.json_response({"ok": True})
 
 
 async def scan_start(request: web.Request) -> web.Response:
