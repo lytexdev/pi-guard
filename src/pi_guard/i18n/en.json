@@ -2972,7 +2972,7 @@
   "web.as_extra_hint": "Short extra instructions (appended; cannot override safety rules)",
   "web.as_extra_placeholder": "e.g. Prefer short German answers; know the kids' first names …",
   "web.as_wake_title": "Wake phrases",
-  "web.as_wake_hint": "Same settings as under Sound; edit here for the assistant.",
+  "web.as_wake_hint": "The Pi listens for a wake phrase or a button and answers spoken questions; it never takes actions that way.",
   "web.set_dashboard_hint": "Address, certificate and login of the dashboard.",
   "web.set_updates_hint": "pi-guard's version and new updates.",
   "web.set_support_hint": "Who to call or write to with questions.",
@@ -3965,5 +3965,7 @@
   "web.setup_apps_step_allow": "Allow notifications so alarms arrive; location only if you want to share it.",
   "web.setup_apps_later": "You can do this any time later under System › Updates › Invitations.",
   "web.tut_connect": "Computer-Connect",
-  "web.tut_connect_text": "Your computers from the dashboard and phone, much like KDE Connect: control music and volume, send files, ring them, send text. Each computer allows this itself; fixed commands such as shutting down need two confirmations."
+  "web.tut_connect_text": "Your computers from the dashboard and phone, much like KDE Connect: control music and volume, send files, ring them, send text. Each computer allows this itself; fixed commands such as shutting down need two confirmations.",
+  "web.ag_line": "{os} · {free} MB free · load {load}",
+  "web.ag_desktop_app": "Easiest on Linux with the desktop app: PiGuard › Connect this computer. It installs the signed agent, adds the computer here and switches on Computer-Connect, without copying a token. Otherwise by hand:"
 }

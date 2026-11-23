@@ -22,6 +22,7 @@
       "trust.js",
       "updates.js",
       "vpn.js",
+      "agent.js",
       "pages/**",
       "build/icon.png"
     ],

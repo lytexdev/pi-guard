@@ -1280,3 +1280,19 @@ button.busy { cursor: progress; }
 .setup-qr { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .setup-qr img.qr { width: 180px; height: 180px; flex: none; background: #fff; padding: 8px; border-radius: var(--radius); }
 .setup-qr .stack { flex: 1 1 220px; min-width: 0; }
+/* Computers (Server, Computer-Connect): the name never shares its line with a row of buttons */
+.agent-list li.agent { display: grid; gap: 10px; align-items: stretch; }
+.agent-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.agent-name { min-width: 0; overflow-wrap: anywhere; }
+.agent-name h2 { margin: 0; font-size: 1.1rem; }
+.agent-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cc-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.cc-head .agent-head { flex: 1 1 200px; }
+.cc-media select { width: 100%; }
+.cc-now .grow { min-width: 0; }
+.cc-volume .meter { flex: 1 1 auto; margin-top: 0; min-width: 40px; background: var(--surface); border: 1px solid var(--line); }
+/* Numbered steps with code inside a folded guide: text above, the command full width below */
+.guide ol.guide-steps { list-style: decimal; padding-left: 1.3em; }
+.guide ol.guide-steps > li { display: list-item; }
+.guide-steps .copy-line { width: 100%; }
+.copy-line pre { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; }

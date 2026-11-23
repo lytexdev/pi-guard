@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'">
+  <title>PiGuard Agent</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="wide">
+    <div class="state" id="dot"></div>
+    <h1 id="title"></h1>
+    <p id="detail"></p>
+    <section id="choose" class="hidden">
+      <label for="name" id="l_name"></label>
+      <input id="name" maxlength="40" autocomplete="off" spellcheck="false">
+      <h2 id="h_connect"></h2>
+      <p id="t_connect"></p>
+      <label class="switch"><input type="checkbox" id="media" checked><span id="l_media"></span></label>
+      <label class="switch"><input type="checkbox" id="files" checked><span id="l_files"></span></label>
+      <label class="switch"><input type="checkbox" id="ring" checked><span id="l_ring"></span></label>
+      <label class="switch"><input type="checkbox" id="text" checked><span id="l_text"></span></label>
+      <h2 id="h_server"></h2>
+      <label class="switch"><input type="checkbox" id="power" checked><span id="l_power"></span></label>
+      <label class="switch"><input type="checkbox" id="docker"><span id="l_docker"></span></label>
+      <p id="t_admin"></p>
+    </section>
+    <button id="go"></button>
+    <p class="error" id="problem" role="alert"></p>
+    <section id="manual" class="hidden">
+      <p id="t_manual"></p>
+      <code>cd pi-guard/agent &amp;&amp; cargo build --release &amp;&amp; sudo ./install.sh</code>
+    </section>
+    <button id="remove" class="second hidden"></button>
+    <button id="back" class="second"></button>
+  </main>
+  <script src="agent-page.js"></script>
+</body>
+</html>

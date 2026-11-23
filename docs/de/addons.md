@@ -45,7 +45,8 @@ Fortschritt und *Abbrechen*, bis 2 GB je Datei; sie landen in `~/Downloads/pi-gu
 eine Datei und gehen in Stücken über den Pi, ohne dort gespeichert zu werden. Der Computer prüft Größe und SHA-256.
 **Klingeln:** Meldung und dreimal ein Klingelton. **Text senden:** als Meldung, auf Wunsch in die Zwischenablage
 (Wayland, `wl-copy`). Jeder Computer erlaubt das selbst in `/etc/pi-guard-agent/agent.conf` mit `CONNECT_USER=anna` und
-`CONNECT=media,files,ring,text`. Alles läuft als diese Person in ihrer Sitzung (`systemd-run --user`), nie als root in
+`CONNECT=media,files,ring,text`; unter Linux richtet die Desktop-App das unter *PiGuard › Diesen Computer verbinden
+(Agent)* selbst ein, ohne Terminal und ohne Token zu kopieren. Alles läuft als diese Person in ihrer Sitzung (`systemd-run --user`), nie als root in
 ihrem Ordner; sie muss angemeldet sein (oder `loginctl enable-linger anna`). Getestet auf einem Arch-PC mit Spotify und
 Firefox über `systemd-run` als dieser Nutzer, noch nicht über den als root laufenden Agenten. Details:
 [addons.md](../addons.md#computer-connect).

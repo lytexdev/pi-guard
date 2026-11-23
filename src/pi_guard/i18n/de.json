@@ -2972,7 +2972,7 @@
   "web.as_extra_hint": "Kurze Extra-Anweisungen (angehängt; Sicherheitsregeln bleiben)",
   "web.as_extra_placeholder": "z. B. Kurz auf Deutsch antworten; Vornamen der Kinder kennen …",
   "web.as_wake_title": "Weckrufe",
-  "web.as_wake_hint": "Dieselben Einstellungen wie unter Ton; hier für den Assistenten bearbeiten.",
+  "web.as_wake_hint": "Der Pi hört auf ein Weckwort oder einen Knopf und beantwortet gesprochene Fragen; Aktionen führt er so nie aus.",
   "web.set_dashboard_hint": "Adresse, Zertifikat und Anmeldung des Dashboards.",
   "web.set_updates_hint": "Version von pi-guard und neue Updates.",
   "web.set_support_hint": "Wen man bei Fragen anrufen oder anschreiben kann.",
@@ -3965,5 +3965,7 @@
   "web.setup_apps_step_allow": "Erlauben Sie Mitteilungen, damit Alarme ankommen; den Standort nur, wenn Sie ihn teilen möchten.",
   "web.setup_apps_later": "Später geht das jederzeit unter System › Updates › Einladungen.",
   "web.tut_connect": "Computer-Connect",
-  "web.tut_connect_text": "Deine Computer vom Dashboard und Handy aus, ähnlich wie KDE Connect: Musik und Lautstärke steuern, Dateien schicken, klingeln lassen, Text senden. Jeder Computer erlaubt das selbst; feste Befehle wie Herunterfahren brauchen zwei Bestätigungen."
+  "web.tut_connect_text": "Deine Computer vom Dashboard und Handy aus, ähnlich wie KDE Connect: Musik und Lautstärke steuern, Dateien schicken, klingeln lassen, Text senden. Jeder Computer erlaubt das selbst; feste Befehle wie Herunterfahren brauchen zwei Bestätigungen.",
+  "web.ag_line": "{os} · {free} MB frei · Last {load}",
+  "web.ag_desktop_app": "Am einfachsten unter Linux mit der Desktop-App: PiGuard › Diesen Computer verbinden. Sie installiert den signierten Agenten, legt den Computer hier an und schaltet Computer-Connect ein, ohne Token zu kopieren. Sonst von Hand:"
 }

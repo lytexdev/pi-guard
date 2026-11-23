@@ -8,6 +8,9 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- In the phone app (and any narrow screen) computers on the Server and Computer-Connect pages squeezed their name into
+  a column one letter wide next to the buttons; Docker containers and SSH commands too. They are cards now, the
+  buttons wrap below the name. The player choice no longer pushes the title aside, and the volume bar shows.
 - A valid household code was refused as "not a valid code" when the public address was entered as a URL
   (`https://name`): the code then held `wss://https://…`. The setting keeps only the name now, and a Pi checks each
   code it makes before showing it.
@@ -35,6 +38,8 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Desktop app (Linux): *Connect this computer (agent)* installs the signed agent from the Pi through `pkexec`, adds the
+  computer in the dashboard and switches on the chosen Computer-Connect parts, without copying a token.
 - A setup step **Apps**: a download link with a QR code for the phone, what the Pi offers and how to connect.
 - *Update now* shows the update's real steps (check, install, restart, done) and waits through the restart; *Check
   for updates* shows its result. The System page opens with a ring of the checks, vital numbers and cards.

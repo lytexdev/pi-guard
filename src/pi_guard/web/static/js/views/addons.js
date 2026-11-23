@@ -240,13 +240,14 @@ async function remote(box, data, opts) {
     computers,
     h("h2", { class: "section-title" }, icon("terminal-2"), " ", t("web.rc_ssh_title")), h("p", { class: "muted" }, t("web.rc_ssh_hint")),
     h("section", { class: "panel" }, h("h2", {}, t("web.rc_actions")),
-      h("ul", { class: "list" }, section.actions.length ? section.actions.map((action) => h("li", {},
-        icon("power"),
-        h("div", { class: "grow" }, h("div", {}, action.name), h("small", { class: "mono" }, `${action.user}@${action.host}: ${action.command}`)),
-        live?.actions.some((a) => a.id === action.id) ? h("button", { class: "danger", onclick: () => runAction(action) }, t("web.rc_run")) : null,
-        h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
-          if (await save("remote", { ...section, actions: section.actions.filter((x) => x.id !== action.id) }, opts)) redraw();
-        } }, icon("trash")))) : h("li", { class: "empty" }, t("web.rc_none")))),
+      h("ul", { class: "list agent-list" }, section.actions.length ? section.actions.map((action) => h("li", { class: "agent" },
+        h("div", { class: "agent-head" }, icon("power"),
+          h("div", { class: "grow agent-name" }, h("strong", { class: "block" }, action.name), h("small", { class: "mono muted" }, `${action.user}@${action.host}: ${action.command}`)),
+          h("button", { class: "icon-only danger", title: t("web.delete"), "aria-label": t("web.delete"), onclick: async () => {
+            if (await save("remote", { ...section, actions: section.actions.filter((x) => x.id !== action.id) }, opts)) redraw();
+          } }, icon("trash"))),
+        live?.actions.some((a) => a.id === action.id) ? h("div", { class: "agent-actions" }, h("button", { class: "danger", onclick: () => runAction(action) }, icon("player-play"), t("web.rc_run"))) : null))
+        : h("li", { class: "empty" }, t("web.rc_none")))),
     live ? h("section", { class: "panel" }, h("h2", {}, t("web.rc_key")), h("p", { class: "muted" }, t("web.rc_key_hint")),
       h("pre", { class: "mono wrap" }, live.public_key)) : null,
     h("section", { class: "panel" }, h("h2", {}, t("web.add")), form));
@@ -484,12 +485,14 @@ function agentDialog(agent) {
   const draw = async () => {
     const rows = await attempt(() => api(`/api/agents/${agent.id}/docker`));
     if (!rows) { fill(body, h("p", { class: "muted" }, t("web.ag_no_docker"))); return; }
-    fill(body, h("div", { class: "table-wrap" }, h("table", {}, h("tbody", {}, rows.map((c) => h("tr", {},
-      h("td", {}, h("span", { class: `dot ${c.state === "running" ? "ok" : ""}` })),
-      h("td", {}, c.name, h("small", { class: "muted block" }, c.image)), h("td", {}, h("small", {}, c.status)),
-      h("td", { class: "actions" },
-        c.state === "running" ? [act("stop", "player-stop", c), act("restart", "refresh", c)] : act("start", "player-play", c), act("remove", "trash", c),
-        h("button", { class: "icon-only", title: t("web.ag_logs"), onclick: () => logs(c) }, icon("file-text")))))))));
+    fill(body, h("ul", { class: "list agent-list" }, rows.map((c) => h("li", { class: "agent" },
+      h("div", { class: "agent-head" }, h("span", { class: `dot ${c.state === "running" ? "ok" : ""}` }), icon("brand-docker"),
+        h("div", { class: "grow agent-name" }, h("strong", { class: "block" }, c.name),
+          h("small", { class: "muted block mono" }, c.image), h("small", { class: "muted" }, c.status))),
+      h("div", { class: "agent-actions" },
+        c.state === "running" ? [act("stop", "player-stop", c), act("restart", "refresh", c)] : act("start", "player-play", c),
+        h("button", { class: "icon-only", title: t("web.ag_logs"), "aria-label": t("web.ag_logs"), onclick: () => logs(c) }, icon("file-text")),
+        act("remove", "trash", c))))));
   };
   const act = (action, ic, c) => h("button", { class: `icon-only${action === "remove" ? " danger" : ""}`, title: t(`web.ag_docker_${action}`), onclick: async () => {
     if (action === "remove" && !await confirmDialog(t("web.ag_docker_remove_confirm", { name: c.name }), t("web.delete"), true)) return;
@@ -615,17 +618,22 @@ async function agents(box, data, opts) {
   const out = h("div", { class: "stack" });
   const watched = h("div", { class: "stack" });  // the services this Pi watches, part of "Server"
   fill(box, h("section", { class: "panel stack" }, h("h2", {}, t("web.ag_title")), h("p", { class: "muted" }, t("web.ag_intro")),
-    h("ul", { class: "list" }, list.length ? list.map((a) => h("li", { class: "agent" }, h("span", { class: `dot ${a.online ? "ok" : ""}` }), icon("device-desktop"),
-      h("div", { class: "grow" }, h("div", {}, a.name), h("small", {}, a.online
-        ? `${a.info.os || ""} · ${a.info.memory_available_mb ?? "?"} MB frei · Last ${a.info.load ?? "?"}`
-        : a.last_seen ? t("web.last_used", { time: when(a.last_seen) }) : t("web.ag_waiting"))),
-      a.online ? h("button", { onclick: () => maintenanceDialog(a) }, icon("settings"), t("web.sv_maintain")) : null,
-      a.online && a.info.can_docker ? h("button", { onclick: () => agentDialog(a) }, "Docker") : null,
-      a.online && a.info.can_power ? ["suspend", "reboot", "shutdown"].map((c) => h("button", { class: c === "shutdown" ? "danger" : "", onclick: () => agentPower(a, c) }, t(`web.ag_cmd_${c}`))) : null,
-      h("button", { class: "icon-only danger", title: t("web.delete"), onclick: async () => {
-        if (await confirmDialog(t("web.ag_delete", { name: a.name }), t("web.delete"), true) && await attempt(() => api(`/api/agents/${a.id}`, { method: "DELETE" }))) redraw();
-      } }, icon("trash")))) : h("li", { class: "empty" }, t("web.ag_none")))),
+    // One card per computer: who it is on top, its buttons below, wrapping on narrow screens.
+    h("ul", { class: "list agent-list" }, list.length ? list.map((a) => h("li", { class: "agent" },
+      h("div", { class: "agent-head" }, h("span", { class: `dot ${a.online ? "ok" : ""}` }), icon("device-desktop"),
+        h("div", { class: "grow agent-name" }, h("strong", { class: "block" }, a.name), h("small", { class: "muted" }, a.online
+          ? t("web.ag_line", { os: a.info.os || "", free: a.info.memory_available_mb ?? "?", load: a.info.load ?? "?" })
+          : a.last_seen ? t("web.last_used", { time: when(a.last_seen) }) : t("web.ag_waiting"))),
+        h("button", { class: "icon-only danger", title: t("web.delete"), "aria-label": t("web.delete"), onclick: async () => {
+          if (await confirmDialog(t("web.ag_delete", { name: a.name }), t("web.delete"), true) && await attempt(() => api(`/api/agents/${a.id}`, { method: "DELETE" }))) redraw();
+        } }, icon("trash"))),
+      a.online ? h("div", { class: "agent-actions" },
+        h("button", { onclick: () => maintenanceDialog(a) }, icon("settings"), t("web.sv_maintain")),
+        a.info.can_docker ? h("button", { onclick: () => agentDialog(a) }, icon("brand-docker"), "Docker") : null,
+        a.info.can_power ? ["suspend", "reboot", "shutdown"].map((c) => h("button", { class: c === "shutdown" ? "danger" : "", onclick: () => agentPower(a, c) }, t(`web.ag_cmd_${c}`))) : null) : null))
+      : h("li", { class: "empty" }, t("web.ag_none")))),
   h("section", { class: "panel stack" }, h("h2", {}, t("web.ag_add")),
+    h("p", { class: "notice" }, icon("device-desktop"), " ", t("web.ag_desktop_app")),
     h("div", { class: "row" }, name, h("button", { class: "primary", onclick: async () => {
       const r = await attempt(() => api("/api/agents", { method: "POST", body: { name: name.value } }));
       if (!r) return;

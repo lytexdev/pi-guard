@@ -24,13 +24,12 @@ function mediaPanel(pc) {
     };
     const picker = (m?.players || []).length > 1 ? h("select", { "aria-label": t("web.cc_player"), onchange: (e) => { player = e.target.value; refresh(); } },
       m.players.map((p) => h("option", { value: p.id, selected: p.id === m.player }, p.name))) : null;
-    fill(box,
+    fill(box, picker,
       h("div", { class: "cc-now" }, h("span", { class: `cc-disc${playing ? " spinning" : ""}`, "aria-hidden": "true" }, icon("music")),
         h("div", { class: "grow clip" },
           m && m.status !== "none" ? [h("strong", { class: "block clip" }, m.title || t("web.cc_untitled")),
             h("small", { class: "muted block clip" }, [m.artist, m.name].filter(Boolean).join(" · "))]
-            : h("span", { class: "muted" }, m ? t("web.cc_no_player") : t("web.loading"))),
-        picker),
+            : h("span", { class: "muted" }, m ? t("web.cc_no_player") : t("web.loading")))),
       h("div", { class: "cc-controls", role: "group", "aria-label": t("web.cc_media") },
         MEDIA_BUTTONS.map(([action, ic]) => h("button", { class: action === "play-pause" ? "cc-play primary" : "icon-only", disabled: !m || m.status === "none",
           title: t(`web.cc_${action}`), "aria-label": t(`web.cc_${action}`), onclick: () => send(action) }, icon(ic || (playing ? "player-pause" : "player-play"))))),
@@ -113,9 +112,9 @@ function computerCard(pc) {
   const tooOld = pc.connect == null;  // agents before 0.5 report no "connect" at all
   const nothing = !parts.some(Boolean) && !c.ring;
   return h("article", { class: `panel stack cc-card${pc.online ? "" : " offline"}` },
-    h("div", { class: "row between wrap" },
-      h("div", { class: "row" }, h("span", { class: `dot ${pc.online ? "ok" : ""}` }), icon("devices-pc"),
-        h("div", {}, h("h2", {}, pc.name), h("small", { class: "muted" }, [pc.os, pc.online ? t("web.mob_online") : t("web.mob_offline")].filter(Boolean).join(" · ")))),
+    h("div", { class: "cc-head" },
+      h("div", { class: "agent-head" }, h("span", { class: `dot ${pc.online ? "ok" : ""}` }), icon("devices-pc"),
+        h("div", { class: "grow agent-name" }, h("h2", {}, pc.name), h("small", { class: "muted" }, [pc.os, pc.online ? t("web.mob_online") : t("web.mob_offline")].filter(Boolean).join(" · ")))),
       c.ring && pc.online ? h("button", { onclick: () => attempt(() => api(`/api/connect/${pc.id}/ring`, { method: "POST" }), t("web.cc_ringing")) }, icon("bell-ringing"), t("web.cc_ring")) : null),
     !pc.online ? h("p", { class: "muted" }, t("web.cc_offline")) : null,
     pc.online && (tooOld || nothing) ? h("div", { class: "notice stack" }, h("p", {}, t(tooOld ? "web.cc_too_old" : "web.cc_nothing")),
@@ -127,5 +126,5 @@ export async function connectPanel(box) {
   const list = await api("/api/connect").catch(() => null);
   if (!list) { fill(box, h("p", { class: "notice" }, t("web.addon_restart"))); return; }
   fill(box, list.length ? list.map(computerCard)
-    : h("section", { class: "panel stack" }, h("p", {}, t("web.cc_none")), h("a", { class: "button primary", href: "#/addons/agents" }, icon("plus"), t("web.cc_add"))));
+    : h("section", { class: "panel stack" }, h("p", {}, t("web.cc_none")), h("p", { class: "muted" }, t("web.ag_desktop_app")), h("a", { class: "button primary", href: "#/addons/agents" }, icon("plus"), t("web.cc_add"))));
 }

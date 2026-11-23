@@ -11,6 +11,8 @@ const { promisify } = require("node:util");
 const { cleanAddress, fingerprint, issuedByPinned } = require("./trust.js");
 const { platformName, signed, step } = require("./updates.js");
 const vpn = require("./vpn.js");
+const agent = require("./agent.js");
+const os = require("node:os");
 
 const german = () => app.getLocale().startsWith("de");
 const page = (name) => path.join(__dirname, "pages", name);
@@ -127,6 +129,99 @@ ipcMain.handle("vpn", async (event, command, value) => {
     if (error.code === "ENOENT" || error.code === "ECONNREFUSED") return { missing: true };
     throw error;
   }
+});
+
+// --- this computer as a computer of pi-guard (the agent), Linux only -----------------------
+
+const AGENT_BINARY = "/usr/local/bin/pi-guard-agent";
+const run = promisify(execFile);
+
+async function dashboardSession() {
+  const answer = await fetcher(`${config.url}/api/session`, { credentials: "include" });
+  const s = await answer.json();
+  if (!s.authenticated) throw new Error(german() ? "Melde dich zuerst im Dashboard an." : "Log in to the dashboard first.");
+  return s;
+}
+
+async function piCall(method, route, body) {
+  const s = await dashboardSession();
+  const answer = await fetcher(`${config.url}${route}`, {
+    method, credentials: "include",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": s.csrf || "" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await answer.text();
+  if (!answer.ok) throw Object.assign(new Error(text || String(answer.status)), { status: answer.status });
+  return text ? JSON.parse(text) : null;
+}
+
+async function agentStatus() {
+  if (process.platform !== "linux" || process.env.FLATPAK_ID) return { unsupported: true };
+  let version = null;
+  try { version = (await run(AGENT_BINARY, ["--version"])).stdout.trim(); } catch { /* not installed */ }
+  let active = false;
+  try { active = (await run("systemctl", ["is-active", "pi-guard-agent"])).stdout.trim() === "active"; } catch { /* inactive */ }
+  let listed = null;
+  try {
+    const name = os.hostname();
+    listed = (await piCall("GET", "/api/agents")).find((a) => a.name === name) || null;
+  } catch { /* not logged in, or not an admin */ }
+  return { version, active, name: os.hostname(), user: os.userInfo().username, listed: listed && { id: listed.id, online: listed.online } };
+}
+
+// Signed agent from the Pi, a computer entry with its token, then one fixed script as root.
+async function agentInstall(choice = {}) {
+  if (process.platform !== "linux" || process.env.FLATPAK_ID) return { unsupported: true };
+  const platform = agent.agentPlatform();
+  if (!platform) throw new Error(`no agent for ${process.arch}`);
+  const base = `${config.url}/api/updates/agent/${platform}`;
+  const answer = await fetcher(base);
+  if (!answer.ok) return { noAgent: true };
+  const manifest = await answer.json();
+  if (!agent.signedAgent(manifest, platform)) throw new Error(`${manifest.version}: no valid signature`);
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "pi-guard-agent-"));
+  let created = null;
+  try {
+    const binary = path.join(folder, "pi-guard-agent");
+    await download(`${base}/file`, binary, manifest.sha256);
+    const name = String(choice.name || os.hostname()).trim().slice(0, 40);
+    created = await piCall("POST", "/api/agents", { name });
+    const files = { conf: path.join(folder, "agent.conf"), ca: path.join(folder, "ca.crt"), unit: path.join(folder, "pi-guard-agent.service") };
+    fs.writeFileSync(files.conf, agent.agentConfig({ url: config.url, token: created.token, user: os.userInfo().username,
+      power: choice.power !== false, docker: choice.docker === true, connect: choice.connect || [] }), { mode: 0o600 });
+    fs.writeFileSync(files.ca, config.ca, { mode: 0o600 });
+    fs.writeFileSync(files.unit, agent.UNIT, { mode: 0o600 });
+    // pkexec asks the system for the password; cancelling ends here and nothing was installed.
+    await run("pkexec", ["/bin/sh", "-c", agent.INSTALL, "sh", binary, manifest.sha256, files.conf, files.ca, files.unit]);
+    created = null;
+    return { ok: true, version: manifest.version };
+  } catch (error) {
+    if (error.code === 126 || error.code === 127) return { cancelled: true };
+    throw error;
+  } finally {
+    if (created) await piCall("DELETE", `/api/agents/${created.id}`).catch(() => {}); // the token never got used
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+}
+
+async function agentRemove() {
+  if (process.platform !== "linux" || process.env.FLATPAK_ID) return { unsupported: true };
+  const status = await agentStatus();
+  try {
+    await run("pkexec", ["/bin/sh", "-c", agent.REMOVE, "sh"]);
+  } catch (error) {
+    if (error.code === 126 || error.code === 127) return { cancelled: true };
+    throw error;
+  }
+  if (status.listed) await piCall("DELETE", `/api/agents/${status.listed.id}`).catch(() => {});
+  return { ok: true };
+}
+
+const AGENT_COMMANDS = { status: agentStatus, install: agentInstall, remove: agentRemove };
+
+ipcMain.handle("agent", async (event, command, value) => {
+  if (!fromOwnPage(event) || !AGENT_COMMANDS[command] || !config) throw new Error("refused");
+  return AGENT_COMMANDS[command](value);
 });
 
 let loadWatch = null;
@@ -311,6 +406,7 @@ function menu() {
     { label: "PiGuard", submenu: [
       { label: de ? "Adresse ändern" : "Change address", click: change },
       { label: "VPN", accelerator: "CmdOrCtrl+Shift+V", click: () => window.loadFile(page("vpn.html")) },
+      { label: de ? "Diesen Computer verbinden (Agent)" : "Connect this computer (agent)", click: () => window.loadFile(page("agent.html")) },
       { label: de ? "Dashboard" : "Dashboard", click: open },
       // The dashboard's help page with its guided tour, the same as in the browser and the phone app.
       { label: de ? "Hilfe & Tutorial" : "Help & tutorial", accelerator: "F1", click: () => (config ? window.loadURL(new URL("/#/help/tour", config.url).href).catch(() => {}) : change()) },

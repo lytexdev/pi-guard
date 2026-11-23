@@ -15,6 +15,9 @@ computer, and it works over the home VPN too.
 
 ## Setup
 
+On Linux the desktop app does all of this: *PiGuard › Connect this computer (agent)*, see
+[desktop.md](desktop.md#connecting-this-computer-agent). By hand:
+
 1. Dashboard › **Add-ons** › switch on *Server*, then restart pi-guard. Open the dashboard by the name the
    home server should use: creating it adds that name to the certificate.
 2. Add the computer and copy the command shown. The token appears once.

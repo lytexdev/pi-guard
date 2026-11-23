@@ -49,6 +49,23 @@ click, *Open*, or under *System Settings › Privacy & Security*.
 
 On Linux and, as a preview, on Windows the app is a VPN client too, see [vpn.md](vpn.md). PiGuard › VPN, or Ctrl+Shift+V.
 
+## Connecting this computer (agent)
+
+On Linux, *PiGuard › Connect this computer (agent)* sets this computer up for the Server and Computer-Connect add-ons
+without a terminal. Choose the name in the dashboard and what pi-guard may do: media, receiving files, ringing and text
+in your own session, shutting down, Docker. The app then
+
+1. fetches the agent from your Pi and checks its signature (the update key, product `agent`) and checksum,
+2. adds the computer in the dashboard with your login (an admin account) and gets its token,
+3. writes `agent.conf` with the pinned certificate authority, and
+4. runs one fixed install script through `pkexec`, which asks the system for your password. The script checks the
+   agent's checksum again as root and installs the same service as `agent/install.sh`.
+
+If you cancel the password dialog, nothing is installed and the computer entry is removed from the dashboard again.
+*Remove the agent* stops and deletes it, and removes the entry. The app itself never runs as root. Not on Windows,
+macOS or the Flatpak: the agent is for Linux. Tested in the app's unit tests and the dashboard preview; the whole
+flow with pkexec was not run yet.
+
 ## Updates
 
 After an install from `install-desktop.sh` or the Windows installer, the app updates itself, signed and verified, from

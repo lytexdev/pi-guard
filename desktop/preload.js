@@ -9,5 +9,6 @@ if (location.protocol === "file:") {
     change: () => ipcRenderer.invoke("change"),
     address: () => ipcRenderer.invoke("address"),
     vpn: (command, value) => ipcRenderer.invoke("vpn", command, value),
+    agent: (command, value) => ipcRenderer.invoke("agent", command, value),
   });
 }
