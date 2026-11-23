@@ -31,7 +31,7 @@ EXTRAS = ("alerts", "cameras", "medical")
 BLOCKED = ("/api/federation", "/api/account", "/api/login", "/api/keyfiles", "/api/tokens",
            "/api/dashboard-users", "/api/export", "/api/backup", "/api/email/export",
            "/api/setup", "/api/mobile/pair", "/api/updates/", "/api/v1/", "/api/agent/ws",
-           "/api/mobile/ws", "/api/plugins/")  # fmt: skip
+           "/api/mobile/ws", "/api/plugins/", "/api/connect")  # fmt: skip
 STREAMS = re.compile(r"^/api/live/[^/]+/(video|overlay|audio|call)$")
 CAMERAS = ("/api/live/", "/api/media/", "/api/image/", "/api/people/", "/api/faces/",
            "/api/evidence", "/api/mobile/emergency/media")  # fmt: skip

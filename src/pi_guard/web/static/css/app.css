@@ -1210,3 +1210,24 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 /* Find devices: the phone cards with room for their buttons */
 .find-list .phone-card { padding: 12px 4px; }
 .find-list .phone-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Computer-Connect: one card per computer, its parts side by side where there is room */
+.cc-card.offline { opacity: .75; }
+.cc-grid { display: grid; gap: var(--gap); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.cc-part { display: grid; gap: 8px; align-content: start; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); min-width: 0; }
+.cc-part h3 { margin: 0; font-size: 1rem; }
+.cc-now { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cc-disc { width: 44px; height: 44px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); }
+.cc-disc.spinning .icon { animation: cc-spin 3s linear infinite; color: var(--accent); }
+@keyframes cc-spin { to { transform: rotate(360deg); } }
+.cc-controls { display: flex; justify-content: center; align-items: center; gap: 14px; }
+.cc-play { width: 56px; height: 56px; border-radius: 50%; padding: 0; display: grid; place-items: center; }
+.cc-play .icon { width: 26px; height: 26px; }
+.cc-volume { display: flex; align-items: center; gap: 6px; }
+.cc-volume .on { color: var(--warn); border-color: var(--warn); }
+.cc-drop { position: relative; display: flex; align-items: center; gap: 8px; padding: 14px; border: 2px dashed var(--line); border-radius: var(--radius); cursor: pointer; justify-content: center; }
+.cc-drop:hover, .cc-drop:focus-within { border-color: var(--accent); }
+.cc-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.cc-files li { gap: 8px; flex-wrap: wrap; }
+.cc-progress { flex-basis: 100%; }
+.cc-part textarea { width: 100%; resize: vertical; }
+@media (prefers-reduced-motion: reduce) { .cc-disc.spinning .icon { animation: none; } }

@@ -44,6 +44,7 @@ After that the agent trusts only this authority, so nobody can pose as your Pi.
 | Docker Compose | `docker compose pull` and `up -d`, only in folders listed in `DOCKER_COMPOSE_DIRS` |
 | Git | `git pull --ff-only`, only in repositories listed in `GIT_REPOS`, without hooks |
 | Logs | warnings and sudo use from the journal, only with `ALLOW_LOGS=true` |
+| Computer-Connect | media, files, ring and text in one person's session, only what `CONNECT` names, see [addons.md](addons.md#computer-connect) |
 
 *Look after* on each computer opens all of this. Reading is always allowed. Every change asks for the dashboard
 password, is written to the audit log, and runs as one job at a time in the background; *Last job* shows its output
@@ -58,7 +59,12 @@ ALLOW_LOGS=true
 ALLOW_UPGRADE=true
 DOCKER_COMPOSE_DIRS=/srv/stack,/opt/immich
 GIT_REPOS=/srv/app
+CONNECT_USER=anna
+CONNECT=media,files,ring,text
 ```
+
+An agent before 0.5 refuses an `agent.conf` with keys it does not know (`unknown setting`): update the agent first,
+then add `CONNECT…`. From release 1.18 the agent reports the release's version (`pi-guard-agent --version`).
 
 The service cannot see `/home` (`ProtectHome=yes`). For repositories there, allow it once:
 `sudo systemctl edit pi-guard-agent`, add `[Service]` and `ProtectHome=no`.

@@ -26,7 +26,7 @@ ADDONS: dict[str, tuple[str, ...]] = {
     "medical": ("/api/medical",),
     "kids": ("/api/kids",),
     "agents": ("/api/agents",),
-    "remote": ("/api/addons/remote",),
+    "remote": ("/api/addons/remote", "/api/connect"),  # Computer-Connect
     "smarthome": ("/api/addons/smarthome",),
     "analytics": ("/api/addons/analytics",),
     "heartbeat": ("/api/addons/heartbeat",),

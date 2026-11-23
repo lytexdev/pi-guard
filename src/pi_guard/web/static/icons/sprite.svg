@@ -143,4 +143,9 @@
 <symbol id="activity" viewBox="0 0 24 24"><path d="M3 12h4l3 8l4 -16l3 8h4" /></symbol>
 <symbol id="route" viewBox="0 0 24 24"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /> <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4" /> <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" /></symbol>
 <symbol id="login" viewBox="0 0 24 24"><path d="M15 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2" /> <path d="M21 12h-13l3 -3" /> <path d="M11 15l-3 -3" /></symbol>
+<symbol id="devices-pc" viewBox="0 0 24 24"><path d="M3 5h6v14h-6l0 -14" /> <path d="M12 9h10v7h-10l0 -7" /> <path d="M14 19h6" /> <path d="M17 16v3" /> <path d="M6 13v.01" /> <path d="M6 16v.01" /></symbol>
+<symbol id="player-track-next" viewBox="0 0 24 24"><path d="M3 5v14l8 -7l-8 -7" /> <path d="M14 5v14l8 -7l-8 -7" /></symbol>
+<symbol id="player-track-prev" viewBox="0 0 24 24"><path d="M21 5v14l-8 -7l8 -7" /> <path d="M10 5v14l-8 -7l8 -7" /></symbol>
+<symbol id="volume-2" viewBox="0 0 24 24"><path d="M15 8a5 5 0 0 1 0 8" /> <path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5" /></symbol>
+<symbol id="clipboard" viewBox="0 0 24 24"><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /> <path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2" /></symbol>
 </svg>

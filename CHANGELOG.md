@@ -35,6 +35,10 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- **Computer-Connect** (was *Remote commands*): media remote, sending files (through the Pi, never kept), ringing
+  and texts for computers with the agent, each part allowed on the computer (`CONNECT`, `CONNECT_USER`) and run in
+  that person's session. Agent 0.5.
+
 - **Find devices**: one page in the navigation for every phone with the app (ring, vibrate only, place, lost and
   found), also in the tutorial; *Vibrate* needs app 1.18.
 

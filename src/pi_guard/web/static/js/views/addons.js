@@ -6,7 +6,7 @@ import { markdown } from "../markdown.js";
 import { state } from "../app.js";
 import { restartPrompt } from "./settings.js";
 
-export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone", agents: "device-desktop", languages: "world", medical: "user-check", proxy: "network", kids: "mood-happy", ddns: "cloud", tailscale: "world-www" };
+export const ADDONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "devices-pc", assistant: "speakerphone", agents: "device-desktop", languages: "world", medical: "user-check", proxy: "network", kids: "mood-happy", ddns: "cloud", tailscale: "world-www" };
 
 const slug = (text) => text.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 28) || "item";
 const uniqueId = (name, items) => {
@@ -234,7 +234,11 @@ async function remote(box, data, opts) {
     const action = { id: uniqueId(name.value, section.actions), name: name.value.trim(), host: host.value.trim(), user: user.value.trim(), port: Number(port.value), command: command.value.trim() };
     if (await save("remote", { ...section, actions: [...section.actions, action] }, opts)) redraw();
   });
+  const computers = h("div", { class: "stack" });
   fill(box,
+    h("p", { class: "muted" }, t("web.cc_intro")),
+    computers,
+    h("h2", { class: "section-title" }, icon("terminal-2"), " ", t("web.rc_ssh_title")), h("p", { class: "muted" }, t("web.rc_ssh_hint")),
     h("section", { class: "panel" }, h("h2", {}, t("web.rc_actions")),
       h("ul", { class: "list" }, section.actions.length ? section.actions.map((action) => h("li", {},
         icon("power"),
@@ -246,6 +250,7 @@ async function remote(box, data, opts) {
     live ? h("section", { class: "panel" }, h("h2", {}, t("web.rc_key")), h("p", { class: "muted" }, t("web.rc_key_hint")),
       h("pre", { class: "mono wrap" }, live.public_key)) : null,
     h("section", { class: "panel" }, h("h2", {}, t("web.add")), form));
+  await (await import("./connect.js")).connectPanel(computers);
 }
 
 // --- assistant ---------------------------------------------------------------------------

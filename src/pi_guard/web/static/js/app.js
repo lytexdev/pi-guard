@@ -83,7 +83,7 @@ export function navItems() {
 
 // Pinned add-ons as [route, icon, label]: own pages, built-in modules where they are set up,
 // and add-ons from others by their manifest name when the session knows it.
-const ADDON_ICONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "power", assistant: "speakerphone",
+const ADDON_ICONS = { heartbeat: "world", analytics: "chart-bar", smarthome: "router", remote: "devices-pc", assistant: "speakerphone",
   agents: "device-desktop", languages: "world", medical: "user-check", proxy: "network", kids: "mood-happy", ddns: "cloud", tailscale: "world-www" };
 const MODULE_PINS = { vpn: ["network/vpn", "brand-wireguard", "web.addon_vpn"], pihole: ["network", "brand-pihole", "web.addon_pihole"] };
 export function pinnedEntries(session = state.session) {

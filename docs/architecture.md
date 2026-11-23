@@ -53,7 +53,7 @@ values, so it can be undone.
 | `messaging` | provider-neutral replies, the command registry and handlers, Telegram and Signal |
 | `notifications` | alert rules and delivery with retries |
 | `integrations/mqtt` | optional MQTT bridge |
-| `addons` | optional parts: server agents, analytics, smart home, remote commands, AI assistant and commander, settings help, phones (SOS, lost phones), emergency data, reverse proxy, plugins |
+| `addons` | optional parts: server agents, analytics, smart home, Computer-Connect (remote commands, `web/api_connect.py`), AI assistant and commander, settings help, phones (SOS, lost phones), emergency data, reverse proxy, plugins |
 | `backup.py` | encrypted backups to Nextcloud, rsync or Borg |
 | `storage` | SQLite state, numbered schema migrations, no ORM |
 | `security` | file permissions, redaction, rate limiting |

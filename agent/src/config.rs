@@ -14,6 +14,18 @@ pub struct Config {
     /// The only folders pi-guard may update: Docker Compose projects and Git repositories.
     pub compose_dirs: Vec<String>,
     pub git_repos: Vec<String>,
+    /// Computer-Connect: whose session it acts in, which parts are on, where files go.
+    pub connect_user: Option<String>,
+    pub connect: Vec<String>,
+    pub receive_dir: Option<String>,
+}
+
+const CONNECT_PARTS: [&str; 4] = ["media", "files", "ring", "text"];
+
+fn user_name(value: &str) -> Result<String, String> {
+    let ok = value.len() <= 32 && value.chars().next().is_some_and(|c| c.is_ascii_lowercase() || c == '_')
+        && value.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-');
+    if ok && value != "root" { Ok(value.to_string()) } else { Err(format!("not a user name: {value}")) }
 }
 
 /// Absolute folders without "..", separated by commas.
@@ -38,6 +50,7 @@ impl Config {
         let (mut allow_power, mut allow_docker, mut auto_update) = (true, true, true);
         let (mut allow_logs, mut allow_upgrade) = (false, false);
         let (mut compose_dirs, mut git_repos) = (Vec::new(), Vec::new());
+        let (mut connect_user, mut connect, mut receive_dir) = (None, Vec::new(), None);
         for line in text.lines() {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
@@ -56,6 +69,14 @@ impl Config {
                 "ALLOW_UPGRADE" => allow_upgrade = value == "true",
                 "DOCKER_COMPOSE_DIRS" => compose_dirs = folders(&value)?,
                 "GIT_REPOS" => git_repos = folders(&value)?,
+                "CONNECT_USER" => connect_user = Some(user_name(&value)?),
+                "CONNECT" => {
+                    connect = value.split(',').map(|v| v.trim().to_string()).filter(|v| !v.is_empty()).collect();
+                    if let Some(bad) = connect.iter().find(|p| !CONNECT_PARTS.contains(&p.as_str())) {
+                        return Err(format!("CONNECT knows media, files, ring and text, not {bad}"));
+                    }
+                }
+                "RECEIVE_DIR" => receive_dir = folders(&value)?.into_iter().next(),
                 other => return Err(format!("unknown setting {other}")),
             }
         }
@@ -66,7 +87,7 @@ impl Config {
             return Err("plain http is only allowed on this computer; use https".into());
         }
         Ok(Config { url, token, ca_file, allow_power, allow_docker, auto_update, allow_logs,
-                    allow_upgrade, compose_dirs, git_repos })
+                    allow_upgrade, compose_dirs, git_repos, connect_user, connect, receive_dir })
     }
 
     pub fn load(path: &str) -> Result<Config, String> {
@@ -110,6 +131,16 @@ mod tests {
         assert!(!c.allow_logs && !c.allow_upgrade);
         assert!(Config::parse("URL=https://p\nTOKEN=x\nGIT_REPOS=srv/a").is_err());
         assert!(Config::parse("URL=https://p\nTOKEN=x\nGIT_REPOS=/srv/../etc").is_err());
+    }
+
+    #[test]
+    fn connect_settings() {
+        let c = Config::parse("URL=https://p\nTOKEN=x\nCONNECT=media, files\nCONNECT_USER=anna\nRECEIVE_DIR=/home/anna/In/").unwrap();
+        assert_eq!(c.connect, vec!["media", "files"]);
+        assert_eq!(c.receive_dir.as_deref(), Some("/home/anna/In"));
+        assert!(Config::parse("URL=https://p\nTOKEN=x\nCONNECT=shell").is_err());
+        assert!(Config::parse("URL=https://p\nTOKEN=x\nCONNECT_USER=root").is_err());
+        assert!(Config::parse("URL=https://p\nTOKEN=x\nCONNECT_USER=a b").is_err());
     }
 
     #[test]

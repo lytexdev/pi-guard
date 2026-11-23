@@ -10,7 +10,7 @@ and in every messenger, where buttons become a numbered menu if the platform has
 | Service watcher | `/services` | `/dienste` |
 | Network management | `/netstats [ip]` | `/analyse` |
 | Smart home | `/smarthome [name] [on\|off]` | `/smart`, `/schalte` |
-| Remote commands | `/action` | `/aktion` |
+| Computer-Connect (commands over SSH) | `/action` | `/aktion` |
 
 
 All are for admins. The AI assistant has no chat command: it answers only in the dashboard and the apps (see below).
@@ -70,7 +70,37 @@ discovery, which Zigbee2MQTT, Tasmota and ESPHome offer, or added by hand with t
 state and command topics. Anyone who can write to your broker can change what is shown
 here, so protect it with a password.
 
-## Remote commands
+## Computer-Connect
+
+*Remote commands* before 1.18. Your computers from the dashboard and from the phone app (it shows the same page), much
+like KDE Connect, for computers with the pi-guard agent ([agent.md](agent.md)):
+
+- **Media:** what plays (title, artist, player), play/pause, next, previous, louder, quieter, mute, and a choice of
+  player when several are open. It uses MPRIS through `busctl`, which comes with systemd, and `wpctl` (PipeWire) or
+  `pactl` (PulseAudio) for the volume: nothing to install. Only title, artist and album leave the computer, never
+  what page or file is open.
+- **Send files:** several at once, with a progress bar and *Cancel*, up to 2 GB each. They go to
+  `~/Downloads/pi-guard` (or `RECEIVE_DIR`), never replace a file (`name (2).pdf`), and pass through the Pi in pieces
+  of 512 kB without being kept there. The computer checks size and SHA-256 and removes a file that arrived incomplete.
+- **Ring:** a notification and a ringing sound three times, to find a laptop.
+- **Send text:** a link, code or note as a notification, and on the clipboard if wanted (Wayland, `wl-copy`).
+
+Each computer allows these itself, in `/etc/pi-guard-agent/agent.conf`:
+
+```ini
+CONNECT_USER=anna                 # whose session; never root
+CONNECT=media,files,ring,text     # only what is named here
+# RECEIVE_DIR=/home/anna/Downloads/pi-guard
+```
+
+Everything runs as that person in their own session (`systemd-run --user --machine=anna@`): the agent never writes
+into a home folder as root and never touches a session bus itself. The person must be logged in, or
+`loginctl enable-linger anna`. The Server add-on and Computer-Connect use the same agents; either one being on is
+enough for them to connect. Every action is in the audit log; members need the *Computer-Connect* add-on granted, and
+a linked household can never use it. Tested on an Arch Linux PC with Spotify and Firefox as players, through
+`systemd-run` as that user; not yet through the agent running as root, not on other distributions.
+
+### Commands over SSH
 
 Runs a fixed command on another computer over SSH, for example shutting down a PC so that
 its encrypted disk locks. There is no free-form input: only commands an admin set up in

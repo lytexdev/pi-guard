@@ -36,6 +36,11 @@ AUTO_UPDATE=true
 # ALLOW_UPGRADE=true                    # install system updates (apt, pacman or dnf)
 # DOCKER_COMPOSE_DIRS=/srv/stack        # pull and restart these Compose projects
 # GIT_REPOS=/srv/app,/opt/tool          # git pull --ff-only these, without hooks
+# Computer-Connect (the add-on of that name): what pi-guard may do in one person's session.
+# Everything runs as that person, never as root in their folder. Parts: media, files, ring, text.
+# CONNECT_USER=${SUDO_USER:-anna}
+# CONNECT=media,files,ring,text
+# RECEIVE_DIR=/home/${SUDO_USER:-anna}/Downloads/pi-guard   # where files go (this is the default)
 CONFIG
 install -m 0755 "$BIN" /usr/local/bin/pi-guard-agent
 install -m 0644 "$HERE/pi-guard-agent.service" /etc/systemd/system/pi-guard-agent.service
