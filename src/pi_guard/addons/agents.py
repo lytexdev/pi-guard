@@ -24,6 +24,8 @@ from pi_guard.storage.db import Database
 log = logging.getLogger(__name__)
 
 REQUEST_SECONDS = 20
+# What agents before 0.4 answer to the maintenance commands.
+UNKNOWN = "unknown command"
 POWER_COMMANDS = ("shutdown", "reboot", "suspend", "lock")
 DOCKER_ACTIONS = ("start", "stop", "restart", "remove")
 
@@ -127,6 +129,8 @@ class AgentHub:
             if future is not None and not future.done():
                 if message.get("ok"):
                     future.set_result(message.get("data"))
+                elif message.get("data") == UNKNOWN:
+                    future.set_exception(AgentError("web.ag_too_old"))
                 else:
                     future.set_exception(RuntimeError(str(message.get("data"))[:200]))
 

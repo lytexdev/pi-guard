@@ -75,7 +75,7 @@ pub fn status(config: &Config) -> Value {
         "memory_total_mb": total,
         "memory_available_mb": available,
         "disk": disk(),
-        "agent": env!("CARGO_PKG_VERSION"),
+        "agent": crate::VERSION,
         "can_power": config.allow_power,
         "can_docker": config.allow_docker && docker_available(),
         "can_logs": config.allow_logs,

@@ -10,6 +10,13 @@ mod config;
 mod maintenance;
 mod update;
 
+/// The release's version (release-apps.sh sets PI_GUARD_VERSION), else the crate's. An update
+/// checks that the new file answers `--version` with the version it was signed for.
+pub const VERSION: &str = match option_env!("PI_GUARD_VERSION") {
+    Some(version) => version,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 use std::net::TcpStream;
 use std::sync::Arc;
 use std::thread::sleep;
@@ -119,7 +126,7 @@ fn main() {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let path = std::env::args().nth(1).unwrap_or_else(|| "/etc/pi-guard-agent/agent.conf".into());
     if path == "--version" {
-        println!("{}", env!("CARGO_PKG_VERSION")); // a new version must answer this before it is used
+        println!("{VERSION}"); // a new version must answer this before it is used
         return;
     }
     let config = match Config::load(&path) {

@@ -68,6 +68,14 @@ async def test_requests_reach_the_agent_and_time_out(db: Any, monkeypatch: Any) 
     hub.attach(connection)
     assert await hub.request(agent_id, cmd="docker", action="list") == 7
 
+    async def old_agent(text: str) -> None:
+        reply = {"type": "reply", "id": json.loads(text)["id"], "ok": False}
+        hub.received(connection, json.dumps({**reply, "data": "unknown command"}))
+
+    connection.send = old_agent
+    with pytest.raises(AgentError, match="too_old"):
+        await hub.request(agent_id, cmd="info")
+
     async def silent(text: str) -> None:
         return None
 

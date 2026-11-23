@@ -3776,5 +3776,7 @@
   "web.ddns_refused": "Cloudflare hat die Änderung abgelehnt.",
   "web.ddns_no_zone": "Zu diesem Namen gibt es keine Zone, die der Token sehen darf.",
   "web.ddns_no_address": "Die öffentliche Adresse ließ sich nicht ermitteln.",
-  "web.up_no_permission": "Das Update kann nicht angestoßen werden: Der Ordner /var/lib/pi-guard/update gehört root. Einmal auf dem Pi ausführen: cd ~/pi-guard && sudo ./scripts/install.sh --yes"
+  "web.up_no_permission": "Das Update kann nicht angestoßen werden: Der Ordner /var/lib/pi-guard/update gehört root. Einmal auf dem Pi ausführen: cd ~/pi-guard && sudo ./scripts/install.sh --yes",
+  "web.ag_too_old": "Der Agent auf diesem Computer ist zu alt für „Verwalten“.",
+  "web.ag_too_old_hint": "Er hat Version {version} und kennt nur Status, Ein/Aus und Docker. Automatische Updates kommen mit dem nächsten App-Release; sofort geht es auf dem Computer so:"
 }

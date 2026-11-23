@@ -111,7 +111,7 @@ fn check(config: &Config) -> Result<bool, String> {
     let platform = format!("linux-{}", std::env::consts::ARCH);
     let base = format!("/api/updates/agent/{platform}");
     let manifest: Manifest = serde_json::from_slice(&get(config, &tls, &base)?).map_err(|e| e.to_string())?;
-    if !newer(&manifest.version, env!("CARGO_PKG_VERSION")) {
+    if !newer(&manifest.version, crate::VERSION) {
         return Ok(false);
     }
     let key = unhex(PUBLIC_KEY).ok_or("bad key")?;

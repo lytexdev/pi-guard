@@ -15,6 +15,10 @@ All notable changes are documented here. The format follows
   after closing it; they appear above it now.
 - Signal with the owner's own number answered its own answers, which came back as Note to Self, in a loop. Copies of
   its own messages are skipped now, and with commands off Signal answers nothing at all, not even a hint.
+- *Manage* of a computer in the Server add-on showed only red *unknown command* errors: the agent there was 0.3.0 and
+  never updated, because release builds said the crate's version instead of the release's, so each update refused
+  itself (*the new version does not run here*). Release builds carry the release version now, and the dashboard says
+  that the agent is too old and how to update it, instead of the raw error.
 - The support page showed the example lines for the env file next to the real contact; only while nobody is set now.
 
 - *Update now* failed with a server error on freshly installed Pis, and the automatic update with PermissionError:

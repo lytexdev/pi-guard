@@ -166,6 +166,21 @@ while the old code runs.
   uses. Create the home server again from the dashboard opened by that name, or add it with
   `PI_GUARD_DASHBOARD_TLS_NAMES=name` in `/etc/pi-guard/pi-guard.env` and restart pi-guard. The agent retries by itself.
 
+## Manage says the agent is too old
+
+Agents before 0.4 know only status, power and Docker; *Manage* needs more. Agents from release 1.16 and older also
+refused every automatic update (`journalctl -u pi-guard-agent` says *the new version does not run here*). Update one
+by hand on that computer, once:
+
+```bash
+cd pi-guard && git pull && cd agent
+cargo build --release
+sudo install -m 0755 target/release/pi-guard-agent /usr/local/bin/
+sudo systemctl restart pi-guard-agent
+```
+
+From then on it updates itself with each release.
+
 ## Storage fills up quickly
 
 Settings › Data & backup › Storage shows what your cameras write per day and how long the space lasts. A camera at 2 Mbit/s writes about

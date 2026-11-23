@@ -119,6 +119,11 @@ keys at home, a broken-into account can only hold updates back. The phone app's 
 
 The last argument is the ssh host of your pi-guard. The key is `~/.config/pi-guard/update-ed25519.pem`.
 
+An agent takes a new file only when it answers `--version` with the version it was signed for. Build it with that
+version: `PI_GUARD_VERSION=0.5.0 cargo build --release` (`release-apps.sh` does this itself). Agents of release 1.16
+and older said their crate version (0.4.0) and refused every update of 1.17 with *the new version does not run here*;
+install such an agent once by hand, see *Manage says the agent is too old* in [troubleshooting.md](troubleshooting.md).
+
 **Back it up.** Without it, no agent and no desktop app accepts a new version, and they would have to be installed again
 by hand. Anyone who has it can sign updates for your machines, so keep it as safe as the app's signing key.
 

@@ -66,7 +66,8 @@ fi
 
 if has agent; then
     arch="$(uname -m)"
-    cargo build --quiet --release --manifest-path "$REPO/agent/Cargo.toml"
+    # The agent must answer --version with the version it is signed for, or it refuses itself.
+    PI_GUARD_VERSION="$VERSION" cargo build --quiet --release --manifest-path "$REPO/agent/Cargo.toml"
     cp "$REPO/agent/target/release/pi-guard-agent" "$OUT/pi-guard-agent-linux-$arch"
     sign agent "linux-$arch" "$VERSION" "$OUT/pi-guard-agent-linux-$arch"
 fi

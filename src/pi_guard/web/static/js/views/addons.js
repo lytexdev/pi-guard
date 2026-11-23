@@ -494,6 +494,13 @@ function agentDialog(agent) {
   draw();
 }
 
+// Agents before 0.4 only know status, power and Docker. Since 1.17 they carry the release's version.
+const agentTooOld = (agent) => /^0\.[0-3]\./.test(agent.info?.agent || "");
+const tooOldNotice = (agent) => h("div", { class: "notice warn stack" },
+  h("strong", {}, icon("alert-triangle"), " ", t("web.ag_too_old")),
+  h("p", {}, t("web.ag_too_old_hint", { version: agent.info?.agent || "?" })),
+  h("pre", { class: "mono wrap" }, "cd pi-guard && git pull && cd agent\ncargo build --release\nsudo install -m 0755 target/release/pi-guard-agent /usr/local/bin/\nsudo systemctl restart pi-guard-agent"));
+
 // Looking after a computer: reading is always allowed; changes need the password, and the
 // computer's own agent.conf decides whether it allows them at all.
 function maintenanceDialog(agent) {
@@ -505,6 +512,7 @@ function maintenanceDialog(agent) {
   dialog.addEventListener("close", () => dialog.remove());
   document.body.append(dialog);
   dialog.showModal();
+  if (agentTooOld(agent)) { fill(body, tooOldNotice(agent)); return; }
   const kv = (rows) => h("dl", { class: "kv" }, rows.filter(([, v]) => v != null && v !== "").map(([k, v]) => [h("dt", {}, k), h("dd", {}, String(v))]));
   const change = async (what, target = "") => {
     const password = await askDialog(t("web.confirm_password"), { type: "password" });
