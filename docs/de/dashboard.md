@@ -367,7 +367,7 @@ Videos) und in der Handy-App füllt es stattdessen das Fenster; der runde Knopf,
 
 *Hilfe & Tutorial* in der Navigation erklärt jeden Teil von pi-guard in wenigen Sätzen, jeweils mit Knopf dorthin, und
 *Rundgang starten* geht sie Seite für Seite durch; Betrachter sehen nur ihre Seiten. Die Kapitel sind: Übersicht, Live,
-Ereignisse, Kontakte, Netzwerk, VPN, Kid Protect, Benachrichtigungen, Notfallkontakte, Notfalldaten, Apps, Assistent,
+Ereignisse, Kontakte, Netzwerk, VPN, Kid Protect, Benachrichtigungen, Notfallkontakte, Notfalldaten, Apps, Geräte finden, Computer-Connect, Assistent,
 Umzug, System und Einstellungen. Dasselbe Tutorial gibt es überall:
 
 - in der **Desktop-App** unter *PiGuard › Hilfe & Tutorial* (F1) und in der **Handy-App** unter *Mehr → Hilfe*;

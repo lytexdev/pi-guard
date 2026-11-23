@@ -364,7 +364,7 @@ says so there. If the browser blocks storage (a private window), the settings la
 
 *Help & tutorial* in the navigation explains every part of pi-guard in a few sentences, each with a button to it, and
 *Start the tour* walks through them one page at a time; viewers see only their pages. The chapters are: overview, live,
-events, contacts, network, VPN, Kid Protect, notifications, emergency contacts, emergency data, apps, assistant, moving,
+events, contacts, network, VPN, Kid Protect, notifications, emergency contacts, emergency data, apps, find devices, Computer-Connect, assistant, moving,
 system, and settings.
 The same tutorial is everywhere:
 

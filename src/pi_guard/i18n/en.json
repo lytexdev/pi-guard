@@ -2918,7 +2918,7 @@
   "web.tut_network": "Network",
   "web.tut_network_text": "The state of the home network: devices, Pi-hole, Wi-Fi with QR codes, blocking websites and block lists.",
   "web.tut_vpn": "VPN",
-  "web.tut_vpn_text": "Reach home from anywhere. Add a device, scan its QR code, done; the phone app makes its own access. Optional: Mullvad with multi-hop, a disguise (AmneziaWG) and a kill switch.",
+  "web.tut_vpn_text": "From anywhere back home, with any router (a guide for FRITZ!Box, Vodafone, Telekom, o2 and others under VPN). Add a device, scan the QR code, done; the phone app makes its own access. Optional: Mullvad with multi-hop, disguise (AmneziaWG), kill switch, and Cloudflare DDNS and Tailscale as add-ons of their own.",
   "web.tut_kids": "Kid Protect",
   "web.tut_kids_text": "Filters for children's devices (18+, gambling, malware and more) and times without internet, such as at night. Devices by MAC or local IP; the router cuts by IPv4. Pause and extra time with one tap.",
   "web.tut_emergency": "Emergency contacts",
@@ -2928,11 +2928,11 @@
   "web.tut_apps": "Apps",
   "web.tut_apps_text": "The phone app brings alerts, SOS and the VPN; the desktop app shows the dashboard in its own window. Versions and invitations are under System → Updates.",
   "web.tut_assistant": "Assistant",
-  "web.tut_assistant_text": "Questions in the chat of the dashboard and the apps or by voice, also about pi-guard itself; never through a messenger. With an AI provider it also explains and changes settings, always with a confirmation.",
+  "web.tut_assistant_text": "Questions in the chat of the dashboard and apps or by voice, also about pi-guard itself; never through messengers. Wake words and the talk button are on its page. With an AI provider it explains and changes settings, always with a confirmation, reviews the security check and looks over the logs.",
   "web.tut_move": "Moving",
   "web.tut_move_text": "New home, router or Pi: download a moving file before, and afterwards pi-guard checks what changed and what to do.",
   "web.tut_settings": "Settings",
-  "web.tut_settings_text": "Everything else: messengers, recording, backup, appearance. Accessibility at the bottom right is always there.",
+  "web.tut_settings_text": "Everything else: messengers, recording, devices & cameras with detection, network, system with the updates, backup and appearance. Add-ons can be pinned to the navigation from their page. Accessibility at the bottom right is always there.",
   "help.tutorial": "pi-guard explained in short",
   "web.ai_subtitle": "Asks before every action",
   "web.ai_thinking": "Thinking …",
@@ -3963,5 +3963,7 @@
   "web.setup_apps_step_address": "Enter the address of this Pi in the app:",
   "web.setup_apps_step_login": "Log in with your dashboard account. The phone then shows under “Find devices”.",
   "web.setup_apps_step_allow": "Allow notifications so alarms arrive; location only if you want to share it.",
-  "web.setup_apps_later": "You can do this any time later under System › Updates › Invitations."
+  "web.setup_apps_later": "You can do this any time later under System › Updates › Invitations.",
+  "web.tut_connect": "Computer-Connect",
+  "web.tut_connect_text": "Your computers from the dashboard and phone, much like KDE Connect: control music and volume, send files, ring them, send text. Each computer allows this itself; fixed commands such as shutting down need two confirmations."
 }
