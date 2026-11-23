@@ -392,6 +392,14 @@ mit einer Zeile, was er enthält, und jede Einstellung zeigt ihre Erklärung dir
 Schalter. *Daten & Sicherung* hat vier Tabs: *Backup*, *Speicher*, *Umzug* und in der Expertenansicht *Export*; alte
 Links (`#/settings/backup`, `/storage`, `/move`, `/data`) öffnen den passenden Tab.
 
+Seit 1.18: *Erkennung* und die Ton-Schalter (Ton aufnehmen, Ton abspielen, größte Lautstärke) gehören zu *Geräte &
+Kameras*, unter die Geräte, zu denen sie gehören. Weckwörter, der Sprechknopf und *Mit dem Pi sprechen* stehen auf der
+Seite des Add-ons KI-Assistent. **System** zeigt den Zustand des Pi in einer Zeile (Details und Hardware auf der
+Systemseite) und die Updates von pi-guard und den Apps mit ihren Einstellungen. **Netzwerk** enthält Router, Pi-hole,
+VPN und dynamisches DNS, mit Links zu den Netzwerk-Seiten und den Add-ons Cloudflare DDNS und Tailscale. *Integrationen*
+(Expertenansicht) behält MQTT und die gespeicherten Schlüssel. Alte Links (`#/settings/detection`, `/audio`, `/updates`)
+öffnen den neuen Ort.
+
 ## Der Chat des Assistenten
 
 Mit eingeschaltetem KI-Assistenten öffnet der runde Knopf unten rechts seinen Chat: am Computer als Fenster neben

@@ -172,7 +172,7 @@ Sprachsteuerung mit Weckwort, offline auf dem Pi. Sie ist aus, bis du sie einsch
 sudo -u pi-guard pi-guard voice download     # etwa 46 MB, es wird vorher gefragt
 ```
 
-Dann im Dashboard unter *Einstellungen → Ton* *Auf ein Weckwort hören* einschalten und neu starten. Mehr dazu in
+Dann im Dashboard unter *Add-ons → KI-Assistent* *Auf ein Weckwort hören* einschalten und neu starten. Mehr dazu in
 [Sprache](sprache.md).
 
 ## Einstellungen ändern

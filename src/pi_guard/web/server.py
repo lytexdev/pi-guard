@@ -13,6 +13,7 @@ import json
 import logging
 import re
 import secrets
+import shutil
 import socket
 import ssl
 import time
@@ -72,7 +73,10 @@ VIEWER_POST = {"/api/me/password", "/api/me/nav", "/api/connection/check", "/api
                "/api/account/totp/disable"}  # fmt: skip
 # Optional parts shown as add-on cards. Messengers are off until wanted; VPN and Pi-hole follow
 # their settings (usually on after install). The phone app is not one: Settings › Apps.
-MODULES = ("telegram", "signal", "discord", "whatsapp", "email", "chatapps", "vpn", "pihole")
+MODULES = ("telegram", "signal", "discord", "whatsapp", "email", "chatapps", "vpn", "pihole",
+           "ddns", "tailscale")  # fmt: skip
+# Tailscale is no setting of pi-guard: its card says whether pi-guard counts it as the home's VPN.
+TAILSCALE_INTERFACE = Path("/sys/class/net/tailscale0")
 MODULE_SETTINGS = {
     "vpn": "wireguard_enabled",
     "pihole": "pihole_enabled",
@@ -456,8 +460,13 @@ class Dashboard:
         saved = self.app.db.get("web.modules") or {}
         out: dict[str, bool] = {}
         for module in MODULES:
-            key = MODULE_SETTINGS.get(module, f"{module}_enabled")
-            out[module] = bool(saved.get(module, getattr(self.settings, key)))
+            if module == "ddns":  # on while a provider is set, wherever it was set
+                out[module] = self.settings.ddns_provider != "off"
+            elif module == "tailscale":
+                out[module] = bool(saved.get(module, shutil.which("tailscale") is not None))
+            else:
+                key = MODULE_SETTINGS.get(module, f"{module}_enabled")
+                out[module] = bool(saved.get(module, getattr(self.settings, key)))
         return out
 
     @staticmethod

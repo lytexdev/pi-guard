@@ -35,6 +35,14 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Settings: *Detection* and the sound switches moved into *Devices & cameras*, wake words and the talk button onto the
+  AI assistant's page; new sections **System** (health and updates) and **Network** (router, Pi-hole, VPN, DNS).
+- *Pin to navigation* on every add-on's own page; pinned add-ons also show under *More* on phones, with their icon.
+- **Cloudflare DDNS** and **Tailscale** are add-ons of their own. The Tailscale page shows its state, addresses and
+  setup; its switch says whether pi-guard counts Tailscale as the home's VPN. pi-guard never installs it.
+- *Set up the router* for any router: FRITZ!Box, Vodafone Station, EasyBox, Speedport, o2 HomeBox and others, and what
+  to do without a public IPv4 address (DS-Lite, CGNAT).
+
 - *Logs → AI look*: the assistant reads warnings, errors and recent audit entries and answers with a rating and
   findings by severity.
 - The AI review of the security check runs in the background and keeps its result, with an overall rating, steps by

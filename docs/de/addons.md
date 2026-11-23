@@ -12,7 +12,9 @@ pi-guard. Alles funktioniert im Dashboard und in jedem Messenger, außer dem KI-
 | Fernbefehle | `/aktion` |
 
 Jede Karte hat einen Schalter und ein Menü (drei Punkte): *An Navigation anheften*, *Hilfe & Anleitung* (was das Add-on
-macht und wie man anfängt, mit der Tour oder seiner Anleitung) und *Entfernen*. Telegram, Signal, WhatsApp, Discord,
+macht und wie man anfängt, mit der Tour oder seiner Anleitung) und *Entfernen*. Auch die eigene Seite jedes Add-ons hat
+oben *An Navigation anheften*; angeheftete Add-ons stehen in der Seitenleiste und auf dem Handy unter *Mehr*.
+Cloudflare DDNS und Tailscale sind seit 1.18 eigene Add-ons (*Netzwerk*), siehe [netzwerk.md](netzwerk.md#jeder-router). Telegram, Signal, WhatsApp, Discord,
 E-Mail und die Chatdienste sind ebenfalls Add-ons; die Handy-App nicht: Sie gehört zu pi-guard, ist standardmäßig an und
 liegt unter **System › Updates**. Add-ons von anderen erscheinen als gleiche Karten unter *Eigene & Community*.
 

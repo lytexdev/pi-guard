@@ -76,7 +76,7 @@ function checkItem(c, redraw) {
       : h("p", { class: "muted" }, t("web.mv_cameras_ok")), c.cameras?.length ? h("a", { class: "button small", href: "#/settings/devices" }, t("web.mv_to_cameras")) : null);
   } else if (c.id === "router") {
     body.push(h("p", { class: "muted" }, c.state === "ok" ? t("web.mv_router_ok", { host: c.host }) : t("web.mv_router_todo", { host: c.host, gateway: c.gateway || "–" })),
-      c.state === "ok" ? null : h("a", { class: "button small", href: "#/settings/integrations" }, t("web.mv_to_router")));
+      c.state === "ok" ? null : h("a", { class: "button small", href: "#/settings/network" }, t("web.mv_to_router")));
   } else if (c.id === "dns") {
     body.push(h("p", { class: "muted" }, c.state === "ok" ? t("web.mv_dns_ok", { count: c.clients }) : t("web.mv_dns_todo", { pi: c.pi || "–" })),
       c.state === "ok" ? null : h("p", {}, h("small", {}, t("web.mv_dns_fritz"))));

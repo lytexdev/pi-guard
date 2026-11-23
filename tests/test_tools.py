@@ -688,7 +688,8 @@ async def test_modules_can_be_switched_off(tmp_path: Path) -> None:
         assert state == {"telegram": app.settings.telegram_enabled, "signal": False,
                          "discord": False, "whatsapp": False, "email": False,
                          "chatapps": False, "vpn": app.settings.wireguard_enabled,
-                         "pihole": app.settings.pihole_enabled}  # fmt: skip
+                         "pihole": app.settings.pihole_enabled, "ddns": False,
+                         "tailscale": shutil.which("tailscale") is not None}  # fmt: skip
         assert "mobile" not in state  # part of pi-guard, under Settings > Apps
         on = await client.put("/api/modules/whatsapp", json={"enabled": True}, headers=headers)
         assert on.status == 200
@@ -702,6 +703,31 @@ async def test_modules_can_be_switched_off(tmp_path: Path) -> None:
             "PI_GUARD_DISCORD_ENABLED=false"
             in (app.settings.data_dir / "dashboard.env").read_text()
         )
+    finally:
+        await client.close()
+        app.db.close()
+
+
+async def test_ddns_starts_only_with_a_name_and_a_token(tmp_path: Path) -> None:
+    from pydantic import SecretStr
+
+    client, app = await _client(tmp_path)
+    try:
+        headers = {"X-CSRF-Token": await _login(client)}
+        r = await (
+            await client.put("/api/modules/ddns", json={"enabled": True}, headers=headers)
+        ).json()
+        assert r["setup"] and app.settings.ddns_provider == "off"  # the page asks for both first
+        app.settings.ddns_hostname = "home.example.org"
+        app.settings.ddns_cloudflare_token = SecretStr("t" * 40)
+        r = await (
+            await client.put("/api/modules/ddns", json={"enabled": True}, headers=headers)
+        ).json()
+        env = (app.settings.data_dir / "dashboard.env").read_text()
+        assert not r["setup"] and "PI_GUARD_DDNS_PROVIDER=cloudflare" in env
+        await client.put("/api/modules/tailscale", json={"enabled": False}, headers=headers)
+        state = {m["id"]: m["enabled"] for m in await (await client.get("/api/modules")).json()}
+        assert state["tailscale"] is False
     finally:
         await client.close()
         app.db.close()

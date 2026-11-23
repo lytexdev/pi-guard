@@ -101,3 +101,24 @@ export function ddnsPanel() {
   draw();
   return panel;
 }
+
+// How to make the Pi reachable with the router at hand. The VPN works with every router: what it
+// needs is a forwarded UDP port, a fixed address for the Pi, and a name for the home's address.
+// Each router keeps these in other menus; the steps are in the texts web.rg_<router>_*.
+export const ROUTERS = ["fritzbox", "vodafone_station", "easybox", "speedport", "o2_homebox", "other"];
+const ROUTER_STEPS = ["fixed", "forward", "name"];
+
+export function routerGuide(port = 51820) {
+  const body = h("div", { class: "stack" });
+  const pick = h("select", { "aria-label": t("web.rg_pick") }, ROUTERS.map((id) => h("option", { value: id }, t(`web.rg_${id}`))));
+  const draw = () => {
+    const id = pick.value;
+    fill(body, h("ol", { class: "guide-steps stack" }, ROUTER_STEPS.map((step) => h("li", {},
+      h("strong", {}, t(`web.rg_step_${step}`)), h("p", { class: "muted" }, t(`web.rg_${id}_${step}`, { port }))))),
+    h("p", { class: "notice" }, icon("alert-triangle"), " ", t("web.rg_cgnat")));
+  };
+  pick.addEventListener("change", draw);
+  draw();
+  return h("div", { class: "stack router-guide" }, h("p", { class: "muted" }, t("web.rg_intro")),
+    h("label", { class: "field" }, t("web.rg_pick"), pick), body);
+}

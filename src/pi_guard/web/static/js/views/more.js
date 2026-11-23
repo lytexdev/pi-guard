@@ -1,6 +1,6 @@
 // Mobile hub for the secondary pages, plus language. Appearance lives under Settings.
 import { api, appShell, attempt, h, icon, lang, t, toast, fill } from "../api.js";
-import { switchLanguage } from "../app.js";
+import { pinnedEntries, switchLanguage } from "../app.js";
 
 function b64ToBytes(base64) {
   const padded = (base64 + "===".slice((base64.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/");
@@ -65,6 +65,9 @@ export async function render(main) {
     h("div", { class: "topbar" }, h("h1", {}, t("web.nav_more"))),
     h("section", { class: "panel" }, h("ul", { class: "list" }, entries.map(([route, i, label]) =>
       h("li", { class: "link-row" }, icon(i), h("a", { class: "grow", href: `#/${route}` }, t(label)), icon("chevron-right"))))),
+    pinnedEntries().length ? h("section", { class: "panel" }, h("h2", {}, icon("pinned"), " ", t("web.nav_pinned")),
+      h("ul", { class: "list" }, pinnedEntries().map(([route, i, label]) =>
+        h("li", { class: "link-row" }, icon(i), h("a", { class: "grow", href: `#/${route}` }, t(label)), icon("chevron-right"))))) : null,
     languagePanel(),
     await pushPanel(),
     h("p", { class: "muted" }, h("small", {}, "pi-guard · made by ", h("a", { href: "https://links.lytex.de", target: "_blank", rel: "noopener" }, "lytex"))));

@@ -438,6 +438,13 @@ holds, and each setting shows its explanation under its name. Switches are drawn
 four tabs: *Backup*, *Storage*, *Moving* and, in the expert view, *Export*; the old links (`#/settings/backup`,
 `/storage`, `/move`, `/data`) open the right tab.
 
+Since 1.18: *Detection* and the sound switches (record sound, play sound, loudest volume) are part of *Devices &
+cameras*, below the devices they belong to. Wake words, the talk button and *Talk to the Pi* are on the AI assistant
+add-on's page. **System** shows the Pi's health in one line (details and hardware on the System page) and the updates
+of pi-guard and the apps with their settings. **Network** holds the router, Pi-hole, VPN and dynamic DNS settings, with
+links to the network pages and the Cloudflare DDNS and Tailscale add-ons. *Integrations* (expert view) keeps MQTT and
+the saved keys. Old links (`#/settings/detection`, `/audio`, `/updates`) open the new place.
+
 Settings open in the normal view with what most people need. The switch next to the title and the search shows everything, also the complex
 settings, the sections Integrations, Dashboard and Security, and the Export tab. It is remembered per device and works the same
 in the phone app. Nothing is lost by switching: hidden settings keep their values.

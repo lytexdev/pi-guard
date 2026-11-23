@@ -6,7 +6,13 @@ import { searchToggle, skeleton, supportNote } from "../widgets.js";
 import { restartPrompt } from "./settings.js";
 
 // Moved into other tabs; old links keep working.
-const MOVED = { plan: "modes", api: "access", apps: "updates", dashboard: "general", security: "data" };
+// Detection and sound sit with the devices since 1.18, the voice with the assistant add-on, and
+// updates under System.
+const MOVED = { plan: "modes", api: "access", apps: "system", updates: "system", dashboard: "general", security: "data",
+  detection: "devices", audio: "devices" };
+// Sound settings shown with the devices; the voice ones (wake words, talk button) are the assistant's.
+const DEVICE_KEYS = ["motion_enabled", "motion_sensitivity", "person_detection_enabled", "face_recognition_enabled",
+  "audio_recording_enabled", "audio_playback_enabled", "audio_max_volume"];
 // Data & backup holds what used to be four tabs; their old links open the right part.
 const DATA_TABS = [["backup", "upload"], ["storage", "database"], ["security", "shield-check"], ["move", "map-pin"], ["export", "download"]];
 const dataTabs = () => DATA_TABS.filter(([id]) => id !== "export" || expertMode());
@@ -14,7 +20,8 @@ const dataTabs = () => DATA_TABS.filter(([id]) => id !== "export" || expertMode(
 const TOPICS = {
   modes: ["web.set_plan"],
   appearance: ["web.theme", "web.text_size", "web.ap_nav", "web.ap_color", "web.ap_font", "web.ap_animations", "web.ap_reset"],
-  devices: ["web.cameras", "web.speaker", "web.microphone", "web.trusted_devices", "web.quiet_hours_sound"],
+  devices: ["web.cameras", "web.speaker", "web.microphone", "web.trusted_devices", "web.quiet_hours_sound", "web.set_detection", "web.set_audio"],
+  network: ["web.set_network_pages", "web.addon_vpn", "web.addon_pihole"],
   access: ["web.users_title", "web.webauthn_title", "web.recovery_title", "web.codeword", "web.login_security", "web.account", "web.api_tokens", "web.api_docs"],
   messaging: ["web.discord_status", "web.signal_status"],
   addons: ["web.nav_addons"],
@@ -22,7 +29,7 @@ const TOPICS = {
   "data/storage": ["web.st_recordings", "web.st_journal", "web.st_apt", "web.st_folders"],
   "data/export": ["web.ex_data", "web.ex_config", "web.ex_import"],
   "data/backup": ["web.bk_title", "web.bk_ssh_title"],
-  updates: ["web.up_title", "web.mob_devices", "web.mob_app", "web.apps_versions", "web.apps_invite"],
+  system: ["web.up_title", "web.mob_devices", "web.mob_app", "web.apps_versions", "web.apps_invite", "web.sy_health_title"],
   logs: ["web.nav_logs", "web.audit", "web.sec_title"],
   "data/move": ["web.mv_title", "web.mv_before", "web.mv_after", "web.mv_package"],
   support: ["web.support_phone", "web.support_email", "web.support_address"],
@@ -31,24 +38,24 @@ const fold = (text) => text.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "o
 
 // [id, icon, settings groups, nav group]. Data & backup shows the backup group only on its backup tab.
 const SECTIONS = [
-  ["general", "settings", ["general", "dashboard"], "basics"], ["recording", "video", ["recording"], "basics"], ["detection", "users", ["detection"], "basics"],
-  ["modes", "home", ["modes"], "basics"], ["audio", "volume", ["audio"], "basics"],
+  ["general", "settings", ["general", "dashboard"], "basics"], ["recording", "video", ["recording"], "basics"],
+  ["modes", "home", ["modes"], "basics"],
   ["messaging", "message", ["telegram", "discord", "email", "whatsapp", "signal", "chatapps"], "alerts"], ["notifications", "bell-ringing", null, "alerts"],
   ["emergency", "alert-triangle", ["emergency"], "alerts"],
-  ["devices", "camera", null, "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
+  ["devices", "camera", ["detection", "audio"], "home"], ["access", "shield-lock", null, "home"], ["appearance", "palette", null, "home"],
   ["federation", "link", ["federation"], "home"],
-  ["data", "database", ["backup"], "system"], ["addons", "cpu", null, "system"], ["integrations", "router", ["integrations", "network"], "system"],
-  ["updates", "refresh", ["updates", "mobile"], "system"],
+  ["system", "server", ["updates", "mobile"], "system"], ["network", "network", ["network"], "system"],
+  ["data", "database", ["backup"], "system"], ["addons", "cpu", null, "system"], ["integrations", "router", ["integrations"], "system"],
   ["logs", "list-details", null, "system"], ["support", "headset", null, "system"],
 ];
 const NAV_GROUPS = ["basics", "alerts", "home", "system"];
 // Sections that open elsewhere: still found by the search, not listed in the settings menu.
-const ELSEWHERE = { updates: "system/updates" };
+const ELSEWHERE = {};
 
 // Sections for people who know what they are looking for.
 const EXPERT_SECTIONS = ["integrations"];
 // A member sees the sections the owner granted (web/permissions.py); appearance is per device.
-const MEMBER_NEEDS = { devices: "devices", notifications: "contacts", contacts: "contacts", updates: "apps", logs: "logs", appearance: null };
+const MEMBER_NEEDS = { devices: "devices", notifications: "contacts", contacts: "contacts", system: "apps", logs: "logs", appearance: null };
 function memberMay(id) {
   if (state.session?.role !== "member") return true;
   const granted = state.session.permissions || [];
@@ -56,7 +63,8 @@ function memberMay(id) {
   if (id in MEMBER_NEEDS) {
     const need = MEMBER_NEEDS[id];
     return need === null || granted.includes(need) || granted.includes(`settings:${id}`)
-      || (id === "updates" && granted.includes("settings:apps"));
+      || (id === "system" && ["settings:apps", "settings:updates"].some((p) => granted.includes(p)))
+      || (id === "devices" && ["settings:detection", "settings:audio"].some((p) => granted.includes(p)));
   }
   return granted.includes(`settings:${id}`);
 }
@@ -161,7 +169,7 @@ async function backupPanel(box) {
 }
 
 // Talking to the Pi: what it does right now, and push to talk.
-async function voicePanel(box) {
+export async function voicePanel(box) {
   const panel = h("div");
   box.append(panel);
   const draw = async () => {
@@ -200,6 +208,39 @@ async function messengerTests() {
         const r = await attempt(() => api(`/api/messengers/${encodeURIComponent(m.name)}/test`, { method: "POST" }));
         if (r) toast(t("web.messenger_test_sent", { count: r.sent }));
       } }, icon("bell"), t("web.test"))))) : h("p", { class: "empty" }, t("web.nothing")));
+}
+
+// System: is everything fine (a short summary, the details on the System page), then updates
+// of the Pi and the apps with their settings.
+async function systemSection(root) {
+  const health = h("div");
+  const updates = h("div");
+  fill(root, health, updates);
+  if (state.session?.role === "admin") {
+    const data = await api("/api/system/health").catch(() => null);
+    if (data) {
+      const bad = data.checks.filter((c) => c.level === "fail").length;
+      const warn = data.checks.filter((c) => c.level === "warn").length;
+      const tone = bad ? "danger" : warn ? "warn" : "ok";
+      fill(health, h("section", { class: `panel health-summary ${tone}`, id: "web.sy_health_title" },
+        h("span", { class: `health-dot ${tone}` }, icon(bad || warn ? "alert-triangle" : "circle-check")),
+        h("div", { class: "grow" }, h("h2", {}, bad ? t("web.sy_bad", { count: bad }) : warn ? t("web.sy_warn", { count: warn }) : t("web.sy_ok")),
+          h("small", { class: "muted" }, t("web.sy_checked", { time: when(new Date(data.time * 1000).toISOString()) }))),
+        h("div", { class: "row wrap" }, h("a", { class: "button", href: "#/system/health" }, icon("activity"), t("web.sy_tab_health")),
+          h("a", { class: "button ghost", href: "#/system/device" }, icon("cpu"), t("web.sy_tab_device")))));
+    }
+  }
+  await updatesPage(updates);
+  return null;
+}
+
+// Network settings: the fields here, the pages with live state one tap away.
+function networkLinks(body) {
+  const links = [["#/network", "network", "web.nav_network"], ["#/network/vpn", "brand-wireguard", "web.addon_vpn"],
+    ["#/addons/ddns", "cloud", "addons.ddns"], ["#/addons/tailscale", "world-www", "addons.tailscale"]];
+  body.before(h("section", { class: "panel stack", id: "web.set_network_pages" }, h("h2", {}, icon("network"), " ", t("web.set_network_pages")),
+    h("p", { class: "muted" }, t("web.set_network_pages_hint")),
+    h("div", { class: "quick-links" }, links.map(([href, ic, label]) => h("a", { class: "button", href }, icon(ic), t(label))))));
 }
 
 async function updateSection(root) {
@@ -321,7 +362,7 @@ function searchIndex(fields) {
   return [
     ...shown().map(([id]) => entry(id, "", t(`web.set_${id}`), t(`web.set_${id}_hint`))),
     ...dataTabs().map(([id]) => entry(`data/${id}`, "", t(`web.set_${id}`), t("web.set_data"))),
-    ...fields.filter((f) => section(f.group) && (!f.expert || expertMode())).map((f) => entry(section(f.group), `s_${f.key}`, t(`web.setting_${f.key}`), `${t(`web.group_${f.group}`)} ${t(`web.tip_${f.key}`)} ${f.key.replace(/_/g, " ")}`)),
+    ...fields.filter((f) => section(f.group) && (!f.expert || expertMode()) && (f.group !== "audio" || DEVICE_KEYS.includes(f.key))).map((f) => entry(section(f.group), `s_${f.key}`, t(`web.setting_${f.key}`), `${t(`web.group_${f.group}`)} ${t(`web.tip_${f.key}`)} ${f.key.replace(/_/g, " ")}`)),
     ...Object.entries(TOPICS).flatMap(([path, keys]) => keys.map((key) => entry(path, key, t(key), t(`${key.replace("_title", "")}_hint`)))),
   ].filter((item) => allowed(item.path));
 }
@@ -412,6 +453,27 @@ export async function render(main, params = []) {
     else if (tab === "move") await (await import("./move.js")).render(body);
     else if (tab === "security") stop = await (await import("./scan.js")).render(body);
     else dataSection(body);
+  } else if (current === "devices") {
+    const view = await import("./devices.js");
+    let saveDevices = null;
+    let saveFields = null;
+    save = () => { saveDevices?.(); saveFields?.(); };
+    await view.render(body, [], { embedded: true, register: (fn) => { saveDevices = fn; }, onSaved: () => { saveBar.classList.add("hidden"); restartPrompt(); } });
+    // Detection and sound below the devices they belong to, with the same save bar.
+    const fields = h("div", { class: "stack" });
+    extra.append(h("section", { class: "panel stack", id: "web.set_detection" }, h("h2", {}, icon("users"), " ", t("web.set_detection")),
+      h("p", { class: "muted" }, t("web.set_detection_hint"))), fields,
+    h("p", { class: "muted" }, icon("microphone"), " ", t("web.voice_moved"), " ", h("a", { href: "#/addons/assistant" }, t("addons.assistant"))));
+    const settingsView = await import("./settings.js");
+    await settingsView.render(fields, [], { embedded: true, groups: ["detection", "audio"], keys: DEVICE_KEYS, register: (fn) => { saveFields = fn; },
+      onSaved: (changed) => { saveBar.classList.add("hidden"); if (Object.keys(changed || {}).length) restartPrompt(); else toast(t("web.saved")); } });
+    for (const el of [body, extra]) {
+      el.addEventListener("input", showSave);
+      el.addEventListener("change", showSave);
+    }
+    body.addEventListener("click", (e) => { if (e.target.closest("button")) showSave(); });
+  } else if (current === "system") {
+    stop = await systemSection(body);
   } else if (section[2]) {
     const view = await import("./settings.js");
     await view.render(body, [], { embedded: true, groups: section[2], register: (fn) => { save = fn; },
@@ -436,7 +498,7 @@ export async function render(main, params = []) {
       body.before(status);
       await backupPanel(status);
     }
-    if (current === "audio") await voicePanel(extra);
+    if (current === "network") networkLinks(body);
     if (current === "integrations") {
       const creds = h("div");
       extra.append(h("section", { class: "panel stack" }, h("h2", {}, icon("key"), " ", t("web.int_credentials")),
@@ -452,12 +514,6 @@ export async function render(main, params = []) {
       const redraw = await historyPanel(history);
       helpPanel(help, redraw);
     }
-  } else if (current === "devices") {
-    const view = await import("./devices.js");
-    await view.render(body, [], { embedded: true, register: (fn) => { save = fn; }, onSaved: () => { saveBar.classList.add("hidden"); restartPrompt(); } });
-    body.addEventListener("input", showSave);
-    body.addEventListener("change", showSave);
-    body.addEventListener("click", (e) => { if (e.target.closest("button")) showSave(); });
   } else if (current === "addons") {
     const view = await import("./addons.js");
     await view.render(body, [], { embedded: true });

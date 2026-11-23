@@ -16,7 +16,9 @@ and in every messenger, where buttons become a numbered menu if the platform has
 All are for admins. The AI assistant has no chat command: it answers only in the dashboard and the apps (see below).
 
 Each card has a switch and a menu (three dots): *Pin to navigation*, *Help & guide* (what the add-on does and how to
-start, with the tour or its documentation) and *Remove*. Telegram, Signal, WhatsApp, Discord, email and the chat
+start, with the tour or its documentation) and *Remove*. Each add-on's own page has *Pin to navigation* at the top as
+well; pinned add-ons are in the sidebar and, on phones, under *More*. Cloudflare DDNS and Tailscale are add-ons of their
+own since 1.18 (*Network*), see [network.md](network.md#any-router). Telegram, Signal, WhatsApp, Discord, email and the chat
 services are add-ons too; the phone app is not: it is part of pi-guard, on by default, under **System › Updates**.
 Add-ons from others appear as the same cards under *Own & community*; see [plugins.md](plugins.md) for building and
 publishing one.

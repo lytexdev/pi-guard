@@ -42,6 +42,7 @@ from pi_guard.web.api_manage import apply_settings
 from pi_guard.web.server import (
     MODULE_SETTINGS,
     MODULES,
+    TAILSCALE_INTERFACE,
     confirm_password,
     current,
     dashboard,
@@ -204,6 +205,10 @@ def _module_setting(module: str) -> str:
 
 
 def _module_running(d: Any, module: str) -> bool:
+    if module == "ddns":
+        return bool(d.settings.ddns_provider != "off")
+    if module == "tailscale":
+        return TAILSCALE_INTERFACE.exists()
     if module == "vpn":
         return bool(d.settings.wireguard_enabled and d.wg_peers is not None)
     if module == "pihole":
@@ -230,6 +235,8 @@ async def module_set(request: web.Request) -> web.Response:
     if module not in MODULES:
         raise web.HTTPNotFound()
     enabled = (await read_json(request)).get("enabled") is True
+    if module in ("ddns", "tailscale"):
+        return web.json_response(await _service_module(request, module, enabled))
     setting = _module_setting(module)
     running = getattr(d.settings, setting)
     if running != enabled and (not enabled or module in NEEDS_NO_SETUP):
@@ -244,6 +251,27 @@ async def module_set(request: web.Request) -> web.Response:
             and (not enabled or module in NEEDS_NO_SETUP),
         }
     )
+
+
+async def _service_module(request: web.Request, module: str, enabled: bool) -> dict[str, Any]:
+    """DDNS: off stops it; on needs a name and a token, so it only starts when they are there.
+    Tailscale: only whether pi-guard counts it as the home's VPN; pi-guard never installs it."""
+    d = dashboard(request)
+    setup = False
+    if module == "ddns":
+        token = d.settings.ddns_cloudflare_token
+        ready = bool(d.settings.ddns_hostname and token and token.get_secret_value())
+        if not enabled and d.settings.ddns_provider != "off":
+            await apply_settings(d, {"ddns_provider": "off"}, _actor(request))
+        elif enabled and d.settings.ddns_provider == "off":
+            if ready:
+                await apply_settings(d, {"ddns_provider": "cloudflare"}, _actor(request))
+            setup = not ready
+    else:
+        saved = d.app.db.get("web.modules") or {}
+        d.app.db.set("web.modules", {**saved, module: enabled})
+    d.app.db.audit(_actor(request), "module", f"{module} {'on' if enabled else 'off'}")
+    return {"ok": True, "restart": False, "setup": setup}
 
 
 # --- donations ------------------------------------------------------------------------------
