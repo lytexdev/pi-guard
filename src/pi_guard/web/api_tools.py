@@ -105,6 +105,9 @@ def routes() -> list[web.RouteDef]:
         web.post("/api/scan", scan_start),
         web.post("/api/scan/fix", scan_fix),
         web.post("/api/scan/review", scan_review),
+        # Not under /api/logs: members with the logs grant must not spend the owner's AI.
+        web.get("/api/logs-review", logs_review_get),
+        web.post("/api/logs-review", logs_review_start),
         web.get("/api/storage", storage_get),
         web.post("/api/storage/clean", storage_clean),
     ]
@@ -806,6 +809,7 @@ async def scan_get(request: web.Request) -> web.Response:
         "fixes": {"offered": fixes.offered(last), "applied": fixes.applied(),
                   "result": fixes.result()},
         "review": assistant is not None and assistant.ready,
+        "review_state": dashboard(request).reviews.state("scan"),
     })  # fmt: skip
 
 
@@ -826,25 +830,81 @@ async def scan_fix(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
-async def scan_review(request: web.Request) -> web.Response:
-    """The assistant's view of the latest result: steps, and which fixed fix does each."""
-    from pi_guard.addons.assistant import LANGUAGE_NAMES, AssistantError
-
-    d = dashboard(request)
-    assistant = d.app.addons.assistant
-    last = d.app.scanner.last
+def _assistant_or_conflict(request: web.Request) -> Any:
+    assistant = dashboard(request).app.addons.assistant
     if assistant is None:
         raise web.HTTPConflict(text="web.addon_not_running")
+    if not assistant.ready:
+        raise web.HTTPConflict(text="assistant.no_key")
+    return assistant
+
+
+def _language(request: web.Request) -> str:
+    from pi_guard.addons.assistant import LANGUAGE_NAMES
+
+    return LANGUAGE_NAMES.get(dashboard(request).settings.language, "German")
+
+
+async def _ask(assistant: Any, system: str, text: str) -> str:
+    answer, _ = await assistant.complete_checked(system, text)
+    return str(answer)
+
+
+async def scan_review(request: web.Request) -> web.Response:
+    """Starts the assistant's view of the latest result: steps, and which fixed fix does each.
+    It runs in the background; GET /api/scan shows its stage and the result."""
+    d = dashboard(request)
+    assistant = _assistant_or_conflict(request)
+    last = d.app.scanner.last
     if not last:
         raise web.HTTPConflict(text="web.scan_none_yet")
-    language = LANGUAGE_NAMES.get(d.settings.language, "German")
-    try:
-        answer, _ = await assistant.complete_checked(fixes.review_prompt(language),
-                                                     fixes.review_input(last))  # fmt: skip
-    except AssistantError as exc:
-        raise web.HTTPConflict(text=exc.key) from None
+    language = _language(request)
+    ids = {str(c["id"]) for c in last.get("checks", [])}
+
+    async def prepare() -> tuple[str, str]:
+        return fixes.review_prompt(language), fixes.review_input(last)
+
+    started = d.reviews.start(
+        "scan", prepare, lambda system, text: _ask(assistant, system, text),
+        lambda answer: fixes.parse_review(answer, ids), basis=str(last.get("time")),
+    )  # fmt: skip
+    if not started:
+        raise web.HTTPConflict(text="web.review_busy")
     d.app.db.audit(_actor(request), "security.review")
-    return web.json_response(fixes.parse_review(answer))
+    return web.json_response({"ok": True})
+
+
+async def logs_review_get(request: web.Request) -> web.Response:
+    d = dashboard(request)
+    assistant = d.app.addons.assistant
+    return web.json_response({"available": assistant is not None and assistant.ready,
+                              **d.reviews.state("logs")})  # fmt: skip
+
+
+async def logs_review_start(request: web.Request) -> web.Response:
+    """The assistant reads the warnings and errors of the service log and the audit trail."""
+    from pi_guard.diagnostics import log_review
+    from pi_guard.logs import RECENT
+
+    d = dashboard(request)
+    assistant = _assistant_or_conflict(request)
+    language = _language(request)
+
+    async def prepare() -> tuple[str, str]:
+        rows = d.app.db.execute(
+            "SELECT ts, actor, action, detail FROM audit ORDER BY id DESC LIMIT ?",
+            (log_review.MAX_AUDIT,),
+        ).fetchall()
+        text = log_review.collect(list(RECENT.records), [dict(r) for r in rows])
+        return log_review.prompt(language), text
+
+    started = d.reviews.start(
+        "logs", prepare, lambda system, text: _ask(assistant, system, text), log_review.parse
+    )
+    if not started:
+        raise web.HTTPConflict(text="web.review_busy")
+    d.app.db.audit(_actor(request), "logs.review")
+    return web.json_response({"ok": True})
 
 
 async def scan_start(request: web.Request) -> web.Response:

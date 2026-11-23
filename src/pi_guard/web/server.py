@@ -168,6 +168,9 @@ class Dashboard:
             s.dashboard_tls,
         )
         self.guard.on_event = lambda action, detail: app.db.audit("guard", action, detail)
+        from pi_guard.diagnostics.reviews import Reviews
+
+        self.reviews = Reviews(app.db)
         if s.dashboard_public_url:
             names = {
                 urlsplit(s.dashboard_public_url).hostname or "",

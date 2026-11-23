@@ -27,7 +27,18 @@ All notable changes are documented here. The format follows
   compares the release with the installed commit, so a `git pull` by hand no longer looks up to date.
 
 
+- The security check said *ok* for a check whose command timed out, and one crashing step in the root job lost the
+  whole report (pi-guard then waited 30 minutes for nothing). Each step now runs on its own; unfinished ones say
+  *unknown* with the reason. The progress follows the root job's real step, a firewall needs a dropping *input* chain
+  (or firewalld), and a Pi without an SSH server is fine.
+- The AI review's progress ticked on a timer; it now shows the server's real stage.
+
 ### Added
+
+- *Logs → AI look*: the assistant reads warnings, errors and recent audit entries and answers with a rating and
+  findings by severity.
+- The AI review of the security check runs in the background and keeps its result, with an overall rating, steps by
+  priority and the check each is about.
 
 - Another VPN (Tailscale, ZeroTier, NetBird) on the Pi is recognised: with pi-guard's WireGuard off, *Network → VPN*
   says so, marks the WireGuard ways, AmneziaWG and post-quantum keys as not needed, and offers to switch AmneziaWG off.

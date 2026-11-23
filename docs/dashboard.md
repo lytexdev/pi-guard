@@ -302,8 +302,14 @@ known. A clean result is no guarantee that a system is not compromised.
 (refused when no key is set up), automatic security updates, accept the rkhunter state, firewall on (everything
 reachable today and SSH stay open). Each runs in the root job with a backup, after two confirmations, the fix's name
 typed and the password, and *Undo* puts the earlier state back. **AI review** sends statuses and short details to the
-assistant's provider after a confirmation and lists steps; it can point to a listed fix, any other command it names is
-shown to copy and never run.
+assistant's provider after a confirmation. It runs in the background, so you can leave the page, and shows its real
+stage. The result stays until the next review: an overall rating, steps sorted by priority (important, medium,
+minor) with the check each is about, a button when a listed fix does it, and any other command folded away to copy,
+never run. A review older than the last check says so.
+
+The root job reports after each of its steps, so the progress shows the step it is really on. A step that crashes or
+whose commands time out marks its checks *unknown* with the reason, instead of *ok*; the other steps still count.
+pi-guard waits as long as the job reports progress (30 minutes without any, two hours in all).
 
 *Settings → Data & backup → Storage* shows what uses the disk and can delete old recordings, photos and clips, compact
 the database, and clear old system logs and the package cache (also `/storage` in chat). Evidence videos
@@ -331,8 +337,11 @@ ticked.
 
 ## Logs
 
-*Logs* has three tabs: an overview of the last seven days (logins, failed logins, honeypot hits, bans, advice), the
-service log with level chips, search, pause, copy and download, and the audit trail grouped by day, searchable.
+*Logs* has four tabs: an overview of the last seven days (logins, failed logins, honeypot hits, bans, advice), the
+service log with level chips, search, pause, copy and download, the audit trail grouped by day, searchable, and
+**AI look**. There the assistant reads the warnings and errors of the service log (repeats folded into one line with a
+count, long tokens cut) and the last 80 audit entries, after a confirmation, and answers with a health rating and
+findings by severity, each with what it means and what to do. Admins only; it changes nothing.
 
 ## Accessibility
 

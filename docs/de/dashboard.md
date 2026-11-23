@@ -302,8 +302,16 @@ zählen als bekannt. Ein gutes Ergebnis ist keine Garantie, dass ein System saub
 SSH nur mit Schlüssel (abgelehnt ohne hinterlegten Schlüssel), automatische Sicherheitsupdates, rkhunter-Stand
 übernehmen, Firewall einschalten (alles heute Erreichbare und SSH bleiben offen). Jede läuft im Root-Job mit Sicherung,
 nach zwei Bestätigungen, dem eingetippten Namen und dem Passwort; *Rückgängig* stellt den alten Zustand her. Die
-**KI-Prüfung** schickt nach Bestätigung Status und kurze Details an den KI-Anbieter und schlägt Schritte vor; sie kann
-auf eine Korrektur der Liste zeigen, andere Befehle stehen nur zum Kopieren da und werden nie ausgeführt.
+**KI-Prüfung** schickt nach Bestätigung Status und kurze Details an den KI-Anbieter. Sie läuft im Hintergrund, man kann
+die Seite verlassen, und zeigt ihren echten Stand. Das Ergebnis bleibt bis zur nächsten Prüfung: eine Gesamteinschätzung,
+Schritte nach Wichtigkeit (wichtig, mittel, gering) mit dem Check, um den es geht, ein Knopf, wenn eine Korrektur der
+Liste es erledigt, und andere Befehle eingeklappt zum Kopieren, nie ausgeführt. Ist die Prüfung älter als der letzte
+Check, steht das dabei.
+
+Der Root-Job meldet sich nach jedem Schritt, der Fortschritt zeigt also den Schritt, an dem er wirklich ist. Stürzt ein
+Schritt ab oder laufen seine Befehle in eine Zeitüberschreitung, stehen seine Checks auf *unbekannt* mit dem Grund statt
+auf *ok*; die anderen Schritte zählen trotzdem. pi-guard wartet, solange der Job Fortschritt meldet (30 Minuten ohne,
+zwei Stunden insgesamt).
 
 *Einstellungen → Daten & Sicherung → Speicher* zeigt, was den Platz belegt, und kann alte Aufnahmen, Fotos und Clips löschen, die
 Datenbank verdichten sowie alte Systemprotokolle und den Paket-Cache leeren (im Chat auch `/speicher`).
@@ -326,9 +334,12 @@ Farbschema auch für ihre eigenen Bildschirme und die Systemleisten. In der Übe
 
 ## Logs
 
-*Logs* hat drei Reiter: einen Überblick der letzten sieben Tage (Anmeldungen, Fehlversuche, Honeypot, Sperren,
-Empfehlungen), das Dienst-Log mit Stufen-Filtern, Suche, Anhalten, Kopieren und Herunterladen, und das Protokoll nach
-Tagen gruppiert und durchsuchbar.
+*Logs* hat vier Reiter: einen Überblick der letzten sieben Tage (Anmeldungen, Fehlversuche, Honeypot, Sperren,
+Empfehlungen), das Dienst-Log mit Stufen-Filtern, Suche, Anhalten, Kopieren und Herunterladen, das Protokoll nach
+Tagen gruppiert und durchsuchbar, und **KI-Blick**. Dort liest der Assistent nach Bestätigung die Warnungen und Fehler
+des Dienst-Logs (Wiederholungen zu einer Zeile mit Anzahl zusammengefasst, lange Tokens gekürzt) und die letzten 80
+Einträge der Aktivität und antwortet mit einer Einschätzung und Funden nach Schwere, jeweils mit Bedeutung und was zu tun
+ist. Nur für Admins; er ändert nichts.
 
 ## Barrierefreiheit
 

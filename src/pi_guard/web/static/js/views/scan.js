@@ -1,5 +1,6 @@
 // Security scan: run it, read the result, optionally get the report in the messenger.
 import { api, askDialog, attempt, confirmDialog, fill, h, icon, t, toast, when, whileShown } from "../api.js";
+import { card, resultHead, reviewBox } from "./ai-review.js";
 
 const BADGE = { bad: "danger", warn: "warn", ok: "ok", unknown: "" };
 const STATUS_ICON = { ok: "circle-check", warn: "alert-triangle", bad: "alert-triangle", unknown: "help" };
@@ -25,7 +26,8 @@ export async function render(box) {
     last && s.review ? reviewPanel(s, draw) : null);
     const waiting = pendingSince && !((s.fixes?.result?.time || 0) >= pendingSince);
     if (!waiting) pendingSince = 0;
-    if (s.running || waiting) timer = whileShown(box, draw, s.running ? 1000 : 3000);
+    const reviewing = s.review_state?.running;
+    if (s.running || waiting || reviewing) timer = whileShown(box, draw, s.running || reviewing ? 1000 : 3000);
   };
   await draw();
   return () => clearTimeout(timer);
@@ -106,49 +108,31 @@ function fixesPanel(s, draw) {
         h("button", { class: "small ghost", onclick: () => runFix(id, true, draw) }, icon("arrow-back-up"), t("web.fix_undo"))))));
 }
 
-const REVIEW_STEPS = ["prepare", "send", "wait", "parse"];
-
-function reviewProgress(active) {
-  const idx = REVIEW_STEPS.indexOf(active);
-  return h("div", { class: "scan-progress stack review-progress", "aria-live": "polite" },
-    h("p", { class: "muted" }, t("web.review_working")),
-    h("ul", { class: "list scan-list scan-live" }, REVIEW_STEPS.map((id, i) => {
-      const state = i < idx ? "done" : i === idx ? "current" : "pending";
-      return h("li", { class: `scan-step ${state}` },
-        state === "done" ? icon("circle-check") : state === "current" ? h("span", { class: "scan-spinner", "aria-hidden": "true" }) : icon("circle"),
-        h("div", { class: "grow" }, t(`web.review_step_${id}`)),
-        state === "current" ? h("span", { class: "badge" }, t("web.scan_checking")) : null);
-    })));
-}
+const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 
 function reviewPanel(s, draw) {
-  const out = h("div", { class: "stack" });
+  const box = h("section", { class: "panel stack review-panel" });
   const offered = new Set(s.fixes?.offered || []);
-  const ask = async () => {
+  const state = s.review_state || {};
+  const start = async () => {
     if (!await confirmDialog(t("web.review_confirm"), t("web.review_start"))) return;
-    let stage = 0;
-    const tick = () => {
-      if (stage < REVIEW_STEPS.length) fill(out, reviewProgress(REVIEW_STEPS[stage]));
-      stage += 1;
-    };
-    tick();
-    const timer = setInterval(tick, 1200);
-    const r = await attempt(() => api("/api/scan/review", { method: "POST", body: {} }));
-    clearInterval(timer);
-    if (!r) { fill(out); return; }
-    fill(out,
-      h("div", { class: "review-result stack" },
-        h("p", { class: "notice" }, icon("sparkles"), " ", t("web.review_done")),
-        h("p", {}, r.summary),
-        r.steps.length ? h("ol", { class: "review-steps" }, r.steps.map((step) => h("li", { class: "review-step-card" },
-          h("strong", {}, step.title), step.why ? h("p", { class: "muted" }, step.why) : null,
-          step.fix && offered.has(step.fix) ? h("button", { class: "small primary", onclick: () => runFix(step.fix, false, draw) }, icon("shield-check"), t("web.fix_apply_named", { name: t(`web.fix_${step.fix}`) })) : null,
-          step.commands.length ? h("div", { class: "review-commands" }, h("small", { class: "muted" }, t("web.review_commands")),
-            h("pre", { class: "mono" }, step.commands.join("\n")),
-            h("button", { class: "small ghost", onclick: async () => { try { await navigator.clipboard.writeText(step.commands.join("\n")); toast(t("web.copied")); } catch { toast(t("web.error"), true); } } }, icon("copy"), t("web.copy"))) : null)))
-          : h("p", {}, icon("circle-check"), " ", t("web.review_nothing")),
-        h("p", { class: "muted" }, h("small", {}, t("web.review_note")))));
+    if (await attempt(() => api("/api/scan/review", { method: "POST", body: {} }))) draw();
   };
-  return h("section", { class: "panel stack" }, h("h2", {}, icon("sparkles"), " ", t("web.review_title")), h("p", { class: "muted" }, t("web.review_hint")),
-    h("div", { class: "row" }, h("button", { class: "primary", onclick: ask }, icon("sparkles"), t("web.review_start"))), out);
+  const render = (r, outdated) => {
+    const steps = [...(r.steps || [])].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
+    return [resultHead(r, steps.map((x) => x.priority), { outdated }),
+      steps.length ? h("ol", { class: "review-cards" }, steps.map((step, i) => card(i, step.priority, step.title,
+        step.check ? h("small", { class: "muted" }, icon("shield-check"), " ", t(`web.scan_${step.check}`)) : null,
+        step.why ? h("p", { class: "muted" }, step.why) : null,
+        step.fix && offered.has(step.fix) ? h("div", {}, h("button", { class: "small primary", onclick: () => runFix(step.fix, false, draw) }, icon("shield-check"), t("web.fix_apply_named", { name: t(`web.fix_${step.fix}`) }))) : null,
+        step.commands.length ? h("details", { class: "review-commands" }, h("summary", {}, icon("terminal-2"), " ", t("web.review_commands")),
+          h("pre", { class: "mono" }, step.commands.join("\n")),
+          h("button", { class: "small ghost", onclick: async () => { try { await navigator.clipboard.writeText(step.commands.join("\n")); toast(t("web.copied")); } catch { toast(t("web.error"), true); } } }, icon("copy"), t("web.copy"))) : null)))
+        : h("p", { class: "notice ok" }, icon("circle-check"), " ", t("web.review_nothing")),
+      h("p", { class: "muted" }, h("small", {}, t("web.review_note")))];
+  };
+  reviewBox(box, state, { title: t("web.review_title"), working: t("web.review_working"), render, start, startLabel: t("web.review_start"),
+    outdated: (r) => Boolean(r.basis && s.last && r.basis !== s.last.time) });
+  if (!state.running && !state.last) box.append(h("p", { class: "muted" }, t("web.review_hint")));
+  return box;
 }
