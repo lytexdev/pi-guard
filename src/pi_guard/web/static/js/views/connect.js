@@ -53,10 +53,11 @@ function mediaPanel(pc) {
 function filePanel(pc) {
   const input = h("input", { type: "file", multiple: true, "aria-label": t("web.cc_pick") });
   const list = h("ul", { class: "list compact cc-files" });
-  const send = h("button", { class: "primary", disabled: true }, icon("send"), t("web.cc_send"));
+  const send = h("button", { class: "primary hidden" }, icon("send"), t("web.cc_send"));  // once files are chosen
   const cancel = h("button", { class: "ghost hidden", onclick: () => upload.current?.abort() }, t("web.cancel"));
   input.addEventListener("change", () => {
-    send.disabled = !input.files.length;
+    send.disabled = false;
+    send.classList.toggle("hidden", !input.files.length);
     fill(list, [...input.files].map((f) => h("li", {}, icon("file-upload"), h("span", { class: "grow clip" }, f.name), h("small", { class: "muted" }, size(f.size)))));
   });
   send.addEventListener("click", async () => {
@@ -87,6 +88,7 @@ function filePanel(pc) {
     cancel.classList.add("hidden");
     input.disabled = false;
     input.value = "";
+    send.classList.add("hidden");  // the list keeps showing what arrived
     if (done) toast(t("web.cc_sent", { count: done, name: pc.name }));
   });
   return h("section", { class: "cc-part" }, h("h3", {}, icon("file-upload"), " ", t("web.cc_files")),
@@ -106,7 +108,33 @@ function textPanel(pc) {
       } }, icon("send"), t("web.cc_send"))));
 }
 
-function computerCard(pc) {
+// Ringing on a computer stops by itself after 30 seconds (RING_FOR in the agent), or here.
+const RING_MS = 30_000;
+function ringButton(pc) {
+  const box = h("div", { class: "cc-ring" });
+  const draw = (on) => fill(box, on
+    ? h("div", { class: "ring-now", role: "status" }, h("span", { class: "ring-pulse", "aria-hidden": "true" }, icon("bell-ringing")),
+      h("span", { class: "grow" }, t("web.cc_ringing")),
+      h("button", { class: "danger", onclick: async () => { await attempt(() => api(`/api/connect/${pc.id}/ring`, { method: "DELETE" }), t("web.mob_stopped")); draw(false); } }, icon("x"), t("web.mob_stop_ring")))
+    : h("button", { onclick: async () => {
+      if (!await attempt(() => api(`/api/connect/${pc.id}/ring`, { method: "POST" }))) return;
+      draw(true);
+      setTimeout(() => { if (box.isConnected) draw(false); }, RING_MS);
+    } }, icon("bell-ringing"), t("web.cc_ring")));
+  draw(false);
+  return box;
+}
+
+// Sleep, restart, shut down and lock, as on the Server page: two confirmations and the name typed.
+async function powerRow(pc) {
+  const { agentPower } = await import("./addons.js");
+  const agent = { id: pc.id, name: pc.name };
+  return h("div", { class: "cc-power", role: "group", "aria-label": t("web.cc_power") },
+    [["lock", "lock"], ["suspend", "moon"], ["reboot", "refresh"], ["shutdown", "power"]].map(([c, ic]) =>
+      h("button", { class: c === "shutdown" ? "danger" : "", onclick: () => agentPower(agent, c) }, icon(ic), t(`web.ag_cmd_${c}`))));
+}
+
+async function computerCard(pc) {
   const c = pc.connect || {};
   const parts = [c.media ? mediaPanel(pc) : null, c.files ? filePanel(pc) : null, c.text ? textPanel(pc) : null];
   const tooOld = pc.connect == null;  // agents before 0.5 report no "connect" at all
@@ -115,7 +143,8 @@ function computerCard(pc) {
     h("div", { class: "cc-head" },
       h("div", { class: "agent-head" }, h("span", { class: `dot ${pc.online ? "ok" : ""}` }), icon("devices-pc"),
         h("div", { class: "grow agent-name" }, h("h2", {}, pc.name), h("small", { class: "muted" }, [pc.os, pc.online ? t("web.mob_online") : t("web.mob_offline")].filter(Boolean).join(" · ")))),
-      c.ring && pc.online ? h("button", { onclick: () => attempt(() => api(`/api/connect/${pc.id}/ring`, { method: "POST" }), t("web.cc_ringing")) }, icon("bell-ringing"), t("web.cc_ring")) : null),
+      c.ring && pc.online ? ringButton(pc) : null),
+    pc.online && pc.can_power ? await powerRow(pc) : null,
     !pc.online ? h("p", { class: "muted" }, t("web.cc_offline")) : null,
     pc.online && (tooOld || nothing) ? h("div", { class: "notice stack" }, h("p", {}, t(tooOld ? "web.cc_too_old" : "web.cc_nothing")),
       h("pre", { class: "mono wrap" }, CONFIG_EXAMPLE), h("small", { class: "muted" }, t("web.cc_config_hint"))) : null,
@@ -125,6 +154,6 @@ function computerCard(pc) {
 export async function connectPanel(box) {
   const list = await api("/api/connect").catch(() => null);
   if (!list) { fill(box, h("p", { class: "notice" }, t("web.addon_restart"))); return; }
-  fill(box, list.length ? list.map(computerCard)
+  fill(box, list.length ? await Promise.all(list.map(computerCard))
     : h("section", { class: "panel stack" }, h("p", {}, t("web.cc_none")), h("p", { class: "muted" }, t("web.ag_desktop_app")), h("a", { class: "button primary", href: "#/addons/agents" }, icon("plus"), t("web.cc_add"))));
 }

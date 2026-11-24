@@ -3967,5 +3967,10 @@
   "web.tut_connect": "Computer-Connect",
   "web.tut_connect_text": "Deine Computer vom Dashboard und Handy aus, ähnlich wie KDE Connect: Musik und Lautstärke steuern, Dateien schicken, klingeln lassen, Text senden. Jeder Computer erlaubt das selbst; feste Befehle wie Herunterfahren brauchen zwei Bestätigungen.",
   "web.ag_line": "{os} · {free} MB frei · Last {load}",
-  "web.ag_desktop_app": "Am einfachsten unter Linux mit der Desktop-App: PiGuard › Diesen Computer verbinden. Sie installiert den signierten Agenten, legt den Computer hier an und schaltet Computer-Connect ein, ohne Token zu kopieren. Sonst von Hand:"
+  "web.ag_desktop_app": "Am einfachsten unter Linux mit der Desktop-App: PiGuard › Diesen Computer verbinden. Sie installiert den signierten Agenten, legt den Computer hier an und schaltet Computer-Connect ein, ohne Token zu kopieren. Sonst von Hand:",
+  "web.mob_stop_ring": "Klingeln beenden",
+  "web.mob_stopped": "Beendet.",
+  "web.mob_stop_tip": "Klingeln oder Vibrieren auf dem Handy beenden",
+  "web.cc_power": "Ein und aus",
+  "web.group_audio_use": "Ton aufnehmen und abspielen"
 }

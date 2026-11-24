@@ -8,6 +8,12 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- The round accessibility button covered *More* in the tab bar between 800 and 860 pixels (tablets, phones lying
+  down); the floating buttons now sit above the tab bar and the phone's gesture bar wherever the tab bar shows.
+- *Devices & cameras* showed *Detection* twice and two sections called *Sound*; the switches are *Recording and
+  playing sound* now. On Computer-Connect the play button touched the volume row, and *Send* showed before a file
+  was chosen.
+
 - In the phone app (and any narrow screen) computers on the Server and Computer-Connect pages squeezed their name into
   a column one letter wide next to the buttons; Docker containers and SSH commands too. They are cards now, the
   buttons wrap below the name. The player choice no longer pushes the title aside, and the volume bar shows.
@@ -37,6 +43,9 @@ All notable changes are documented here. The format follows
 - The AI review's progress ticked on a timer; it now shows the server's real stage.
 
 ### Added
+
+- *Stop ringing* for phones (Find devices) and computers (Computer-Connect); a computer rings up to 30 seconds now.
+- Computer-Connect has lock, sleep, restart and shut down, with the same two confirmations as the Server page.
 
 - Desktop app (Linux): *Connect this computer (agent)* installs the signed agent from the Pi through `pkexec`, adds the
   computer in the dashboard and switches on the chosen Computer-Connect parts, without copying a token.
@@ -79,6 +88,9 @@ All notable changes are documented here. The format follows
   look up.
 
 ### Changed
+
+- Network analysis is no add-on any more: it is part of the Network page whenever Pi-hole runs. The Pi-hole and DDNS
+  fields under *Settings → Network* only show while their add-on is on.
 
 - *Home* and *Away* on the overview are larger, and the chosen one is filled and ticked.
 - The AI assistant answers only in the dashboard, the apps and to the wake phrase, never in a messenger: plain text

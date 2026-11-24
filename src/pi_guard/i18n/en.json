@@ -3967,5 +3967,10 @@
   "web.tut_connect": "Computer-Connect",
   "web.tut_connect_text": "Your computers from the dashboard and phone, much like KDE Connect: control music and volume, send files, ring them, send text. Each computer allows this itself; fixed commands such as shutting down need two confirmations.",
   "web.ag_line": "{os} · {free} MB free · load {load}",
-  "web.ag_desktop_app": "Easiest on Linux with the desktop app: PiGuard › Connect this computer. It installs the signed agent, adds the computer here and switches on Computer-Connect, without copying a token. Otherwise by hand:"
+  "web.ag_desktop_app": "Easiest on Linux with the desktop app: PiGuard › Connect this computer. It installs the signed agent, adds the computer here and switches on Computer-Connect, without copying a token. Otherwise by hand:",
+  "web.mob_stop_ring": "Stop ringing",
+  "web.mob_stopped": "Stopped.",
+  "web.mob_stop_tip": "Stop ringing or vibrating on the phone",
+  "web.cc_power": "Power",
+  "web.group_audio_use": "Recording and playing sound"
 }

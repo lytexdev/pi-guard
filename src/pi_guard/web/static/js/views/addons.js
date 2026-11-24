@@ -596,7 +596,7 @@ function maintenanceDialog(agent) {
   open("info");
 }
 
-async function agentPower(agent, command) {
+export async function agentPower(agent, command) {
   const first = await attempt(() => api(`/api/agents/${agent.id}/power/begin`, { method: "POST", body: { command } }));
   if (!first) return;
   const started = Date.now();
@@ -765,7 +765,7 @@ export async function render(main, params = [], opts = {}) {
   const pinned = new Set(state.session.pinned || []);
   const pin = (id) => togglePin(id);
   // Cards in groups, each with its state at a glance. Pinning, help and removing sit in its menu.
-  const GROUPS = [["server", ["agents", "remote"]], ["network", ["vpn", "pihole", "ddns", "tailscale", "analytics", "proxy"]],
+  const GROUPS = [["server", ["agents", "remote"]], ["network", ["vpn", "pihole", "ddns", "tailscale", "proxy"]],
     ["home", ["smarthome"]], ["family", ["kids"]], ["health", ["medical"]], ["assistant", ["assistant", "languages"]],
     ["messages", ["telegram", "signal", "discord", "whatsapp", "email", "chatapps"]]];
   const MODULE_ICONS = { vpn: "brand-wireguard", pihole: "brand-pihole", ddns: "cloud", tailscale: "world-www", telegram: "brand-telegram",

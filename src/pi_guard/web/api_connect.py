@@ -33,6 +33,7 @@ def routes() -> list[web.RouteDef]:
         web.get("/api/connect/{id:\\d+}/media", media_status),
         web.post("/api/connect/{id:\\d+}/media", media),
         web.post("/api/connect/{id:\\d+}/ring", ring),
+        web.delete("/api/connect/{id:\\d+}/ring", ring_stop),
         web.post("/api/connect/{id:\\d+}/text", text),
         web.post("/api/connect/{id:\\d+}/file", send_file),
     ]
@@ -73,6 +74,7 @@ async def computers(request: web.Request) -> web.Response:
         info = agent["info"] or {}
         rows.append({"id": agent["id"], "name": agent["name"], "online": agent["online"],
                      "os": info.get("os"), "agent": info.get("agent"),
+                     "can_power": bool(info.get("can_power")),
                      # None: an agent before 0.5, which has no Computer-Connect at all
                      "connect": info.get("connect")})  # fmt: skip
     return web.json_response(rows)
@@ -114,6 +116,10 @@ async def ring(request: web.Request) -> web.Response:
     dashboard(request).app.db.audit(_actor(request), "connect.ring", str(_id(request)))
     note = t("connect.ring_note", _lang(request))
     return await _call(_hub(request).request(_id(request), cmd="ring", note=note))
+
+
+async def ring_stop(request: web.Request) -> web.Response:
+    return await _call(_hub(request).request(_id(request), cmd="ring_stop"))
 
 
 async def text(request: web.Request) -> web.Response:

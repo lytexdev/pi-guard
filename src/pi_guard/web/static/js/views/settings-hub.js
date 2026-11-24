@@ -522,11 +522,12 @@ export async function render(main, params = []) {
     await view.render(body, [], { embedded: true, register: (fn) => { saveDevices = fn; }, onSaved: () => { saveBar.classList.add("hidden"); restartPrompt(); } });
     // Detection and sound below the devices they belong to, with the same save bar.
     const fields = h("div", { class: "stack" });
-    extra.append(h("section", { class: "panel stack", id: "web.set_detection" }, h("h2", {}, icon("users"), " ", t("web.set_detection")),
-      h("p", { class: "muted" }, t("web.set_detection_hint"))), fields,
+    extra.append(fields,
     h("p", { class: "muted" }, icon("microphone"), " ", t("web.voice_moved"), " ", h("a", { href: "#/addons/assistant" }, t("addons.assistant"))));
     const settingsView = await import("./settings.js");
-    await settingsView.render(fields, [], { embedded: true, groups: ["detection", "audio"], keys: DEVICE_KEYS, register: (fn) => { saveFields = fn; },
+    await settingsView.render(fields, [], { embedded: true, groups: ["detection", "audio"], keys: DEVICE_KEYS,
+      titles: { audio: "web.group_audio_use" },  // the devices above have their own "Sound"
+      register: (fn) => { saveFields = fn; },
       onSaved: (changed) => { saveBar.classList.add("hidden"); if (Object.keys(changed || {}).length) restartPrompt(); else toast(t("web.saved")); } });
     for (const el of [body, extra]) {
       el.addEventListener("input", showSave);

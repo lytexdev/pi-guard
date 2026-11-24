@@ -384,7 +384,8 @@ td.actions { white-space: nowrap; }
 /* Accessibility */
 .a11y-open { position: fixed; right: 14px; bottom: 14px; z-index: 30; width: 48px; height: 48px; padding: 0; border-radius: 50%;
   background: var(--accent); color: var(--accent-ink); border: 0; box-shadow: 0 2px 10px rgba(0, 0, 0, .4); }
-@media (max-width: 800px) { .a11y-open { bottom: 74px; } }
+/* Above the tab bar wherever it shows (the same 860px), and above the phone's gesture bar. */
+@media (max-width: 860px) { .a11y-open { bottom: calc(74px + env(safe-area-inset-bottom)); } }
 .a11y-panel { width: min(420px, calc(100vw - 24px)); max-height: 88dvh; overflow-y: auto; }
 .a11y-row { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: 6px 0; font-weight: 400; }
 .a11y-row input[type=range] { width: 100%; }
@@ -509,7 +510,7 @@ button.link:hover { text-decoration: underline; }
 .ai-open:hover { background: var(--surface-2); transform: translateY(-2px); }
 .to-top { bottom: 130px; background: var(--surface-2); }
 .to-top .icon { transform: rotate(-90deg); }
-@media (max-width: 860px) { .ai-open { bottom: 132px; } .to-top { bottom: 190px; } }
+@media (max-width: 860px) { .ai-open { bottom: calc(132px + env(safe-area-inset-bottom)); } .to-top { bottom: calc(190px + env(safe-area-inset-bottom)); } }
 /* Assistant: a panel at the bottom right, the whole screen on a phone */
 dialog.chat { display: none; flex-direction: column; padding: 0; overflow: hidden; width: min(420px, calc(100vw - 24px)); height: min(640px, calc(100dvh - 32px));
   margin: auto 16px 16px auto; border-radius: 16px; box-shadow: 0 12px 40px rgba(0, 0, 0, .45); }
@@ -1219,10 +1220,11 @@ button.small { min-height: 30px; padding: 2px 10px; font-size: .85rem; }
 .cc-disc { width: 44px; height: 44px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); }
 .cc-disc.spinning .icon { animation: cc-spin 3s linear infinite; color: var(--accent); }
 @keyframes cc-spin { to { transform: rotate(360deg); } }
-.cc-controls { display: flex; justify-content: center; align-items: center; gap: 14px; }
+.cc-controls { display: flex; justify-content: center; align-items: center; gap: 14px; margin: 6px 0; }
 .cc-play { width: 56px; height: 56px; border-radius: 50%; padding: 0; display: grid; place-items: center; }
 .cc-play .icon { width: 26px; height: 26px; }
-.cc-volume { display: flex; align-items: center; gap: 6px; }
+.cc-volume { display: flex; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.cc-files:empty { display: none; }
 .cc-volume .on { color: var(--warn); border-color: var(--warn); }
 .cc-drop { position: relative; display: flex; align-items: center; gap: 8px; padding: 14px; border: 2px dashed var(--line); border-radius: var(--radius); cursor: pointer; justify-content: center; }
 .cc-drop:hover, .cc-drop:focus-within { border-color: var(--accent); }
@@ -1296,3 +1298,11 @@ button.busy { cursor: progress; }
 .guide ol.guide-steps > li { display: list-item; }
 .guide-steps .copy-line { width: 100%; }
 .copy-line pre { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; }
+/* A phone or computer ringing right now: one clear way to stop it */
+.ring-now { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-basis: 100%; padding: 8px 10px; border-radius: var(--radius); border: 1px solid var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.ring-pulse { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--warn); animation: ring-shake 1s ease-in-out infinite; }
+@keyframes ring-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-14deg); } 40% { transform: rotate(14deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) { .ring-pulse { animation: none; } }
+.cc-power { display: flex; flex-wrap: wrap; gap: 8px; }
+.cc-ring { flex: 0 1 auto; }
+.cc-head .cc-ring:has(.ring-now) { flex: 1 1 100%; }

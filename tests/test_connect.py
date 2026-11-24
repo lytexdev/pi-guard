@@ -72,6 +72,10 @@ async def test_media_ring_and_text_are_fixed_actions(tmp_path: Path) -> None:
         assert (await client.post(f"{url}/media", json=bad, headers=headers)).status == 400
         assert (await client.post(f"{url}/ring", headers=headers)).status == 200
         assert agent.requests[-1]["note"]  # in the owner's language
+        assert (await client.delete(f"{url}/ring", headers=headers)).status == 200
+        assert agent.requests[-1]["cmd"] == "ring_stop"  # never "ring": an older agent would ring
+        rows = await (await client.get("/api/connect")).json()
+        assert rows[0]["can_power"] is False  # not reported yet
         assert (await client.post(f"{url}/text", json={"text": " "}, headers=headers)).status == 400
         sent = await client.post(f"{url}/text", json={"text": "hi", "copy": True}, headers=headers)
         assert sent.status == 200 and agent.requests[-1] == {

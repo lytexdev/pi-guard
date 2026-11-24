@@ -35,7 +35,10 @@ count as alive, so a login page that says 401 is fine. Alerts follow the rules
 ## Network management
 
 Everything about the home network under **Network**: Pi-hole, Wi-Fi networks, devices, blocked
-websites, block lists, VPN access, the map and the analysis.
+websites, block lists, VPN access, the map and the analysis. Since 1.19 this is part of pi-guard, not an add-on: it runs
+whenever Pi-hole is connected, and the add-ons page no longer lists it. Pi-hole, VPN, Cloudflare DDNS and Tailscale stay
+add-ons of their own; the router, Pi-hole and DNS fields under *Settings → Network* only show while their add-on is on
+(the DDNS token is set on the Cloudflare DDNS page).
 
 **Wi-Fi and device names:** with the FRITZ!Box password set, the router lists its Wi-Fi networks
 including the guest network, and the names it knows ("Galaxy-von-Ben"), read-only. You can
@@ -82,7 +85,9 @@ like KDE Connect, for computers with the pi-guard agent ([agent.md](agent.md)):
 - **Send files:** several at once, with a progress bar and *Cancel*, up to 2 GB each. They go to
   `~/Downloads/pi-guard` (or `RECEIVE_DIR`), never replace a file (`name (2).pdf`), and pass through the Pi in pieces
   of 512 kB without being kept there. The computer checks size and SHA-256 and removes a file that arrived incomplete.
-- **Ring:** a notification and a ringing sound three times, to find a laptop.
+- **Ring:** a notification and a ringing sound for up to 30 seconds, to find a laptop; *Stop ringing* ends it at once
+  (a command of its own, `ring_stop`, so an agent from 1.18 never starts ringing on it).
+- **Power:** lock, sleep, restart and shut down, as on the Server page: two confirmations and the computer's name typed.
 - **Send text:** a link, code or note as a notification, and on the clipboard if wanted (Wayland, `wl-copy`).
 
 Each computer allows these itself, in `/etc/pi-guard-agent/agent.conf`:

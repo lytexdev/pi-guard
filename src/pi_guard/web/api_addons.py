@@ -41,7 +41,8 @@ ADDONS = ("heartbeat", "analytics", "smarthome", "remote", "assistant", "agents"
 # Shown as one add-on, "Server": the agent part carries the switch, the watcher is its section.
 # A chat picture of up to 2 MB (MAX_CHAT_IMAGE) as base64, with its question.
 _read_chat = json_body_limit(3_000_000)
-LISTED = tuple(a for a in ADDONS if a != "heartbeat")
+# The service watcher belongs to Server; network analysis is part of the Network page.
+LISTED = tuple(a for a in ADDONS if a not in ("heartbeat", "analytics"))
 SERVER_PARTS = ("agents", "heartbeat")
 # What an add-on leaves on the disk.
 ADDON_FILES = {
@@ -111,7 +112,6 @@ async def catalog(request: web.Request) -> web.Response:
     config = saved.model_dump(mode="json")
     s = d.settings
     needs = {
-        "analytics": None if s.pihole_enabled else "web.addon_needs_pihole",
         "smarthome": None if s.mqtt_host else "web.addon_needs_mqtt",
         "kids": None
         if s.pihole_enabled or app.fritz is not None

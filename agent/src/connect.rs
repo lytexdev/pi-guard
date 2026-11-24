@@ -164,13 +164,24 @@ fn note<'a>(request: &'a Value, fallback: &'a str) -> String {
     request["note"].as_str().unwrap_or(fallback).chars().filter(|c| !c.is_control()).take(200).collect()
 }
 
+/// Rings until stopped (`ring_stop`, a command of its own: an older agent must not ring on it) or for RING_FOR at most; each sound is a few seconds,
+/// so a stop is heard within one of them. A new ring replaces one that still runs.
+const RING_FOR: Duration = Duration::from_secs(30);
+static RING: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn ring(config: &Config, request: &Value) -> Result<Value, String> {
+    use std::sync::atomic::Ordering;
+    let turn = RING.fetch_add(1, Ordering::SeqCst) + 1;
+    if request["cmd"].as_str() == Some("ring_stop") {
+        return Ok(json!(true)); // the running loop sees a newer turn and ends
+    }
     let _ = as_user(config, &["notify-send", "--urgency=critical", "--app-name=pi-guard", "pi-guard", &note(request, "Someone is looking for this computer")]);
     let config = config.clone();
     std::thread::spawn(move || {
-        for _ in 0..3 {
-            if as_user(&config, &["paplay", RING_SOUND]).is_err() {
-                let _ = as_user(&config, &["pw-play", RING_SOUND]);
+        let started = Instant::now();
+        while RING.load(Ordering::SeqCst) == turn && started.elapsed() < RING_FOR {
+            if as_user(&config, &["paplay", RING_SOUND]).is_err() && as_user(&config, &["pw-play", RING_SOUND]).is_err() {
+                break; // no sound player: the notification has to do
             }
         }
     });
@@ -329,13 +340,13 @@ fn file(config: &Config, request: &Value) -> Result<Value, String> {
 
 pub fn run(config: &Config, request: &Value) -> Option<Result<Value, String>> {
     let cmd = request["cmd"].as_str()?;
-    let part = match cmd { "media" => "media", "ring" => "ring", "text" => "text", "file" => "files", _ => return None };
+    let part = match cmd { "media" => "media", "ring" | "ring_stop" => "ring", "text" => "text", "file" => "files", _ => return None };
     if !wants(config, part) {
         return Some(Err(format!("{part} is not allowed on this computer (CONNECT in agent.conf)")));
     }
     Some(match cmd {
         "media" => media(config, request),
-        "ring" => ring(config, request),
+        "ring" | "ring_stop" => ring(config, request),
         "text" => text(config, request),
         _ => file(config, request),
     })

@@ -32,7 +32,9 @@ Handy; sein Schlüssel gilt dann sofort nicht mehr.
   Mach das einmal zu Hause. Der gesamte Verkehr läuft dann über dein Zuhause.
 - **Handy finden:** auf der Seite **Geräte finden** (Navigation, auf dem Handy unter *Mehr*; auch unter *System →
   Updates*) oder mit `/finden Name` im Chat. Es klingelt in voller Lautstärke und vibriert; *Vibrieren* lässt es nur
-  vibrieren, ohne Ton (ab App 1.18, ältere Apps klingeln). Vermisste Handys stehen dort oben. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
+  vibrieren, ohne Ton (ab App 1.18, ältere Apps klingeln). Vermisste Handys stehen dort oben.
+  Klingelt oder vibriert ein Handy, zeigt seine Karte das mit *Klingeln beenden*; es hört auch nach zwei Minuten von
+  selbst auf oder mit dem Knopf in seiner Benachrichtigung. Standort, Karte und Details gehen nur raus, wenn der Besitzer *Standort teilen* eingeschaltet hat. Das Handy
   zeigt an, dass jemand es sucht. Die Kartenkacheln holt der Pi von OpenStreetMap, und nur, wenn jemand die Karte öffnet.
 - **Standort-Link:** *Standort-Link* fragt das Handy sofort nach seinem Standort, ohne Klingeln, und zeigt einen Link mit
   der Genauigkeit (± Meter) zum Öffnen, Kopieren oder Teilen. Drinnen hat ein Handy manchmal kein GPS; dann kommt nichts

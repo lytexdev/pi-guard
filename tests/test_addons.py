@@ -594,7 +594,7 @@ async def test_addons_are_configured_in_the_dashboard(tmp_path: Path) -> None:
         headers = {"X-CSRF-Token": csrf}
         data = await (await client.get("/api/addons")).json()
         assert {a["id"] for a in data["addons"]} == {
-            "analytics", "smarthome", "remote", "assistant", "agents", "languages",
+            "smarthome", "remote", "assistant", "agents", "languages",
             "medical", "proxy", "kids"}  # fmt: skip
         assert not any(a["enabled"] for a in data["addons"])
         section = {"enabled": True, "targets": [{"id": "nas", "name": "NAS", "kind": "ping",

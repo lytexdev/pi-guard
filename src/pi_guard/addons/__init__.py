@@ -49,7 +49,8 @@ class Addons:
             from pi_guard.addons.heartbeat import HeartbeatWatcher
 
             self.heartbeat = HeartbeatWatcher(settings.heartbeat.targets, app.bus, app.db)
-        if settings.analytics.enabled and app.pihole is not None:
+        # Part of the Network page since 1.19, no add-on to switch: it runs wherever Pi-hole does.
+        if app.pihole is not None:
             from pi_guard.addons.analytics import NetworkAnalytics
             from pi_guard.addons.blocking import Blocks
 

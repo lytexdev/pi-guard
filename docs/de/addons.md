@@ -43,7 +43,8 @@ zurück, lauter, leiser, stumm, Auswahl des Players; über MPRIS mit `busctl` (k
 ohne Zusatzprogramm. Nur Titel, Interpret und Album verlassen den Computer. **Dateien schicken:** mehrere auf einmal, mit
 Fortschritt und *Abbrechen*, bis 2 GB je Datei; sie landen in `~/Downloads/pi-guard` (oder `RECEIVE_DIR`), ersetzen nie
 eine Datei und gehen in Stücken über den Pi, ohne dort gespeichert zu werden. Der Computer prüft Größe und SHA-256.
-**Klingeln:** Meldung und dreimal ein Klingelton. **Text senden:** als Meldung, auf Wunsch in die Zwischenablage
+**Klingeln:** Meldung und Klingelton bis zu 30 Sekunden, *Klingeln beenden* stoppt sofort. **Ein und aus:** sperren,
+Standby, neu starten, herunterfahren wie beim Server, mit zwei Bestätigungen und dem eingetippten Namen. **Text senden:** als Meldung, auf Wunsch in die Zwischenablage
 (Wayland, `wl-copy`). Jeder Computer erlaubt das selbst in `/etc/pi-guard-agent/agent.conf` mit `CONNECT_USER=anna` und
 `CONNECT=media,files,ring,text`; unter Linux richtet die Desktop-App das unter *PiGuard › Diesen Computer verbinden
 (Agent)* selbst ein, ohne Terminal und ohne Token zu kopieren. Alles läuft als diese Person in ihrer Sitzung (`systemd-run --user`), nie als root in
@@ -81,7 +82,8 @@ Ausschnitte gehen nur dann an einen Cloud-Anbieter, wenn Sie das ausdrücklich e
 Steuer-ID verlässt dann Ihr Zuhause. Mit Ollama bleibt alles im Heimnetz. Sprachmodelle
 können sich irren: Prüfen Sie wichtige Zahlen im Dokument.
 
-**Netzwerk-Verwaltung:** Unter Netzwerk finden Sie WLANs (auch Gast-WLAN), Geräte mit Namen aus
+**Netzwerk-Verwaltung** (seit 1.19 fester Teil von pi-guard, kein Add-on mehr; sie läuft, sobald Pi-hole verbunden ist):
+Unter Netzwerk finden Sie WLANs (auch Gast-WLAN), Geräte mit Namen aus
 dem Router, gesperrte Webseiten, Sperrlisten, VPN und Karte. Eine eigene Sperrseite richtet
 `sudo ./scripts/blockpage.sh setup <freie-IP>` ein. Bei HTTPS erscheint sie nur auf Geräten mit
 installiertem pi-guard-Zertifikat, sonst zeigt der Browser eine eigene Warnung.

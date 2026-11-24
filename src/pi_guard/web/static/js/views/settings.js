@@ -78,7 +78,12 @@ export async function render(main, params = [], opts = {}) {
   const data = await api("/api/settings");
   const inputs = new Map();
   const wanted = (group) => state.session?.modules?.[group] !== false;  // switched off under Add-ons
+  // Fields of an add-on that lives in the network group: only while that add-on is on, and the
+  // add-on's own page is where it is set up (Cloudflare DDNS keeps its token there).
+  const ownedBy = (key) => (key.startsWith("ddns_") ? "ddns" : key.startsWith("pihole_") ? "pihole" : null);
+  const shown = (f) => !ownedBy(f.key) || state.session?.modules?.[ownedBy(f.key)] === true;
   const fields = data.fields.filter((f) => {
+    if (!shown(f)) return false;
     if (opts.secretsOnly) return f.kind === "secret" && wanted(f.group);
     return (!opts.groups || opts.groups.includes(f.group))
       && (!opts.keys || opts.keys.includes(f.key))
@@ -104,7 +109,7 @@ export async function render(main, params = [], opts = {}) {
     opts.embedded ? null : h("div", { class: "topbar" }, h("h1", {}, t("web.nav_settings")), save),
     data.overrides.length && !opts.embedded ? h("p", { class: "notice" }, t("web.overrides_note")) : null,
     h("div", { class: "grid wide" }, groups.map((group) => h("section", { class: "panel", dataset: { foldDefault: data.values[`${group}_enabled`] === false ? "closed" : "open" } },
-      h("h2", {}, GROUP_ICONS[group] ? [icon(GROUP_ICONS[group]), " "] : null, t(`web.group_${group}`)),
+      h("h2", {}, GROUP_ICONS[group] ? [icon(GROUP_ICONS[group]), " "] : null, t(opts.titles?.[group] || `web.group_${group}`)),
       fields.filter((f) => f.group === group).map((field) => {
         const el = control(field, data.values[field.key], data.secrets || {});
         inputs.set(field.key, el);

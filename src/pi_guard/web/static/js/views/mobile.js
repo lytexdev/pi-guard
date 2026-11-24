@@ -79,6 +79,24 @@ async function reportLost(device, draw) {
   if (await attempt(() => api(`/api/mobile/devices/${device.id}/lost`, { method: "POST", body: { message, password } }), t("web.mob_lost_done"))) draw();
 }
 
+// Phones this page made ring or vibrate, until when: the phone stops by itself after two
+// minutes (RING_FOR in the app), or when someone taps Stop there or here.
+const RING_MS = 120_000;
+const ringing = new Map();
+
+async function ring(device, draw, sound) {
+  if (!await attempt(() => api(`/api/mobile/devices/${device.id}/find`, { method: "POST", body: { sound } }), t(sound ? "web.mob_ringing" : "web.mob_vibrating"))) return;
+  ringing.set(device.id, { until: Date.now() + RING_MS, sound });
+  draw();
+  setTimeout(() => { if (ringing.get(device.id)?.until <= Date.now()) { ringing.delete(device.id); draw(); } }, RING_MS + 500);
+}
+
+async function stopRing(device, draw) {
+  await attempt(() => api(`/api/mobile/devices/${device.id}/stop`, { method: "POST" }), t("web.mob_stopped"));
+  ringing.delete(device.id);
+  draw();
+}
+
 export function card(device, draw) {
   const info = device.info;
   const place = h("div", { class: "stack tight phone-place" });
@@ -88,9 +106,13 @@ export function card(device, draw) {
       device.tracking ? [" ", h("span", { class: "badge danger" }, t(device.tracking.kind === "lost" ? "web.mob_is_lost" : "web.mob_is_emergency"))] : null),
       h("small", { class: "block" }, device.last_seen ? t("web.last_used", { time: when(device.last_seen) }) : t("web.never_used")), facts ? h("small", { class: "block" }, facts) : null),
     h("div", { class: "phone-actions" },
-    h("button", { title: t("web.mob_find_tip"), disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/find`, { method: "POST", body: { sound: true } }), t("web.mob_ringing")) }, icon("bell-ringing"), t("web.mob_find")),
-    h("button", { title: t("web.mob_vibrate_tip"), disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/find`, { method: "POST", body: { sound: false } }), t("web.mob_vibrating")) }, icon("device-mobile-vibration"), t("web.mob_vibrate")),
-    h("button", { class: "ghost", disabled: !device.online, onclick: () => attempt(() => api(`/api/mobile/devices/${device.id}/stop`, { method: "POST" })) }, t("web.mob_stop")),
+    ringing.get(device.id)?.until > Date.now()
+      ? h("div", { class: "ring-now", role: "status" }, h("span", { class: "ring-pulse", "aria-hidden": "true" }, icon(ringing.get(device.id).sound ? "bell-ringing" : "device-mobile-vibration")),
+        h("span", { class: "grow" }, t(ringing.get(device.id).sound ? "web.mob_ringing" : "web.mob_vibrating")),
+        h("button", { class: "danger", onclick: () => stopRing(device, draw) }, icon("x"), t("web.mob_stop_ring")))
+      : [h("button", { title: t("web.mob_find_tip"), disabled: !device.online, onclick: () => ring(device, draw, true) }, icon("bell-ringing"), t("web.mob_find")),
+        h("button", { title: t("web.mob_vibrate_tip"), disabled: !device.online, onclick: () => ring(device, draw, false) }, icon("device-mobile-vibration"), t("web.mob_vibrate")),
+        h("button", { class: "ghost", title: t("web.mob_stop_tip"), onclick: () => stopRing(device, draw) }, icon("x"), t("web.mob_stop"))],
     h("button", { title: t("web.mob_place_tip"), disabled: !device.online, onclick: () => placeLink(device, place) }, icon("map-pin"), t("web.mob_place_link")),
     info.latitude != null ? h("button", { class: "icon-only", title: t("web.mob_map_tip"), onclick: () => fill(place, mapOf(info), h("a", { href: device.map, target: "_blank", rel: "noopener" }, t("web.mob_open")), info.located_at ? h("small", { class: "muted" }, when(info.located_at)) : null) }, icon("world")) : null,
     device.tracking
